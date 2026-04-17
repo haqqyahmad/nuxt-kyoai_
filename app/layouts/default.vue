@@ -9,7 +9,7 @@ const open = ref(false);
 const links = [
   [
     {
-      label: "Home",
+      label: "Dashboard",
       icon: "i-lucide-house",
       to: "/",
       onSelect: () => {
@@ -70,6 +70,12 @@ const links = [
           },
         },
       ],
+    },
+    {
+      label: "User",
+      icon: "i-lucide-user",
+      to: "/users",
+      target: "_blank",
     },
   ],
   [
