@@ -2,7 +2,7 @@
 import * as z from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
 import type { AxiosInstance } from "axios";
-import { handleError, handleSuccess, showError } from "~/utils/handlers";
+import { handleError, handleSuccess, showErrors } from "~/utils/handlers";
 
 const schema = z.object({
   name: z.string().min(2, "Too short"),
@@ -42,7 +42,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
 
   if (state.password !== state.confirm_password) {
-    showError(toast, "Password tidak sama");
+    showErrors(toast, "Password tidak sama");
     return;
   }
 
