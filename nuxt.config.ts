@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   ],
 
   devtools: {
-    enabled: true
+    enabled: false
   },
 
   css: ['~/assets/css/main.css'],
@@ -26,6 +26,13 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
+    }
+  },
+  
+   runtimeConfig: {
+    public: {
+      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE,
+      apiKey: import.meta.env.NUXT_PUBLIC_API_KEY
     }
   }
 })
