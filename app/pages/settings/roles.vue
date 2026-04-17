@@ -13,17 +13,24 @@ const api = useApi()
 const toast = useToast()
 const { copy } = useClipboard()
 
-type User = {
+type Roles = {
   id: number
   name: string
-  email: string
   createdAt: string
 }
-const { data: users } = await api.get('/users')
+const { data: roles } = await api.get('/settings/roles')
 
-const data = computed(() => users?.data ?? [])
+const data = computed(() => {
+    return (roles?.data ?? []).map((role: Roles) => ({
+      id: role.id,
+      name: role.name,
+      createdAt: role.createdAt
+    }))
+})
+console.log( 'datas ',data)
+console.log( 'datas roles ',roles)
 
-const columns: TableColumn<User>[] = [
+const columns: TableColumn<Roles>[] = [
   {
     accessorKey: 'id',
     header: 'ID',
@@ -33,11 +40,6 @@ const columns: TableColumn<User>[] = [
     accessorKey: 'name',
     header: 'Name',
     cell: ({ row }) => row.getValue('name')
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => row.getValue('email')
   },
   {
     accessorKey: 'createdAt',
@@ -55,10 +57,6 @@ const columns: TableColumn<User>[] = [
 ]
 const table = useTemplateRef('table')
 
-function randomize() {
-    console.log(data)
-  data.value.id = [...data.value.id].sort(() => Math.random() - 0.5)
-}
 </script>
 
 <template>
@@ -68,10 +66,10 @@ function randomize() {
         <div class="flex flex-col h-[calc(100vh-64px)] divide-y divide-accented w-full">
             <div class="flex items-center gap-2 px-4 py-3.5 ">
               <UInput
-                :model-value="(table?.tableApi?.getColumn('email')?.getFilterValue() as string)"
+                :model-value="(table?.tableApi?.getColumn('name')?.getFilterValue() as string)"
                 class="max-w-sm min-w-[12ch]"
-                placeholder="Filter emails..."
-                @update:model-value="table?.tableApi?.getColumn('email')?.setFilterValue($event)"
+                placeholder="Filter names..."
+                @update:model-value="table?.tableApi?.getColumn('name')?.setFilterValue($event)"
               />
         
         
