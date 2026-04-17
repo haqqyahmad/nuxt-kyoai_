@@ -59,7 +59,15 @@ const links = [[{
     onSelect: () => {
       open.value = false
     }
-  }]
+  },
+  {
+    label: 'Role',
+    to: '/settings/roles',
+    onSelect: () => {
+      open.value = false
+    }
+  }
+]
 }, {
   label: 'User',
   icon: 'i-lucide-user',
