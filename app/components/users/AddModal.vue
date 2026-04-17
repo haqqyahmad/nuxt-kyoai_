@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import * as z from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
+import type { AxiosInstance } from "axios";
+import { handleError, handleSuccess, showError } from "~/utils/handlers";
 
 const schema = z.object({
   name: z.string().min(2, "Too short"),
   email: z.string().email("Invalid email"),
+  password: z
+    .string("Password is required")
+    .min(8, "Must be at least 8 characters"),
+  confirm_password: z
+    .string("Password is required")
+    .min(8, "Must be at least 8 characters"),
 });
+
+const loading = ref(false);
 const open = ref(false);
 
 type Schema = z.output<typeof schema>;
@@ -13,18 +23,47 @@ type Schema = z.output<typeof schema>;
 const state = reactive<Partial<Schema>>({
   name: "",
   email: "",
+  password: "",
+  confirm_password: "",
 });
 
+const api = useApi();
+const { registerUser } = useAuth();
 const toast = useToast();
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  toast.add({
-    title: "Success",
-    description: `New user ${event.data.name} added`,
-    color: "success",
-  });
+
+function resetForm() {
   state.name = "";
   state.email = "";
-  open.value = false;
+  state.password = "";
+  state.confirm_password = "";
+}
+
+async function onSubmit(event: FormSubmitEvent<Schema>) {
+  if (loading.value) return;
+
+  if (state.password !== state.confirm_password) {
+    showError(toast, "Password tidak sama");
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await registerUser({
+      name: state.name,
+      email: state.email,
+      password: state.password,
+      confirm_password: state.confirm_password,
+    });
+
+    handleSuccess(toast, state.name);
+    resetForm();
+    open.value = false;
+  } catch (err: any) {
+    handleError(toast, err);
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
@@ -52,6 +91,20 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           name="email"
         >
           <UInput v-model="state.email" class="w-full" />
+        </UFormField>
+        <UFormField label="Password" placeholder="John Doe" name="password">
+          <UInput type="password" v-model="state.password" class="w-full" />
+        </UFormField>
+        <UFormField
+          label="Confirm Password"
+          placeholder="John Doe"
+          name="confirm_password"
+        >
+          <UInput
+            type="password"
+            v-model="state.confirm_password"
+            class="w-full"
+          />
         </UFormField>
         <div class="flex justify-end gap-2">
           <UButton
