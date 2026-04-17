@@ -1,0 +1,126 @@
+<script setup lang="ts">
+import * as z from "zod";
+import type { FormSubmitEvent } from "@nuxt/ui";
+import type { AxiosInstance } from "axios";
+import { handleError, handleSuccess, showError } from "~/utils/handlers";
+
+const schema = z.object({
+  name: z.string().min(2, "Too short"),
+  email: z.string().email("Invalid email"),
+  password: z
+    .string("Password is required")
+    .min(8, "Must be at least 8 characters"),
+  confirm_password: z
+    .string("Password is required")
+    .min(8, "Must be at least 8 characters"),
+});
+
+const loading = ref(false);
+const open = ref(false);
+
+type Schema = z.output<typeof schema>;
+
+const state = reactive<Partial<Schema>>({
+  name: "",
+  email: "",
+  password: "",
+  confirm_password: "",
+});
+
+const api = useApi();
+const { registerUser } = useAuth();
+const toast = useToast();
+
+function resetForm() {
+  state.name = "";
+  state.email = "";
+  state.password = "";
+  state.confirm_password = "";
+}
+
+async function onSubmit(event: FormSubmitEvent<Schema>) {
+  if (loading.value) return;
+
+  if (state.password !== state.confirm_password) {
+    showError(toast, "Password tidak sama");
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await registerUser({
+      name: state.name,
+      email: state.email,
+      password: state.password,
+      confirm_password: state.confirm_password,
+    });
+
+    handleSuccess(toast, state.name);
+    resetForm();
+    open.value = false;
+  } catch (err: any) {
+    handleError(toast, err);
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+
+<template>
+  <UModal
+    v-model:open="open"
+    title="New User"
+    description="Add a new user to the database"
+  >
+    <UButton label="New User" icon="i-lucide-plus" />
+
+    <template #body>
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
+        <UFormField label="Name" placeholder="John Doe" name="name">
+          <UInput v-model="state.name" class="w-full" />
+        </UFormField>
+        <UFormField
+          label="Email"
+          placeholder="john.doe@example.com"
+          name="email"
+        >
+          <UInput v-model="state.email" class="w-full" />
+        </UFormField>
+        <UFormField label="Password" placeholder="John Doe" name="password">
+          <UInput type="password" v-model="state.password" class="w-full" />
+        </UFormField>
+        <UFormField
+          label="Confirm Password"
+          placeholder="John Doe"
+          name="confirm_password"
+        >
+          <UInput
+            type="password"
+            v-model="state.confirm_password"
+            class="w-full"
+          />
+        </UFormField>
+        <div class="flex justify-end gap-2">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="subtle"
+            @click="open = false"
+          />
+          <UButton
+            label="Create User"
+            color="primary"
+            variant="solid"
+            type="submit"
+          />
+        </div>
+      </UForm>
+    </template>
+  </UModal>
+</template>
