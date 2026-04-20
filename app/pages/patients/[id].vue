@@ -225,7 +225,7 @@ const getPhotoUrl = () => {
 </script>
 
 <template>
-  <UDashboardPanel :id="`patient-${route.params.id}`">
+  <UDashboardPanel :id="`patient-${route.params.id}`" >
     <UDashboardNavbar :title="fullName">
       <template #leading>
         <UButton
@@ -504,60 +504,78 @@ const getPhotoUrl = () => {
       </div>
 
       <!-- Alamat -->
-      <div class="rounded-xl border border-accented overflow-hidden">
-        <div
-          class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between"
-        >
-          <h3 class="text-sm font-medium flex items-center gap-2">
-            <UIcon name="i-lucide-map-pin" />
-            Alamat
-          </h3>
-          <UBadge
-            :label="`${patient.addresses?.length ?? 0} alamat`"
-            color="neutral"
-            variant="subtle"
-            size="xs"
-          />
-        </div>
 
-        <div
-          v-if="!patient.addresses?.length"
-          class="p-6 text-sm text-muted text-center"
-        >
-          Belum ada alamat.
-        </div>
-
-        <div v-else class="divide-y divide-accented">
+      <UCollapsible :default-open="true" class="rounded-xl border border-accented overflow-hidden">
+        <!-- HEADER (trigger) -->
+        <template #default="{ open }">
           <div
-            v-for="address in patient.addresses"
-            :key="address.id"
-            class="p-4 space-y-1"
+            class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between cursor-pointer"
           >
+            <h3 class="text-sm font-medium flex items-center gap-2">
+              <UIcon name="i-lucide-map-pin" />
+              Alamat
+            </h3>
+
             <div class="flex items-center gap-2">
               <UBadge
-                :label="address.type"
+                :label="`${patient.addresses?.length ?? 0} alamat`"
                 color="neutral"
-                variant="outline"
+                variant="subtle"
                 size="xs"
               />
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="transition-transform"
+                :class="{ 'rotate-180': open }"
+              />
             </div>
-            <p class="text-sm">{{ address.detail }}</p>
-            <p class="text-xs text-muted">
-              {{
-                [
-                  address.district,
-                  address.city,
-                  address.province,
-                  address.country,
-                ].join(", ")
-              }}
-            </p>
-            <p v-if="address.note" class="text-xs text-muted italic">
-              {{ address.note }}
-            </p>
           </div>
-        </div>
-      </div>
+        </template>
+
+        <!-- CONTENT -->
+        <template #content>
+          <div
+            v-if="!patient.addresses?.length"
+            class="p-6 text-sm text-muted text-center"
+          >
+            Belum ada alamat.
+          </div>
+
+          <div v-else class="divide-y divide-accented">
+            <div
+              v-for="address in patient.addresses"
+              :key="address.id"
+              class="p-4 space-y-1"
+            >
+              <div class="flex items-center gap-2">
+                <UBadge
+                  :label="address.type"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                />
+              </div>
+
+              <p class="text-sm">{{ address.detail }}</p>
+
+              <p class="text-xs text-muted">
+                {{
+                  [
+                    address.district,
+                    address.city,
+                    address.province,
+                    address.country,
+                  ].join(", ")
+                }}
+              </p>
+
+              <p v-if="address.note" class="text-xs text-muted italic">
+                {{ address.note }}
+              </p>
+            </div>
+          </div>
+        </template>
+      </UCollapsible>
 
       <!-- Riwayat Perusahaan -->
       <div class="rounded-xl border border-accented overflow-hidden">
