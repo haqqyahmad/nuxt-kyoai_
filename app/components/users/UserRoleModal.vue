@@ -43,6 +43,15 @@ const selectedRoleIds = ref<number[]>([]);
 const viewingRole = ref<Role | null>(null);
 const showPermissions = ref(false);
 
+function formatPermission(name: string) {
+  return name
+    .replace(":", " ")
+    .replace("-", " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 async function fetchRoles() {
   loadingData.value = true;
   try {
@@ -183,12 +192,14 @@ function backToRoles() {
               class="text-success mt-0.5 shrink-0"
             />
             <div>
-              <p class="text-sm font-medium">{{ item.permission.name }}</p>
+              <p class="text-sm font-medium">
+                {{ formatPermission(item.permission.name) }}
+              </p>
               <p
                 v-if="item.permission.description"
                 class="text-xs text-muted mt-0.5"
               >
-                {{ item.permission.description }}
+                {{ formatPermission(item.permission.description) }}
               </p>
             </div>
           </div>
@@ -234,7 +245,9 @@ function backToRoles() {
           <!-- Role info -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ role.name }}</span>
+              <span class="text-sm font-medium">{{
+                formatPermission(role.name)
+              }}</span>
               <UBadge
                 :label="`${role.permissions.length} permission`"
                 color="neutral"

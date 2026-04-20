@@ -86,6 +86,15 @@ function clearAll() {
   selectedPermissionIds.value = [];
 }
 
+function formatPermission(name: string) {
+  return name
+    .replace(":", " ")
+    .replace("-", " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 async function savePermissions() {
   loading.value = true;
   try {
@@ -112,7 +121,6 @@ async function savePermissions() {
     v-model:open="open"
     :title="`Edit Permissions — ${role.name}`"
     description="Centang permission yang ingin diberikan ke role ini"
-    
   >
     <!-- Trigger -->
     <UButton
@@ -203,9 +211,11 @@ async function savePermissions() {
 
             <!-- Permission info -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium">{{ permission.name }}</p>
+              <p class="text-sm font-medium">
+                {{ formatPermission(permission.name) }}
+              </p>
               <p v-if="permission.description" class="text-xs text-muted">
-                {{ permission.description }}
+                {{ formatPermission(permission.description) }}
               </p>
             </div>
           </div>

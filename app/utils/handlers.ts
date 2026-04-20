@@ -1,5 +1,5 @@
 // utils/handlers.ts
-export const showError = (toast: any, message: string) => {
+export const showErrors = (toast: any, message: string) => {
     toast.add({
         title: "Failed",
         description: message,

@@ -3,19 +3,21 @@ import * as z from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
 import { handleError, handleSuccess } from "~/utils/handlers";
 
-const schema = z.object({
-  name: z.string().min(2, "Too short"),
-  email: z.string().email("Invalid email"),
-  password: z
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
-  confirm_password: z
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
-}).refine((data) => data.password === data.confirm_password, {
-  message: "Passwords don't match",
-  path: ["confirm_password"],
-});
+const schema = z
+  .object({
+    name: z.string().min(2, "Too short"),
+    email: z.string().email("Invalid email"),
+    password: z
+      .string("Password is required")
+      .min(8, "Must be at least 8 characters"),
+    confirm_password: z
+      .string("Password is required")
+      .min(8, "Must be at least 8 characters"),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords don't match",
+    path: ["confirm_password"],
+  });
 
 const emit = defineEmits<{
   (e: "created"): void;
@@ -47,14 +49,13 @@ function resetForm() {
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
 
-  
   loading.value = true;
 
   try {
     await registerUser({
-      /** 
+      /**
        * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
-      */
+       */
       name: event.data.name,
       email: event.data.email,
       password: event.data.password,
@@ -89,7 +90,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         @submit="onSubmit"
       >
         <UFormField label="Name" placeholder="John Doe" name="name">
-          <UInput v-model="state.name" class="w-full" />
+          <UInput v-model="state.name" autofocus class="w-full" />
         </UFormField>
         <UFormField
           label="Email"
