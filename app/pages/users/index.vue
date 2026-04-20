@@ -21,7 +21,7 @@ type User = {
 
 const { data: users, refresh } = await useAsyncData(
   "users",
-  () => api.get("/users").then((res) => res.data.data)
+  () => api.get("/users?limit='100'").then((res) => res.data.data)
 );
 
 const data = computed(() => users.value ?? []);

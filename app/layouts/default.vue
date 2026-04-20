@@ -71,8 +71,14 @@ const links = [[{
 }, {
   label: 'User',
   icon: 'i-lucide-user',
-  to: '/users',
-  target: '_blank'
+  to: '/users'
+},{
+  label: 'Patients',
+  icon: 'i-lucide-users',
+  to: '/patients',
+  onSelect: () => {
+    open.value = false
+  }
 }
 
 ], [{
