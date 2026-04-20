@@ -19,21 +19,11 @@ export const useAuth = () => {
     }
   }
 
-  const api = useApi() // pastikan kamu sudah punya instance axios/fetch
-
-  const registerUser = async (payload: {
-    name: string
-    email: string
-    password: string
-    confirm_password: string
-  }) => {
-    return await api.post("/auth/register", payload)
-  }
+ 
 
   return {
     getToken,
     setToken,
-    removeToken,
-    registerUser
+    removeToken
   }
 }
