@@ -3,6 +3,7 @@ import { h, resolveComponent } from "vue";
 import { upperFirst } from "scule";
 import type { TableColumn } from "@nuxt/ui";
 import { useClipboard } from "@vueuse/core";
+import { getPaginationRowModel } from "@tanstack/table-core";
 import type { Row } from "@tanstack/table-core";
 
 const UButton = resolveComponent("UButton");
@@ -212,6 +213,13 @@ const email = computed({
       ?.setFilterValue(value || undefined);
   },
 });
+
+const currentPageSize = computed({
+  get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
+  set: (value: number) => {
+    table.value?.tableApi?.setPageSize(value);
+  },
+});
 </script>
 
 <template>
@@ -294,7 +302,9 @@ const email = computed({
         v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
-        v-model:pagination="pagination"
+        :pagination-options="{
+          getPaginationRowModel: getPaginationRowModel(),
+        }"
         class="w-full"
         :data="data"
         :columns="columns"
@@ -319,11 +329,23 @@ const email = computed({
         </div>
 
         <div class="flex items-center gap-1.5">
+          <USelect
+            v-model="currentPageSize"
+            :items="[
+              { label: '10 items', value: 10 },
+              { label: '20 items', value: 20 },
+              { label: '50 items', value: 50 },
+              { label: 'All', value: 1000 },
+            ]"
+            class="w-32"
+          />
           <UPagination
-            :page="pagination.pageIndex + 1"
-            :items-per-page="pagination.pageSize"
-            :total="data.length"
-            @update:page="(p) => (pagination.pageIndex = p - 1)"
+            :default-page="
+              (table?.tableApi?.getState().pagination.pageIndex || 0) + 1
+            "
+            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
+            :total="table?.tableApi?.getFilteredRowModel().rows.length"
+            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
           />
         </div>
       </div>
