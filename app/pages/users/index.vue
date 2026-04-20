@@ -19,9 +19,8 @@ type User = {
   createdAt: string;
 };
 
-const { data: users, refresh } = await useAsyncData(
-  "users",
-  () => api.get("/users").then((res) => res.data.data)
+const { data: users, refresh } = await useAsyncData("users", () =>
+  api.get("/users").then((res) => res.data.data),
 );
 
 const data = computed(() => users.value ?? []);
@@ -58,7 +57,6 @@ const columns: TableColumn<User>[] = [
   {
     id: "actions",
     header: "Actions",
-
   },
 ];
 
@@ -123,16 +121,10 @@ const table = useTemplateRef("table");
         </UDropdownMenu>
       </div>
 
-      <UTable
-        ref="table"
-        :data="data"
-        :columns="columns"
-        sticky
-        class="h-full"
-      >
-       <template #actions-cell="{ row }">
-    <UsersUserRoleModal :user="row.original" @updated="refresh" />
-  </template>
+      <UTable ref="table" :data="data" :columns="columns" sticky class="h-full">
+        <template #actions-cell="{ row }">
+          <UsersUserRoleModal :user="row.original" @updated="refresh" />
+        </template>
 
         <template #expanded="{ row }">
           <pre>{{ row.original }}</pre>

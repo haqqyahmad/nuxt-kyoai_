@@ -79,10 +79,12 @@ const links = [
       ],
     },
     {
-      label: "User",
+      label: "Users",
       icon: "i-lucide-user",
       to: "/users",
-      target: "_blank",
+      onSelect: () => {
+        open.value = false;
+      },
     },
   ],
   [
