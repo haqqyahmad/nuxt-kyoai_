@@ -50,6 +50,14 @@ function getRowItems(row: Row<User>) {
       label: 'Actions'
     },
     {
+      label: 'Edit user',
+      icon: 'i-lucide-edit',
+      to: `/users/${row.original.id}`
+    },
+    {
+      type: 'separator'
+    },
+    {
       label: 'Copy user ID',
       icon: 'i-lucide-copy',
       onSelect() {
