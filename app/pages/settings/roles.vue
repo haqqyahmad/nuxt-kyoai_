@@ -1,35 +1,36 @@
 <script setup lang="ts">
-import { h, resolveComponent } from "vue";
 import { upperFirst } from "scule";
 import type { TableColumn } from "@nuxt/ui";
-import { useClipboard } from "@vueuse/core";
+import RolePermissionsModal from "~/components/roles/RolePermissionsModal.vue";
 
-const UButton = resolveComponent("UButton");
-const UCheckbox = resolveComponent("UCheckbox");
-const UBadge = resolveComponent("UBadge");
-const UDropdownMenu = resolveComponent("UDropdownMenu");
 const api = useApi();
-const toast = useToast();
-const { copy } = useClipboard();
 
-type Roles = {
+type Permission = {
+  id: number;
+  name: string;
+  description?: string;
+};
+
+type RolePermission = {
+  roleId: number;
+  permissionId: number;
+  permission: Permission;
+};
+
+type Role = {
   id: number;
   name: string;
   createdAt: string;
+  permissions: RolePermission[];
 };
-const { data: roles } = await api.get("/settings/roles");
 
-const data = computed(() => {
-  return (roles?.data ?? []).map((role: Roles) => ({
-    id: role.id,
-    name: role.name,
-    createdAt: role.createdAt,
-  }));
-});
-console.log("datas ", data);
-console.log("datas roles ", roles);
+const { data: rolesData, refresh } = await useAsyncData("roles", () =>
+  api.get("/settings/roles").then((res) => res.data.data),
+);
 
-const columns: TableColumn<Roles>[] = [
+const data = computed(() => rolesData.value ?? []);
+
+const columns: TableColumn<Role>[] = [
   {
     accessorKey: "id",
     header: "ID",
@@ -53,7 +54,12 @@ const columns: TableColumn<Roles>[] = [
       });
     },
   },
+  {
+    id: "actions",
+    header: "Actions",
+  },
 ];
+
 const table = useTemplateRef("table");
 </script>
 
@@ -107,6 +113,10 @@ const table = useTemplateRef("table");
       </div>
 
       <UTable ref="table" :data="data" :columns="columns" sticky class="h-full">
+        <template #actions-cell="{ row }">
+          <RolePermissionsModal :role="row.original" @updated="refresh" />
+        </template>
+
         <template #expanded="{ row }">
           <pre>{{ row.original }}</pre>
         </template>

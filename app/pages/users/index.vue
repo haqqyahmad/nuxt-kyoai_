@@ -18,9 +18,13 @@ type User = {
   email: string;
   createdAt: string;
 };
-const { data: users } = await api.get("/users");
 
-const data = computed(() => users?.data ?? []);
+const { data: users, refresh } = await useAsyncData(
+  "users",
+  () => api.get("/users").then((res) => res.data.data)
+);
+
+const data = computed(() => users.value ?? []);
 
 const columns: TableColumn<User>[] = [
   {
@@ -51,13 +55,14 @@ const columns: TableColumn<User>[] = [
       });
     },
   },
-];
-const table = useTemplateRef("table");
+  {
+    id: "actions",
+    header: "Actions",
 
-function randomize() {
-  console.log(data);
-  data.value.id = [...data.value.id].sort(() => Math.random() - 0.5);
-}
+  },
+];
+
+const table = useTemplateRef("table");
 </script>
 
 <template>
@@ -67,7 +72,7 @@ function randomize() {
         <UDashboardSidebarCollapse />
       </template>
       <template #right>
-        <UsersAddModal />
+        <UsersAddModal @created="refresh" />
       </template>
     </UDashboardNavbar>
 
@@ -85,8 +90,6 @@ function randomize() {
             table?.tableApi?.getColumn('email')?.setFilterValue($event)
           "
         />
-
-        <!-- <UButton color="neutral" label="Randomize" @click="randomize" /> -->
 
         <UDropdownMenu
           :items="
@@ -120,7 +123,17 @@ function randomize() {
         </UDropdownMenu>
       </div>
 
-      <UTable ref="table" :data="data" :columns="columns" sticky class="h-full">
+      <UTable
+        ref="table"
+        :data="data"
+        :columns="columns"
+        sticky
+        class="h-full"
+      >
+       <template #actions-cell="{ row }">
+    <UsersUserRoleModal :user="row.original" @updated="refresh" />
+  </template>
+
         <template #expanded="{ row }">
           <pre>{{ row.original }}</pre>
         </template>

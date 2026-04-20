@@ -1,19 +1,27 @@
 <script setup lang="ts">
 import * as z from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
-import type { AxiosInstance } from "axios";
-import { handleError, handleSuccess, showErrors } from "~/utils/handlers";
+import { handleError, handleSuccess } from "~/utils/handlers";
 
-const schema = z.object({
-  name: z.string().min(2, "Too short"),
-  email: z.string().email("Invalid email"),
-  password: z
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
-  confirm_password: z
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
-});
+const schema = z
+  .object({
+    name: z.string().min(2, "Too short"),
+    email: z.string().email("Invalid email"),
+    password: z
+      .string("Password is required")
+      .min(8, "Must be at least 8 characters"),
+    confirm_password: z
+      .string("Password is required")
+      .min(8, "Must be at least 8 characters"),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords don't match",
+    path: ["confirm_password"],
+  });
+
+const emit = defineEmits<{
+  (e: "created"): void;
+}>();
 
 const loading = ref(false);
 const open = ref(false);
@@ -28,7 +36,7 @@ const state = reactive<Partial<Schema>>({
 });
 
 const api = useApi();
-const { registerUser } = useAuth();
+const { registerUser } = useUser();
 const toast = useToast();
 
 function resetForm() {
@@ -41,24 +49,23 @@ function resetForm() {
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value) return;
 
-  if (state.password !== state.confirm_password) {
-    showErrors(toast, "Password tidak sama");
-    return;
-  }
-
   loading.value = true;
 
   try {
     await registerUser({
-      name: state.name,
-      email: state.email,
-      password: state.password,
-      confirm_password: state.confirm_password,
+      /**
+       * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
+       */
+      name: event.data.name,
+      email: event.data.email,
+      password: event.data.password,
+      confirm_password: event.data.confirm_password,
     });
 
-    handleSuccess(toast, state.name);
+    handleSuccess(toast, event.data.name);
     resetForm();
     open.value = false;
+    emit("created");
   } catch (err: any) {
     handleError(toast, err);
   } finally {
@@ -117,6 +124,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             label="Create User"
             color="primary"
             variant="solid"
+            validate-on="input"
             type="submit"
           />
         </div>
