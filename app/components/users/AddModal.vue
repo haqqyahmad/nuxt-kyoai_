@@ -90,7 +90,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         @submit="onSubmit"
       >
         <UFormField label="Name" placeholder="John Doe" name="name">
-          <UInput v-model="state.name" class="w-full" />
+          <UInput v-model="state.name" autofocus class="w-full" />
         </UFormField>
         <UFormField
           label="Email"
