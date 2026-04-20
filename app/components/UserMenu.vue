@@ -25,7 +25,10 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   avatar: user.value.avatar
 }], [{
   label: 'Profile',
-  icon: 'i-lucide-user'
+  icon: 'i-lucide-user',
+  onSelect: () => {
+    navigateTo('/profile')
+  }
 }, {
   label: 'Billing',
   icon: 'i-lucide-credit-card'
@@ -147,7 +150,10 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   target: '_blank'
 }, {
   label: 'Log out',
-  icon: 'i-lucide-log-out'
+  icon: 'i-lucide-log-out',
+  onSelect: () => {
+    navigateTo('/logout')
+  }
 }]]))
 </script>
 
