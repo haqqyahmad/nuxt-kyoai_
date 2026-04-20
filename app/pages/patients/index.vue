@@ -49,14 +49,6 @@ function getRowItems(row: Row<Patient>) {
       label: "Actions",
     },
     {
-      label: "Edit patient",
-      icon: "i-lucide-edit",
-      to: `/patients/${row.original.id}`,
-    },
-    {
-      type: "separator",
-    },
-    {
       label: "View patient details",
       icon: "i-lucide-eye",
       to: `/patients/${row.original.id}`,

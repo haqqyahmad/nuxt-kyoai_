@@ -49,10 +49,15 @@ const { data: patient, refresh } = await useAsyncData(
 
 // State untuk edit mode
 const isEditing = ref(false);
-const editForm = ref<Partial<Patient>>({});
 const selectedPhotoFile = ref<File | null>(null);
 const photoPreview = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const editForm = ref<Partial<Patient>>({
+  gender: "",
+  maritalStatus: "",
+  idType: "",
+  bloodGroup: "",
+});
 
 const fullName = computed(() => {
   if (!patient.value) return "-";
@@ -87,7 +92,12 @@ const maritalLabel: Record<string, string> = {
   DIVORCED: "Cerai",
 };
 
-const bloodGroupOptions = ["A", "B", "AB", "O"];
+const bloodGroupOptions = [
+  { value: "A", label: "A" },
+  { value: "B", label: "B" },
+  { value: "AB", label: "AB" },
+  { value: "O", label: "O" },
+];
 const genderOptions = [
   { value: "MALE", label: "Laki-laki" },
   { value: "FEMALE", label: "Perempuan" },
@@ -97,15 +107,30 @@ const maritalOptions = [
   { value: "MARRIED", label: "Menikah" },
   { value: "DIVORCED", label: "Cerai" },
 ];
-const idTypeOptions = ["KTP", "SIM", "PASSPORT", "KITAS"];
+const idTypeOptions = [
+  { value: "KTP", label: "KTP" },
+  { value: "SIM", label: "SIM" },
+  { value: "PASSPORT", label: "Passport" },
+  { value: "KITAS", label: "KITAS" },
+];
 
 const defaultPhotoUrl =
   "https://ui-avatars.com/api/?background=0D8F81&color=fff&bold=true";
 
 // Fungsi untuk memulai edit
+const normalizeValue = (val?: string) => val?.toUpperCase() || "";
+
 const startEditing = () => {
   if (patient.value) {
-    editForm.value = { ...patient.value };
+    editForm.value = {
+      ...patient.value,
+      gender: normalizeValue(patient.value.gender),
+      maritalStatus: normalizeValue(patient.value.maritalStatus),
+      idType: normalizeValue(patient.value.idType),
+      bloodGroup: normalizeValue(patient.value.bloodGroup),
+      dob: formatDateForInput(patient.value.dob),
+    };
+
     photoPreview.value = patient.value.photoUrl || null;
     selectedPhotoFile.value = null;
     isEditing.value = true;
@@ -328,7 +353,6 @@ const getPhotoUrl = () => {
               <UInput
                 type="date"
                 v-model="editForm.dob"
-                :value="formatDateForInput(editForm.dob)"
                 size="sm"
                 class="flex-1"
               />
@@ -373,8 +397,12 @@ const getPhotoUrl = () => {
               <UIcon name="i-lucide-id-card" class="text-muted text-sm" />
               <USelect
                 v-model="editForm.idType"
-                :options="idTypeOptions"
-                size="sm"
+                :items="[
+                  { label: 'KTP', value: 'KTP' },
+                  { label: 'SIM', value: 'SIM' },
+                  { label: 'PASSPORT', value: 'PASSPORT' },
+                  { label: 'KITAS', value: 'KITAS' },
+                ]"
                 class="w-32"
               />
               <UInput
@@ -425,9 +453,12 @@ const getPhotoUrl = () => {
             <div v-else>
               <USelect
                 v-model="editForm.maritalStatus"
-                :options="maritalOptions"
-                placeholder="Pilih status"
-                size="sm"
+                :items="[
+                  { label: 'Belum Menikah', value: 'SINGLE' },
+                  { label: 'Menikah', value: 'MARRIED' },
+                  { label: 'Cerai', value: 'DIVORCED' },
+                ]"
+                class="w-32"
               />
             </div>
           </div>
@@ -441,9 +472,13 @@ const getPhotoUrl = () => {
             <div v-else>
               <USelect
                 v-model="editForm.bloodGroup"
-                :options="bloodGroupOptions"
-                placeholder="Pilih"
-                size="sm"
+                :items="[
+                  { label: 'A', value: 'A' },
+                  { label: 'B', value: 'B' },
+                  { label: 'AB', value: 'AB' },
+                  { label: 'O', value: 'O' },
+                ]"
+                class="w-32"
               />
             </div>
           </div>
@@ -457,8 +492,11 @@ const getPhotoUrl = () => {
             <div v-else>
               <USelect
                 v-model="editForm.gender"
-                :options="genderOptions"
-                size="sm"
+                :items="[
+                  { label: 'Laki-laki', value: 'MALE' },
+                  { label: 'Perempuan', value: 'FEMALE' },
+                ]"
+                class="w-32"
               />
             </div>
           </div>
