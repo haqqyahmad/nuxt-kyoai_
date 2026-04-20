@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
 
-const route = useRoute();
-const toast = useToast();
+const route = useRoute()
+const toast = useToast()
 
 const open = ref(false);
 
@@ -38,7 +38,7 @@ const links = [
       to: "/settings",
       icon: "i-lucide-settings",
       defaultOpen: true,
-      type: "trigger",
+      type: 'trigger',
       children: [
         {
           label: "General",
@@ -70,7 +70,7 @@ const links = [
           },
         },
         {
-          label: "Role",
+          label: "Roles",
           to: "/settings/roles",
           onSelect: () => {
             open.value = false;
