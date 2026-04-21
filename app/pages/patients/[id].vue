@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute();
 const api = useApi();
+const toast = useToast();
 
 type Address = {
   id: string;
@@ -197,14 +198,14 @@ const saveChanges = async () => {
     cancelEditing();
 
     // Tampilkan notifikasi sukses
-    useToast().add({
+    add({
       title: "Berhasil",
       description: "Data pasien berhasil diperbarui",
       color: "success",
     });
   } catch (error) {
     console.error("Error saving patient data:", error);
-    useToast().add({
+    add({
       title: "Gagal",
       description: "Gagal memperbarui data pasien",
       color: "error",
@@ -272,15 +273,16 @@ const saveAddress = async () => {
   if (!patient.value || !editingAddress.value) return;
   isAddressLoading.value = true;
 
+  // Simpan dulu sebelum di-null-kan oleh closeAddressModal()
+  const isUpdate = !!editingAddress.value.id;
+
   try {
-    if (editingAddress.value.id) {
-      // Update existing address
+    if (isUpdate) {
       await api.post(
         `/patient/${patient.value.id}/address?addressId=${editingAddress.value.id}`,
         editingAddress.value,
       );
     } else {
-      // Create new address
       await api.post(
         `/patient/${patient.value.id}/address`,
         editingAddress.value,
@@ -290,16 +292,14 @@ const saveAddress = async () => {
     await refresh();
     closeAddressModal();
 
-    useToast().add({
+    toast.add({
       title: "Berhasil",
-      description: editingAddress.value.id
-        ? "Alamat berhasil diperbarui"
-        : "Alamat berhasil ditambahkan",
+      description: isUpdate ? "Alamat berhasil diperbarui" : "Alamat berhasil ditambahkan",
       color: "success",
     });
   } catch (error) {
     console.error("Error saving address:", error);
-    useToast().add({
+    toast.add({
       title: "Gagal",
       description: "Gagal menyimpan alamat",
       color: "error",
@@ -317,14 +317,14 @@ const deleteAddress = async (addressId: string) => {
     await api.delete(`/patient/${patient.value.id}/address/${addressId}`);
     await refresh();
 
-    useToast().add({
+    add({
       title: "Berhasil",
       description: "Alamat berhasil dihapus",
       color: "success",
     });
   } catch (error) {
     console.error("Error deleting address:", error);
-    useToast().add({
+    add({
       title: "Gagal",
       description: "Gagal menghapus alamat",
       color: "error",
