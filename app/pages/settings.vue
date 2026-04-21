@@ -1,32 +1,47 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-const route = useRoute()
-const links = [[{
-  label: 'General',
-  icon: 'i-lucide-user',
-  to: '/settings',
-  exact: true
-}, {
-  label: 'Members',
-  icon: 'i-lucide-users',
-  to: '/settings/members'
-}, {
-  label: 'Notifications',
-  icon: 'i-lucide-bell',
-  to: '/settings/notifications'
-}, {
-  label: 'Security',
-  icon: 'i-lucide-shield',
-  to: '/settings/security'
-}], [{
-  label: 'Documentation',
-  icon: 'i-lucide-book-open',
-  to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-  target: '_blank'
-}]] satisfies NavigationMenuItem[][]
-console.log('path',route.path)
+import type { NavigationMenuItem } from "@nuxt/ui";
+const route = useRoute();
+const links = [
+  [
+    {
+      label: "General",
+      icon: "i-lucide-user",
+      to: "/settings",
+      exact: true,
+    },
+    {
+      label: "Members",
+      icon: "i-lucide-users",
+      to: "/settings/members",
+    },
+    {
+      label: "Notifications",
+      icon: "i-lucide-bell",
+      to: "/settings/notifications",
+    },
+    {
+      label: "Security",
+      icon: "i-lucide-shield",
+      to: "/settings/security",
+    },
+    {
+      label: "Roles",
+      icon: "i-lucide-circle-user-round",
+      to: "/settings/roles",
+    },
+  ],
+  [
+    {
+      label: "Documentation",
+      icon: "i-lucide-book-open",
+      to: "https://ui.nuxt.com/docs/getting-started/installation/nuxt",
+      target: "_blank",
+    },
+  ],
+] satisfies NavigationMenuItem[][];
+console.log("path", route.path);
 
-const linkHidden = ['/settings/roles', '/settings/roles/new']
+const linkHidden = ["/settings/roles", "/settings/roles/new"];
 </script>
 
 <template>
@@ -38,14 +53,24 @@ const linkHidden = ['/settings/roles', '/settings/roles/new']
         </template>
       </UDashboardNavbar>
 
-      <UDashboardToolbar v-if="!route.path.includes('/settings/roles')">
+      <!-- <UDashboardToolbar v-if="!route.path.includes('/settings/roles')"> -->
+      <UDashboardToolbar>
         <!-- NOTE: The `-mx-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
         <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
       </UDashboardToolbar>
     </template>
 
     <template #body>
-      <div :class="!route.path.includes('/settings/roles') ? 'flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto' : 'w-full h-full'">
+      <!-- <div
+        :class="
+          !route.path.includes('/settings/roles')
+            ? 'flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto'
+            : 'w-full h-full'
+        "
+      > -->
+      <div
+        class="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto"
+      >
         <NuxtPage />
       </div>
     </template>

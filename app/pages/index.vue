@@ -1,28 +1,33 @@
 <script setup lang="ts">
-import { sub } from 'date-fns'
-import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Period, Range } from '~/types'
+import { sub } from "date-fns";
+import type { DropdownMenuItem } from "@nuxt/ui";
+import type { Period, Range } from "~/types";
 
 definePageMeta({
-  middleware: 'auth'
-})
-const { isNotificationsSlideoverOpen } = useDashboard()
+  middleware: "auth",
+});
+const { isNotificationsSlideoverOpen } = useDashboard();
 
-const items = [[{
-  label: 'New mail',
-  icon: 'i-lucide-send',
-  to: '/inbox'
-}, {
-  label: 'New customer',
-  icon: 'i-lucide-user-plus',
-  to: '/customers'
-}]] satisfies DropdownMenuItem[][]
+const items = [
+  [
+    {
+      label: "New patient",
+      icon: "i-lucide-user-round-plus",
+      to: "/patients",
+    },
+    {
+      label: "New user",
+      icon: "i-lucide-user-plus",
+      to: "/users",
+    },
+  ],
+] satisfies DropdownMenuItem[][];
 
 const range = shallowRef<Range>({
   start: sub(new Date(), { days: 14 }),
-  end: new Date()
-})
-const period = ref<Period>('daily')
+  end: new Date(),
+});
+const period = ref<Period>("daily");
 </script>
 
 <template>
