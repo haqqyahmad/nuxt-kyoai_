@@ -222,6 +222,119 @@ const getPhotoUrl = () => {
     `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
   );
 };
+
+
+
+
+const isAddressModalOpen = ref(false);
+const editingAddress = ref<Partial<Address> | null>(null);
+const isAddressLoading = ref(false);
+
+const addressTypeOptions = [
+  { value: "HOME", label: "Rumah" },
+  { value: "WORK", label: "Kantor" },
+  { value: "OTHER", label: "Lainnya" },
+];
+
+const addressTypeLabel: Record<string, string> = {
+  HOME: "Rumah",
+  WORK: "Kantor",
+  OTHER: "Lainnya",
+};
+
+const defaultAddressForm = (): Partial<Address> => ({
+  type: "HOME",
+  detail: "",
+  country: "Indonesia",
+  province: "",
+  city: "",
+  district: "",
+  note: "",
+});
+
+// Buka modal untuk tambah address baru
+const openAddAddress = () => {
+  editingAddress.value = defaultAddressForm();
+  isAddressModalOpen.value = true;
+};
+
+// Buka modal untuk edit address yang ada
+const openEditAddress = (address: Address) => {
+  editingAddress.value = { ...address };
+  isAddressModalOpen.value = true;
+};
+
+// Tutup modal
+const closeAddressModal = () => {
+  isAddressModalOpen.value = false;
+  editingAddress.value = null;
+};
+
+// Simpan address (tambah atau update)
+const saveAddress = async () => {
+  if (!patient.value || !editingAddress.value) return;
+  isAddressLoading.value = true;
+
+  try {
+    if (editingAddress.value.id) {
+      // Update existing address
+      await api.post(
+        `/patient/${patient.value.id}/address?addressId=${editingAddress.value.id}`,
+        editingAddress.value,
+      );
+    } else {
+      // Create new address
+      await api.post(
+        `/patient/${patient.value.id}/address`,
+        editingAddress.value,
+      );
+    }
+
+    await refresh();
+    closeAddressModal();
+
+    useToast().add({
+      title: "Berhasil",
+      description: editingAddress.value.id
+        ? "Alamat berhasil diperbarui"
+        : "Alamat berhasil ditambahkan",
+      color: "success",
+    });
+  } catch (error) {
+    console.error("Error saving address:", error);
+    useToast().add({
+      title: "Gagal",
+      description: "Gagal menyimpan alamat",
+      color: "error",
+    });
+  } finally {
+    isAddressLoading.value = false;
+  }
+};
+
+// Hapus address
+const deleteAddress = async (addressId: string) => {
+  if (!patient.value) return;
+
+  try {
+    await api.delete(`/patient/${patient.value.id}/address/${addressId}`);
+    await refresh();
+
+    useToast().add({
+      title: "Berhasil",
+      description: "Alamat berhasil dihapus",
+      color: "success",
+    });
+  } catch (error) {
+    console.error("Error deleting address:", error);
+    useToast().add({
+      title: "Gagal",
+      description: "Gagal menghapus alamat",
+      color: "error",
+    });
+  }
+};
+
 </script>
 
 <template>
@@ -504,78 +617,175 @@ const getPhotoUrl = () => {
       </div>
 
       <!-- Alamat -->
+<UCollapsible :default-open="true" class="rounded-xl border border-accented overflow-hidden">
+  <template #default="{ open }">
+    <div class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between cursor-pointer">
+      <h3 class="text-sm font-medium flex items-center gap-2">
+        <UIcon name="i-lucide-map-pin" />
+        Alamat
+      </h3>
+      <div class="flex items-center gap-2">
+        <UBadge
+          :label="`${patient.addresses?.length ?? 0} alamat`"
+          color="neutral"
+          variant="subtle"
+          size="xs"
+        />
+        <UButton
+          icon="i-lucide-plus"
+          size="xs"
+          color="primary"
+          variant="ghost"
+          label="Tambah"
+          @click.stop="openAddAddress"
+        />
+        <UIcon
+          name="i-lucide-chevron-down"
+          class="transition-transform"
+          :class="{ 'rotate-180': open }"
+        />
+      </div>
+    </div>
+  </template>
 
-      <UCollapsible :default-open="true" class="rounded-xl border border-accented overflow-hidden">
-        <!-- HEADER (trigger) -->
-        <template #default="{ open }">
-          <div
-            class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between cursor-pointer"
-          >
-            <h3 class="text-sm font-medium flex items-center gap-2">
-              <UIcon name="i-lucide-map-pin" />
-              Alamat
-            </h3>
+  <template #content>
+    <div v-if="!patient.addresses?.length" class="p-6 text-sm text-muted text-center">
+      Belum ada alamat.
+    </div>
 
-            <div class="flex items-center gap-2">
-              <UBadge
-                :label="`${patient.addresses?.length ?? 0} alamat`"
-                color="neutral"
-                variant="subtle"
-                size="xs"
-              />
-              <UIcon
-                name="i-lucide-chevron-down"
-                class="transition-transform"
-                :class="{ 'rotate-180': open }"
-              />
-            </div>
+    <div v-else class="divide-y divide-accented">
+      <div
+        v-for="address in patient.addresses"
+        :key="address.id"
+        class="p-4 flex items-start gap-3 group"
+      >
+        <div class="flex-1 space-y-1">
+          <div class="flex items-center gap-2">
+            <UBadge
+              :label="addressTypeLabel[address.type] ?? address.type"
+              color="neutral"
+              variant="outline"
+              size="xs"
+            />
           </div>
-        </template>
+          <p class="text-sm">{{ address.detail }}</p>
+          <p class="text-xs text-muted">
+            {{ [address.district, address.city, address.province, address.country].filter(Boolean).join(", ") }}
+          </p>
+          <p v-if="address.note" class="text-xs text-muted italic">
+            {{ address.note }}
+          </p>
+        </div>
 
-        <!-- CONTENT -->
-        <template #content>
-          <div
-            v-if="!patient.addresses?.length"
-            class="p-6 text-sm text-muted text-center"
-          >
-            Belum ada alamat.
-          </div>
+        <!-- Tombol aksi (muncul saat hover) -->
+        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <UButton
+            icon="i-lucide-pencil"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            @click="openEditAddress(address)"
+          />
+          <UButton
+            icon="i-lucide-trash-2"
+            size="xs"
+            color="error"
+            variant="ghost"
+            @click="deleteAddress(address.id)"
+          />
+        </div>
+      </div>
+    </div>
+  </template>
+</UCollapsible>
 
-          <div v-else class="divide-y divide-accented">
-            <div
-              v-for="address in patient.addresses"
-              :key="address.id"
-              class="p-4 space-y-1"
-            >
-              <div class="flex items-center gap-2">
-                <UBadge
-                  :label="address.type"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                />
-              </div>
+<!-- Modal Tambah / Edit Address -->
+<UModal v-model:open="isAddressModalOpen" :title="editingAddress?.id ? 'Edit Alamat' : 'Tambah Alamat'">
+  <template #body>
+    <div v-if="editingAddress" class="space-y-4">
+      <!-- Tipe Alamat -->
+      <UFormField label="Tipe Alamat">
+        <USelect
+          v-model="editingAddress.type"
+          :items="addressTypeOptions"
+          class="w-full"
+        />
+      </UFormField>
 
-              <p class="text-sm">{{ address.detail }}</p>
+      <!-- Detail Alamat -->
+      <UFormField label="Alamat Lengkap">
+        <UTextarea
+          v-model="editingAddress.detail"
+          placeholder="Jl. Contoh No. 123, RT 01/RW 02"
+          :rows="3"
+          class="w-full"
+        />
+      </UFormField>
 
-              <p class="text-xs text-muted">
-                {{
-                  [
-                    address.district,
-                    address.city,
-                    address.province,
-                    address.country,
-                  ].join(", ")
-                }}
-              </p>
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Kelurahan / Kecamatan -->
+        <UFormField label="Kecamatan / Kelurahan">
+          <UInput
+            v-model="editingAddress.district"
+            placeholder="Kecamatan"
+            class="w-full"
+          />
+        </UFormField>
 
-              <p v-if="address.note" class="text-xs text-muted italic">
-                {{ address.note }}
-              </p>
-            </div>
-          </div>
-        </template>
-      </UCollapsible>
+        <!-- Kota -->
+        <UFormField label="Kota / Kabupaten">
+          <UInput
+            v-model="editingAddress.city"
+            placeholder="Kota"
+            class="w-full"
+          />
+        </UFormField>
+
+        <!-- Provinsi -->
+        <UFormField label="Provinsi">
+          <UInput
+            v-model="editingAddress.province"
+            placeholder="Provinsi"
+            class="w-full"
+          />
+        </UFormField>
+
+        <!-- Negara -->
+        <UFormField label="Negara">
+          <UInput
+            v-model="editingAddress.country"
+            placeholder="Negara"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+
+      <!-- Catatan -->
+      <UFormField label="Catatan (opsional)">
+        <UInput
+          v-model="editingAddress.note"
+          placeholder="Patokan atau informasi tambahan..."
+          class="w-full"
+        />
+      </UFormField>
+    </div>
+  </template>
+
+  <template #footer>
+    <div class="flex justify-end gap-2">
+      <UButton color="neutral" variant="ghost" @click="closeAddressModal">
+        Batal
+      </UButton>
+      <UButton
+        color="primary"
+        :loading="isAddressLoading"
+        @click="saveAddress"
+      >
+        {{ editingAddress?.id ? "Simpan Perubahan" : "Tambah Alamat" }}
+      </UButton>
+    </div>
+  </template>
+</UModal>
 
       <!-- Riwayat Perusahaan -->
       <div class="rounded-xl border border-accented overflow-hidden">
