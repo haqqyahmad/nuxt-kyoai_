@@ -1,117 +1,117 @@
 <script setup lang="ts">
 type Permission = {
-  id: number;
-  name: string;
-  description?: string;
-};
+  id: number
+  name: string
+  description?: string
+}
 
 type RolePermission = {
-  roleId: number;
-  permissionId: number;
-  permission: Permission;
-};
+  roleId: number
+  permissionId: number
+  permission: Permission
+}
 
 type Role = {
-  id: number;
-  name: string;
-  permissions: RolePermission[];
-};
+  id: number
+  name: string
+  permissions: RolePermission[]
+}
 
 const props = defineProps<{
-  role: Role;
-}>();
+  role: Role
+}>()
 
 const emit = defineEmits<{
-  (e: "updated"): void;
-}>();
+  (e: 'updated'): void
+}>()
 
-const api = useApi();
-const toast = useToast();
+const api = useApi()
+const toast = useToast()
 
-const open = ref(false);
-const loading = ref(false);
-const loadingData = ref(false);
+const open = ref(false)
+const loading = ref(false)
+const loadingData = ref(false)
 
-const allPermissions = ref<Permission[]>([]);
-const selectedPermissionIds = ref<number[]>([]);
-const search = ref("");
+const allPermissions = ref<Permission[]>([])
+const selectedPermissionIds = ref<number[]>([])
+const search = ref('')
 
 const filteredPermissions = computed(() => {
-  if (!search.value) return allPermissions.value;
-  return allPermissions.value.filter((p) =>
-    p.name.toLowerCase().includes(search.value.toLowerCase()),
-  );
-});
+  if (!search.value) return allPermissions.value
+  return allPermissions.value.filter(p =>
+    p.name.toLowerCase().includes(search.value.toLowerCase())
+  )
+})
 
 async function fetchPermissions() {
-  loadingData.value = true;
+  loadingData.value = true
   try {
-    const res = await api.get("/settings/permissions");
-    allPermissions.value = res.data.data ?? res.data ?? [];
+    const res = await api.get('/settings/permissions')
+    allPermissions.value = res.data.data ?? res.data ?? []
   } catch {
-    toast.add({ title: "Gagal memuat permissions", color: "error" });
+    toast.add({ title: 'Gagal memuat permissions', color: 'error' })
   } finally {
-    loadingData.value = false;
+    loadingData.value = false
   }
 }
 
 function onOpen() {
-  open.value = true;
-  search.value = "";
+  open.value = true
+  search.value = ''
   // set permission yang sudah dimiliki role
   selectedPermissionIds.value = props.role.permissions.map(
-    (rp) => rp.permissionId,
-  );
-  fetchPermissions();
+    rp => rp.permissionId
+  )
+  fetchPermissions()
 }
 
 function togglePermission(permissionId: number) {
   if (selectedPermissionIds.value.includes(permissionId)) {
     selectedPermissionIds.value = selectedPermissionIds.value.filter(
-      (id) => id !== permissionId,
-    );
+      id => id !== permissionId
+    )
   } else {
     selectedPermissionIds.value = [
       ...selectedPermissionIds.value,
-      permissionId,
-    ];
+      permissionId
+    ]
   }
 }
 
 function selectAll() {
-  selectedPermissionIds.value = allPermissions.value.map((p) => p.id);
+  selectedPermissionIds.value = allPermissions.value.map(p => p.id)
 }
 
 function clearAll() {
-  selectedPermissionIds.value = [];
+  selectedPermissionIds.value = []
 }
 
 function formatPermission(name: string) {
   return name
-    .replace(":", " ")
-    .replace("-", " ")
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .replace(':', ' ')
+    .replace('-', ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 async function savePermissions() {
-  loading.value = true;
+  loading.value = true
   try {
     await api.post(`/settings/roles/${props.role.id}/permissions`, {
-      permissionIds: selectedPermissionIds.value,
-    });
-    toast.add({ title: "Permissions berhasil disimpan", color: "success" });
-    open.value = false;
-    emit("updated");
+      permissionIds: selectedPermissionIds.value
+    })
+    toast.add({ title: 'Permissions berhasil disimpan', color: 'success' })
+    open.value = false
+    emit('updated')
   } catch (err: any) {
     toast.add({
-      title: "Gagal menyimpan permissions",
-      description: err?.response?.data?.message ?? "Terjadi kesalahan",
-      color: "error",
-    });
+      title: 'Gagal menyimpan permissions',
+      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      color: 'error'
+    })
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 </script>

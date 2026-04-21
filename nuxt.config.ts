@@ -1,17 +1,24 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  ssr: false,
+
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
     '@vueuse/nuxt'
-  ],
+  ], ssr: false,
 
   devtools: {
     enabled: false
   },
 
   css: ['~/assets/css/main.css'],
+
+  runtimeConfig: {
+    public: {
+      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE,
+      apiKey: import.meta.env.NUXT_PUBLIC_API_KEY
+    }
+  },
 
   routeRules: {
     '/api/**': {
@@ -27,13 +34,6 @@ export default defineNuxtConfig({
         commaDangle: 'never',
         braceStyle: '1tbs'
       }
-    }
-  },
-  
-   runtimeConfig: {
-    public: {
-      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE,
-      apiKey: import.meta.env.NUXT_PUBLIC_API_KEY
     }
   }
 })

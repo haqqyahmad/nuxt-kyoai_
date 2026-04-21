@@ -1,66 +1,66 @@
 <script setup lang="ts">
-import { upperFirst } from "scule";
-import type { TableColumn } from "@nuxt/ui";
-import RolePermissionsModal from "~/components/roles/RolePermissionsModal.vue";
+import { upperFirst } from 'scule'
+import type { TableColumn } from '@nuxt/ui'
+import RolePermissionsModal from '~/components/roles/RolePermissionsModal.vue'
 
-const api = useApi();
+const api = useApi()
 
 type Permission = {
-  id: number;
-  name: string;
-  description?: string;
-};
+  id: number
+  name: string
+  description?: string
+}
 
 type RolePermission = {
-  roleId: number;
-  permissionId: number;
-  permission: Permission;
-};
+  roleId: number
+  permissionId: number
+  permission: Permission
+}
 
 type Role = {
-  id: number;
-  name: string;
-  createdAt: string;
-  permissions: RolePermission[];
-};
+  id: number
+  name: string
+  createdAt: string
+  permissions: RolePermission[]
+}
 
-const { data: rolesData, refresh } = await useAsyncData("roles", () =>
-  api.get("/settings/roles").then((res) => res.data.data),
-);
+const { data: rolesData, refresh } = await useAsyncData('roles', () =>
+  api.get('/settings/roles').then(res => res.data.data)
+)
 
-const data = computed(() => rolesData.value ?? []);
+const data = computed(() => rolesData.value ?? [])
 
 const columns: TableColumn<Role>[] = [
   {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => `#${row.getValue("id")}`,
+    accessorKey: 'id',
+    header: 'ID',
+    cell: ({ row }) => `#${row.getValue('id')}`
   },
   {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => row.getValue("name"),
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ row }) => row.getValue('name')
   },
   {
-    accessorKey: "createdAt",
-    header: "Created At",
+    accessorKey: 'createdAt',
+    header: 'Created At',
     cell: ({ row }) => {
-      return new Date(row.getValue("createdAt")).toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    },
+      return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
   },
   {
-    id: "actions",
-    header: "Actions",
-  },
-];
+    id: 'actions',
+    header: 'Actions'
+  }
+]
 
-const table = useTemplateRef("table");
+const table = useTemplateRef('table')
 </script>
 
 <!-- <template>
@@ -170,16 +170,16 @@ const table = useTemplateRef("table");
                 },
                 onSelect(e: Event) {
                   e.preventDefault();
-                },
+                }
               }))
           "
           :content="{ align: 'end' }"
         >
           <UButton
-            label="Columns"
+            label="Display"
             color="neutral"
             variant="outline"
-            trailing-icon="i-lucide-chevron-down"
+            trailing-icon="i-lucide-settings-2"
             class="ml-auto"
           />
         </UDropdownMenu>

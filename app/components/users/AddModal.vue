@@ -1,55 +1,55 @@
 <script setup lang="ts">
-import * as z from "zod";
-import type { FormSubmitEvent } from "@nuxt/ui";
-import { handleError, handleSuccess } from "~/utils/handlers";
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { handleError, handleSuccess } from '~/utils/handlers'
 
 const schema = z
   .object({
-    name: z.string().min(2, "Too short"),
-    email: z.string().email("Invalid email"),
+    name: z.string().min(2, 'Too short'),
+    email: z.string().email('Invalid email'),
     password: z
-      .string("Password is required")
-      .min(8, "Must be at least 8 characters"),
+      .string('Password is required')
+      .min(8, 'Must be at least 8 characters'),
     confirm_password: z
-      .string("Password is required")
-      .min(8, "Must be at least 8 characters"),
+      .string('Password is required')
+      .min(8, 'Must be at least 8 characters')
   })
-  .refine((data) => data.password === data.confirm_password, {
-    message: "Passwords don't match",
-    path: ["confirm_password"],
-  });
+  .refine(data => data.password === data.confirm_password, {
+    message: 'Passwords don\'t match',
+    path: ['confirm_password']
+  })
 
 const emit = defineEmits<{
-  (e: "created"): void;
-}>();
+  (e: 'created'): void
+}>()
 
-const loading = ref(false);
-const open = ref(false);
+const loading = ref(false)
+const open = ref(false)
 
-type Schema = z.output<typeof schema>;
+type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({
-  name: "",
-  email: "",
-  password: "",
-  confirm_password: "",
-});
+  name: '',
+  email: '',
+  password: '',
+  confirm_password: ''
+})
 
-const api = useApi();
-const { registerUser } = useUser();
-const toast = useToast();
+const api = useApi()
+const { registerUser } = useUser()
+const toast = useToast()
 
 function resetForm() {
-  state.name = "";
-  state.email = "";
-  state.password = "";
-  state.confirm_password = "";
+  state.name = ''
+  state.email = ''
+  state.password = ''
+  state.confirm_password = ''
 }
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  if (loading.value) return;
+  if (loading.value) return
 
-  loading.value = true;
+  loading.value = true
 
   try {
     await registerUser({
@@ -59,17 +59,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       name: event.data.name,
       email: event.data.email,
       password: event.data.password,
-      confirm_password: event.data.confirm_password,
-    });
+      confirm_password: event.data.confirm_password
+    })
 
-    handleSuccess(toast, event.data.name);
-    resetForm();
-    open.value = false;
-    emit("created");
+    handleSuccess(toast, event.data.name)
+    resetForm()
+    open.value = false
+    emit('created')
   } catch (err: any) {
-    handleError(toast, err);
+    handleError(toast, err)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 </script>
@@ -100,7 +100,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           <UInput v-model="state.email" class="w-full" />
         </UFormField>
         <UFormField label="Password" placeholder="John Doe" name="password">
-          <UInput type="password" v-model="state.password" class="w-full" />
+          <UInput v-model="state.password" type="password" class="w-full" />
         </UFormField>
         <UFormField
           label="Confirm Password"
@@ -108,8 +108,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           name="confirm_password"
         >
           <UInput
-            type="password"
             v-model="state.confirm_password"
+            type="password"
             class="w-full"
           />
         </UFormField>

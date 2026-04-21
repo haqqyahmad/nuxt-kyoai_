@@ -23,7 +23,7 @@ export default defineNuxtPlugin(() => {
 
   // response interceptor ← tambahkan ini
   api.interceptors.response.use(
-    (res) => res,
+    res => res,
     (error) => {
       if (error.response?.status === 401) {
         removeToken()

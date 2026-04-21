@@ -31,7 +31,7 @@ const fields: AuthFormField[] = [{
 }]
 
 const providers = [{
- 
+
 }]
 
 const schema = z.object({
@@ -75,14 +75,13 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         icon="i-lucide-user"
         :fields="fields"
         :submit="{
-    label: 'Masuk',
-    color: 'secondary',
-    size: 'lg',
-    loading: false
-  }"
+          label: 'Masuk',
+          color: 'secondary',
+          size: 'lg',
+          loading: false
+        }"
         @submit="onSubmit"
       />
     </UPageCard>
   </div>
 </template>
-

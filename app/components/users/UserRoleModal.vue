@@ -1,77 +1,77 @@
 <script setup lang="ts">
 type Permission = {
-  id: number;
-  name: string;
-  description?: string;
-};
+  id: number
+  name: string
+  description?: string
+}
 
 type RolePermission = {
-  roleId: number;
-  permissionId: number;
-  permission: Permission;
-};
+  roleId: number
+  permissionId: number
+  permission: Permission
+}
 
 type Role = {
-  id: number;
-  name: string;
-  permissions: RolePermission[];
-};
+  id: number
+  name: string
+  permissions: RolePermission[]
+}
 
 type User = {
-  id: number;
-  name: string;
-  email: string;
-};
+  id: number
+  name: string
+  email: string
+}
 
 const props = defineProps<{
-  user: User;
-}>();
+  user: User
+}>()
 
 const emit = defineEmits<{
-  (e: "updated"): void;
-}>();
+  (e: 'updated'): void
+}>()
 
-const api = useApi();
-const toast = useToast();
+const api = useApi()
+const toast = useToast()
 
-const open = ref(false);
-const loading = ref(false);
-const loadingData = ref(false);
+const open = ref(false)
+const loading = ref(false)
+const loadingData = ref(false)
 
-const roles = ref<Role[]>([]);
-const selectedRoleIds = ref<number[]>([]);
-const viewingRole = ref<Role | null>(null);
-const showPermissions = ref(false);
+const roles = ref<Role[]>([])
+const selectedRoleIds = ref<number[]>([])
+const viewingRole = ref<Role | null>(null)
+const showPermissions = ref(false)
 
 function formatPermission(name: string) {
   return name
-    .replace(":", " ")
-    .replace("-", " ")
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .replace(':', ' ')
+    .replace('-', ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 async function fetchRoles() {
-  loadingData.value = true;
+  loadingData.value = true
   try {
-    const res = await api.get("/settings/roles");
-    roles.value = res.data.data ?? res.data ?? [];
+    const res = await api.get('/settings/roles')
+    roles.value = res.data.data ?? res.data ?? []
   } catch {
-    toast.add({ title: "Gagal memuat roles", color: "error" });
+    toast.add({ title: 'Gagal memuat roles', color: 'error' })
   } finally {
-    loadingData.value = false;
+    loadingData.value = false
   }
 }
 
 async function fetchUserRoles() {
   try {
-    const res = await api.get(`/users/${props.user.id}/role`);
-    const data = res.data.data;
+    const res = await api.get(`/users/${props.user.id}/role`)
+    const data = res.data.data
     if (Array.isArray(data)) {
-      selectedRoleIds.value = data.map((ur: any) => ur.roleId);
+      selectedRoleIds.value = data.map((ur: any) => ur.roleId)
     } else if (data?.roleId) {
-      selectedRoleIds.value = [data.roleId];
+      selectedRoleIds.value = [data.roleId]
     }
   } catch {
     // user belum punya role
@@ -79,52 +79,52 @@ async function fetchUserRoles() {
 }
 
 async function onOpen() {
-  open.value = true;
-  showPermissions.value = false;
-  viewingRole.value = null;
-  selectedRoleIds.value = [];
-  await fetchRoles();
-  await fetchUserRoles();
+  open.value = true
+  showPermissions.value = false
+  viewingRole.value = null
+  selectedRoleIds.value = []
+  await fetchRoles()
+  await fetchUserRoles()
 }
 
 function toggleRole(roleId: number) {
   if (selectedRoleIds.value.includes(roleId)) {
-    selectedRoleIds.value = selectedRoleIds.value.filter((id) => id !== roleId);
+    selectedRoleIds.value = selectedRoleIds.value.filter(id => id !== roleId)
   } else {
-    selectedRoleIds.value = [...selectedRoleIds.value, roleId];
+    selectedRoleIds.value = [...selectedRoleIds.value, roleId]
   }
 }
 
 async function assignRole() {
-  if (selectedRoleIds.value.length === 0) return;
+  if (selectedRoleIds.value.length === 0) return
 
-  loading.value = true;
+  loading.value = true
   try {
     await api.post(`/users/${props.user.id}/role`, {
-      roleIds: selectedRoleIds.value,
-    });
-    toast.add({ title: "Role berhasil diassign", color: "success" });
-    open.value = false;
-    emit("updated");
+      roleIds: selectedRoleIds.value
+    })
+    toast.add({ title: 'Role berhasil diassign', color: 'success' })
+    open.value = false
+    emit('updated')
   } catch (err: any) {
     toast.add({
-      title: "Gagal assign role",
-      description: err?.response?.data?.message ?? "Terjadi kesalahan",
-      color: "error",
-    });
+      title: 'Gagal assign role',
+      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      color: 'error'
+    })
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 function viewPermissions(role: Role) {
-  viewingRole.value = role;
-  showPermissions.value = true;
+  viewingRole.value = role
+  showPermissions.value = true
 }
 
 function backToRoles() {
-  showPermissions.value = false;
-  viewingRole.value = null;
+  showPermissions.value = false
+  viewingRole.value = null
 }
 </script>
 

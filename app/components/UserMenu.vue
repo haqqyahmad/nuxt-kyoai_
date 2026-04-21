@@ -29,20 +29,50 @@ const colors = [
 ];
 const neutrals = ["slate", "gray", "zinc", "neutral", "stone"];
 
-const user = ref({
-  name: "Benjamin Canac",
-  avatar: {
-    src: "https://github.com/benjamincanac.png",
-    alt: "Benjamin Canac",
-  },
+// const user = ref({
+//   name: "Benjamin Canac",
+//   avatar: {
+//     src: "https://github.com/benjamincanac.png",
+//     alt: "Benjamin Canac",
+//   },
+// });
+
+const { user, fetchUser } = useUser();
+
+// onMounted(() => {
+//   const { getToken } = useAuth();
+//   if (getToken()) {
+//     fetchUser();
+//   }
+// });
+
+onMounted(() => {
+  const { getToken } = useAuth();
+  const token = getToken();
+
+  console.log("TOKEN:", token);
+
+  if (token) {
+    fetchUser();
+  }
+});
+
+const userDisplay = computed(() => {
+  return {
+    name: user.value?.name || "Loading...",
+    avatar: {
+      src: user.value?.avatar || "/default-avatar.png",
+      alt: user.value?.name || "User",
+    },
+  };
 });
 
 const items = computed<DropdownMenuItem[][]>(() => [
   [
     {
       type: "label",
-      label: user.value.name,
-      avatar: user.value.avatar,
+      label: userDisplay.value?.name || "Loading...",
+      avatar: userDisplay.value?.avatar,
     },
   ],
   [
@@ -61,7 +91,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
       label: "Change Password",
       icon: "i-lucide-key-round",
       onSelect: () => {
-        navigateTo("/security");
+        navigateTo("/settings/security");
       },
     },
   ],
@@ -208,7 +238,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
       label: "Log out",
       icon: "i-lucide-log-out",
       onSelect: () => {
-        navigateTo("/logout");
+        const { removeToken } = useAuth();
+        removeToken();
+        navigateTo("/login");
       },
     },
   ],
@@ -225,8 +257,8 @@ const items = computed<DropdownMenuItem[][]>(() => [
   >
     <UButton
       v-bind="{
-        ...user,
-        label: collapsed ? undefined : user?.name,
+        ...userDisplay,
+        label: collapsed ? undefined : userDisplay.name,
         trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down',
       }"
       color="neutral"

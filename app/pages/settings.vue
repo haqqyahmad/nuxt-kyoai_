@@ -1,47 +1,48 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from "@nuxt/ui";
-const route = useRoute();
+import type { NavigationMenuItem } from '@nuxt/ui'
+
+const route = useRoute()
 const links = [
   [
     {
-      label: "General",
-      icon: "i-lucide-user",
-      to: "/settings",
-      exact: true,
+      label: 'General',
+      icon: 'i-lucide-user',
+      to: '/settings',
+      exact: true
     },
     {
-      label: "Members",
-      icon: "i-lucide-users",
-      to: "/settings/members",
+      label: 'Members',
+      icon: 'i-lucide-users',
+      to: '/settings/members'
     },
     {
-      label: "Notifications",
-      icon: "i-lucide-bell",
-      to: "/settings/notifications",
+      label: 'Notifications',
+      icon: 'i-lucide-bell',
+      to: '/settings/notifications'
     },
     {
-      label: "Security",
-      icon: "i-lucide-shield",
-      to: "/settings/security",
+      label: 'Security',
+      icon: 'i-lucide-shield',
+      to: '/settings/security'
     },
     {
-      label: "Roles",
-      icon: "i-lucide-circle-user-round",
-      to: "/settings/roles",
-    },
+      label: 'Roles',
+      icon: 'i-lucide-circle-user-round',
+      to: '/settings/roles'
+    }
   ],
   [
     {
-      label: "Documentation",
-      icon: "i-lucide-book-open",
-      to: "https://ui.nuxt.com/docs/getting-started/installation/nuxt",
-      target: "_blank",
-    },
-  ],
-] satisfies NavigationMenuItem[][];
-console.log("path", route.path);
+      label: 'Documentation',
+      icon: 'i-lucide-book-open',
+      to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
+      target: '_blank'
+    }
+  ]
+] satisfies NavigationMenuItem[][]
+console.log('path', route.path)
 
-const linkHidden = ["/settings/roles", "/settings/roles/new"];
+const linkHidden = ['/settings/roles', '/settings/roles/new']
 </script>
 
 <template>

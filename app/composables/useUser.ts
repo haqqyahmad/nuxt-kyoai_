@@ -1,6 +1,7 @@
 // composables/useUser.ts  ← pindah ke sini
 export const useUser = () => {
   const api = useApi()
+  const user = useState<any>('user', () => null)
 
   const registerUser = async (payload: {
     name: string
@@ -8,10 +9,33 @@ export const useUser = () => {
     password: string
     confirm_password: string
   }) => {
-    return await api.post("/auth/register", payload)
+    return await api.post('/auth/register', payload)
+  }
+
+  const fetchUser = async () => {
+    const { getToken } = useAuth()
+    const token = getToken()
+
+    if (!token) return null
+
+    try {
+      const data = await $fetch('/users/auth', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      user.value = data
+      return data
+    } catch (err) {
+      console.error('Failed get user', err)
+      user.value = null
+    }
   }
 
   return {
-    registerUser
+    user,
+    registerUser,
+    fetchUser
   }
 }

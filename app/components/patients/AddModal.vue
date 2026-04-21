@@ -1,100 +1,100 @@
 <script setup lang="ts">
-import * as z from "zod";
-import type { FormSubmitEvent } from "@nuxt/ui";
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
 
 const schema = z.object({
-  branchId: z.number({ required_error: "Branch ID wajib diisi" }),
-  firstName: z.string().min(1, "First name wajib diisi"),
+  branchId: z.number({ required_error: 'Branch ID wajib diisi' }),
+  firstName: z.string().min(1, 'First name wajib diisi'),
   middleName: z.string().optional(),
-  lastName: z.string().min(1, "Last name wajib diisi"),
-  gender: z.enum(["MALE", "FEMALE"], { required_error: "Gender wajib dipilih" }),
-  idType: z.enum(["KTP", "PASSPORT", "SIM"], { required_error: "Jenis ID wajib dipilih" }),
-  idNumber: z.string().min(1, "Nomor identitas wajib diisi"),
-  email: z.string().email("Email tidak valid").optional().or(z.literal("")),
-  dob: z.string().min(1, "Tanggal lahir wajib diisi"),
-  maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]).optional(),
-  phone: z.string().optional(),
-});
+  lastName: z.string().min(1, 'Last name wajib diisi'),
+  gender: z.enum(['MALE', 'FEMALE'], { required_error: 'Gender wajib dipilih' }),
+  idType: z.enum(['KTP', 'PASSPORT', 'SIM'], { required_error: 'Jenis ID wajib dipilih' }),
+  idNumber: z.string().min(1, 'Nomor identitas wajib diisi'),
+  email: z.string().email('Email tidak valid').optional().or(z.literal('')),
+  dob: z.string().min(1, 'Tanggal lahir wajib diisi'),
+  maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED']).optional(),
+  phone: z.string().optional()
+})
 
-type Schema = z.output<typeof schema>;
+type Schema = z.output<typeof schema>
 
 const emit = defineEmits<{
-  (e: "created"): void;
-}>();
+  (e: 'created'): void
+}>()
 
-const api = useApi();
-const toast = useToast();
+const api = useApi()
+const toast = useToast()
 
-const open = ref(false);
-const loading = ref(false);
+const open = ref(false)
+const loading = ref(false)
 
 const state = reactive<Partial<Schema>>({
   branchId: 1,
-  firstName: "",
-  middleName: "",
-  lastName: "",
+  firstName: '',
+  middleName: '',
+  lastName: '',
   gender: undefined,
   idType: undefined,
-  idNumber: "",
-  email: "",
-  dob: "",
+  idNumber: '',
+  email: '',
+  dob: '',
   maritalStatus: undefined,
-  phone: "",
-});
+  phone: ''
+})
 
 const genderOptions = [
-  { label: "Laki-laki", value: "MALE" },
-  { label: "Perempuan", value: "FEMALE" },
-];
+  { label: 'Laki-laki', value: 'MALE' },
+  { label: 'Perempuan', value: 'FEMALE' }
+]
 
 const idTypeOptions = [
-  { label: "KTP", value: "KTP" },
-  { label: "Passport", value: "PASSPORT" },
-  { label: "SIM", value: "SIM" },
-];
+  { label: 'KTP', value: 'KTP' },
+  { label: 'Passport', value: 'PASSPORT' },
+  { label: 'SIM', value: 'SIM' }
+]
 
 const maritalOptions = [
-  { label: "Belum Menikah", value: "SINGLE" },
-  { label: "Menikah", value: "MARRIED" },
-  { label: "Cerai", value: "DIVORCED" },
-];
+  { label: 'Belum Menikah', value: 'SINGLE' },
+  { label: 'Menikah', value: 'MARRIED' },
+  { label: 'Cerai', value: 'DIVORCED' }
+]
 
 function resetForm() {
-  state.branchId = 1;
-  state.firstName = "";
-  state.middleName = "";
-  state.lastName = "";
-  state.gender = undefined;
-  state.idType = undefined;
-  state.idNumber = "";
-  state.email = "";
-  state.dob = "";
-  state.maritalStatus = undefined;
-  state.phone = "";
+  state.branchId = 1
+  state.firstName = ''
+  state.middleName = ''
+  state.lastName = ''
+  state.gender = undefined
+  state.idType = undefined
+  state.idNumber = ''
+  state.email = ''
+  state.dob = ''
+  state.maritalStatus = undefined
+  state.phone = ''
 }
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  if (loading.value) return;
-  loading.value = true;
+  if (loading.value) return
+  loading.value = true
 
   try {
-    await api.post("/patient", {
+    await api.post('/patient', {
       ...event.data,
-      email: event.data.email || undefined,
-    });
+      email: event.data.email || undefined
+    })
 
-    toast.add({ title: "Pasien berhasil ditambahkan", color: "success" });
-    resetForm();
-    open.value = false;
-    emit("created");
+    toast.add({ title: 'Pasien berhasil ditambahkan', color: 'success' })
+    resetForm()
+    open.value = false
+    emit('created')
   } catch (err: any) {
     toast.add({
-      title: "Gagal menambahkan pasien",
-      description: err?.response?.data?.message ?? "Terjadi kesalahan",
-      color: "error",
-    });
+      title: 'Gagal menambahkan pasien',
+      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      color: 'error'
+    })
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 </script>
@@ -113,10 +113,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     />
 
     <template #body>
-      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
         <!-- Branch ID (hidden / auto) -->
-        <input type="hidden" :value="state.branchId" />
+        <input type="hidden" :value="state.branchId">
 
         <!-- Nama -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -161,7 +165,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Nomor Identitas" name="idNumber" required class="sm:col-span-2">
+          <UFormField
+            label="Nomor Identitas"
+            name="idNumber"
+            required
+            class="sm:col-span-2"
+          >
             <UInput v-model="state.idNumber" placeholder="3201234567890001" class="w-full" />
           </UFormField>
         </div>
@@ -196,7 +205,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             :loading="loading"
           />
         </div>
-
       </UForm>
     </template>
   </UModal>

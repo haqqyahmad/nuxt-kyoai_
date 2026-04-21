@@ -19,8 +19,6 @@ export const useAuth = () => {
     }
   }
 
- 
-
   return {
     getToken,
     setToken,

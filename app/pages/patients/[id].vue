@@ -1,125 +1,125 @@
 <script setup lang="ts">
-const route = useRoute();
-const api = useApi();
-const toast = useToast();
+const route = useRoute()
+const api = useApi()
+const toast = useToast()
 
 type Address = {
-  id: string;
-  type: string;
-  detail: string;
-  country: string;
-  province: string;
-  city: string;
-  district: string;
-  note?: string;
-};
+  id: string
+  type: string
+  detail: string
+  country: string
+  province: string
+  city: string
+  district: string
+  note?: string
+}
 
 type CompanyHistory = {
-  id: string;
-  company: string;
-  position?: string;
-  isCurrent: boolean;
-  startDate?: string;
-  endDate?: string;
-};
+  id: string
+  company: string
+  position?: string
+  isCurrent: boolean
+  startDate?: string
+  endDate?: string
+}
 
 type Patient = {
-  id: string;
-  PatientId: string;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  gender: "MALE" | "FEMALE";
-  idType: string;
-  idNumber: string;
-  email?: string;
-  dob: string;
-  maritalStatus?: string;
-  phone?: string;
-  bloodGroup?: string;
-  createdAt: string;
-  addresses: Address[];
-  histories: CompanyHistory[];
-  photoUrl?: string;
-};
+  id: string
+  PatientId: string
+  firstName: string
+  middleName?: string
+  lastName: string
+  gender: 'MALE' | 'FEMALE'
+  idType: string
+  idNumber: string
+  email?: string
+  dob: string
+  maritalStatus?: string
+  phone?: string
+  bloodGroup?: string
+  createdAt: string
+  addresses: Address[]
+  histories: CompanyHistory[]
+  photoUrl?: string
+}
 
 const { data: patient, refresh } = await useAsyncData(
   `patient-${route.params.id}`,
-  () => api.get(`/patient/${route.params.id}`).then((res) => res.data.data),
-);
+  () => api.get(`/patient/${route.params.id}`).then(res => res.data.data)
+)
 
 // State untuk edit mode
-const isEditing = ref(false);
-const selectedPhotoFile = ref<File | null>(null);
-const photoPreview = ref<string | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
+const isEditing = ref(false)
+const selectedPhotoFile = ref<File | null>(null)
+const photoPreview = ref<string | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const editForm = ref<Partial<Patient>>({
-  gender: "",
-  maritalStatus: "",
-  idType: "",
-  bloodGroup: "",
-});
+  gender: '',
+  maritalStatus: '',
+  idType: '',
+  bloodGroup: ''
+})
 
 const fullName = computed(() => {
-  if (!patient.value) return "-";
+  if (!patient.value) return '-'
   return [
     patient.value.firstName,
     patient.value.middleName,
-    patient.value.lastName,
+    patient.value.lastName
   ]
     .filter(Boolean)
-    .join(" ");
-});
+    .join(' ')
+})
 
 const formatDate = (date?: string) => {
-  if (!date) return "-";
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-};
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 
 const formatDateForInput = (date?: string) => {
-  if (!date) return "";
-  return new Date(date).toISOString().split("T")[0];
-};
+  if (!date) return ''
+  return new Date(date).toISOString().split('T')[0]
+}
 
-const genderLabel = (g: string) => (g === "MALE" ? "Laki-laki" : "Perempuan");
+const genderLabel = (g: string) => (g === 'MALE' ? 'Laki-laki' : 'Perempuan')
 
 const maritalLabel: Record<string, string> = {
-  SINGLE: "Belum Menikah",
-  MARRIED: "Menikah",
-  DIVORCED: "Cerai",
-};
+  SINGLE: 'Belum Menikah',
+  MARRIED: 'Menikah',
+  DIVORCED: 'Cerai'
+}
 
 const bloodGroupOptions = [
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "AB", label: "AB" },
-  { value: "O", label: "O" },
-];
+  { value: 'A', label: 'A' },
+  { value: 'B', label: 'B' },
+  { value: 'AB', label: 'AB' },
+  { value: 'O', label: 'O' }
+]
 const genderOptions = [
-  { value: "MALE", label: "Laki-laki" },
-  { value: "FEMALE", label: "Perempuan" },
-];
+  { value: 'MALE', label: 'Laki-laki' },
+  { value: 'FEMALE', label: 'Perempuan' }
+]
 const maritalOptions = [
-  { value: "SINGLE", label: "Belum Menikah" },
-  { value: "MARRIED", label: "Menikah" },
-  { value: "DIVORCED", label: "Cerai" },
-];
+  { value: 'SINGLE', label: 'Belum Menikah' },
+  { value: 'MARRIED', label: 'Menikah' },
+  { value: 'DIVORCED', label: 'Cerai' }
+]
 const idTypeOptions = [
-  { value: "KTP", label: "KTP" },
-  { value: "SIM", label: "SIM" },
-  { value: "PASSPORT", label: "Passport" },
-  { value: "KITAS", label: "KITAS" },
-];
+  { value: 'KTP', label: 'KTP' },
+  { value: 'SIM', label: 'SIM' },
+  { value: 'PASSPORT', label: 'Passport' },
+  { value: 'KITAS', label: 'KITAS' }
+]
 
-const defaultPhotoUrl =
-  "https://ui-avatars.com/api/?background=0D8F81&color=fff&bold=true";
+const defaultPhotoUrl
+  = 'https://ui-avatars.com/api/?background=0D8F81&color=fff&bold=true'
 
 // Fungsi untuk memulai edit
-const normalizeValue = (val?: string) => val?.toUpperCase() || "";
+const normalizeValue = (val?: string) => val?.toUpperCase() || ''
 
 const startEditing = () => {
   if (patient.value) {
@@ -129,208 +129,208 @@ const startEditing = () => {
       maritalStatus: normalizeValue(patient.value.maritalStatus),
       idType: normalizeValue(patient.value.idType),
       bloodGroup: normalizeValue(patient.value.bloodGroup),
-      dob: formatDateForInput(patient.value.dob),
-    };
+      dob: formatDateForInput(patient.value.dob)
+    }
 
-    photoPreview.value = patient.value.photoUrl || null;
-    selectedPhotoFile.value = null;
-    isEditing.value = true;
+    photoPreview.value = patient.value.photoUrl || null
+    selectedPhotoFile.value = null
+    isEditing.value = true
   }
-};
+}
 
 // Fungsi untuk membatalkan edit
 const cancelEditing = () => {
-  isEditing.value = false;
-  editForm.value = {};
-  selectedPhotoFile.value = null;
-  photoPreview.value = null;
-};
+  isEditing.value = false
+  editForm.value = {}
+  selectedPhotoFile.value = null
+  photoPreview.value = null
+}
 
 // Fungsi untuk handle klik foto profil
 const handlePhotoClick = () => {
   if (isEditing.value && fileInputRef.value) {
-    fileInputRef.value.click();
+    fileInputRef.value.click()
   }
-};
+}
 
 // Fungsi untuk handle upload foto
 const handlePhotoUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement;
+  const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
-    selectedPhotoFile.value = input.files[0];
-    const reader = new FileReader();
+    selectedPhotoFile.value = input.files[0]
+    const reader = new FileReader()
     reader.onload = (e) => {
-      photoPreview.value = e.target?.result as string;
-    };
-    reader.readAsDataURL(input.files[0]);
+      photoPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(input.files[0])
   }
-};
+}
 
 // Fungsi untuk menyimpan perubahan
 const saveChanges = async () => {
-  if (!patient.value) return;
+  if (!patient.value) return
 
   try {
     // Upload foto jika ada
     if (selectedPhotoFile.value) {
-      const formData = new FormData();
-      formData.append("photo", selectedPhotoFile.value);
+      const formData = new FormData()
+      formData.append('photo', selectedPhotoFile.value)
       const photoResponse = await api.post(
         `/patient/${patient.value.id}/upload-photo`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-      editForm.value.photoUrl = photoResponse.data.data.url;
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      )
+      editForm.value.photoUrl = photoResponse.data.data.url
     }
 
     // Update data pasien
-    const updateData = { ...editForm.value };
-    delete updateData.id;
-    delete updateData.PatientId;
-    delete updateData.createdAt;
-    delete updateData.addresses;
-    delete updateData.histories;
+    const updateData = { ...editForm.value }
+    delete updateData.id
+    delete updateData.PatientId
+    delete updateData.createdAt
+    delete updateData.addresses
+    delete updateData.histories
 
-    await api.patch(`/patient/${patient.value.id}`, updateData);
-    await refresh();
-    cancelEditing();
+    await api.patch(`/patient/${patient.value.id}`, updateData)
+    await refresh()
+    cancelEditing()
 
     // Tampilkan notifikasi sukses
     add({
-      title: "Berhasil",
-      description: "Data pasien berhasil diperbarui",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: 'Data pasien berhasil diperbarui',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error saving patient data:", error);
+    console.error('Error saving patient data:', error)
     add({
-      title: "Gagal",
-      description: "Gagal memperbarui data pasien",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal memperbarui data pasien',
+      color: 'error'
+    })
   }
-};
+}
 
 const getPhotoUrl = () => {
   if (isEditing.value && photoPreview.value) {
-    return photoPreview.value;
+    return photoPreview.value
   }
-  if (!patient.value) return defaultPhotoUrl;
+  if (!patient.value) return defaultPhotoUrl
   return (
-    patient.value.photoUrl ||
-    `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
-  );
-};
+    patient.value.photoUrl
+    || `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
+  )
+}
 
-const isAddressModalOpen = ref(false);
-const editingAddress = ref<Partial<Address> | null>(null);
-const isAddressLoading = ref(false);
+const isAddressModalOpen = ref(false)
+const editingAddress = ref<Partial<Address> | null>(null)
+const isAddressLoading = ref(false)
 
 const addressTypeOptions = [
-  { value: "HOME", label: "Rumah" },
-  { value: "WORK", label: "Kantor" },
-  { value: "OTHER", label: "Lainnya" },
-];
+  { value: 'HOME', label: 'Rumah' },
+  { value: 'WORK', label: 'Kantor' },
+  { value: 'OTHER', label: 'Lainnya' }
+]
 
 const addressTypeLabel: Record<string, string> = {
-  HOME: "Rumah",
-  WORK: "Kantor",
-  OTHER: "Lainnya",
-};
+  HOME: 'Rumah',
+  WORK: 'Kantor',
+  OTHER: 'Lainnya'
+}
 
 const defaultAddressForm = (): Partial<Address> => ({
-  type: "HOME",
-  detail: "",
-  country: "Indonesia",
-  province: "",
-  city: "",
-  district: "",
-  note: "",
-});
+  type: 'HOME',
+  detail: '',
+  country: 'Indonesia',
+  province: '',
+  city: '',
+  district: '',
+  note: ''
+})
 
 // Buka modal untuk tambah address baru
 const openAddAddress = () => {
-  editingAddress.value = defaultAddressForm();
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = defaultAddressForm()
+  isAddressModalOpen.value = true
+}
 
 // Buka modal untuk edit address yang ada
 const openEditAddress = (address: Address) => {
-  editingAddress.value = { ...address };
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = { ...address }
+  isAddressModalOpen.value = true
+}
 
 // Tutup modal
 const closeAddressModal = () => {
-  isAddressModalOpen.value = false;
-  editingAddress.value = null;
-};
+  isAddressModalOpen.value = false
+  editingAddress.value = null
+}
 
 // Simpan address (tambah atau update)
 const saveAddress = async () => {
-  if (!patient.value || !editingAddress.value) return;
-  isAddressLoading.value = true;
+  if (!patient.value || !editingAddress.value) return
+  isAddressLoading.value = true
 
   // Simpan dulu sebelum di-null-kan oleh closeAddressModal()
-  const isUpdate = !!editingAddress.value.id;
+  const isUpdate = !!editingAddress.value.id
 
   try {
     if (isUpdate) {
       await api.post(
         `/patient/${patient.value.id}/address?addressId=${editingAddress.value.id}`,
-        editingAddress.value,
-      );
+        editingAddress.value
+      )
     } else {
       await api.post(
         `/patient/${patient.value.id}/address`,
-        editingAddress.value,
-      );
+        editingAddress.value
+      )
     }
 
-    await refresh();
-    closeAddressModal();
+    await refresh()
+    closeAddressModal()
 
     toast.add({
-      title: "Berhasil",
-      description: isUpdate ? "Alamat berhasil diperbarui" : "Alamat berhasil ditambahkan",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: isUpdate ? 'Alamat berhasil diperbarui' : 'Alamat berhasil ditambahkan',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error saving address:", error);
+    console.error('Error saving address:', error)
     toast.add({
-      title: "Gagal",
-      description: "Gagal menyimpan alamat",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal menyimpan alamat',
+      color: 'error'
+    })
   } finally {
-    isAddressLoading.value = false;
+    isAddressLoading.value = false
   }
-};
+}
 
 // Hapus address
 const deleteAddress = async (addressId: string) => {
-  if (!patient.value) return;
+  if (!patient.value) return
 
   try {
-    await api.delete(`/patient/${patient.value.id}/address/${addressId}`);
-    await refresh();
+    await api.delete(`/patient/${patient.value.id}/address/${addressId}`)
+    await refresh()
 
     add({
-      title: "Berhasil",
-      description: "Alamat berhasil dihapus",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: 'Alamat berhasil dihapus',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error deleting address:", error);
+    console.error('Error deleting address:', error)
     add({
-      title: "Gagal",
-      description: "Gagal menghapus alamat",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal menghapus alamat',
+      color: 'error'
+    })
   }
-};
+}
 </script>
 
 <template>
@@ -395,10 +395,10 @@ const deleteAddress = async (addressId: string) => {
             :alt="fullName"
             class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full object-cover border-2 border-primary shadow-md"
             :class="{
-              'cursor-pointer hover:opacity-80 transition-opacity': isEditing,
+              'cursor-pointer hover:opacity-80 transition-opacity': isEditing
             }"
             @click="handlePhotoClick"
-          />
+          >
           <input
             v-if="isEditing"
             ref="fileInputRef"
@@ -406,7 +406,7 @@ const deleteAddress = async (addressId: string) => {
             accept="image/*"
             class="hidden"
             @change="handlePhotoUpload"
-          />
+          >
           <div
             v-if="isEditing"
             class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
@@ -429,9 +429,7 @@ const deleteAddress = async (addressId: string) => {
               <div v-if="isEditing" class="space-y-2">
                 <div class="grid grid-cols-1 xs:grid-cols-3 gap-2">
                   <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >First Name *</label
-                    >
+                    <label class="text-xs text-muted block mb-1">First Name *</label>
                     <UInput
                       v-model="editForm.firstName"
                       size="sm"
@@ -439,9 +437,7 @@ const deleteAddress = async (addressId: string) => {
                     />
                   </div>
                   <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >Middle Name</label
-                    >
+                    <label class="text-xs text-muted block mb-1">Middle Name</label>
                     <UInput
                       v-model="editForm.middleName"
                       size="sm"
@@ -449,9 +445,7 @@ const deleteAddress = async (addressId: string) => {
                     />
                   </div>
                   <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >Last Name</label
-                    >
+                    <label class="text-xs text-muted block mb-1">Last Name</label>
                     <UInput
                       v-model="editForm.lastName"
                       size="sm"
@@ -509,8 +503,8 @@ const deleteAddress = async (addressId: string) => {
               }}</span>
               <UInput
                 v-else
-                type="date"
                 v-model="editForm.dob"
+                type="date"
                 size="sm"
                 class="flex-1 min-w-0"
               />
@@ -572,7 +566,7 @@ const deleteAddress = async (addressId: string) => {
                     { label: 'KTP', value: 'KTP' },
                     { label: 'SIM', value: 'SIM' },
                     { label: 'PASSPORT', value: 'PASSPORT' },
-                    { label: 'KITAS', value: 'KITAS' },
+                    { label: 'KITAS', value: 'KITAS' }
                   ]"
                   size="sm"
                   class="w-20 sm:w-24"
@@ -607,7 +601,9 @@ const deleteAddress = async (addressId: string) => {
         >
           <!-- Usia -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Usia</p>
+            <p class="text-xs text-muted mb-1">
+              Usia
+            </p>
             <p v-if="!isEditing" class="text-sm">
               {{
                 patient.dob
@@ -615,18 +611,22 @@ const deleteAddress = async (addressId: string) => {
                   : "-"
               }}
             </p>
-            <p v-else class="text-sm text-muted">Akan dihitung otomatis</p>
+            <p v-else class="text-sm text-muted">
+              Akan dihitung otomatis
+            </p>
           </div>
 
           <!-- Status -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Status</p>
+            <p class="text-xs text-muted mb-1">
+              Status
+            </p>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{
-                  maritalLabel[patient.maritalStatus] ??
-                  patient.maritalStatus ??
-                  "-"
+                  maritalLabel[patient.maritalStatus]
+                    ?? patient.maritalStatus
+                    ?? "-"
                 }}
               </p>
             </div>
@@ -636,7 +636,7 @@ const deleteAddress = async (addressId: string) => {
                 :items="[
                   { label: 'Belum Menikah', value: 'SINGLE' },
                   { label: 'Menikah', value: 'MARRIED' },
-                  { label: 'Cerai', value: 'DIVORCED' },
+                  { label: 'Cerai', value: 'DIVORCED' }
                 ]"
                 class="w-32"
               />
@@ -645,9 +645,13 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Golongan Darah -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Golongan Darah</p>
+            <p class="text-xs text-muted mb-1">
+              Golongan Darah
+            </p>
             <div v-if="!isEditing">
-              <p class="text-sm">{{ patient.bloodGroup ?? "-" }}</p>
+              <p class="text-sm">
+                {{ patient.bloodGroup ?? "-" }}
+              </p>
             </div>
             <div v-else>
               <USelect
@@ -656,7 +660,7 @@ const deleteAddress = async (addressId: string) => {
                   { label: 'A', value: 'A' },
                   { label: 'B', value: 'B' },
                   { label: 'AB', value: 'AB' },
-                  { label: 'O', value: 'O' },
+                  { label: 'O', value: 'O' }
                 ]"
                 class="w-32"
               />
@@ -665,16 +669,20 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Jenis Kelamin -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Jenis Kelamin</p>
+            <p class="text-xs text-muted mb-1">
+              Jenis Kelamin
+            </p>
             <div v-if="!isEditing">
-              <p class="text-sm">{{ genderLabel(patient.gender) }}</p>
+              <p class="text-sm">
+                {{ genderLabel(patient.gender) }}
+              </p>
             </div>
             <div v-else>
               <USelect
                 v-model="editForm.gender"
                 :items="[
                   { label: 'Laki-laki', value: 'MALE' },
-                  { label: 'Perempuan', value: 'FEMALE' },
+                  { label: 'Perempuan', value: 'FEMALE' }
                 ]"
                 class="w-32"
               />
@@ -743,14 +751,16 @@ const deleteAddress = async (addressId: string) => {
                     size="xs"
                   />
                 </div>
-                <p class="text-sm">{{ address.detail }}</p>
+                <p class="text-sm">
+                  {{ address.detail }}
+                </p>
                 <p class="text-xs text-muted">
                   {{
                     [
                       address.district,
                       address.city,
                       address.province,
-                      address.country,
+                      address.country
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -913,7 +923,9 @@ const deleteAddress = async (addressId: string) => {
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <p class="text-sm font-medium">{{ history.company }}</p>
+                <p class="text-sm font-medium">
+                  {{ history.company }}
+                </p>
                 <UBadge
                   v-if="history.isCurrent"
                   label="Aktif"

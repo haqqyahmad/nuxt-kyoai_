@@ -1,22 +1,22 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    count?: number;
+    count?: number
   }>(),
   {
-    count: 0,
-  },
-);
+    count: 0
+  }
+)
 
 const emit = defineEmits<{
-  (e: "confirm"): void;
-}>();
+  (e: 'confirm'): void
+}>()
 
-const open = ref(false);
+const open = ref(false)
 
 function onSubmit() {
-  emit("confirm");
-  open.value = false;
+  emit('confirm')
+  open.value = false
 }
 </script>
 
