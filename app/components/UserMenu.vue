@@ -59,7 +59,7 @@ onMounted(() => {
 
 const userDisplay = computed(() => {
   return {
-    name: user.value?.name || "Loading...",
+    name: user.value?.name || "User",
     avatar: {
       src: user.value?.avatar || "/default-avatar.png",
       alt: user.value?.name || "User",
@@ -71,7 +71,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
   [
     {
       type: "label",
-      label: userDisplay.value?.name || "Loading...",
+      label: userDisplay.value?.name,
       avatar: userDisplay.value?.avatar,
     },
   ],
