@@ -1,15 +1,22 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
-  count?: number
-}>(), {
-  count: 0
-})
+withDefaults(
+  defineProps<{
+    count?: number;
+  }>(),
+  {
+    count: 0,
+  },
+);
 
-const open = ref(false)
+const emit = defineEmits<{
+  (e: "confirm"): void;
+}>();
 
-async function onSubmit() {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  open.value = false
+const open = ref(false);
+
+function onSubmit() {
+  emit("confirm");
+  open.value = false;
 }
 </script>
 
