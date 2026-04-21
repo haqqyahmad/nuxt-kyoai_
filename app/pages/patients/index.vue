@@ -42,6 +42,64 @@ const columnFilters = ref([
 const columnVisibility = ref();
 const rowSelection = ref({});
 
+const selectedDeleteId = ref<string | null>(null);
+async function deletePatient(id: string) {
+  try {
+    await api.delete(`/patient/${id}`);
+
+    toast.add({
+      title: "Berhasil",
+      description: "Patient berhasil dihapus",
+      color: "success",
+    });
+
+    await refresh();
+  } catch (err) {
+    toast.add({
+      title: "Gagal",
+      description: "Gagal menghapus patient",
+      color: "error",
+    });
+  }
+}
+
+async function handleDeleteById() {
+  if (!selectedDeleteId.value) return;
+
+  await deletePatient(selectedDeleteId.value);
+  selectedDeleteId.value = null;
+}
+
+async function deleteSelectedPatients() {
+  const selectedRows =
+    table.value?.tableApi?.getFilteredSelectedRowModel().rows || [];
+
+  if (!selectedRows.length) return;
+
+  try {
+    await Promise.all(
+      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`)),
+    );
+
+    toast.add({
+      title: "Berhasil",
+      description: "Data pasien berhasil dihapus",
+      color: "success",
+    });
+
+    table.value?.tableApi?.resetRowSelection();
+    await refresh();
+  } catch (err) {
+    toast.add({
+      title: "Gagal",
+      description: "Gagal menghapus data",
+      color: "error",
+    });
+  }
+}
+
+const isDeleteModalOpen = ref(false);
+
 function getRowItems(row: Row<Patient>) {
   return [
     {
@@ -61,10 +119,8 @@ function getRowItems(row: Row<Patient>) {
       icon: "i-lucide-trash",
       color: "error",
       onSelect() {
-        toast.add({
-          title: "Patient deleted",
-          description: "The patient has been deleted.",
-        });
+        selectedDeleteId.value = row.original.id;
+        isDeleteModalOpen.value = true;
       },
     },
   ];
@@ -284,6 +340,7 @@ const currentPageSize = computed({
         <div class="flex flex-wrap items-center gap-1.5">
           <PatientsDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            @confirm="deleteSelectedPatients"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -386,6 +443,11 @@ const currentPageSize = computed({
           />
         </div>
       </div>
+      <PatientsDeleteModal
+        v-model:open="isDeleteModalOpen"
+        :count="1"
+        @confirm="handleDeleteById"
+      />
     </template>
   </UDashboardPanel>
 </template>

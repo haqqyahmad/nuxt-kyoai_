@@ -44,6 +44,34 @@ const rowSelection = ref({});
 //   pageSize: 10,
 // });
 
+async function deleteSelectedUsers() {
+  const selectedRows =
+    table.value?.tableApi?.getFilteredSelectedRowModel().rows || [];
+
+  if (!selectedRows.length) return;
+
+  try {
+    await Promise.all(
+      selectedRows.map((row: any) => api.delete(`/user/${row.original.id}`)),
+    );
+
+    toast.add({
+      title: "Berhasil",
+      description: "Data pasien berhasil dihapus",
+      color: "success",
+    });
+
+    table.value?.tableApi?.resetRowSelection();
+    await refresh();
+  } catch (err) {
+    toast.add({
+      title: "Gagal",
+      description: "Gagal menghapus data",
+      color: "error",
+    });
+  }
+}
+
 function getRowItems(row: Row<User>) {
   return [
     {
@@ -248,6 +276,7 @@ const currentPageSize = computed({
         <div class="flex flex-wrap items-center gap-1.5">
           <UsersDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            @confirm="deleteSelectedUsers"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"

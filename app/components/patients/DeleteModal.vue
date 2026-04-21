@@ -8,10 +8,15 @@ withDefaults(
   },
 );
 
-const open = ref(false);
+const emit = defineEmits<{
+  (e: "confirm"): void;
+}>();
 
-async function onSubmit() {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+// ⬇️ INI YANG PENTING
+const open = defineModel<boolean>("open");
+
+function onSubmit() {
+  emit("confirm");
   open.value = false;
 }
 </script>
@@ -20,7 +25,7 @@ async function onSubmit() {
   <UModal
     v-model:open="open"
     :title="`Delete ${count} patient${count > 1 ? 's' : ''}`"
-    :description="`Are you sure, this action cannot be undone.`"
+    description="Data yang dihapus tidak bisa dikembalikan."
   >
     <slot />
 
@@ -32,13 +37,7 @@ async function onSubmit() {
           variant="subtle"
           @click="open = false"
         />
-        <UButton
-          label="Delete"
-          color="error"
-          variant="solid"
-          loading-auto
-          @click="onSubmit"
-        />
+        <UButton label="Delete" color="error" @click="onSubmit" />
       </div>
     </template>
   </UModal>
