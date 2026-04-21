@@ -223,9 +223,6 @@ const getPhotoUrl = () => {
   );
 };
 
-
-
-
 const isAddressModalOpen = ref(false);
 const editingAddress = ref<Partial<Address> | null>(null);
 const isAddressLoading = ref(false);
@@ -334,12 +331,17 @@ const deleteAddress = async (addressId: string) => {
     });
   }
 };
-
 </script>
 
 <template>
-  <UDashboardPanel :id="`patient-${route.params.id}`" >
-    <UDashboardNavbar :title="fullName">
+  <UDashboardPanel
+    :id="`patient-${route.params.id}`"
+    class="h-screen flex flex-col overflow-y-auto"
+  >
+    <UDashboardNavbar
+      :title="fullName"
+      class="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-accented"
+    >
       <template #leading>
         <UButton
           icon="i-lucide-arrow-left"
@@ -359,10 +361,17 @@ const deleteAddress = async (addressId: string) => {
           Edit Data
         </UButton>
         <div v-else class="flex gap-2">
-          <UButton color="neutral" variant="ghost" @click="cancelEditing">
+          <UButton
+            color="error"
+            variant="outline"
+            icon="i-lucide-clipboard-x"
+            @click="cancelEditing"
+          >
             Batal
           </UButton>
-          <UButton color="primary" @click="saveChanges"> Simpan </UButton>
+          <UButton color="primary" icon="i-lucide-save" @click="saveChanges">
+            Simpan
+          </UButton>
         </div>
       </template>
     </UDashboardNavbar>
@@ -374,17 +383,17 @@ const deleteAddress = async (addressId: string) => {
       />
     </div>
 
-    <div v-else class="p-6 space-y-6 max-w-7xl">
+    <div v-else class="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
       <!-- Header dengan foto di kiri -->
       <div
-        class="flex items-start gap-6 p-6 rounded-xl border border-accented bg-elevated"
+        class="flex flex-col md:flex-row items-start gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 md:p-6 rounded-xl border border-accented bg-elevated"
       >
         <!-- Foto Profil -->
-        <div class="relative flex-shrink-0">
+        <div class="relative flex-shrink-0 mx-auto md:mx-0">
           <img
             :src="getPhotoUrl()"
             :alt="fullName"
-            class="w-32 h-32 rounded-full object-cover border-2 border-primary shadow-md"
+            class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full object-cover border-2 border-primary shadow-md"
             :class="{
               'cursor-pointer hover:opacity-80 transition-opacity': isEditing,
             }"
@@ -400,44 +409,77 @@ const deleteAddress = async (addressId: string) => {
           />
           <div
             v-if="isEditing"
-            class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+            class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
           >
-            <UIcon name="i-lucide-camera" class="text-white text-xl" />
+            <UIcon
+              name="i-lucide-camera"
+              class="text-white text-lg sm:text-xl"
+            />
           </div>
         </div>
 
         <!-- Informasi Utama -->
-        <div class="flex-1">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex-1">
+        <div class="flex-1 min-w-0 w-full">
+          <!-- Baris Nama dan Badge - sekarang center di mobile -->
+          <div
+            class="flex flex-col items-center sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+          >
+            <div class="flex-1 min-w-0 text-center sm:text-left">
               <!-- Nama - Edit mode -->
               <div v-if="isEditing" class="space-y-2">
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-1 xs:grid-cols-3 gap-2">
                   <div>
-                    <label class="text-xs text-muted">First Name *</label>
-                    <UInput v-model="editForm.firstName" size="sm" />
+                    <label class="text-xs text-muted block mb-1"
+                      >First Name *</label
+                    >
+                    <UInput
+                      v-model="editForm.firstName"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                   <div>
-                    <label class="text-xs text-muted">Middle Name</label>
-                    <UInput v-model="editForm.middleName" size="sm" />
+                    <label class="text-xs text-muted block mb-1"
+                      >Middle Name</label
+                    >
+                    <UInput
+                      v-model="editForm.middleName"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                   <div>
-                    <label class="text-xs text-muted">Last Name</label>
-                    <UInput v-model="editForm.lastName" size="sm" />
+                    <label class="text-xs text-muted block mb-1"
+                      >Last Name</label
+                    >
+                    <UInput
+                      v-model="editForm.lastName"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                 </div>
               </div>
               <!-- Nama - View mode -->
               <div v-else>
-                <h2 class="text-xl font-semibold">{{ fullName }}</h2>
-                <p class="text-sm text-muted mt-0.5">{{ patient.PatientId }}</p>
+                <h2
+                  class="text-lg sm:text-xl lg:text-2xl font-semibold break-words"
+                >
+                  {{ fullName }}
+                </h2>
+                <p class="text-xs sm:text-sm text-muted mt-0.5 break-all">
+                  {{ patient.PatientId }}
+                </p>
               </div>
             </div>
-            <div class="flex gap-2">
+
+            <!-- Badges - sekarang center di mobile -->
+            <div class="flex gap-2 flex-shrink-0 justify-center sm:justify-end">
               <UBadge
                 :label="genderLabel(patient.gender)"
                 :color="patient.gender === 'MALE' ? 'primary' : 'info'"
                 variant="subtle"
+                class="text-xs sm:text-sm"
               />
               <UBadge
                 v-if="patient.maritalStatus"
@@ -446,84 +488,107 @@ const deleteAddress = async (addressId: string) => {
                 "
                 color="neutral"
                 variant="subtle"
+                class="text-xs sm:text-sm"
               />
             </div>
           </div>
 
           <!-- Informasi Singkat di bawah nama -->
           <div
-            class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-4 pt-4 border-t border-accented"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-2 sm:gap-y-3 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-accented"
           >
             <!-- Tanggal Lahir -->
-            <div v-if="!isEditing" class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-calendar" class="text-muted text-sm" />
-              <span class="text-muted">Tanggal Lahir:</span>
-              <span>{{ formatDate(patient.dob) }}</span>
-            </div>
-            <div v-else class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-calendar" class="text-muted text-sm" />
-              <span class="text-muted">Tanggal Lahir:</span>
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-calendar"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Tanggal Lahir:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                formatDate(patient.dob)
+              }}</span>
               <UInput
+                v-else
                 type="date"
                 v-model="editForm.dob"
                 size="sm"
-                class="flex-1"
+                class="flex-1 min-w-0"
               />
             </div>
 
             <!-- No HP -->
-            <div v-if="!isEditing" class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-phone" class="text-muted text-sm" />
-              <span class="text-muted">No. HP:</span>
-              <span>{{ patient.phone ?? "-" }}</span>
-            </div>
-            <div v-else class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-phone" class="text-muted text-sm" />
-              <span class="text-muted">No. HP:</span>
-              <UInput v-model="editForm.phone" size="sm" class="flex-1" />
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-phone"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">No. HP:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.phone ?? "-"
+              }}</span>
+              <UInput
+                v-else
+                v-model="editForm.phone"
+                size="sm"
+                class="flex-1 min-w-0"
+              />
             </div>
 
             <!-- Email -->
-            <div v-if="!isEditing" class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-mail" class="text-muted text-sm" />
-              <span class="text-muted">Email:</span>
-              <span class="truncate">{{ patient.email ?? "-" }}</span>
-            </div>
-            <div v-else class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-mail" class="text-muted text-sm" />
-              <span class="text-muted">Email:</span>
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-mail"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Email:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.email ?? "-"
+              }}</span>
               <UInput
+                v-else
                 v-model="editForm.email"
                 type="email"
                 size="sm"
-                class="flex-1"
+                class="flex-1 min-w-0"
               />
             </div>
 
             <!-- Identitas -->
-            <div v-if="!isEditing" class="flex items-center gap-2 text-sm">
-              <UIcon name="i-lucide-id-card" class="text-muted text-sm" />
-              <span class="text-muted">{{ patient.idType }}:</span>
-              <span class="font-mono">{{ patient.idNumber }}</span>
-            </div>
-            <div v-else class="flex items-center gap-2 text-sm col-span-2">
-              <UIcon name="i-lucide-id-card" class="text-muted text-sm" />
-              <USelect
-                v-model="editForm.idType"
-                :items="[
-                  { label: 'KTP', value: 'KTP' },
-                  { label: 'SIM', value: 'SIM' },
-                  { label: 'PASSPORT', value: 'PASSPORT' },
-                  { label: 'KITAS', value: 'KITAS' },
-                ]"
-                class="w-32"
+            <!-- <div
+              class="flex flex-col xs:flex-row items-start xs:items-center gap-2 text-xs sm:text-sm min-w-0 col-span-1 sm:col-span-2"
+            > -->
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-id-card"
+                class="text-muted flex-shrink-0 text-sm"
               />
-              <UInput
-                v-model="editForm.idNumber"
-                size="sm"
-                class="flex-1"
-                placeholder="Nomor Identitas"
-              />
+              <span class="text-muted whitespace-nowrap">Identitas:</span>
+              <!-- </div> -->
+
+              <div v-if="isEditing" class="flex flex-1 flex-wrap gap-2">
+                <USelect
+                  v-model="editForm.idType"
+                  :items="[
+                    { label: 'KTP', value: 'KTP' },
+                    { label: 'SIM', value: 'SIM' },
+                    { label: 'PASSPORT', value: 'PASSPORT' },
+                    { label: 'KITAS', value: 'KITAS' },
+                  ]"
+                  size="sm"
+                  class="w-20 sm:w-24"
+                />
+                <UInput
+                  v-model="editForm.idNumber"
+                  size="sm"
+                  class="flex-1 min-w-[120px]"
+                  placeholder="Nomor Identitas"
+                />
+              </div>
+
+              <div v-else class="flex flex-1 flex-wrap items-center gap-x-2">
+                <span class="text-muted">{{ patient.idType }}:</span>
+                <span class="font-mono break-all">{{ patient.idNumber }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -537,7 +602,9 @@ const deleteAddress = async (addressId: string) => {
             Detail Pasien
           </h3>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-px bg-accented">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 bg-accented"
+        >
           <!-- Usia -->
           <div class="bg-background p-4">
             <p class="text-xs text-muted mb-1">Usia</p>
@@ -617,175 +684,197 @@ const deleteAddress = async (addressId: string) => {
       </div>
 
       <!-- Alamat -->
-<UCollapsible :default-open="true" class="rounded-xl border border-accented overflow-hidden">
-  <template #default="{ open }">
-    <div class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between cursor-pointer">
-      <h3 class="text-sm font-medium flex items-center gap-2">
-        <UIcon name="i-lucide-map-pin" />
-        Alamat
-      </h3>
-      <div class="flex items-center gap-2">
-        <UBadge
-          :label="`${patient.addresses?.length ?? 0} alamat`"
-          color="neutral"
-          variant="subtle"
-          size="xs"
-        />
-        <UButton
-          icon="i-lucide-plus"
-          size="xs"
-          color="primary"
-          variant="ghost"
-          label="Tambah"
-          @click.stop="openAddAddress"
-        />
-        <UIcon
-          name="i-lucide-chevron-down"
-          class="transition-transform"
-          :class="{ 'rotate-180': open }"
-        />
-      </div>
-    </div>
-  </template>
-
-  <template #content>
-    <div v-if="!patient.addresses?.length" class="p-6 text-sm text-muted text-center">
-      Belum ada alamat.
-    </div>
-
-    <div v-else class="divide-y divide-accented">
-      <div
-        v-for="address in patient.addresses"
-        :key="address.id"
-        class="p-4 flex items-start gap-3 group"
+      <UCollapsible
+        :default-open="true"
+        class="rounded-xl border border-accented overflow-hidden"
       >
-        <div class="flex-1 space-y-1">
-          <div class="flex items-center gap-2">
-            <UBadge
-              :label="addressTypeLabel[address.type] ?? address.type"
-              color="neutral"
-              variant="outline"
-              size="xs"
-            />
+        <template #default="{ open }">
+          <div
+            class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between cursor-pointer"
+          >
+            <h3 class="text-sm font-medium flex items-center gap-2">
+              <UIcon name="i-lucide-map-pin" />
+              Alamat
+            </h3>
+            <div class="flex items-center gap-2">
+              <UBadge
+                :label="`${patient.addresses?.length ?? 0} alamat`"
+                color="neutral"
+                variant="subtle"
+                size="xs"
+              />
+              <UButton
+                icon="i-lucide-plus"
+                size="xs"
+                color="primary"
+                variant="ghost"
+                label="Tambah"
+                @click.stop="openAddAddress"
+              />
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="transition-transform"
+                :class="{ 'rotate-180': open }"
+              />
+            </div>
           </div>
-          <p class="text-sm">{{ address.detail }}</p>
-          <p class="text-xs text-muted">
-            {{ [address.district, address.city, address.province, address.country].filter(Boolean).join(", ") }}
-          </p>
-          <p v-if="address.note" class="text-xs text-muted italic">
-            {{ address.note }}
-          </p>
-        </div>
+        </template>
 
-        <!-- Tombol aksi (muncul saat hover) -->
-        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <UButton
-            icon="i-lucide-pencil"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            @click="openEditAddress(address)"
-          />
-          <UButton
-            icon="i-lucide-trash-2"
-            size="xs"
-            color="error"
-            variant="ghost"
-            @click="deleteAddress(address.id)"
-          />
-        </div>
-      </div>
-    </div>
-  </template>
-</UCollapsible>
+        <template #content>
+          <div
+            v-if="!patient.addresses?.length"
+            class="p-6 text-sm text-muted text-center"
+          >
+            Belum ada alamat.
+          </div>
 
-<!-- Modal Tambah / Edit Address -->
-<UModal v-model:open="isAddressModalOpen" :title="editingAddress?.id ? 'Edit Alamat' : 'Tambah Alamat'">
-  <template #body>
-    <div v-if="editingAddress" class="space-y-4">
-      <!-- Tipe Alamat -->
-      <UFormField label="Tipe Alamat">
-        <USelect
-          v-model="editingAddress.type"
-          :items="addressTypeOptions"
-          class="w-full"
-        />
-      </UFormField>
+          <div v-else class="divide-y divide-accented">
+            <div
+              v-for="address in patient.addresses"
+              :key="address.id"
+              class="p-4 flex items-start gap-3 group"
+            >
+              <div class="flex-1 space-y-1">
+                <div class="flex items-center gap-2">
+                  <UBadge
+                    :label="addressTypeLabel[address.type] ?? address.type"
+                    color="neutral"
+                    variant="outline"
+                    size="xs"
+                  />
+                </div>
+                <p class="text-sm">{{ address.detail }}</p>
+                <p class="text-xs text-muted">
+                  {{
+                    [
+                      address.district,
+                      address.city,
+                      address.province,
+                      address.country,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
+                  }}
+                </p>
+                <p v-if="address.note" class="text-xs text-muted italic">
+                  {{ address.note }}
+                </p>
+              </div>
 
-      <!-- Detail Alamat -->
-      <UFormField label="Alamat Lengkap">
-        <UTextarea
-          v-model="editingAddress.detail"
-          placeholder="Jl. Contoh No. 123, RT 01/RW 02"
-          :rows="3"
-          class="w-full"
-        />
-      </UFormField>
+              <!-- Tombol aksi (muncul saat hover) -->
+              <div
+                class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              >
+                <UButton
+                  icon="i-lucide-pencil"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="openEditAddress(address)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="xs"
+                  color="error"
+                  variant="ghost"
+                  @click="deleteAddress(address.id)"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
+      </UCollapsible>
 
-      <div class="grid grid-cols-2 gap-3">
-        <!-- Kelurahan / Kecamatan -->
-        <UFormField label="Kecamatan / Kelurahan">
-          <UInput
-            v-model="editingAddress.district"
-            placeholder="Kecamatan"
-            class="w-full"
-          />
-        </UFormField>
-
-        <!-- Kota -->
-        <UFormField label="Kota / Kabupaten">
-          <UInput
-            v-model="editingAddress.city"
-            placeholder="Kota"
-            class="w-full"
-          />
-        </UFormField>
-
-        <!-- Provinsi -->
-        <UFormField label="Provinsi">
-          <UInput
-            v-model="editingAddress.province"
-            placeholder="Provinsi"
-            class="w-full"
-          />
-        </UFormField>
-
-        <!-- Negara -->
-        <UFormField label="Negara">
-          <UInput
-            v-model="editingAddress.country"
-            placeholder="Negara"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-
-      <!-- Catatan -->
-      <UFormField label="Catatan (opsional)">
-        <UInput
-          v-model="editingAddress.note"
-          placeholder="Patokan atau informasi tambahan..."
-          class="w-full"
-        />
-      </UFormField>
-    </div>
-  </template>
-
-  <template #footer>
-    <div class="flex justify-end gap-2">
-      <UButton color="neutral" variant="ghost" @click="closeAddressModal">
-        Batal
-      </UButton>
-      <UButton
-        color="primary"
-        :loading="isAddressLoading"
-        @click="saveAddress"
+      <!-- Modal Tambah / Edit Address -->
+      <UModal
+        v-model:open="isAddressModalOpen"
+        :title="editingAddress?.id ? 'Edit Alamat' : 'Tambah Alamat'"
       >
-        {{ editingAddress?.id ? "Simpan Perubahan" : "Tambah Alamat" }}
-      </UButton>
-    </div>
-  </template>
-</UModal>
+        <template #body>
+          <div v-if="editingAddress" class="space-y-4">
+            <!-- Tipe Alamat -->
+            <UFormField label="Tipe Alamat">
+              <USelect
+                v-model="editingAddress.type"
+                :items="addressTypeOptions"
+                class="w-full"
+              />
+            </UFormField>
+
+            <!-- Detail Alamat -->
+            <UFormField label="Alamat Lengkap">
+              <UTextarea
+                v-model="editingAddress.detail"
+                placeholder="Jl. Contoh No. 123, RT 01/RW 02"
+                :rows="3"
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Kelurahan / Kecamatan -->
+              <UFormField label="Kecamatan / Kelurahan">
+                <UInput
+                  v-model="editingAddress.district"
+                  placeholder="Kecamatan"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <!-- Kota -->
+              <UFormField label="Kota / Kabupaten">
+                <UInput
+                  v-model="editingAddress.city"
+                  placeholder="Kota"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <!-- Provinsi -->
+              <UFormField label="Provinsi">
+                <UInput
+                  v-model="editingAddress.province"
+                  placeholder="Provinsi"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <!-- Negara -->
+              <UFormField label="Negara">
+                <UInput
+                  v-model="editingAddress.country"
+                  placeholder="Negara"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+
+            <!-- Catatan -->
+            <UFormField label="Catatan (opsional)">
+              <UInput
+                v-model="editingAddress.note"
+                placeholder="Patokan atau informasi tambahan..."
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="closeAddressModal">
+              Batal
+            </UButton>
+            <UButton
+              color="primary"
+              :loading="isAddressLoading"
+              @click="saveAddress"
+            >
+              {{ editingAddress?.id ? "Simpan Perubahan" : "Tambah Alamat" }}
+            </UButton>
+          </div>
+        </template>
+      </UModal>
 
       <!-- Riwayat Perusahaan -->
       <div class="rounded-xl border border-accented overflow-hidden">
