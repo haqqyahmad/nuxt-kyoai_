@@ -31,24 +31,25 @@ const neutrals = ["slate", "gray", "zinc", "neutral", "stone"];
 
 const { user, fetchUser } = useUser();
 
-
 onMounted(async () => {
   const { getToken } = useAuth();
   const token = getToken();
-  
+
   console.log("TOKEN:", token);
 
   if (token) {
-    await  fetchUser();
+    await fetchUser();
   }
 });
 
+console.log("USER:", user.value?.data);
+
 const userDisplay = computed(() => {
   return {
-    name: user.value?.data?.data.email || "User",
+    name: user.value?.data?.email || "User",
     avatar: {
-      src: user.value?.avatar || "/default-avatar.png",
-      alt: user.value?.name || "User",
+      src: user.value?.data?.avatar || "/default-avatar.png",
+      alt: user.value?.data?.name || "User",
     },
   };
 });

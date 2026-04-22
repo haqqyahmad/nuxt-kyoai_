@@ -24,7 +24,7 @@ type User = {
 }
 
 const props = defineProps<{
-  user: User | null
+  user: User
 }>()
 
 const emit = defineEmits<{
@@ -34,9 +34,7 @@ const emit = defineEmits<{
 const api = useApi()
 const toast = useToast()
 
-// ✅ controlled modal
 const open = defineModel<boolean>('open')
-
 const loading = ref(false)
 const loadingData = ref(false)
 
@@ -45,9 +43,6 @@ const selectedRoleIds = ref<number[]>([])
 const viewingRole = ref<Role | null>(null)
 const showPermissions = ref(false)
 
-// =======================
-// 🧠 Helpers
-// =======================
 function formatPermission(name: string) {
   return name
     .replace(':', ' ')
@@ -57,9 +52,6 @@ function formatPermission(name: string) {
     .join(' ')
 }
 
-// =======================
-// 📡 API
-// =======================
 async function fetchRoles() {
   loadingData.value = true
   try {
@@ -73,51 +65,28 @@ async function fetchRoles() {
 }
 
 async function fetchUserRoles() {
-  if (!props.user) return
-
   try {
     const res = await api.get(`/users/${props.user.id}/role`)
     const data = res.data.data
-
     if (Array.isArray(data)) {
       selectedRoleIds.value = data.map((ur: any) => ur.roleId)
     } else if (data?.roleId) {
       selectedRoleIds.value = [data.roleId]
     }
   } catch {
-    selectedRoleIds.value = []
+    // user belum punya role
   }
 }
 
-// =======================
-// 🔄 WATCHERS (INI KUNCI NYA)
-// =======================
+async function onOpen() {
+  open.value = true
+  showPermissions.value = false
+  viewingRole.value = null
+  selectedRoleIds.value = []
+  await fetchRoles()
+  await fetchUserRoles()
+}
 
-// 🔥 load data saat modal dibuka
-watch(open, async (val) => {
-  if (val && props.user) {
-    showPermissions.value = false
-    viewingRole.value = null
-    selectedRoleIds.value = []
-
-    await fetchRoles()
-    await fetchUserRoles()
-  }
-})
-
-// 🔥 reset kalau user berubah
-watch(
-  () => props.user,
-  () => {
-    selectedRoleIds.value = []
-    viewingRole.value = null
-    showPermissions.value = false
-  }
-)
-
-// =======================
-// 🎯 ACTIONS
-// =======================
 function toggleRole(roleId: number) {
   if (selectedRoleIds.value.includes(roleId)) {
     selectedRoleIds.value = selectedRoleIds.value.filter(id => id !== roleId)
@@ -127,19 +96,14 @@ function toggleRole(roleId: number) {
 }
 
 async function assignRole() {
-  if (!props.user || selectedRoleIds.value.length === 0) return
+  if (selectedRoleIds.value.length === 0) return
 
   loading.value = true
   try {
     await api.post(`/users/${props.user.id}/role`, {
       roleIds: selectedRoleIds.value
     })
-
-    toast.add({
-      title: 'Role berhasil diassign',
-      color: 'success'
-    })
-
+    toast.add({ title: 'Role berhasil diassign', color: 'success' })
     open.value = false
     emit('updated')
   } catch (err: any) {
@@ -170,7 +134,7 @@ function backToRoles() {
     :title="
       showPermissions
         ? `Permissions — ${viewingRole?.name}`
-        : `Assign Role — ${user?.name ?? '-'}`
+        : `Assign Role — ${user.name}`
     "
     :description="
       showPermissions
@@ -178,8 +142,17 @@ function backToRoles() {
         : 'Pilih satu atau lebih role untuk user ini'
     "
   >
+    <!-- Trigger -->
+    <UButton
+      label="Assign Role"
+      icon="i-lucide-shield"
+      color="neutral"
+      variant="outline"
+      size="xs"
+    />
+
     <template #body>
-      <!-- 🔄 Loading -->
+      <!-- Loading -->
       <div v-if="loadingData" class="flex justify-center py-8">
         <UIcon
           name="i-lucide-loader-circle"
@@ -187,7 +160,7 @@ function backToRoles() {
         />
       </div>
 
-      <!-- 👁️ View Permissions -->
+      <!-- View Permissions -->
       <div v-else-if="showPermissions && viewingRole">
         <div class="mb-4">
           <UButton
@@ -207,15 +180,15 @@ function backToRoles() {
           Role ini tidak memiliki permission.
         </div>
 
-        <div v-else class="grid gap-2">
+        <div v-else class="grid grid-cols-1 gap-2">
           <div
             v-for="item in viewingRole.permissions"
             :key="item.permissionId"
-            class="flex items-start gap-3 p-3 rounded-lg border bg-elevated"
+            class="flex items-start gap-3 p-3 rounded-lg border border-accented bg-elevated"
           >
             <UIcon
               name="i-lucide-check-circle"
-              class="text-success mt-0.5"
+              class="text-success mt-0.5 shrink-0"
             />
             <div>
               <p class="text-sm font-medium">
@@ -223,7 +196,7 @@ function backToRoles() {
               </p>
               <p
                 v-if="item.permission.description"
-                class="text-xs text-muted"
+                class="text-xs text-muted mt-0.5"
               >
                 {{ formatPermission(item.permission.description) }}
               </p>
@@ -232,11 +205,11 @@ function backToRoles() {
         </div>
       </div>
 
-      <!-- ✅ Select Roles -->
+      <!-- Select Roles -->
       <div v-else class="space-y-3">
         <div
           v-if="roles.length === 0"
-          class="text-sm text-muted text-center py-4"
+          class="text-sm text-muted py-4 text-center"
         >
           Tidak ada role tersedia.
         </div>
@@ -244,20 +217,20 @@ function backToRoles() {
         <div
           v-for="role in roles"
           :key="role.id"
-          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition"
+          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
           :class="
             selectedRoleIds.includes(role.id)
               ? 'border-primary bg-primary/5'
-              : 'border-accented hover:border-primary/50'
+              : 'border-accented hover:border-primary/50 hover:bg-elevated'
           "
           @click="toggleRole(role.id)"
         >
-          <!-- checkbox -->
+          <!-- Checkbox -->
           <div
-            class="w-4 h-4 rounded border-2 flex items-center justify-center"
+            class="w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors"
             :class="
               selectedRoleIds.includes(role.id)
-                ? 'bg-primary border-primary'
+                ? 'border-primary bg-primary'
                 : 'border-muted'
             "
           >
@@ -268,33 +241,37 @@ function backToRoles() {
             />
           </div>
 
-          <!-- info -->
-          <div class="flex-1">
+          <!-- Role info -->
+          <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">
-                {{ formatPermission(role.name) }}
-              </span>
+              <span class="text-sm font-medium">{{
+                formatPermission(role.name)
+              }}</span>
               <UBadge
                 :label="`${role.permissions.length} permission`"
-                size="xs"
+                color="neutral"
                 variant="subtle"
+                size="xs"
               />
             </div>
           </div>
 
-          <!-- view -->
+          <!-- View permissions -->
           <UButton
             icon="i-lucide-eye"
-            size="xs"
+            color="neutral"
             variant="ghost"
+            size="xs"
+            aria-label="Lihat permissions"
             @click.stop="viewPermissions(role)"
           />
         </div>
 
-        <!-- actions -->
-        <div class="flex justify-end gap-2 pt-2 border-t">
+        <!-- Actions -->
+        <div class="flex justify-end gap-2 pt-2 border-t border-accented">
           <UButton
             label="Batal"
+            color="neutral"
             variant="subtle"
             @click="open = false"
           />
