@@ -316,8 +316,9 @@ const currentPageSize = computed({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <UsersDeleteModal
+          <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            entity="user"
             @confirm="deleteSelectedUsers"
           >
             <UButton
@@ -335,7 +336,7 @@ const currentPageSize = computed({
                 </UKbd>
               </template>
             </UButton>
-          </UsersDeleteModal>
+          </BaseDeleteModal>
 
           <UDropdownMenu
             :items="

@@ -159,15 +159,15 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
   loading.value = true;
 
   try {
-    await registerUser({
-      /**
-       * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
-       */
-      name: event.data.name,
-      email: event.data.email,
-      password: event.data.password,
-      confirm_password: event.data.confirm_password,
-    });
+    // await registerUser({
+    //   /**
+    //    * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
+    //    */
+    //   name: event.data.name,
+    //   email: event.data.email,
+    //   password: event.data.password,
+    //   confirm_password: event.data.confirm_password,
+    // });
 
     handleSuccess(toast, event.data.name);
 
