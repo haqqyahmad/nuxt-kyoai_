@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import * as z from "zod";
 import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
-// import type { AxiosInstance } from "axios";
-import { handleError, handleSuccess } from "~/utils/handlers";
+import type { AxiosInstance } from "axios";
+import { handleError, handleSuccess } from '~/utils/handlers'
 
 const api = useApi();
 const { setToken } = useAuth();
 const { registerUser } = useUser();
-const toast = useToast();
-
-const activeTab = ref<'login' | 'register'>('login')
 
 definePageMeta({
   layout: "auth",
@@ -17,30 +14,22 @@ definePageMeta({
 });
 
 const loading = ref(false);
-// const open = ref(false);
+const open = ref(false);
+const toast = useToast();
 
-
-// =======================
-// 🧾 Tabs
-// =======================
 const items = [
   {
     label: "Login",
     icon: "i-lucide-user",
-    value: "login",
     slot: "login",
   },
   {
     label: "Register",
     icon: "i-lucide-edit",
-    value: "register",
     slot: "register",
   },
 ];
 
-// =======================
-// 🧾 Fields
-// =======================
 const fields: AuthFormField[] = [
   {
     name: "email",
@@ -96,19 +85,17 @@ const Regfields: AuthFormField[] = [
 
 const providers = [{}];
 
-// =======================
-// ✅ Schema (FIXED)
-// =======================
-const schema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
-});
+const schema = z
+  .object({
+    email: z.email("Invalid email"),
+    password: z
+      .string("Password is required")
+      .min(8, "Must be at least 8 characters"),
+  });
 const Regschema = z
   .object({
     name: z.string().min(2, "Too short"),
-    email: z.string().email("Invalid email"),
+    email: z.email("Invalid email"),
     password: z
       .string("Password is required")
       .min(8, "Must be at least 8 characters"),
@@ -124,9 +111,6 @@ const Regschema = z
 type Schema = z.output<typeof schema>;
 type RegSchema = z.output<typeof Regschema>;
 
-// =======================
-// 🔐 LOGIN
-// =======================
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
     const res = await api.post("/auth/login", {
@@ -150,9 +134,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 }
 
-// =======================
-// 📝 REGISTER
-// =======================
 async function onRegist(event: FormSubmitEvent<RegSchema>) {
   if (loading.value) return;
 
@@ -170,10 +151,8 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
     });
 
     handleSuccess(toast, event.data.name);
-
-    activeTab.value = 'login';
     // resetForm();
-    // open.value = false;
+    open.value = false;
     // emit("created");
   } catch (err: any) {
     handleError(toast, err);
@@ -185,15 +164,7 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
 
 <template>
   <div class="flex flex-col items-center justify-center gap-4 p-4 mt-5">
-    <UTabs
-      v-model="activeTab"
-      :items="items"
-      class="w-full max-w-md mx-auto"
-      :ui="{
-        list: 'grid grid-cols-2 w-full',
-        trigger: 'justify-center',
-      }"
-    >
+    <UTabs :items="items">
       <template #login>
         <UPageCard class="w-full max-w-md">
           <UAuthForm
@@ -215,7 +186,7 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
       <template #register>
         <UPageCard class="w-full max-w-md">
           <UAuthForm
-            :schema="Regschema"
+            :schema="schema"
             title="Register"
             description="Input your credentials to create your account."
             icon="i-lucide-edit"
