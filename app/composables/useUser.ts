@@ -19,14 +19,11 @@ export const useUser = () => {
     if (!token) return null
 
     try {
-      const data = await $fetch('/users/auth', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const data = await api.get('/users/auth')
+      console.log('useUser',data.data)
 
       user.value = data
-      return data
+      return data 
     } catch (err) {
       console.error('Failed get user', err)
       user.value = null

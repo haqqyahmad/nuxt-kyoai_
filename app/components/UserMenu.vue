@@ -29,37 +29,23 @@ const colors = [
 ];
 const neutrals = ["slate", "gray", "zinc", "neutral", "stone"];
 
-// const user = ref({
-//   name: "Benjamin Canac",
-//   avatar: {
-//     src: "https://github.com/benjamincanac.png",
-//     alt: "Benjamin Canac",
-//   },
-// });
-
 const { user, fetchUser } = useUser();
 
-// onMounted(() => {
-//   const { getToken } = useAuth();
-//   if (getToken()) {
-//     fetchUser();
-//   }
-// });
 
-onMounted(() => {
+onMounted(async () => {
   const { getToken } = useAuth();
   const token = getToken();
-
+  
   console.log("TOKEN:", token);
 
   if (token) {
-    fetchUser();
+    await  fetchUser();
   }
 });
 
 const userDisplay = computed(() => {
   return {
-    name: user.value?.name || "User",
+    name: user.value?.data?.data.email || "User",
     avatar: {
       src: user.value?.avatar || "/default-avatar.png",
       alt: user.value?.name || "User",
