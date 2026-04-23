@@ -1,317 +1,317 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
-import { upperFirst } from 'scule'
-import type { TableColumn } from '@nuxt/ui'
-import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Row } from '@tanstack/table-core'
+import { h, resolveComponent } from "vue";
+import { upperFirst } from "scule";
+import type { TableColumn } from "@nuxt/ui";
+import { getPaginationRowModel } from "@tanstack/table-core";
+import type { Row } from "@tanstack/table-core";
 
-const UButton = resolveComponent('UButton')
-const UCheckbox = resolveComponent('UCheckbox')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
-const api = useApi()
-const toast = useToast()
+const UButton = resolveComponent("UButton");
+const UCheckbox = resolveComponent("UCheckbox");
+const UDropdownMenu = resolveComponent("UDropdownMenu");
+const api = useApi();
+const toast = useToast();
 
 type Patient = {
-  id: string
-  PatientId: string
-  firstName: string
-  middleName?: string
-  lastName: string
-  gender: 'MALE' | 'FEMALE'
-  idType: 'KTP' | 'PASSPORT' | 'SIM'
-  idNumber: string
-  email?: string
-  dob: string
-  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
-  phone?: string
-  createdAt: string
-}
+  id: string;
+  PatientId: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  gender: "MALE" | "FEMALE";
+  idType: "KTP" | "PASSPORT" | "SIM";
+  idNumber: string;
+  email?: string;
+  dob: string;
+  maritalStatus?: "SINGLE" | "MARRIED" | "DIVORCED";
+  phone?: string;
+  createdAt: string;
+};
 
-const { data: patients, refresh } = await useAsyncData('patients', () =>
-  api.get('/patient').then(res => res.data.data)
-)
+const { data: patients, refresh } = await useAsyncData("patients", () =>
+  api.get("/patient").then((res) => res.data.data),
+);
 
-const data = computed(() => patients.value?.data ?? patients.value ?? [])
+const data = computed(() => patients.value?.data ?? patients.value ?? []);
 
 const columnFilters = ref([
   {
-    id: 'PatientId',
-    value: ''
-  }
-])
-const columnVisibility = ref()
-const rowSelection = ref({})
+    id: "PatientId",
+    value: "",
+  },
+]);
+const columnVisibility = ref();
+const rowSelection = ref({});
 
-const selectedDeleteId = ref<string | null>(null)
+const selectedDeleteId = ref<string | null>(null);
 async function deletePatient(id: string) {
   try {
-    await api.delete(`/patient/${id}`)
+    await api.delete(`/patient/${id}`);
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Patient berhasil dihapus',
-      color: 'success'
-    })
+      title: "Berhasil",
+      description: "Patient berhasil dihapus",
+      color: "success",
+    });
 
-    await refresh()
+    await refresh();
   } catch (err) {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus patient',
-      color: 'error'
-    })
+      title: "Gagal",
+      description: "Gagal menghapus patient",
+      color: "error",
+    });
   }
 }
 
 async function handleDeleteById() {
-  if (!selectedDeleteId.value) return
+  if (!selectedDeleteId.value) return;
 
-  await deletePatient(selectedDeleteId.value)
-  selectedDeleteId.value = null
+  await deletePatient(selectedDeleteId.value);
+  selectedDeleteId.value = null;
 }
 
 async function deleteSelectedPatients() {
-  const selectedRows
-    = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
+  const selectedRows =
+    table.value?.tableApi?.getFilteredSelectedRowModel().rows || [];
 
-  if (!selectedRows.length) return
+  if (!selectedRows.length) return;
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`))
-    )
+      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`)),
+    );
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil dihapus',
-      color: 'success'
-    })
+      title: "Berhasil",
+      description: "Data pasien berhasil dihapus",
+      color: "success",
+    });
 
-    table.value?.tableApi?.resetRowSelection()
-    await refresh()
+    table.value?.tableApi?.resetRowSelection();
+    await refresh();
   } catch (err) {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus data',
-      color: 'error'
-    })
+      title: "Gagal",
+      description: "Gagal menghapus data",
+      color: "error",
+    });
   }
 }
 
-const isDeleteModalOpen = ref(false)
+const isDeleteModalOpen = ref(false);
 
 function getRowItems(row: Row<Patient>) {
   return [
     {
-      type: 'label',
-      label: 'Actions'
+      type: "label",
+      label: "Actions",
     },
     {
-      label: 'View patient details',
-      icon: 'i-lucide-eye',
-      to: `/patients/${row.original.id}`
+      label: "View patient details",
+      icon: "i-lucide-eye",
+      to: `/patients/${row.original.id}`,
     },
     {
-      type: 'separator'
+      type: "separator",
     },
     {
-      label: 'Delete patient',
-      icon: 'i-lucide-trash',
-      color: 'error',
+      label: "Delete patient",
+      icon: "i-lucide-trash",
+      color: "error",
       onSelect() {
-        selectedDeleteId.value = row.original.id
-        isDeleteModalOpen.value = true
-      }
-    }
-  ]
+        selectedDeleteId.value = row.original.id;
+        isDeleteModalOpen.value = true;
+      },
+    },
+  ];
 }
 
 const columns: TableColumn<Patient>[] = [
   {
-    id: 'select',
+    id: "select",
     header: ({ table }) =>
       h(UCheckbox, {
-        'modelValue': table.getIsSomePageRowsSelected()
-          ? 'indeterminate'
+        modelValue: table.getIsSomePageRowsSelected()
+          ? "indeterminate"
           : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+        "onUpdate:modelValue": (value: boolean | "indeterminate") =>
           table.toggleAllPageRowsSelected(!!value),
-        'ariaLabel': 'Select all'
+        ariaLabel: "Select all",
       }),
     cell: ({ row }) =>
       h(UCheckbox, {
-        'modelValue': row.getIsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+        modelValue: row.getIsSelected(),
+        "onUpdate:modelValue": (value: boolean | "indeterminate") =>
           row.toggleSelected(!!value),
-        'ariaLabel': 'Select row'
-      })
+        ariaLabel: "Select row",
+      }),
   },
   {
-    accessorKey: 'PatientId',
-    header: 'Patient ID',
-    cell: ({ row }) => `${row.getValue('PatientId')}`
+    accessorKey: "PatientId",
+    header: "Patient ID",
+    cell: ({ row }) => `${row.getValue("PatientId")}`,
   },
   {
-    accessorKey: 'firstName',
+    accessorKey: "firstName",
     header: ({ column }) => {
-      const isSorted = column.getIsSorted()
+      const isSorted = column.getIsSorted();
 
       return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Name',
+        color: "neutral",
+        variant: "ghost",
+        label: "Name",
         icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
+          ? isSorted === "asc"
+            ? "i-lucide-arrow-up-narrow-wide"
+            : "i-lucide-arrow-down-wide-narrow"
+          : "i-lucide-arrow-up-down",
+        class: "-mx-2.5",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      });
     },
     cell: ({ row }) => {
-      const p = row.original
+      const p = row.original;
       const fullName = [p.firstName, p.middleName, p.lastName]
         .filter(Boolean)
-        .join(' ')
+        .join(" ");
 
-      return h('div', { class: 'flex items-center gap-3' }, [
-        h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, fullName)
+      return h("div", { class: "flex items-center gap-3" }, [
+        h("div", undefined, [
+          h("p", { class: "font-medium text-highlighted" }, fullName),
           // h("p", { class: "text-muted" }, `ID: ${p.PatientId}`),
-        ])
-      ])
-    }
+        ]),
+      ]);
+    },
   },
   {
-    accessorKey: 'gender',
-    header: 'Gender',
+    accessorKey: "gender",
+    header: "Gender",
     cell: ({ row }) =>
-      row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
+      row.getValue("gender") === "MALE" ? "Laki-laki" : "Perempuan",
   },
   {
-    accessorKey: 'idNumber',
+    accessorKey: "idNumber",
     header: ({ column }) => {
-      const isSorted = column.getIsSorted()
+      const isSorted = column.getIsSorted();
 
       return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'ID Number',
+        color: "neutral",
+        variant: "ghost",
+        label: "ID Number",
         icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
+          ? isSorted === "asc"
+            ? "i-lucide-arrow-up-narrow-wide"
+            : "i-lucide-arrow-down-wide-narrow"
+          : "i-lucide-arrow-up-down",
+        class: "-mx-2.5",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      });
     },
-    cell: ({ row }) => row.getValue('idNumber')
+    cell: ({ row }) => row.getValue("idNumber"),
   },
   {
-    accessorKey: 'phone',
-    header: 'Phone',
-    cell: ({ row }) => row.getValue('phone') ?? '-'
+    accessorKey: "phone",
+    header: "Phone",
+    cell: ({ row }) => row.getValue("phone") ?? "-",
   },
   {
-    accessorKey: 'email',
+    accessorKey: "email",
     header: ({ column }) => {
-      const isSorted = column.getIsSorted()
+      const isSorted = column.getIsSorted();
 
       return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Email',
+        color: "neutral",
+        variant: "ghost",
+        label: "Email",
         icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
+          ? isSorted === "asc"
+            ? "i-lucide-arrow-up-narrow-wide"
+            : "i-lucide-arrow-down-wide-narrow"
+          : "i-lucide-arrow-up-down",
+        class: "-mx-2.5",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      });
     },
-    cell: ({ row }) => row.getValue('email') ?? '-'
+    cell: ({ row }) => row.getValue("email") ?? "-",
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: "createdAt",
     header: ({ column }) => {
-      const isSorted = column.getIsSorted()
+      const isSorted = column.getIsSorted();
 
       return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Registered',
+        color: "neutral",
+        variant: "ghost",
+        label: "Registered",
         icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
+          ? isSorted === "asc"
+            ? "i-lucide-arrow-up-narrow-wide"
+            : "i-lucide-arrow-down-wide-narrow"
+          : "i-lucide-arrow-up-down",
+        class: "-mx-2.5",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      });
     },
     cell: ({ row }) => {
-      return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
+      return new Date(row.getValue("createdAt")).toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
   },
   {
-    id: 'actions',
+    id: "actions",
     cell: ({ row }) => {
       return h(
-        'div',
-        { class: 'text-right' },
+        "div",
+        { class: "text-right" },
         h(
           UDropdownMenu,
           {
             content: {
-              align: 'end'
+              align: "end",
             },
-            items: getRowItems(row)
+            items: getRowItems(row),
           },
           () =>
             h(UButton, {
-              icon: 'i-lucide-ellipsis-vertical',
-              color: 'neutral',
-              variant: 'ghost',
-              class: 'ml-auto'
-            })
-        )
-      )
-    }
-  }
-]
+              icon: "i-lucide-ellipsis-vertical",
+              color: "neutral",
+              variant: "ghost",
+              class: "ml-auto",
+            }),
+        ),
+      );
+    },
+  },
+];
 
-const table = useTemplateRef('table')
+const table = useTemplateRef("table");
 
 const searchQuery = computed({
   get: (): string => {
     return (
       (table.value?.tableApi
-        ?.getColumn('idNumber')
-        ?.getFilterValue() as string) || ''
-    )
+        ?.getColumn("idNumber")
+        ?.getFilterValue() as string) || ""
+    );
   },
   set: (value: string) => {
     table.value?.tableApi
-      ?.getColumn('idNumber')
-      ?.setFilterValue(value || undefined)
-  }
-})
+      ?.getColumn("idNumber")
+      ?.setFilterValue(value || undefined);
+  },
+});
 
 const currentPageSize = computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
-    table.value?.tableApi?.setPageSize(value)
-  }
-})
+    table.value?.tableApi?.setPageSize(value);
+  },
+});
 </script>
 
 <template>
@@ -338,8 +338,9 @@ const currentPageSize = computed({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <PatientsDeleteModal
+          <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            entity="patient"
             @confirm="deleteSelectedPatients"
           >
             <UButton
@@ -357,7 +358,7 @@ const currentPageSize = computed({
                 </UKbd>
               </template>
             </UButton>
-          </PatientsDeleteModal>
+          </BaseDeleteModal>
 
           <UDropdownMenu
             :items="
@@ -375,7 +376,7 @@ const currentPageSize = computed({
                   },
                   onSelect(e?: Event) {
                     e?.preventDefault();
-                  }
+                  },
                 }))
             "
             :content="{ align: 'end' }"
@@ -396,7 +397,7 @@ const currentPageSize = computed({
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
         :pagination-options="{
-          getPaginationRowModel: getPaginationRowModel()
+          getPaginationRowModel: getPaginationRowModel(),
         }"
         sticky
         class="w-full"
@@ -408,7 +409,7 @@ const currentPageSize = computed({
           tbody: '[&>tr]:last:[&>td]:border-b-0',
           th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
           td: 'border-b border-default',
-          separator: 'h-0'
+          separator: 'h-0',
         }"
       />
 
@@ -429,7 +430,7 @@ const currentPageSize = computed({
               { label: '10 items', value: 10 },
               { label: '20 items', value: 20 },
               { label: '50 items', value: 50 },
-              { label: 'All', value: 1000 }
+              { label: 'All', value: 1000 },
             ]"
             class="w-32"
           />
@@ -443,9 +444,10 @@ const currentPageSize = computed({
           />
         </div>
       </div>
-      <PatientsDeleteModal
+      <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
+        entity="patient"
         @confirm="handleDeleteById"
       />
     </template>

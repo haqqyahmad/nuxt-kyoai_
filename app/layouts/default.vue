@@ -83,7 +83,7 @@ const links = [
           },
         },
         {
-          label: "Role",
+          label: "Roles",
           to: "/settings/roles",
           onSelect: () => {
             open.value = false;

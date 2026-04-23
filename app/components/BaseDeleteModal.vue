@@ -1,10 +1,14 @@
 <script setup lang="ts">
-withDefaults(
+const $props = withDefaults(
   defineProps<{
     count?: number
+    entity?: string
+    title?: string
+    description?: string
   }>(),
   {
-    count: 0
+    count: 1,
+    entity: 'item'
   }
 )
 
@@ -18,14 +22,25 @@ function onSubmit() {
   emit('confirm')
   open.value = false
 }
+
+const computedTitle = computed(() => {
+  if ($props.title) return $props.title
+  return `Delete ${$props.count} ${$props.entity}${$props.count > 1 ? 's' : ''}`
+})
+
+const computedDescription = computed(() => {
+  if ($props.description) return $props.description
+  return 'Are you sure? This action cannot be undone.'
+})
 </script>
 
 <template>
   <UModal
     v-model:open="open"
-    :title="`Delete ${count} user${count > 1 ? 's' : ''}`"
-    :description="`Are you sure, this action cannot be undone.`"
+    :title="computedTitle"
+    :description="computedDescription"
   >
+    <!-- 🔥 trigger bebas -->
     <slot />
 
     <template #body>

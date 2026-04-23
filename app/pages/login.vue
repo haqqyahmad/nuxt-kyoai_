@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import * as z from "zod";
 import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
-import type { AxiosInstance } from "axios";
-import { handleError, handleSuccess } from '~/utils/handlers'
+// import type { AxiosInstance } from "axios";
+import { handleError, handleSuccess } from "~/utils/handlers";
 
 const api = useApi();
 const { setToken } = useAuth();
 const { registerUser } = useUser();
+const toast = useToast();
+
+const activeTab = ref<"login" | "register">("login");
 
 definePageMeta({
   layout: "auth",
@@ -14,29 +17,60 @@ definePageMeta({
 });
 
 const loading = ref(false);
-const open = ref(false);
-const toast = useToast();
+// const open = ref(false);
 
+// =======================
+// 🧾 Tabs
+// =======================
 const items = [
   {
     label: "Login",
     icon: "i-lucide-user",
+    value: "login",
     slot: "login",
   },
   {
     label: "Register",
     icon: "i-lucide-edit",
+    value: "register",
     slot: "register",
   },
 ];
 
-const fields: AuthFormField[] = [
+// =======================
+// 🧾 Fields
+// =======================
+// const fields: AuthFormField[] = [
+//   {
+//     name: "email",
+//     type: "email",
+//     label: "Email",
+//     placeholder: "Enter your email",
+//     required: true,
+//   },
+//   {
+//     name: "password",
+//     label: "Password",
+//     type: "password",
+//     placeholder: "Enter your password",
+//     required: true,
+//   },
+//   {
+//     name: "remember",
+//     label: "Remember me",
+//     type: "checkbox",
+//   },
+// ];
+
+const fields = computed<AuthFormField[]>(() => [
   {
     name: "email",
     type: "email",
     label: "Email",
     placeholder: "Enter your email",
     required: true,
+    modelValue: loginState.email,
+    "onUpdate:modelValue": (val: string) => (loginState.email = val),
   },
   {
     name: "password",
@@ -44,21 +78,58 @@ const fields: AuthFormField[] = [
     type: "password",
     placeholder: "Enter your password",
     required: true,
+    modelValue: loginState.password,
+    "onUpdate:modelValue": (val: string) => (loginState.password = val),
   },
   {
     name: "remember",
     label: "Remember me",
     type: "checkbox",
+    modelValue: loginState.remember,
+    "onUpdate:modelValue": (val: boolean) => (loginState.remember = val),
   },
-];
+]);
 
-const Regfields: AuthFormField[] = [
+// const Regfields: AuthFormField[] = [
+//   {
+//     name: "name",
+//     type: "text",
+//     label: "Name",
+//     placeholder: "Enter your name",
+//     required: true,
+//   },
+//   {
+//     name: "email",
+//     type: "email",
+//     label: "Email",
+//     placeholder: "Enter your email",
+//     required: true,
+//   },
+//   {
+//     name: "password",
+//     label: "Password",
+//     type: "password",
+//     placeholder: "Enter your password",
+//     required: true,
+//   },
+//   {
+//     name: "confirm_password",
+//     label: "Confirm Password",
+//     type: "password",
+//     placeholder: "Confirm your password",
+//     required: true,
+//   },
+// ];
+
+const Regfields = computed<AuthFormField[]>(() => [
   {
     name: "name",
     type: "text",
     label: "Name",
     placeholder: "Enter your name",
     required: true,
+    modelValue: registerState.name,
+    "onUpdate:modelValue": (v) => (registerState.name = v),
   },
   {
     name: "email",
@@ -66,6 +137,8 @@ const Regfields: AuthFormField[] = [
     label: "Email",
     placeholder: "Enter your email",
     required: true,
+    modelValue: registerState.email,
+    "onUpdate:modelValue": (v) => (registerState.email = v),
   },
   {
     name: "password",
@@ -73,6 +146,8 @@ const Regfields: AuthFormField[] = [
     type: "password",
     placeholder: "Enter your password",
     required: true,
+    modelValue: registerState.password,
+    "onUpdate:modelValue": (v) => (registerState.password = v),
   },
   {
     name: "confirm_password",
@@ -80,37 +155,47 @@ const Regfields: AuthFormField[] = [
     type: "password",
     placeholder: "Confirm your password",
     required: true,
+    modelValue: registerState.confirm_password,
+    "onUpdate:modelValue": (v) => (registerState.confirm_password = v),
   },
-];
+]);
 
 const providers = [{}];
 
-const schema = z
-  .object({
-    email: z.email("Invalid email"),
-    password: z
-      .string("Password is required")
-      .min(8, "Must be at least 8 characters"),
-  });
+// =======================
+// ✅ Schema (FIXED)
+// =======================
+const schema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .min(8, "Must be at least 8 characters"),
+});
+
 const Regschema = z
   .object({
-    name: z.string().min(2, "Too short"),
-    email: z.email("Invalid email"),
+    name: z.string().min(1, "Name is required").min(2, "Too short"),
+    email: z.string().min(1, "Email is required").email("Invalid email"),
     password: z
-      .string("Password is required")
+      .string()
+      .min(1, "Password is required")
       .min(8, "Must be at least 8 characters"),
-    confirm_password: z
-      .string("Password is required")
-      .min(8, "Must be at least 8 characters"),
+    confirm_password: z.string().min(1, "Confirm password is required"),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords don't match",
     path: ["confirm_password"],
   });
 
-type Schema = z.output<typeof schema>;
-type RegSchema = z.output<typeof Regschema>;
+// type Schema = z.output<typeof schema>;
+// type RegSchema = z.output<typeof Regschema>;
+type Schema = z.infer<typeof schema>;
+type RegSchema = z.infer<typeof Regschema>;
 
+// =======================
+// 🔐 LOGIN
+// =======================
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
     const res = await api.post("/auth/login", {
@@ -134,25 +219,36 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 }
 
+const loginState = reactive({
+  email: "",
+  password: "",
+  remember: false,
+});
+
+// =======================
+// 📝 REGISTER
+// =======================
 async function onRegist(event: FormSubmitEvent<RegSchema>) {
   if (loading.value) return;
 
   loading.value = true;
 
   try {
-    await registerUser({
-      /**
-       * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
-       */
-      name: event.data.name,
-      email: event.data.email,
-      password: event.data.password,
-      confirm_password: event.data.confirm_password,
-    });
+    // await registerUser({
+    //   /**
+    //    * @haqqy, pake event ya pak jangan state, biar data udah di validasi pake zod
+    //    */
+    //   name: event.data.name,
+    //   email: event.data.email,
+    //   password: event.data.password,
+    //   confirm_password: event.data.confirm_password,
+    // });
 
     handleSuccess(toast, event.data.name);
+
+    activeTab.value = "login";
     // resetForm();
-    open.value = false;
+    // open.value = false;
     // emit("created");
   } catch (err: any) {
     handleError(toast, err);
@@ -160,15 +256,31 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
     loading.value = false;
   }
 }
+
+const registerState = reactive({
+  name: "",
+  email: "",
+  password: "",
+  confirm_password: "",
+});
 </script>
 
 <template>
   <div class="flex flex-col items-center justify-center gap-4 p-4 mt-5">
-    <UTabs :items="items">
+    <UTabs
+      v-model="activeTab"
+      :items="items"
+      class="w-full max-w-md mx-auto"
+      :ui="{
+        list: 'grid grid-cols-2 w-full',
+        trigger: 'justify-center',
+      }"
+    >
       <template #login>
         <UPageCard class="w-full max-w-md">
           <UAuthForm
             :schema="schema"
+            :state="loginState"
             title="Login"
             description="Enter your credentials to access your account."
             icon="i-lucide-user"
@@ -186,7 +298,8 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
       <template #register>
         <UPageCard class="w-full max-w-md">
           <UAuthForm
-            :schema="schema"
+            :schema="Regschema"
+            :state="registerState"
             title="Register"
             description="Input your credentials to create your account."
             icon="i-lucide-edit"

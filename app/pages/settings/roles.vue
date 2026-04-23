@@ -132,78 +132,96 @@ const table = useTemplateRef('table')
 </template> -->
 
 <template>
-  <div id="settings" class="space-y-4">
+  <div>
     <!-- HEADER -->
     <UPageCard
       title="Roles"
       description="Manage roles and their permissions."
       variant="naked"
-    />
-
-    <!-- FILTER + ACTION -->
-    <UPageCard variant="subtle">
-      <div class="flex items-center gap-2">
-        <UInput
-          :model-value="
-            table?.tableApi?.getColumn('name')?.getFilterValue() as string
-          "
-          class="max-w-sm min-w-[12ch]"
-          placeholder="Filter names..."
-          @update:model-value="
-            table?.tableApi?.getColumn('name')?.setFilterValue($event)
-          "
-        />
-
-        <UDropdownMenu
-          :items="
-            table?.tableApi
-              ?.getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => ({
-                label: upperFirst(column.id),
-                type: 'checkbox' as const,
-                checked: column.getIsVisible(),
-                onUpdateChecked(checked: boolean) {
-                  table?.tableApi
-                    ?.getColumn(column.id)
-                    ?.toggleVisibility(!!checked);
-                },
-                onSelect(e: Event) {
-                  e.preventDefault();
-                }
-              }))
-          "
-          :content="{ align: 'end' }"
-        >
-          <UButton
-            label="Display"
-            color="neutral"
-            variant="outline"
-            trailing-icon="i-lucide-settings-2"
-            class="ml-auto"
-          />
-        </UDropdownMenu>
-      </div>
+      orientation="horizontal"
+      class="mb-4"
+    >
+      <UButton
+        label="Manage Role Permissions"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-shield-check"
+        class="w-fit lg:ms-auto"
+      />
     </UPageCard>
 
-    <!-- TABLE -->
-    <UPageCard :ui="{ container: 'p-0' }">
+    <!-- TABLE CARD -->
+    <UPageCard
+      variant="subtle"
+      :ui="{
+        container: 'p-0 sm:p-0 gap-y-0',
+        wrapper: 'items-stretch',
+        header: 'p-4 mb-0 border-b border-default'
+      }"
+    >
+      <!-- SEARCH + COLUMN FILTER -->
+      <template #header>
+        <div class="flex items-center gap-2 w-full">
+          <UInput
+            :model-value="
+              table?.tableApi?.getColumn('name')?.getFilterValue() as string
+            "
+            icon="i-lucide-search"
+            placeholder="Search roles..."
+            autofocus
+            class="w-full"
+            @update:model-value="
+              table?.tableApi?.getColumn('name')?.setFilterValue($event)
+            "
+          />
+
+          <UDropdownMenu
+            :items="
+              table?.tableApi
+                ?.getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => ({
+                  label: upperFirst(column.id),
+                  type: 'checkbox' as const,
+                  checked: column.getIsVisible(),
+                  onUpdateChecked(checked: boolean) {
+                    table?.tableApi
+                      ?.getColumn(column.id)
+                      ?.toggleVisibility(!!checked);
+                  },
+                  onSelect(e: Event) {
+                    e.preventDefault();
+                  }
+                }))
+            "
+            :content="{ align: 'end' }"
+          >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-settings-2"
+            />
+          </UDropdownMenu>
+        </div>
+      </template>
+
+      <!-- TABLE -->
       <UTable ref="table" :data="data" :columns="columns">
         <template #actions-cell="{ row }">
           <RolePermissionsModal :role="row.original" @updated="refresh" />
         </template>
 
         <template #expanded="{ row }">
-          <pre class="p-4">{{ row.original }}</pre>
+          <pre class="p-4 text-xs">{{ row.original }}</pre>
         </template>
       </UTable>
     </UPageCard>
 
     <!-- FOOTER -->
-    <div class="text-sm text-muted px-1">
+    <!-- <div class="text-sm text-muted mt-2 px-1">
       {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0 }} of
       {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} row(s)
       selected.
-    </div>
+    </div> -->
   </div>
 </template>
