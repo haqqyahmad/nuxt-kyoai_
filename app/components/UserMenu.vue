@@ -42,11 +42,10 @@ onMounted(async () => {
   }
 });
 
-console.log("USER:", user.value?.data);
 
 const userDisplay = computed(() => {
   return {
-    name: user.value?.data?.email || "User",
+    name: user.value?.data?.data?.email || "User",
     avatar: {
       src: user.value?.data?.avatar || "/default-avatar.png",
       alt: user.value?.data?.name || "User",
