@@ -100,21 +100,30 @@ const providers = [{}];
 // ✅ Schema (FIXED)
 // =======================
 const schema = z.object({
-  email: z.string().email("Invalid email"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email"),
   password: z
-    .string("Password is required")
+    .string()
+    .min(1, "Password is required")
     .min(8, "Must be at least 8 characters"),
 });
+
 const Regschema = z
   .object({
-    name: z.string().min(2, "Too short"),
-    email: z.string().email("Invalid email"),
+    name: z.string().min(1, "Name is required").min(2, "Too short"),
+    email: z
+      .string()
+      .min(1, "Email is required")
+      .email("Invalid email"),
     password: z
-      .string("Password is required")
+      .string()
+      .min(1, "Password is required")
       .min(8, "Must be at least 8 characters"),
     confirm_password: z
-      .string("Password is required")
-      .min(8, "Must be at least 8 characters"),
+      .string()
+      .min(1, "Confirm password is required"),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords don't match",
@@ -150,6 +159,12 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 }
 
+const loginState = reactive({
+  email: "",
+  password: "",
+  remember: false,
+});
+
 // =======================
 // 📝 REGISTER
 // =======================
@@ -181,6 +196,13 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
     loading.value = false;
   }
 }
+
+const registerState = reactive({
+  name: "",
+  email: "",
+  password: "",
+  confirm_password: "",
+});
 </script>
 
 <template>
@@ -198,6 +220,7 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
         <UPageCard class="w-full max-w-md">
           <UAuthForm
             :schema="schema"
+            :state="loginState"
             title="Login"
             description="Enter your credentials to access your account."
             icon="i-lucide-user"
@@ -216,6 +239,7 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
         <UPageCard class="w-full max-w-md">
           <UAuthForm
             :schema="Regschema"
+            :state="registerState"
             title="Register"
             description="Input your credentials to create your account."
             icon="i-lucide-edit"
