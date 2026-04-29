@@ -25,14 +25,14 @@ const links = [
     //     open.value = false;
     //   },
     // },
-    // {
-    //   label: 'Customers',
-    //   icon: 'i-lucide-users',
-    //   to: '/customers',
-    //   onSelect: () => {
-    //     open.value = false
-    //   }
-    // },
+    {
+      label: 'Customers',
+      icon: 'i-lucide-users',
+      to: '/customer',
+      onSelect: () => {
+        open.value = false
+      }
+    },
     {
       label: "Patients",
       icon: "i-lucide-users",
@@ -45,6 +45,20 @@ const links = [
       label: "User",
       icon: "i-lucide-user",
       to: "/users",
+    },
+    {
+      label: "Front Office",
+      icon: "i-lucide-users",
+      type: "trigger",
+      children: [
+        {
+          label: "Registration Patient",
+          to: "/front-office/registration-patient",
+          onSelect: () => {
+            open.value = false;
+          },
+        }
+      ]
     },
     {
       label: "Settings",
