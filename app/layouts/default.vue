@@ -1,176 +1,126 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from "@nuxt/ui";
+import type { NavigationMenuItem } from '@nuxt/ui'
 
-const route = useRoute();
-const toast = useToast();
+const route = useRoute()
+const toast = useToast()
 
-const open = ref(false);
+const open = ref(false)
 
-const links = [
+const links = computed<NavigationMenuItem[][]>(() => [
   [
     {
-      label: "Dashboard",
-      icon: "i-lucide-house",
-      to: "/",
-      onSelect: () => {
-        open.value = false;
-      },
-    },
-    // {
-    //   label: "Inbox",
-    //   icon: "i-lucide-inbox",
-    //   to: "/inbox",
-    //   badge: "4",
-    //   onSelect: () => {
-    //     open.value = false;
-    //   },
-    // },
-    {
-      label: 'Customers',
-      icon: 'i-lucide-users',
-      to: '/customer',
-      onSelect: () => {
-        open.value = false
-      }
+      label: 'Dashboard',
+      icon: 'i-lucide-house',
+      to: '/'
     },
     {
-      label: "Patients",
-      icon: "i-lucide-users",
-      to: "/patients",
-      onSelect: () => {
-        open.value = false;
-      },
-    },
-    {
-      label: "User",
-      icon: "i-lucide-user",
-      to: "/users",
-    },
-    {
-      label: "Front Office",
-      icon: "i-lucide-users",
-      type: "trigger",
+      label: 'Master Data',
+      icon: 'i-lucide-hard-drive',
+      type: 'trigger',
+
+      // 🔥 AUTO OPEN
+      defaultOpen: route.path.startsWith('/customer')
+        || route.path.startsWith('/patients')
+        || route.path.startsWith('/users'),
+
       children: [
         {
-          label: "Registration Patient",
-          to: "/front-office/registration-patient",
-          onSelect: () => {
-            open.value = false;
-          },
+          label: 'Customers',
+          to: '/customer'
+        },
+        {
+          label: 'Patients',
+          to: '/patients'
+        },
+        {
+          label: 'User',
+          to: '/users'
         }
       ]
     },
     {
-      label: "Settings",
-      to: "/settings",
-      icon: "i-lucide-settings",
-      defaultOpen: true,
-      type: "trigger",
+      label: 'Front Office',
+      icon: 'i-lucide-users',
+      type: 'trigger',
+
+      // 🔥 INI YANG KAMU BUTUH
+      defaultOpen: route.path.startsWith('/front-office'),
+
       children: [
         {
-          label: "General",
-          to: "/settings",
-          exact: true,
-          onSelect: () => {
-            open.value = false;
-          },
-        },
-        {
-          label: "Members",
-          to: "/settings/members",
-          onSelect: () => {
-            open.value = false;
-          },
-        },
-        {
-          label: "Notifications",
-          to: "/settings/notifications",
-          onSelect: () => {
-            open.value = false;
-          },
-        },
-        {
-          label: "Security",
-          to: "/settings/security",
-          onSelect: () => {
-            open.value = false;
-          },
-        },
-        {
-          label: "Roles",
-          to: "/settings/roles",
-          onSelect: () => {
-            open.value = false;
-          },
-        },
-      ],
+          label: 'Patient Appointment',
+          to: '/front-office/registration-patient'
+        }
+      ]
     },
+    {
+      label: 'Settings',
+      icon: 'i-lucide-settings',
+      type: 'trigger',
+
+      defaultOpen: route.path.startsWith('/settings'),
+
+      children: [
+        { label: 'General', to: '/settings', exact: true },
+        { label: 'Members', to: '/settings/members' },
+        { label: 'Notifications', to: '/settings/notifications' },
+        { label: 'Security', to: '/settings/security' },
+        { label: 'Roles', to: '/settings/roles' }
+      ]
+    }
   ],
-  [
-    // {
-    //   label: "Feedback",
-    //   icon: "i-lucide-message-circle",
-    //   to: "https://github.com/nuxt-ui-templates/dashboard",
-    //   target: "_blank",
-    // },
-    // {
-    //   label: "Help & Support",
-    //   icon: "i-lucide-info",
-    //   to: "https://github.com/nuxt-ui-templates/dashboard",
-    //   target: "_blank",
-    // },
-  ],
-] satisfies NavigationMenuItem[][];
+  []
+])
 
 const groups = computed(() => [
   {
-    id: "links",
-    label: "Go to",
-    items: links.flat(),
+    id: 'links',
+    label: 'Go to',
+    items: links.value.flat()
   },
   {
-    id: "code",
-    label: "Code",
+    id: 'code',
+    label: 'Code',
     items: [
       {
-        id: "source",
-        label: "View page source",
-        icon: "i-simple-icons-github",
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === "/" ? "/index" : route.path}.vue`,
-        target: "_blank",
-      },
-    ],
-  },
-]);
+        id: 'source',
+        label: 'View page source',
+        icon: 'i-simple-icons-github',
+        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === '/' ? '/index' : route.path}.vue`,
+        target: '_blank'
+      }
+    ]
+  }
+])
 
 onMounted(async () => {
-  const cookie = useCookie("cookie-consent");
-  if (cookie.value === "accepted") {
-    return;
+  const cookie = useCookie('cookie-consent')
+  if (cookie.value === 'accepted') {
+    return
   }
 
   toast.add({
     title:
-      "We use first-party cookies to enhance your experience on our website.",
+      'We use first-party cookies to enhance your experience on our website.',
     duration: 0,
     close: false,
     actions: [
       {
-        label: "Accept",
-        color: "neutral",
-        variant: "outline",
+        label: 'Accept',
+        color: 'neutral',
+        variant: 'outline',
         onClick: () => {
-          cookie.value = "accepted";
-        },
+          cookie.value = 'accepted'
+        }
       },
       {
-        label: "Opt out",
-        color: "neutral",
-        variant: "ghost",
-      },
-    ],
-  });
-});
+        label: 'Opt out',
+        color: 'neutral',
+        variant: 'ghost'
+      }
+    ]
+  })
+})
 </script>
 
 <template>
