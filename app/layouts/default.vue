@@ -6,6 +6,53 @@ const toast = useToast()
 
 const open = ref(false)
 
+// State untuk menu yang aktif terbuka
+const activeOpenMenu = ref<string | null>(null)
+
+// State untuk semua menu trigger
+const menuOpenState = ref({
+  'Master Data': false,
+  'Front Office': false,
+  'Settings': false
+})
+
+// Update active menu berdasarkan route
+const updateActiveMenu = () => {
+  const currentPath = route.path
+
+  // Reset semua menu state
+  menuOpenState.value = {
+    'Master Data': false,
+    'Front Office': false,
+    'Settings': false
+  }
+
+  if (currentPath.startsWith('/customer')
+    || currentPath.startsWith('/patients')
+    || currentPath.startsWith('/users')) {
+    activeOpenMenu.value = 'Master Data'
+    menuOpenState.value['Master Data'] = true
+  } else if (currentPath.startsWith('/front-office')) {
+    activeOpenMenu.value = 'Front Office'
+    menuOpenState.value['Front Office'] = true
+  } else if (currentPath.startsWith('/settings')) {
+    activeOpenMenu.value = 'Settings'
+    menuOpenState.value['Settings'] = true
+  } else {
+    activeOpenMenu.value = null
+  }
+}
+
+// Watch route changes
+watch(() => route.path, () => {
+  updateActiveMenu()
+}, { immediate: true })
+
+// Fungsi untuk update menu state ketika user klik
+const updateMenuState = (menuName: string, isOpen: boolean) => {
+  menuOpenState.value[menuName] = isOpen
+}
+
 const links = computed<NavigationMenuItem[][]>(() => [
   [
     {
@@ -17,12 +64,9 @@ const links = computed<NavigationMenuItem[][]>(() => [
       label: 'Master Data',
       icon: 'i-lucide-hard-drive',
       type: 'trigger',
-
-      // 🔥 AUTO OPEN
-      defaultOpen: route.path.startsWith('/customer')
-        || route.path.startsWith('/patients')
-        || route.path.startsWith('/users'),
-
+      // Gunakan activeOpenMenu untuk kontrol defaultOpen
+      open: menuOpenState.value['Master Data'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Master Data', val),
       children: [
         {
           label: 'Customers',
@@ -42,10 +86,8 @@ const links = computed<NavigationMenuItem[][]>(() => [
       label: 'Front Office',
       icon: 'i-lucide-users',
       type: 'trigger',
-
-      // 🔥 INI YANG KAMU BUTUH
-      defaultOpen: route.path.startsWith('/front-office'),
-
+      open: menuOpenState.value['Front Office'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Front Office', val),
       children: [
         {
           label: 'Patient Appointment',
@@ -57,9 +99,8 @@ const links = computed<NavigationMenuItem[][]>(() => [
       label: 'Settings',
       icon: 'i-lucide-settings',
       type: 'trigger',
-
-      defaultOpen: route.path.startsWith('/settings'),
-
+      open: menuOpenState.value['Settings'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Settings', val),
       children: [
         { label: 'General', to: '/settings', exact: true },
         { label: 'Members', to: '/settings/members' },
@@ -145,6 +186,7 @@ onMounted(async () => {
           />
 
           <UNavigationMenu
+            :key="`nav-${route.path}`"
             :collapsed="collapsed"
             :items="links[0]"
             orientation="vertical"
@@ -153,6 +195,7 @@ onMounted(async () => {
           />
 
           <UNavigationMenu
+            :key="`nav-bottom-${route.path}`"
             :collapsed="collapsed"
             :items="links[1]"
             orientation="vertical"
