@@ -357,7 +357,7 @@ const currentPageSize = computed({
         </template>
 
         <template #right>
-          <PatientsAddModal @created="refresh" />
+          <RegistrationAddModal @created="refresh" />
         </template>
       </UDashboardNavbar>
     </template>
