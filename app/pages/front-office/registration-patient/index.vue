@@ -357,7 +357,10 @@ const currentPageSize = computed({
         </template>
 
         <template #right>
-          <PatientsAddModal @created="refresh" />
+         <UButton icon="i-lucide-plus" color="primary" to="/registration/create">
+  Buat Registrasi
+</UButton>
+
         </template>
       </UDashboardNavbar>
     </template>
