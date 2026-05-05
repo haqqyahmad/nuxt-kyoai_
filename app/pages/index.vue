@@ -16,9 +16,19 @@ const items = [
       to: '/patients'
     },
     {
+      label: 'New appointment',
+      icon: 'i-lucide-clipboard-plus',
+      to: '/front-office/registration-patient'
+    },
+    {
       label: 'New user',
       icon: 'i-lucide-user-plus',
       to: '/users'
+    },
+    {
+      label: 'New customer',
+      icon: 'i-lucide-building',
+      to: '/customer'
     }
   ]
 ] satisfies DropdownMenuItem[][]

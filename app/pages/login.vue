@@ -1,41 +1,41 @@
 <script setup lang="ts">
-import * as z from "zod";
-import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
+import * as z from 'zod'
+import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 // import type { AxiosInstance } from "axios";
-import { handleError, handleSuccess } from "~/utils/handlers";
+import { handleError, handleSuccess } from '~/utils/handlers'
 
-const api = useApi();
-const { setToken } = useAuth();
-const { registerUser } = useUser();
-const toast = useToast();
+const api = useApi()
+const { setToken } = useAuth()
+const { registerUser } = useUser()
+const toast = useToast()
 
-const activeTab = ref<"login" | "register">("login");
+const activeTab = ref<'login' | 'register'>('login')
 
 definePageMeta({
-  layout: "auth",
-  middleware: "guest",
-});
+  layout: 'auth',
+  middleware: 'guest'
+})
 
-const loading = ref(false);
-// const open = ref(false);
+const loading = ref(false)
+// const open = ref(false)
 
 // =======================
 // 🧾 Tabs
 // =======================
 const items = [
   {
-    label: "Login",
-    icon: "i-lucide-user",
-    value: "login",
-    slot: "login",
+    label: 'Login',
+    icon: 'i-lucide-user',
+    value: 'login',
+    slot: 'login'
   },
   {
-    label: "Register",
-    icon: "i-lucide-edit",
-    value: "register",
-    slot: "register",
-  },
-];
+    label: 'Register',
+    icon: 'i-lucide-edit',
+    value: 'register',
+    slot: 'register'
+  }
+]
 
 // =======================
 // 🧾 Fields
@@ -64,31 +64,31 @@ const items = [
 
 const fields = computed<AuthFormField[]>(() => [
   {
-    name: "email",
-    type: "email",
-    label: "Email",
-    placeholder: "Enter your email",
-    required: true,
-    modelValue: loginState.email,
-    "onUpdate:modelValue": (val: string) => (loginState.email = val),
+    'name': 'email',
+    'type': 'email',
+    'label': 'Email',
+    'placeholder': 'Enter your email',
+    'required': true,
+    'modelValue': loginState.email,
+    'onUpdate:modelValue': (val: string) => (loginState.email = val)
   },
   {
-    name: "password",
-    label: "Password",
-    type: "password",
-    placeholder: "Enter your password",
-    required: true,
-    modelValue: loginState.password,
-    "onUpdate:modelValue": (val: string) => (loginState.password = val),
+    'name': 'password',
+    'label': 'Password',
+    'type': 'password',
+    'placeholder': 'Enter your password',
+    'required': true,
+    'modelValue': loginState.password,
+    'onUpdate:modelValue': (val: string) => (loginState.password = val)
   },
   {
-    name: "remember",
-    label: "Remember me",
-    type: "checkbox",
-    modelValue: loginState.remember,
-    "onUpdate:modelValue": (val: boolean) => (loginState.remember = val),
-  },
-]);
+    'name': 'remember',
+    'label': 'Remember me',
+    'type': 'checkbox',
+    'modelValue': loginState.remember,
+    'onUpdate:modelValue': (val: boolean) => (loginState.remember = val)
+  }
+])
 
 // const Regfields: AuthFormField[] = [
 //   {
@@ -123,115 +123,115 @@ const fields = computed<AuthFormField[]>(() => [
 
 const Regfields = computed<AuthFormField[]>(() => [
   {
-    name: "name",
-    type: "text",
-    label: "Name",
-    placeholder: "Enter your name",
-    required: true,
-    modelValue: registerState.name,
-    "onUpdate:modelValue": (v) => (registerState.name = v),
+    'name': 'name',
+    'type': 'text',
+    'label': 'Name',
+    'placeholder': 'Enter your name',
+    'required': true,
+    'modelValue': registerState.name,
+    'onUpdate:modelValue': v => (registerState.name = v)
   },
   {
-    name: "email",
-    type: "email",
-    label: "Email",
-    placeholder: "Enter your email",
-    required: true,
-    modelValue: registerState.email,
-    "onUpdate:modelValue": (v) => (registerState.email = v),
+    'name': 'email',
+    'type': 'email',
+    'label': 'Email',
+    'placeholder': 'Enter your email',
+    'required': true,
+    'modelValue': registerState.email,
+    'onUpdate:modelValue': v => (registerState.email = v)
   },
   {
-    name: "password",
-    label: "Password",
-    type: "password",
-    placeholder: "Enter your password",
-    required: true,
-    modelValue: registerState.password,
-    "onUpdate:modelValue": (v) => (registerState.password = v),
+    'name': 'password',
+    'label': 'Password',
+    'type': 'password',
+    'placeholder': 'Enter your password',
+    'required': true,
+    'modelValue': registerState.password,
+    'onUpdate:modelValue': v => (registerState.password = v)
   },
   {
-    name: "confirm_password",
-    label: "Confirm Password",
-    type: "password",
-    placeholder: "Confirm your password",
-    required: true,
-    modelValue: registerState.confirm_password,
-    "onUpdate:modelValue": (v) => (registerState.confirm_password = v),
-  },
-]);
+    'name': 'confirm_password',
+    'label': 'Confirm Password',
+    'type': 'password',
+    'placeholder': 'Confirm your password',
+    'required': true,
+    'modelValue': registerState.confirm_password,
+    'onUpdate:modelValue': v => (registerState.confirm_password = v)
+  }
+])
 
-const providers = [{}];
+const providers = [{}]
 
 // =======================
 // ✅ Schema (FIXED)
 // =======================
 const schema = z.object({
-  email: z.string().min(1, "Email is required").email("Invalid email"),
+  email: z.string().min(1, 'Email is required').email('Invalid email'),
   password: z
     .string()
-    .min(1, "Password is required")
-    .min(8, "Must be at least 8 characters"),
-});
+    .min(1, 'Password is required')
+    .min(8, 'Must be at least 8 characters')
+})
 
 const Regschema = z
   .object({
-    name: z.string().min(1, "Name is required").min(2, "Too short"),
-    email: z.string().min(1, "Email is required").email("Invalid email"),
+    name: z.string().min(1, 'Name is required').min(2, 'Too short'),
+    email: z.string().min(1, 'Email is required').email('Invalid email'),
     password: z
       .string()
-      .min(1, "Password is required")
-      .min(8, "Must be at least 8 characters"),
-    confirm_password: z.string().min(1, "Confirm password is required"),
+      .min(1, 'Password is required')
+      .min(8, 'Must be at least 8 characters'),
+    confirm_password: z.string().min(1, 'Confirm password is required')
   })
-  .refine((data) => data.password === data.confirm_password, {
-    message: "Passwords don't match",
-    path: ["confirm_password"],
-  });
+  .refine(data => data.password === data.confirm_password, {
+    message: 'Passwords don\'t match',
+    path: ['confirm_password']
+  })
 
 // type Schema = z.output<typeof schema>;
 // type RegSchema = z.output<typeof Regschema>;
-type Schema = z.infer<typeof schema>;
-type RegSchema = z.infer<typeof Regschema>;
+type Schema = z.infer<typeof schema>
+type RegSchema = z.infer<typeof Regschema>
 
 // =======================
 // 🔐 LOGIN
 // =======================
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
-    const res = await api.post("/auth/login", {
+    const res = await api.post('/auth/login', {
       email: payload.data.email,
-      password: payload.data.password,
-    });
-    setToken(res.data.data.token);
+      password: payload.data.password
+    })
+    setToken(res.data.data.token)
 
     toast.add({
-      title: "Login berhasil",
-      color: "success",
-    });
+      title: 'Login berhasil',
+      color: 'success'
+    })
 
-    await navigateTo("/");
+    await navigateTo('/')
   } catch (err: any) {
     toast.add({
-      title: "Login gagal",
-      description: err.response?.data?.message || "Terjadi kesalahan",
-      color: "error",
-    });
+      title: 'Login gagal',
+      description: err.response?.data?.message || 'Terjadi kesalahan',
+      color: 'error'
+    })
   }
 }
 
 const loginState = reactive({
-  email: "",
-  password: "",
-  remember: false,
-});
+  email: '',
+  password: '',
+  remember: false
+})
 
 // =======================
 // 📝 REGISTER
 // =======================
 async function onRegist(event: FormSubmitEvent<RegSchema>) {
-  if (loading.value) return;
+  if (loading.value) return
 
-  loading.value = true;
+  loading.value = true
 
   try {
     // await registerUser({
@@ -244,25 +244,25 @@ async function onRegist(event: FormSubmitEvent<RegSchema>) {
     //   confirm_password: event.data.confirm_password,
     // });
 
-    handleSuccess(toast, event.data.name);
+    handleSuccess(toast, event.data.name)
 
-    activeTab.value = "login";
+    activeTab.value = 'login'
     // resetForm();
     // open.value = false;
     // emit("created");
   } catch (err: any) {
-    handleError(toast, err);
+    handleError(toast, err)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 const registerState = reactive({
-  name: "",
-  email: "",
-  password: "",
-  confirm_password: "",
-});
+  name: '',
+  email: '',
+  password: '',
+  confirm_password: ''
+})
 </script>
 
 <template>
@@ -273,7 +273,7 @@ const registerState = reactive({
       class="w-full max-w-md mx-auto"
       :ui="{
         list: 'grid grid-cols-2 w-full',
-        trigger: 'justify-center',
+        trigger: 'justify-center'
       }"
     >
       <template #login>
@@ -289,7 +289,7 @@ const registerState = reactive({
               label: 'Masuk',
               color: 'secondary',
               size: 'lg',
-              loading: false,
+              loading: false
             }"
             @submit="onSubmit"
           />
@@ -308,7 +308,7 @@ const registerState = reactive({
               label: 'Daftar',
               color: 'success',
               size: 'lg',
-              loading: false,
+              loading: false
             }"
             @submit="onRegist"
           />
