@@ -90,6 +90,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
       onUpdateOpen: (val: boolean) => updateMenuState('Front Office', val),
       children: [
         {
+          label: 'Temp Registration',
+          to: '/front-office/registration-temp'
+        },
+        {
           label: 'Patient Appointment',
           to: '/front-office/registration-patient'
         }

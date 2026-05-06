@@ -33,6 +33,8 @@ type Patient = {
 
   // 🔥 tambahkan ini
   id_reg: string
+  serviceType: string
+  examDate: string
 }
 
 function mapPatient(item: any): Patient & { id_reg: string } {
@@ -57,12 +59,30 @@ function mapPatient(item: any): Patient & { id_reg: string } {
     createdAt: item.createdAt,
 
     // 🔥 penting
-    id_reg: item.id_reg
+    id_reg: item.id_reg,
+
+    serviceType: item.serviceType,
+    examDate: item.examDate
   }
 }
 
-const { data: register, refresh } = await useAsyncData('register', () =>
-  api.get('/registration').then(res => res.data.data.map(mapPatient))
+// const { data: register, refresh } = await useAsyncData('register', () =>
+//   api.get('/registration').then(res => res.data.data.map(mapPatient))
+// )
+
+const { data: register, refresh, error } = await useAsyncData(
+  'register',
+  async () => {
+    try {
+      const res = await api.get('/registration')
+      console.log('Registration RESPONSE:', res.data.data.map(mapPatient))
+
+      return res.data.data.map(mapPatient)
+    } catch (err) {
+      console.error('Registration ERROR:', err)
+      throw err // penting supaya masuk ke error state Nuxt
+    }
+  }
 )
 
 const data = computed(() => register.value ?? [])
@@ -182,7 +202,22 @@ const columns: TableColumn<Patient>[] = [
   },
   {
     accessorKey: 'id_reg',
-    header: 'Regist ID',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Regist ID',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
     cell: ({ row }) => `${row.getValue('id_reg')}`
   },
   {
@@ -219,19 +254,34 @@ const columns: TableColumn<Patient>[] = [
   },
   {
     accessorKey: 'gender',
-    header: 'Gender',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Gender',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
     cell: ({ row }) =>
       row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'idNumber',
+    accessorKey: 'dob',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'ID Number',
+        label: 'DOB',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -241,22 +291,31 @@ const columns: TableColumn<Patient>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('idNumber')
+    cell: ({ row }) => {
+      const value = row.getValue('dob')
+
+      if (!value) return '-'
+
+      const date = new Date(value)
+
+      if (isNaN(date.getTime())) return 'Invalid'
+
+      return date.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
   },
   {
-    accessorKey: 'phone',
-    header: 'Phone',
-    cell: ({ row }) => row.getValue('phone') ?? '-'
-  },
-  {
-    accessorKey: 'email',
+    accessorKey: 'serviceType',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Email',
+        label: 'Service',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -266,8 +325,54 @@ const columns: TableColumn<Patient>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('email') ?? '-'
+    cell: ({ row }) => row.getValue('serviceType')
   },
+  {
+    accessorKey: 'examDate',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Exam Date',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => {
+      return new Date(row.getValue('examDate')).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
+  },
+  // {
+  //   accessorKey: 'email',
+  //   header: ({ column }) => {
+  //     const isSorted = column.getIsSorted()
+
+  //     return h(UButton, {
+  //       color: 'neutral',
+  //       variant: 'ghost',
+  //       label: 'Email',
+  //       icon: isSorted
+  //         ? isSorted === 'asc'
+  //           ? 'i-lucide-arrow-up-narrow-wide'
+  //           : 'i-lucide-arrow-down-wide-narrow'
+  //         : 'i-lucide-arrow-up-down',
+  //       class: '-mx-2.5',
+  //       onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+  //     })
+  //   },
+  //   cell: ({ row }) => row.getValue('email') ?? '-'
+  // },
   {
     accessorKey: 'createdAt',
     header: ({ column }) => {
@@ -349,16 +454,20 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="patients">
+  <UDashboardPanel id="patient-appointments">
     <template #header>
-      <UDashboardNavbar title="Patients">
+      <UDashboardNavbar title="Patient Appointment">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <UButton icon="i-lucide-plus" color="primary" to="/registration/create">
-            Buat Registrasi
+          <UButton
+            icon="i-lucide-clipboard-plus"
+            color="primary"
+            to="/front-office/registration-patient/create"
+          >
+            New Appointment
           </UButton>
         </template>
       </UDashboardNavbar>

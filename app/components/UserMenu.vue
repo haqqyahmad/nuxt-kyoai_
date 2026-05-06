@@ -1,169 +1,168 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from "@nuxt/ui";
+import type { DropdownMenuItem } from '@nuxt/ui'
 
 defineProps<{
-  collapsed?: boolean;
-}>();
+  collapsed?: boolean
+}>()
 
-const colorMode = useColorMode();
-const appConfig = useAppConfig();
+const colorMode = useColorMode()
+const appConfig = useAppConfig()
 
 const colors = [
-  "red",
-  "orange",
-  "amber",
-  "yellow",
-  "lime",
-  "green",
-  "emerald",
-  "teal",
-  "cyan",
-  "sky",
-  "blue",
-  "indigo",
-  "violet",
-  "purple",
-  "fuchsia",
-  "pink",
-  "rose",
-];
-const neutrals = ["slate", "gray", "zinc", "neutral", "stone"];
+  'red',
+  'orange',
+  'amber',
+  'yellow',
+  'lime',
+  'green',
+  'emerald',
+  'teal',
+  'cyan',
+  'sky',
+  'blue',
+  'indigo',
+  'violet',
+  'purple',
+  'fuchsia',
+  'pink',
+  'rose'
+]
+const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
-const { user, fetchUser } = useUser();
+const { user, fetchUser } = useUser()
 
 onMounted(async () => {
-  const { getToken } = useAuth();
-  const token = getToken();
+  const { getToken } = useAuth()
+  const token = getToken()
 
-  console.log("TOKEN:", token);
+  console.log('TOKEN:', token)
 
   if (token) {
-    await fetchUser();
+    await fetchUser()
   }
-});
-
+})
 
 const userDisplay = computed(() => {
   return {
-    name: user.value?.data?.data?.email || "User",
+    name: user.value?.data?.data?.email || 'User',
     avatar: {
-      src: user.value?.data?.avatar || "/default-avatar.png",
-      alt: user.value?.data?.name || "User",
-    },
-  };
-});
+      // src: user.value?.data?.avatar || "/default-avatar.png",
+      alt: user.value?.data?.name || 'User'
+    }
+  }
+})
 
 const items = computed<DropdownMenuItem[][]>(() => [
   [
     {
-      type: "label",
+      type: 'label',
       label: userDisplay.value?.name,
-      avatar: userDisplay.value?.avatar,
-    },
+      avatar: userDisplay.value?.avatar
+    }
   ],
   [
     {
-      label: "Profile",
-      icon: "i-lucide-user",
+      label: 'Profile',
+      icon: 'i-lucide-user',
       onSelect: () => {
-        navigateTo("/settings");
-      },
+        navigateTo('/settings')
+      }
     },
     {
-      label: "Billing",
-      icon: "i-lucide-credit-card",
+      label: 'Billing',
+      icon: 'i-lucide-credit-card'
     },
     {
-      label: "Change Password",
-      icon: "i-lucide-key-round",
+      label: 'Change Password',
+      icon: 'i-lucide-key-round',
       onSelect: () => {
-        navigateTo("/settings/security");
-      },
-    },
+        navigateTo('/settings/security')
+      }
+    }
   ],
   [
     {
-      label: "Theme",
-      icon: "i-lucide-palette",
+      label: 'Theme',
+      icon: 'i-lucide-palette',
       children: [
         {
-          label: "Primary",
-          slot: "chip",
+          label: 'Primary',
+          slot: 'chip',
           chip: appConfig.ui.colors.primary,
           content: {
-            align: "center",
-            collisionPadding: 16,
+            align: 'center',
+            collisionPadding: 16
           },
-          children: colors.map((color) => ({
+          children: colors.map(color => ({
             label: color,
             chip: color,
-            slot: "chip",
+            slot: 'chip',
             checked: appConfig.ui.colors.primary === color,
-            type: "checkbox",
+            type: 'checkbox',
             onSelect: (e) => {
-              e.preventDefault();
+              e.preventDefault()
 
-              appConfig.ui.colors.primary = color;
-            },
-          })),
+              appConfig.ui.colors.primary = color
+            }
+          }))
         },
         {
-          label: "Neutral",
-          slot: "chip",
+          label: 'Neutral',
+          slot: 'chip',
           chip:
-            appConfig.ui.colors.neutral === "neutral"
-              ? "old-neutral"
+            appConfig.ui.colors.neutral === 'neutral'
+              ? 'old-neutral'
               : appConfig.ui.colors.neutral,
           content: {
-            align: "end",
-            collisionPadding: 16,
+            align: 'end',
+            collisionPadding: 16
           },
-          children: neutrals.map((color) => ({
+          children: neutrals.map(color => ({
             label: color,
-            chip: color === "neutral" ? "old-neutral" : color,
-            slot: "chip",
-            type: "checkbox",
+            chip: color === 'neutral' ? 'old-neutral' : color,
+            slot: 'chip',
+            type: 'checkbox',
             checked: appConfig.ui.colors.neutral === color,
             onSelect: (e) => {
-              e.preventDefault();
+              e.preventDefault()
 
-              appConfig.ui.colors.neutral = color;
-            },
-          })),
-        },
-      ],
+              appConfig.ui.colors.neutral = color
+            }
+          }))
+        }
+      ]
     },
     {
-      label: "Appearance",
-      icon: "i-lucide-sun-moon",
+      label: 'Appearance',
+      icon: 'i-lucide-sun-moon',
       children: [
         {
-          label: "Light",
-          icon: "i-lucide-sun",
-          type: "checkbox",
-          checked: colorMode.value === "light",
+          label: 'Light',
+          icon: 'i-lucide-sun',
+          type: 'checkbox',
+          checked: colorMode.value === 'light',
           onSelect(e: Event) {
-            e.preventDefault();
+            e.preventDefault()
 
-            colorMode.preference = "light";
-          },
+            colorMode.preference = 'light'
+          }
         },
         {
-          label: "Dark",
-          icon: "i-lucide-moon",
-          type: "checkbox",
-          checked: colorMode.value === "dark",
+          label: 'Dark',
+          icon: 'i-lucide-moon',
+          type: 'checkbox',
+          checked: colorMode.value === 'dark',
           onUpdateChecked(checked: boolean) {
             if (checked) {
-              colorMode.preference = "dark";
+              colorMode.preference = 'dark'
             }
           },
           onSelect(e: Event) {
-            e.preventDefault();
-          },
-        },
-      ],
-    },
+            e.preventDefault()
+          }
+        }
+      ]
+    }
   ],
   // [
   //   {
@@ -221,16 +220,16 @@ const items = computed<DropdownMenuItem[][]>(() => [
     //   target: '_blank'
     // },
     {
-      label: "Log out",
-      icon: "i-lucide-log-out",
+      label: 'Log out',
+      icon: 'i-lucide-log-out',
       onSelect: () => {
-        const { removeToken } = useAuth();
-        removeToken();
-        navigateTo("/login");
-      },
-    },
-  ],
-]);
+        const { removeToken } = useAuth()
+        removeToken()
+        navigateTo('/login')
+      }
+    }
+  ]
+])
 </script>
 
 <template>
@@ -238,14 +237,14 @@ const items = computed<DropdownMenuItem[][]>(() => [
     :items="items"
     :content="{ align: 'center', collisionPadding: 12 }"
     :ui="{
-      content: collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
+      content: collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)'
     }"
   >
     <UButton
       v-bind="{
         ...userDisplay,
         label: collapsed ? undefined : userDisplay.name,
-        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down',
+        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
       }"
       color="neutral"
       variant="ghost"
@@ -253,7 +252,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
       :square="collapsed"
       class="data-[state=open]:bg-elevated"
       :ui="{
-        trailingIcon: 'text-dimmed',
+        trailingIcon: 'text-dimmed'
       }"
     />
 
@@ -263,7 +262,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           class="rounded-full ring ring-bg bg-(--chip-light) dark:bg-(--chip-dark) size-2"
           :style="{
             '--chip-light': `var(--color-${(item as any).chip}-500)`,
-            '--chip-dark': `var(--color-${(item as any).chip}-400)`,
+            '--chip-dark': `var(--color-${(item as any).chip}-400)`
           }"
         />
       </div>
