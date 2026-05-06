@@ -8,6 +8,7 @@ import type { Row } from '@tanstack/table-core'
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UBadge = resolveComponent('UBadge')
 const api = useApi()
 const toast = useToast()
 
@@ -25,17 +26,20 @@ type Patient = {
   idNumber: string
 
   phone?: string
-  email?: string
+  statusRegistration?: string
   dob: string
+  serviceType?: string
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
-
+  company?: string
   createdAt: string
+  examDate: string
 
   // 🔥 tambahkan ini
   id_reg: string
 }
 
 function mapPatient(item: any): Patient & { id_reg: string } {
+  console.log('item', item)
   return {
     id: item.patient?.id,
     patientCode: item.patient?.patientCode,
@@ -50,17 +54,62 @@ function mapPatient(item: any): Patient & { id_reg: string } {
     idNumber: item.patient?.idNumber,
 
     phone: item.patient?.phone,
-    email: item.patient?.email?.toLowerCase(),
+    statusRegistration: item.statusRegistration?.toLowerCase(),
     dob: item.patient?.dob,
     maritalStatus: item.patient?.maritalStatus,
 
+    //company
+    company: item.company?.customerName,
+
+    examDate: item.examDate,
     createdAt: item.createdAt,
+    serviceType : item.serviceType,
 
     // 🔥 penting
     id_reg: item.id_reg
   }
 }
 
+const SERVICE_TYPE_LABEL: Record<string, string> = {
+  Laboratorium:       'Lab',
+  DoctorConsultation: 'Consultation',
+  MCU:                'MCU',
+  Vaccine:            'Vaksin',
+  Antigen:            'Antigen',
+  PCR:                'PCR',
+  VitaminInjection:   'Vitamin',
+  Pharmacy:           'Farmasi',
+  Dental:             'Gigi',
+}
+
+const SERVICE_TYPE_COLOR: Record<string, string> = {
+  Laboratorium:       'success',
+  DoctorConsultation: 'info',
+  MCU:                'warning',
+  Vaccine:            'success',
+  Antigen:            'success',
+  PCR:                'success',
+  VitaminInjection:   'success',
+  Pharmacy:           'success',
+  Dental:             'success',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  open: 'Open',
+  checkin: 'Check-in',
+  checkout: 'Check-out',
+  partialexam: 'Partial Exam',
+  reschedule: 'Reschedule',
+  cancel: 'Dibatalkan'
+}
+const STATUS_COLOR: Record<string, string> = {
+  open: 'success',
+  checkin: 'info',
+  checkout: 'neutral',
+  partialexam: 'warning',
+  reschedule: 'warning',
+  cancel: 'error'
+}
 const { data: register, refresh } = await useAsyncData('register', () =>
   api.get('/registration').then(res => res.data.data.map(mapPatient))
 )
@@ -135,6 +184,7 @@ async function deleteSelectedPatients() {
 const isDeleteModalOpen = ref(false)
 
 function getRowItems(row: Row<Patient>) {
+  
   return [
     {
       type: 'label',
@@ -143,7 +193,7 @@ function getRowItems(row: Row<Patient>) {
     {
       label: 'View patient details',
       icon: 'i-lucide-eye',
-      to: `/registration/${row.original.id}`
+      to: `/front-office/registration-patient/${row.original.id_reg}`
     },
     {
       type: 'separator'
@@ -218,6 +268,25 @@ const columns: TableColumn<Patient>[] = [
     }
   },
   {
+    accessorKey: 'examDate',
+    header: 'Exam Date',
+    cell: ({ row }) =>{
+
+      return  row.getValue('examDate') ? new Date(row.getValue('examDate')).toLocaleDateString('id-ID',{
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }) 
+      : '-'
+    }
+  },
+  {
+    accessorKey: 'company',
+    header: 'Company',
+    cell: ({ row }) =>
+      row.getValue('company') ? row.getValue('company') : '-'
+  },
+  {
     accessorKey: 'gender',
     header: 'Gender',
     cell: ({ row }) =>
@@ -241,22 +310,34 @@ const columns: TableColumn<Patient>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('idNumber')
+    cell: ({ row }) =>  {
+     const p = row.original
+      return ` ${p.idType ?? '-'} : ${p.idNumber ?? '-'} `
+
+    }
   },
   {
-    accessorKey: 'phone',
-    header: 'Phone',
-    cell: ({ row }) => row.getValue('phone') ?? '-'
+    accessorKey: 'serviceType',
+    header: 'Service Type',
+    cell: ({ row }) => {
+      const serviceType = row.getValue('serviceType')
+      return h(UBadge, {
+        label: SERVICE_TYPE_LABEL[serviceType] ?? serviceType ?? '-',
+        color: SERVICE_TYPE_COLOR[serviceType] ?? 'neutral',
+        variant: 'subtle'
+      })
+      // return row.getValue('serviceType') ?? '-'
+    }
   },
   {
-    accessorKey: 'email',
+    accessorKey: 'statusRegistration',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Email',
+        label: 'Status',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -266,7 +347,15 @@ const columns: TableColumn<Patient>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('email') ?? '-'
+   cell: ({ row }) => {
+  const status = row.getValue('statusRegistration') as string
+
+  return h(UBadge, {
+    label: STATUS_LABEL[status] ?? status ?? '-',
+    color: STATUS_COLOR[status] ?? 'neutral',
+    variant: 'subtle'
+  })
+}
   },
   {
     accessorKey: 'createdAt',
