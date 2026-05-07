@@ -3,38 +3,49 @@ const route = useRoute()
 const api = useApi()
 const toast = useToast()
 
-type Registration = {
-  id: number
-  id_reg: string
+type TempRegistration = {
+  id: string
+  idType: string
+  idValue: number
+  firstName: string
+  middleName?: string
+  lastName: string
+  phone?: string
+  dob?: string
+  gender: 'male' | 'female'
+  email?: string
+  branchId: string
+  companyId: string
+  serviceType: string
+  paymentType: string
+  priorityRegist: string
   examDate: string
   scheduleDateExam: string
-  serviceType: string
-  serviceNumber: string
-  priorityRegist: string
-  paymentType: string
-  statusRegistration: string
+  notes: string
+  patientExists?: boolean
+  patientId: string
+  status: string
+  rejectedReason: string
+  registrationId: number
   createdAt: string
-  patient: {
-    id: string
-    patientCode: string
-    patientName: string
-    firstName: string
-    middleName?: string
-    lastName: string
-    gender: 'MALE' | 'FEMALE'
-    idType: string
-    idNumber: string
-    phone?: string
-    email?: string
-    dob?: string
-  } | null
-  branch: { branchId: string, nameBranch: string } | null
-  company: { id: number, codeCostumer: string, customerName: string } | null
 }
 
 const { data: reg, refresh } = await useAsyncData(
-  `registration-${route.params.id}`,
-  () => api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
+  `registration-temp-${route.params.id}`,
+  () =>
+    api
+      .get(`/registration-temp/${route.params.id}`)
+      .then(r => r.data.data as TempRegistration)
+)
+
+const fullName = computed(() =>
+  [
+    reg.value?.firstName,
+    reg.value?.middleName,
+    reg.value?.lastName
+  ]
+    .filter(v => v?.trim())
+    .join(' ')
 )
 
 // ─────────────────────────────────────────────
@@ -53,18 +64,28 @@ const SERVICE_LABEL: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  Open: 'success',
-  Checkin: 'info',
-  CheckOut: 'neutral',
-  Reschedule: 'warning',
-  PartialExam: 'warning',
-  Cancel: 'error'
+  APPROVED: 'success',
+  PENDING: 'warning',
+  REJECTED: 'error'
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
   Normal: 'neutral',
   VIP: 'warning',
-  Emegency: 'error'
+  Emergency: 'error'
+}
+
+const BRANCH_NAME: Record<string, string> = {
+  '01': 'Jakarta - Wisma Keiai (Main Clinic)',
+  '02': 'Ejip - Cikarang',
+  '03': 'Bali',
+  '04': 'Clinique Suisse Jakarta',
+  '05': 'Surya Cipta - Karawang',
+  '06': 'KIIC - Karawang',
+  '07': 'AXIA - Cikarang',
+  '08': 'Delta Mas - Cikarang',
+  '09': 'Jakarta - Summitmas',
+  '10': 'Jakarta - Kyoai Medical Park'
 }
 
 function formatDateTime(d?: string) {
@@ -181,13 +202,13 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
 <template>
   <UDashboardPanel :id="`registration-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar title="Detail Registrasi">
+      <UDashboardNavbar title="Detail Temporary Registrasi">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/front-office/registration-patient"
+            to="/front-office/registration-temp"
           />
         </template>
         <template #right>
@@ -197,23 +218,6 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               color="neutral"
               variant="outline"
               label="Print Label"
-            />
-            <UButton
-              v-if="!isCancelled"
-              icon="i-lucide-x-circle"
-              color="error"
-              variant="outline"
-              label="Cancel Registrasi"
-              :loading="cancelLoading"
-              @click="cancelRegistration"
-            />
-            <UButton
-              v-if="!isCancelled && !isCheckedIn"
-              icon="i-lucide-user-check"
-              color="primary"
-              label="Check-in Pasien"
-              :loading="checkinLoading"
-              @click="checkinPatient"
             />
           </div>
         </template>
@@ -230,19 +234,16 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
         <!-- ── Page title + actions ── -->
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p class="text-xs text-muted mb-1">
-              Kembali ke Daftar Registrasi
-            </p>
             <h1 class="text-2xl font-bold text-default">
-              Registration Detail
+              Temporary Registration Detail
             </h1>
             <div class="flex items-center gap-3 mt-2">
               <code class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg">
-                {{ reg.id_reg }}
+                {{ fullName }}
               </code>
               <UBadge
-                :label="reg.statusRegistration"
-                :color="STATUS_COLOR[reg.statusRegistration] ?? 'neutral'"
+                :label="reg.status"
+                :color="STATUS_COLOR[reg.status] ?? 'neutral'"
                 variant="subtle"
                 size="md"
               />
@@ -261,14 +262,14 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </h3>
               <span v-if="reg.patient" class="text-xs text-muted">ID: {{ reg.patient.patientCode }}</span>
             </div>
-            <div v-if="reg.patient" class="px-5 py-4">
+            <div v-if="reg.firstName" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
                 <div>
                   <p class="text-xs text-muted mb-1">
                     Full Name
                   </p>
                   <p class="font-semibold text-base">
-                    {{ reg.patient.patientName }}
+                    {{ fullName }}
                   </p>
                 </div>
                 <div>
@@ -276,7 +277,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                     Gender
                   </p>
                   <p class="font-semibold">
-                    {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
+                    {{ reg.gender === 'male' ? 'Male' : 'Female' }}
                   </p>
                 </div>
                 <div>
@@ -294,7 +295,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                     Nomor HP
                   </p>
                   <p class="font-medium">
-                    {{ reg.patient.phone ?? '-' }}
+                    {{ reg.phone ?? '-' }}
                   </p>
                 </div>
                 <div>
@@ -302,7 +303,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                     Email
                   </p>
                   <p class="font-medium truncate">
-                    {{ reg.patient.email ?? '-' }}
+                    {{ reg.email ?? '-' }}
                   </p>
                 </div>
                 <div>
@@ -310,15 +311,15 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                     ID Type
                   </p>
                   <p class="font-medium">
-                    {{ reg.patient.idType }}
+                    {{ reg.idType }}
                   </p>
                 </div>
                 <div>
                   <p class="text-xs text-muted mb-1">
                     ID Number
                   </p>
-                  <p class="font-mono text-xs font-medium">
-                    {{ reg.patient.idNumber }}
+                  <p class="font-medium">
+                    {{ reg.idValue }}
                   </p>
                 </div>
               </div>
@@ -347,11 +348,11 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>
-                <code class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono">{{ reg.serviceNumber }}</code>
+                <code class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono">{{ reg.registrationId }}</code>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Branch</span>
-                <span class="text-sm font-semibold">{{ reg.branch?.nameBranch ?? '-' }}</span>
+                <span class="text-sm font-semibold">{{ BRANCH_NAME[reg.branchId ?? '-'] }}</span>
               </div>
             </div>
           </div>

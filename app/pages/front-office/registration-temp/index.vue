@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const isStatusModalOpen = ref(false)
-const selectedRow = ref<any>(null)
+const selectedRow = ref<Row<TempRegist> | null>(null)
 const selectedStatus = ref<string>('')
 
 // optional (kalau APPROVED butuh input)
@@ -97,7 +97,7 @@ type TempRegist = {
   middleName?: string
   lastName: string
 
-  gender: 'MALE' | 'FEMALE'
+  gender: 'male' | 'female'
   idType: 'KTP' | 'PASSPORT' | 'SIM'
   idValue: string
 
@@ -126,7 +126,7 @@ type TempRegist = {
   rejectReason?: string
 }
 
-const { data: reg_temp, refresh, error } = await useAsyncData(
+const { data: reg_temp, refresh } = await useAsyncData(
   'reg_temp',
   async () => {
     try {
@@ -145,19 +145,21 @@ const data = computed(() => reg_temp.value ?? [])
 
 const columnFilters = ref([
   {
-    id: 'firstName',
+    id: 'fullName',
     value: ''
   }
 ])
+
 const columnVisibility = ref({
   id: false // 🔒 langsung disembunyikan
 })
+
 const rowSelection = ref({})
 
 const selectedDeleteId = ref<string | null>(null)
 async function deletePatient(id: string) {
   try {
-    await api.delete(`/patient/${id}`)
+    await api.delete(`/registration-temp/${id}`)
 
     toast.add({
       title: 'Berhasil',
@@ -190,7 +192,9 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`))
+      selectedRows.map((row: any) =>
+        api.delete(`/registration-temp/${row.original.id}`)
+      )
     )
 
     toast.add({
@@ -211,6 +215,18 @@ async function deleteSelectedPatients() {
 }
 
 const isDeleteModalOpen = ref(false)
+
+const SERVICE_TYPE_COLOR: Record<string, string> = {
+  Laboratorium: 'success',
+  DoctorConsultation: 'info',
+  MCU: 'warning',
+  Vaccine: 'success',
+  Antigen: 'success',
+  PCR: 'success',
+  VitaminInjection: 'success',
+  Pharmacy: 'success',
+  Dental: 'success'
+}
 
 const updateStatus = async (id: string, status: string, payload?: any) => {
   if (status === 'APPROVED') {
@@ -239,19 +255,6 @@ function focusInput(refEl: any) {
 }
 
 watch(selectedStatus, async (val) => {
-  if (val === 'APPROVED') {
-    await nextTick()
-    focusInput(examDateRef.value)
-  }
-
-  if (val === 'REJECTED') {
-    await nextTick()
-    focusInput(rejectReasonRef.value)
-  }
-})
-
-watch(selectedStatus, (val) => {
-  // reset semua error & touched
   errors.examDate = ''
   errors.priorityRegist = ''
   errors.rejectReason = ''
@@ -260,20 +263,23 @@ watch(selectedStatus, (val) => {
   touched.priorityRegist = false
   touched.rejectReason = false
 
-  // reset form sesuai status
   if (val === 'APPROVED') {
     formReject.rejectReason = ''
+
+    await nextTick()
+    focusInput(examDateRef.value)
   }
 
   if (val === 'REJECTED') {
     formApprove.examDate = ''
     formApprove.priorityRegist = ''
+
+    await nextTick()
+    focusInput(rejectReasonRef.value)
   }
 })
 
 const handleChangeStatus = async (row: any, val: string) => {
-  const old = row.original.status
-
   isStatusModalOpen.value = true
   selectedRow.value = row
   selectedStatus.value = val
@@ -316,15 +322,24 @@ async function confirmChangeStatus() {
       rejectReason: formReject.rejectReason
     })
 
-    const index = reg_temp.value?.findIndex(i => i.id === row.original.id)
+    // 🔥 UPDATE LOCAL STATE
+    if (!reg_temp.value) return
 
-    if (index !== -1 && reg_temp.value) {
+    const index = reg_temp.value.findIndex(
+      i => i.id === row.original.id
+    )
+
+    if (index >= 0) {
       const updated = {
         ...reg_temp.value[index],
-        status: val
+        status: val,
+        examDate: formApprove.examDate,
+        priorityRegist: formApprove.priorityRegist,
+        rejectReason: formReject.rejectReason
       }
 
-      reg_temp.value.splice(index, 1, updated)
+      reg_temp.value[index] = updated
+
       emit('updated', updated)
     }
 
@@ -335,6 +350,7 @@ async function confirmChangeStatus() {
     })
 
     await refresh()
+
     isStatusModalOpen.value = false
   } catch (err) {
     toast.add({
@@ -436,7 +452,11 @@ const columns: TableColumn<TempRegist>[] = [
   },
 
   {
-    accessorKey: 'firstName',
+    id: 'fullName',
+
+    accessorFn: row =>
+      `${row.firstName} ${row.middleName || ''} ${row.lastName}`.trim(),
+
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -453,16 +473,25 @@ const columns: TableColumn<TempRegist>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
+
     cell: ({ row }) => {
       const p = row.original
-      const fullName = [p.firstName, p.middleName, p.lastName]
+
+      const fullName = [
+        p.firstName,
+        p.middleName,
+        p.lastName
+      ]
         .filter(Boolean)
         .join(' ')
 
       return h('div', { class: 'flex items-center gap-3' }, [
         h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, fullName)
-          // h("p", { class: "text-muted" }, `ID: ${p.id_reg}`),
+          h(
+            'p',
+            { class: 'font-medium text-highlighted' },
+            fullName
+          )
         ])
       ])
     }
@@ -545,7 +574,36 @@ const columns: TableColumn<TempRegist>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('serviceType')
+
+    cell: ({ row }) => {
+      const serviceType = row.getValue('serviceType') as string
+
+      const colorMap: Record<string, string> = {
+        success: 'bg-green-100 text-green-700 border-green-200',
+        info: 'bg-blue-100 text-blue-700 border-blue-200',
+        warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        error: 'bg-red-100 text-red-700 border-red-200',
+        neutral: 'bg-gray-100 text-gray-700 border-gray-200'
+      }
+
+      const color
+        = SERVICE_TYPE_COLOR[serviceType] ?? 'neutral'
+
+      return h(
+        'span',
+        {
+          class: `
+          px-2 py-1
+          rounded-md
+          text-xs
+          font-medium
+          border
+          ${colorMap[color]}
+        `
+        },
+        serviceType
+      )
+    }
   },
   {
     accessorKey: 'examDate',
@@ -566,7 +624,15 @@ const columns: TableColumn<TempRegist>[] = [
       })
     },
     cell: ({ row }) => {
-      return new Date(row.getValue('examDate')).toLocaleString('id-ID', {
+      const value = row.getValue('examDate')
+
+      if (!value) return '-'
+
+      const date = new Date(String(value))
+
+      if (isNaN(date.getTime())) return '-'
+
+      return date.toLocaleDateString('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric'
@@ -627,7 +693,7 @@ const columns: TableColumn<TempRegist>[] = [
           class: `px-2 py-1 rounded-md text-xs font-semibold border cursor-pointer hover:opacity-80 transition ${colorMap[status]}`,
           onClick: () => {
             selectedRow.value = row
-            selectedStatus.value = status
+            selectedStatus.value = row.original.status || 'PENDING'
             isStatusModalOpen.value = true
           }
         },
@@ -644,7 +710,7 @@ const columns: TableColumn<TempRegist>[] = [
           color: 'neutral',
           variant: 'ghost',
           class: 'ml-auto hover:bg-muted rounded-md',
-          to: `/registration-temp/${row.original.id}`,
+          to: `/front-office/registration-temp/${row.original.id}`,
           title: 'View Detail'
         })
       ])
@@ -658,13 +724,14 @@ const searchQuery = computed({
   get: (): string => {
     return (
       (table.value?.tableApi
-        ?.getColumn('firstName')
+        ?.getColumn('fullName')
         ?.getFilterValue() as string) || ''
     )
   },
+
   set: (value: string) => {
     table.value?.tableApi
-      ?.getColumn('firstName')
+      ?.getColumn('fullName')
       ?.setFilterValue(value || undefined)
   }
 })
@@ -892,7 +959,7 @@ const currentPageSize = computed({
 
                 <div class="space-y-1">
                   <label class="text-sm font-medium text-muted">
-                    Priority
+                    Priority <span class="text-red-500">*</span>
                   </label>
                   <USelect
                     v-model="formApprove.priorityRegist"
