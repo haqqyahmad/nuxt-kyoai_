@@ -85,16 +85,20 @@ const links = computed<NavigationMenuItem[][]>(() => [
         },
         {
           label: 'Items',
-          type: 'trigger',
-          open: menuOpenState.value['Items'],
-          onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
-          children: [
-            {
-              label: 'MCU',
-              to: '/items/mcu'
-            }
-          ]
+          to: '/items'
         }
+        // {
+        //   label: 'Items',
+        //   type: 'trigger',
+        //   open: menuOpenState.value['Items'],
+        //   onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
+        //   children: [
+        //     {
+        //       label: 'MCU',
+        //       to: '/items/mcu'
+        //     }
+        //   ]
+        // }
       ]
     },
     {

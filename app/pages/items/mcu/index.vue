@@ -102,7 +102,7 @@ function getRowItems(row: Row<Item>) {
     {
       label: 'View item details',
       icon: 'i-lucide-eye',
-      to: `/mcu/items/${row.original.id}`
+      to: `/items/mcu/${row.original.id}`
     },
     {
       type: 'separator'
@@ -174,7 +174,7 @@ const columns: TableColumn<Item>[] = [
     }
   },
   {
-    accessorKey: 'version',
+    accessorKey: 'department',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -192,7 +192,7 @@ const columns: TableColumn<Item>[] = [
       })
     },
     cell: ({ row }) =>
-      row.getValue('version') === 'MALE' ? 'Laki-laki' : 'Perempuan'
+      row.getValue('department')
   },
   {
     accessorKey: 'isActive',
@@ -212,7 +212,7 @@ const columns: TableColumn<Item>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('isActive')
+    cell: ({ row }) => row.getValue('isActive') === true ? 'Yes' : 'No'
   },
   {
     accessorKey: 'createdAt',
@@ -295,15 +295,15 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="questionnaire">
+  <UDashboardPanel id="items_mcu">
     <template #header>
-      <UDashboardNavbar title="Questionnaire">
+      <UDashboardNavbar title="Items MCU">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <ItemsAddModal @created="refresh" />
+          <!-- <ItemsAddModal @created="refresh" /> -->
         </template>
       </UDashboardNavbar>
     </template>

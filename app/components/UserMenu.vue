@@ -45,10 +45,8 @@ onMounted(async () => {
 const userDisplay = computed(() => {
   return {
     name: user.value?.data?.data?.email || 'User',
-    avatar: {
-      // src: user.value?.data?.avatar || "/default-avatar.png",
-      alt: user.value?.data?.name || 'User'
-    }
+    avatar: user.value?.data?.data?.avatar || '/default-avatar.png',
+    alt: user.value?.data?.data?.name || 'User'
   }
 })
 
