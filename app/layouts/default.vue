@@ -13,7 +13,8 @@ const activeOpenMenu = ref<string | null>(null)
 const menuOpenState = ref({
   'Master Data': false,
   'Front Office': false,
-  'Settings': false
+  'Settings': false,
+  'Items': false
 })
 
 // Update active menu berdasarkan route
@@ -24,12 +25,14 @@ const updateActiveMenu = () => {
   menuOpenState.value = {
     'Master Data': false,
     'Front Office': false,
-    'Settings': false
+    'Settings': false,
+    'Items': false
   }
 
   if (currentPath.startsWith('/customer')
     || currentPath.startsWith('/patients')
-    || currentPath.startsWith('/users')) {
+    || currentPath.startsWith('/users')
+    || currentPath.startsWith('/items')) {
     activeOpenMenu.value = 'Master Data'
     menuOpenState.value['Master Data'] = true
   } else if (currentPath.startsWith('/front-office')) {
@@ -79,6 +82,18 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'User',
           to: '/users'
+        },
+        {
+          label: 'Items',
+          type: 'trigger',
+          open: menuOpenState.value['Items'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
+          children: [
+            {
+              label: 'MCU',
+              to: '/items/mcu'
+            }
+          ]
         }
       ]
     },
