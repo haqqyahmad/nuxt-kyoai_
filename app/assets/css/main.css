@@ -16,3 +16,19 @@
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
 }
+
+.sortable-move {
+  transition: transform 0.2s;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+}
+
+.sortable-chosen {
+  transform: scale(1.01);
+}
+
+.sortable-drag {
+  transform: rotate(1deg);
+}

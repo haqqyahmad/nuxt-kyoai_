@@ -88,6 +88,19 @@ const BRANCH_NAME: Record<string, string> = {
   '10': 'Jakarta - Kyoai Medical Park'
 }
 
+const BRANCH_MAP: Record<string, string> = {
+  '01': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.4450865724266!2d106.81850222573125!3d-6.204870410783341!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f41ce7e1f987%3A0xa81d4a263f590cf7!2sKyoai%20Medical%20Services%20(Jakarta)!5e0!3m2!1sid!2sid!4v1778207696766!5m2!1sid!2sid',
+  '02': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.507045156583!2d107.1199049757327!3d-6.328280361922893!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e699b6b48535879%3A0x45cfdf89d5efefd3!2sKyoai%20Medical%20Service%20(ejip-Cikarang)!5e0!3m2!1sid!2sid!4v1778208642576!5m2!1sid!2sid',
+  '03': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3943.8113633280796!2d115.18111617576245!3d-8.709456088771848!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd246b266a503d3%3A0xf5a9befaee9f4ef3!2sKYOAI%20Medical%20Services!5e0!3m2!1sid!2sid!4v1778208457615!5m2!1sid!2sid',
+  '04': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.4368959284984!2d106.81885787573135!3d-6.205958560793301!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f545efaa54e9%3A0xebf3673ac277c8cb!2sClinique%20Suisse!5e0!3m2!1sid!2sid!4v1778208429063!5m2!1sid!2sid',
+  '05': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.1483724977975!2d107.32518307573302!3d-6.374838962359312!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e6975cfda39901f%3A0x9db8f0db713ac1c9!2sKYOAI%20MEDICAL%20SERVICES%20(SURYA%20CIPTA%20-%20KARAWANG%20TIMUR)!5e0!3m2!1sid!2sid!4v1778208337540!5m2!1sid!2sid',
+  '06': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.2762054029545!2d107.27948547573287!3d-6.358284162203742!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e699dfbae4a1b21%3A0x2f8b6c48250a7384!2sKYOAI%20Medical%20Services%20Cabang%20KIIC!5e0!3m2!1sid!2sid!4v1778208492016!5m2!1sid!2sid',
+  '07': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.5038859183333!2d107.12950428384168!3d-6.328691945562345!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e699b421336f985%3A0x7b46fefe4854d9e!2sKYOAI%20MEDICAL%20SERVICES%20(AXIA)!5e0!3m2!1sid!2sid!4v1778207915884!5m2!1sid!2sid',
+  '08': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.3979473068357!2d107.18457407573287!3d-6.342478162055634!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e699bd266827a35%3A0xd26c322b81472c22!2sKYOAI%20MEDICAL%20SERVICES%20(VIA%20ALMA)!5e0!3m2!1sid!2sid!4v1778208390754!5m2!1sid!2sid',
+  '09': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.2797069348126!2d106.80102857573152!3d-6.226804860984086!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f194f63b2305%3A0xc9285b218cd9c279!2sKyoai%20Medical%20Services%20(Summitmas)!5e0!3m2!1sid!2sid!4v1778208240970!5m2!1sid!2sid',
+  '10': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.4532976086493!2d106.81796907573128!3d-6.203779360773392!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f56cc518478d%3A0x24769a84120576ed!2sKyoai%20Medical%20Park!5e0!3m2!1sid!2sid!4v1778208530259!5m2!1sid!2sid'
+}
+
 function formatDateTime(d?: string) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -95,41 +108,6 @@ function formatDateTime(d?: string) {
     hour: '2-digit', minute: '2-digit'
   })
 }
-
-// ─────────────────────────────────────────────
-// MCU Breakdown (static mock — replace with API)
-// ─────────────────────────────────────────────
-const mcuCategories = [
-  {
-    label: 'Physical Examination',
-    icon: 'i-lucide-stethoscope',
-    items: [
-      { name: 'General Physical Exam', done: true },
-      { name: 'Eyes (Vision/Color)', done: true },
-      { name: 'Dental Examination', done: false }
-    ]
-  },
-  {
-    label: 'Laboratory Tests',
-    icon: 'i-lucide-flask-conical',
-    items: [
-      { name: 'Hematology (Complete)', done: true },
-      { name: 'Kidney Function', done: false },
-      { name: 'Liver Function', done: false },
-      { name: 'Lipid Profile', done: false },
-      { name: 'Diabetes (HbA1c)', done: false }
-    ]
-  },
-  {
-    label: 'Radiology & Imaging',
-    icon: 'i-lucide-scan',
-    items: [
-      { name: 'Chest X-Ray', done: false },
-      { name: 'EKG (Resting)', done: false },
-      { name: 'USG Abdomen', done: false }
-    ]
-  }
-]
 
 // ─────────────────────────────────────────────
 // Questionnaires (static mock — replace with API)
@@ -357,50 +335,6 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
             </div>
           </div>
 
-          <!-- ════ MCU Breakdown (12 cols, only MCU) ════ -->
-          <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
-            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-              <h3 class="font-semibold flex items-center gap-2">
-                <UIcon name="i-lucide-activity" class="text-primary" />
-                MCU Breakdown
-              </h3>
-              <div class="flex items-center gap-4 text-xs text-muted">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-green-500" /> Completed
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-default" /> Pending
-                </span>
-              </div>
-            </div>
-            <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                v-for="cat in mcuCategories"
-                :key="cat.label"
-                class="bg-elevated rounded-xl p-4"
-              >
-                <h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-3">
-                  <UIcon :name="cat.icon" class="text-sm" />
-                  {{ cat.label }}
-                </h4>
-                <ul class="space-y-2">
-                  <li
-                    v-for="item in cat.items"
-                    :key="item.name"
-                    class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2"
-                  >
-                    <span class="text-sm">{{ item.name }}</span>
-                    <UIcon
-                      :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-                      :class="item.done ? 'text-green-500' : 'text-muted'"
-                      class="text-base flex-shrink-0"
-                    />
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
           <!-- ════ Payment & Priority (4 cols) ════ -->
           <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
             <div class="rounded-xl border border-default bg-background overflow-hidden shadow-sm">
@@ -555,21 +489,37 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
           </div>
 
           <!-- ════ Map / Branch location (12 cols) ════ -->
-          <div class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm">
-            <div class="absolute inset-0 flex items-center justify-center text-muted">
-              <UIcon name="i-lucide-map" class="text-4xl opacity-20" />
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-elevated to-transparent" />
-            <div class="absolute bottom-4 left-4 bg-background border border-default rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
-              <div class="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl text-primary flex-shrink-0">
+          <div
+            class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm"
+          >
+            <!-- Google Maps Embed -->
+            <iframe
+              class="absolute inset-0 w-full h-full"
+              :src="BRANCH_MAP[reg.branchId ?? '-']"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            />
+
+            <!-- Overlay gradient -->
+            <div class="absolute inset-0 bg-gradient-to-t from-elevated/80 to-transparent pointer-events-none" />
+
+            <!-- Branch Info -->
+            <div
+              class="absolute bottom-4 left-4 bg-background border border-default rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm"
+            >
+              <div
+                class="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl text-primary flex-shrink-0"
+              >
                 <UIcon name="i-lucide-building-2" />
               </div>
+
               <div>
                 <p class="text-xs text-muted">
                   Current Location
                 </p>
+
                 <p class="text-sm font-bold">
-                  {{ reg.branch?.nameBranch ?? '-' }}
+                  {{ BRANCH_NAME[reg.branchId ?? '-'] }}
                 </p>
               </div>
             </div>

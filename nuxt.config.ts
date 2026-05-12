@@ -7,6 +7,8 @@ export default defineNuxtConfig({
     '@vueuse/nuxt'
   ], ssr: false,
 
+  components: true,
+
   devtools: {
     enabled: false
   },

@@ -32,7 +32,8 @@ const updateActiveMenu = () => {
   if (currentPath.startsWith('/customer')
     || currentPath.startsWith('/patients')
     || currentPath.startsWith('/users')
-    || currentPath.startsWith('/items')) {
+    || currentPath.startsWith('/items')
+    || currentPath.startsWith('/questionnaire')) {
     activeOpenMenu.value = 'Master Data'
     menuOpenState.value['Master Data'] = true
   } else if (currentPath.startsWith('/front-office')) {
@@ -86,6 +87,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Items',
           to: '/items'
+        },
+        {
+          label: 'Questionnaire',
+          to: '/questionnaire'
         }
         // {
         //   label: 'Items',
