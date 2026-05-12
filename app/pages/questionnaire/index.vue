@@ -1,3 +1,4 @@
+<!-- app/pages/questionnaire/index.vue -->
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
@@ -12,23 +13,16 @@ const api = useApi()
 const toast = useToast()
 
 type Questionnaire = {
-  id: string
-  PatientId: string
-  firstName: string
-  middleName?: string
-  lastName: string
-  gender: 'MALE' | 'FEMALE'
-  idType: 'KTP' | 'PASSPORT' | 'SIM'
-  idNumber: string
-  email?: string
-  dob: string
-  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
-  phone?: string
+  questionnaire_id: string
+  questionnaire_code: string
+  questionnaire_name: string
+  description: string
+  isActive?: boolean
   createdAt: string
 }
 
 const { data: questions, refresh } = await useAsyncData('questions', () =>
-  api.get('/patient').then(res => res.data.data)
+  api.get('/questionnaire').then(res => res.data.data)
 )
 
 const data = computed(() => questions.value?.data ?? questions.value ?? [])
@@ -43,9 +37,9 @@ const columnVisibility = ref()
 const rowSelection = ref({})
 
 const selectedDeleteId = ref<string | null>(null)
-async function deletePatient(id: string) {
+async function deleteQuestionnaire(id: string) {
   try {
-    await api.delete(`/patient/${id}`)
+    await api.delete(`/questionnaire/${id}`)
 
     toast.add({
       title: 'Berhasil',
@@ -78,7 +72,11 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`))
+      selectedRows.map((row: any) =>
+        api.delete(
+          `/questionnaire/${row.original.questionnaire_id}`
+        )
+      )
     )
 
     toast.add({
@@ -100,26 +98,38 @@ async function deleteSelectedPatients() {
 
 const isDeleteModalOpen = ref(false)
 
-function getRowItems(row: Row<Patient>) {
+function getRowItems(row: Row<Questionnaire>) {
   return [
     {
       type: 'label',
       label: 'Actions'
     },
+
     {
-      label: 'View patient details',
-      icon: 'i-lucide-eye',
-      to: `/patients/${row.original.id}`
+      label: 'Open Builder',
+      icon: 'i-lucide-file-pen-line',
+      to: `/questionnaire/${row.original.questionnaire_id}/builder`
     },
+
+    {
+      label: 'Preview Questionnaire',
+      icon: 'i-lucide-eye',
+      to: `/questionnaire/${row.original.questionnaire_id}/preview`
+    },
+
     {
       type: 'separator'
     },
+
     {
-      label: 'Delete patient',
+      label: 'Delete Questionnaire',
       icon: 'i-lucide-trash',
       color: 'error',
+
       onSelect() {
-        selectedDeleteId.value = row.original.id
+        selectedDeleteId.value
+          = row.original.questionnaire_id
+
         isDeleteModalOpen.value = true
       }
     }
@@ -147,12 +157,12 @@ const columns: TableColumn<Questionnaire>[] = [
       })
   },
   {
-    accessorKey: 'PatientId',
+    accessorKey: 'questionnaire_code',
     header: 'Code',
     cell: ({ row }) => `${row.getValue('PatientId')}`
   },
   {
-    accessorKey: 'firstName',
+    accessorKey: 'questionnaire_name',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -171,20 +181,20 @@ const columns: TableColumn<Questionnaire>[] = [
     },
     cell: ({ row }) => {
       const p = row.original
-      const fullName = [p.firstName, p.middleName, p.lastName]
-        .filter(Boolean)
-        .join(' ')
+      // const fullName = [p.firstName, p.middleName, p.lastName]
+      //   .filter(Boolean)
+      //   .join(' ')
 
       return h('div', { class: 'flex items-center gap-3' }, [
         h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, fullName)
+          h('p', { class: 'font-medium text-highlighted' }, p.questionnaire_name)
           // h("p", { class: "text-muted" }, `ID: ${p.PatientId}`),
         ])
       ])
     }
   },
   {
-    accessorKey: 'gender',
+    accessorKey: 'version',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -205,7 +215,7 @@ const columns: TableColumn<Questionnaire>[] = [
       row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'idNumber',
+    accessorKey: 'isActive',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -285,13 +295,14 @@ const searchQuery = computed({
   get: (): string => {
     return (
       (table.value?.tableApi
-        ?.getColumn('idNumber')
+        ?.getColumn('questionnaire_name')
         ?.getFilterValue() as string) || ''
     )
   },
+
   set: (value: string) => {
     table.value?.tableApi
-      ?.getColumn('idNumber')
+      ?.getColumn('questionnaire_name')
       ?.setFilterValue(value || undefined)
   }
 })
@@ -324,13 +335,13 @@ const currentPageSize = computed({
           v-model="searchQuery"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Search by name / ID number..."
+          placeholder="Search questionnaire..."
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="patient"
+            entity="questionnaire"
             @confirm="deleteSelectedPatients"
           >
             <UButton
@@ -437,7 +448,7 @@ const currentPageSize = computed({
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
-        entity="patient"
+        entity="questionnaire"
         @confirm="handleDeleteById"
       />
     </template>
