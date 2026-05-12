@@ -6,11 +6,7 @@ import { useToast } from '#imports'
 
 const toast = useToast()
 
-const {
-  sections,
-  addSection,
-  addQuestion
-} = useQuestionnaireStore()
+const { sections, addSection, addQuestion } = useQuestionnaireStore()
 
 // useQuestionnaireAutosave()
 
@@ -36,95 +32,167 @@ function handleAddSection() {
     @preview="isPreviewOpen = true"
   />
 
-  <UModal v-model:open="isPreviewOpen">
+  <UModal
+    v-model:open="isPreviewOpen"
+    :ui="{
+      content: 'max-w-4xl'
+    }"
+  >
     <template #content>
-      <div class="p-6 max-w-3xl mx-auto space-y-6">
-        <div>
-          <h2 class="text-2xl font-bold">
-            Questionnaire Preview
-          </h2>
-
-          <p class="text-sm text-muted">
-            Preview mode like Google Forms
-          </p>
-        </div>
-
+      <div class="max-h-[90vh] overflow-y-auto bg-elevated/30">
+        <!-- HEADER -->
         <div
-          v-for="(section, index) in sections"
-          :key="section.id"
-          class="
-          border border-default
-          rounded-2xl
-          p-6
-          space-y-5
-        "
+          class="bg-background border-b border-default sticky top-0 z-20 backdrop-blur"
         >
-          <div>
-            <h3 class="font-semibold text-lg">
-              Section {{ index + 1 }}
-            </h3>
+          <div class="h-3 bg-primary" />
 
-            <p class="text-muted">
-              {{ section.sectionTitle }}
-            </p>
+          <div class="p-6 space-y-3">
+            <h1 class="text-3xl font-bold">
+              {{ questionnaireTitle }}
+            </h1>
 
             <p
-              v-if="section.description"
-              class="text-sm text-muted mt-1"
+              v-if="questionnaireDescription"
+              class="text-muted whitespace-pre-line"
             >
-              {{ section.description }}
+              {{ questionnaireDescription }}
             </p>
           </div>
+        </div>
 
+        <!-- BODY -->
+        <div class="p-4 sm:p-6 space-y-6">
           <div
-            v-for="question in section.questions"
-            :key="question.id"
-            class="space-y-3"
+            v-for="(section, index) in sections"
+            :key="section.id"
+            class="bg-background border border-default rounded-3xl shadow-sm overflow-hidden"
           >
-            <div class="space-y-1">
-              <label class="font-medium text-sm">
-                {{ question.question }}
-              </label>
+            <!-- SECTION HEADER -->
+            <div class="border-b border-default p-6">
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs uppercase tracking-wide text-muted">
+                    Section {{ index + 1 }}
+                  </span>
+                </div>
 
-              <p
-                v-if="question.description"
-                class="text-xs text-muted"
-              >
-                {{ question.description }}
-              </p>
+                <h2 class="text-xl font-semibold">
+                  {{ section.sectionTitle }}
+                </h2>
+
+                <p
+                  v-if="section.description"
+                  class="text-sm text-muted whitespace-pre-line"
+                >
+                  {{ section.description }}
+                </p>
+              </div>
             </div>
 
-            <!-- TEXT -->
-            <UInput
-              v-if="question.type === 'text'"
-              placeholder="Your answer"
-            />
+            <!-- QUESTIONS -->
+            <div class="p-6 space-y-8">
+              <div
+                v-for="question in section.questions"
+                :key="question.id"
+                class="space-y-4"
+              >
+                <!-- TITLE -->
+                <div class="space-y-1">
+                  <div class="flex items-start gap-2 flex-wrap">
+                    <h3 class="font-medium text-base">
+                      {{ question.questionText }}
+                    </h3>
 
-            <!-- TEXTAREA -->
-            <UTextarea
-              v-else-if="question.type === 'textarea'"
-              placeholder="Your answer"
-              :rows="4"
-            />
+                    <span v-if="question.isRequired" class="text-error">
+                      *
+                    </span>
 
-            <!-- SELECT -->
-            <USelect
-              v-else-if="question.type === 'select'"
-              :items="question.option || []"
-              placeholder="Choose option"
-            />
+                    <UBadge
+                      v-if="question.conditional"
+                      color="warning"
+                      variant="soft"
+                      size="sm"
+                    >
+                      Conditional
+                    </UBadge>
+                  </div>
 
-            <!-- RADIO -->
-            <URadioGroup
-              v-else-if="question.type === 'radio'"
-              :items="question.option || []"
-            />
+                  <p
+                    v-if="question.questionDescription"
+                    class="text-sm text-muted whitespace-pre-line"
+                  >
+                    {{ question.questionDescription }}
+                  </p>
+                </div>
 
-            <!-- CHECKBOX -->
-            <UCheckboxGroup
-              v-else-if="question.type === 'checkbox'"
-              :items="question.option || []"
-            />
+                <!-- TEXT -->
+                <UInput
+                  v-if="question.questionType === 'text'"
+                  placeholder="Your answer"
+                />
+
+                <!-- NUMBER -->
+                <UInput
+                  v-else-if="question.questionType === 'number'"
+                  type="number"
+                  placeholder="Enter number"
+                />
+
+                <!-- TEXTAREA -->
+                <UTextarea
+                  v-else-if="question.questionType === 'textarea'"
+                  :rows="4"
+                  placeholder="Your answer"
+                />
+
+                <!-- DATE -->
+                <UInput
+                  v-else-if="question.questionType === 'date'"
+                  type="date"
+                />
+
+                <!-- SELECT -->
+                <USelect
+                  v-else-if="question.questionType === 'select'"
+                  :items="
+                    question.options.map((option) => ({
+                      label: option.label,
+                      value: option.value
+                    }))
+                  "
+                  placeholder="Choose option"
+                />
+
+                <!-- RADIO -->
+                <URadioGroup
+                  v-else-if="question.questionType === 'radio'"
+                  :items="
+                    question.options.map((option) => ({
+                      label: option.label,
+                      value: option.value
+                    }))
+                  "
+                />
+
+                <!-- CHECKBOX -->
+                <UCheckboxGroup
+                  v-else-if="question.questionType === 'checkbox'"
+                  :items="
+                    question.options.map((option) => ({
+                      label: option.label,
+                      value: option.value
+                    }))
+                  "
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBMIT -->
+          <div class="flex justify-end">
+            <UButton size="lg" color="primary" icon="i-lucide-send">
+              Submit Form
+            </UButton>
           </div>
         </div>
       </div>

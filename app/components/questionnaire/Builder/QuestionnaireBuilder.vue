@@ -1,3 +1,4 @@
+<!-- app/components/questionnaire/Builder/QuestionnaireBuilder.vue -->
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 import draggable from 'vuedraggable'

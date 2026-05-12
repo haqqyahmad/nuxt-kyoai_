@@ -1221,10 +1221,10 @@ async function submit() {
             >
               <div
                 v-if="selectedService === 'MCU'"
-                class="rounded-xl border border-default overflow-hidden"
+                class="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden"
               >
                 <div
-                  class="px-4 py-3 bg-elevated border-b border-default flex items-center gap-2"
+                  class="px-4 py-3 bg-gray-50 dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700 flex items-center gap-2"
                 >
                   <div
                     class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center"
@@ -1234,7 +1234,9 @@ async function submit() {
                       class="text-primary text-xs"
                     />
                   </div>
-                  <h3 class="text-sm font-semibold">
+                  <h3
+                    class="text-sm font-semibold text-gray-900 dark:text-white"
+                  >
                     Paket MCU
                   </h3>
                   <UBadge
@@ -1258,12 +1260,12 @@ async function submit() {
                 <div class="p-4 space-y-3">
                   <button
                     v-if="!selectedPaket"
-                    class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-dashed border-default hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-dashed border-gray-200 dark:border-neutral-700 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10 transition-all group"
                     :disabled="paketListPending"
                     @click="openPaketModal"
                   >
                     <div
-                      class="w-9 h-9 rounded-lg bg-accented flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors"
+                      class="w-9 h-9 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors"
                     >
                       <UIcon
                         :name="
@@ -1295,7 +1297,7 @@ async function submit() {
 
                   <template v-else>
                     <div
-                      class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/20"
+                      class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20"
                     >
                       <div
                         class="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0"
@@ -1331,10 +1333,10 @@ async function submit() {
                       <div
                         v-for="pi in selectedPaket.paketItems"
                         :key="pi.id"
-                        class="rounded-lg border border-default overflow-hidden"
+                        class="rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden bg-white dark:bg-neutral-900"
                       >
                         <button
-                          class="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-elevated transition-colors text-left"
+                          class="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors text-left"
                           @click="toggleItem(pi.item.id)"
                         >
                           <div
@@ -1381,7 +1383,7 @@ async function submit() {
                             class="border-t border-default overflow-hidden"
                           >
                             <div
-                              class="grid px-3 py-1.5 bg-elevated/60"
+                              class="grid px-3 py-2 bg-gray-50 dark:bg-neutral-800/80"
                               style="grid-template-columns: 1fr 90px 100px 1fr"
                             >
                               <span
@@ -1401,7 +1403,7 @@ async function submit() {
                             <div
                               v-for="inp in pi.item.inputans"
                               :key="inp.id"
-                              class="grid px-3 py-2 border-t border-default/50 hover:bg-elevated/40 transition-colors"
+                              class="grid px-3 py-2 border-t border-default/50 hover:bg-gray-50 dark:hover:bg-neutral-800/60 transition-colors"
                               style="grid-template-columns: 1fr 90px 100px 1fr"
                             >
                               <div class="min-w-0">
@@ -1448,7 +1450,7 @@ async function submit() {
                                   <span
                                     v-for="opsi in inp.opsis.slice(0, 4)"
                                     :key="opsi.id"
-                                    class="text-[10px] px-1.5 py-0.5 rounded bg-elevated border border-default text-muted"
+                                    class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-500 dark:text-gray-400"
                                   >
                                     {{ opsi.label }}
                                   </span>
@@ -1714,7 +1716,7 @@ async function submit() {
                                 <span
                                   v-for="opsi in inp.opsis.slice(0, 3)"
                                   :key="opsi.id"
-                                  class="text-[10px] px-1.5 py-0.5 rounded bg-elevated border border-default text-muted"
+                                  class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-500 dark:text-gray-400"
                                 >
                                   {{ opsi.label }}
                                 </span>
@@ -1978,160 +1980,221 @@ async function submit() {
   </Teleport>
 
   <!-- ════════════════════════════════════════════
-       MODAL PILIH PAKET MCU
-  ════════════════════════════════════════════ -->
+     MODAL PILIH PAKET MCU
+═════════════════════════════════════════════ -->
   <Teleport to="body">
     <Transition name="modal-fade">
       <div
         v-if="paketModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 z-[999] flex items-center justify-center p-4"
         style="
-          backdrop-filter: blur(8px) saturate(150%);
-          background: rgba(0, 0, 0, 0.1);
-        "
+        backdrop-filter: blur(10px) saturate(160%);
+        background: rgba(10, 10, 15, 0.55);
+      "
         @click.self="paketModalOpen = false"
       >
         <Transition name="modal-pop">
           <div
             v-if="paketModalOpen"
-            class="w-full max-w-md bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden"
+            class="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/95 backdrop-blur-xl"
             style="
-              box-shadow:
-                0 32px 64px -12px rgba(0, 0, 0, 0.3),
-                0 0 0 1px rgba(128, 128, 128, 0.12);
-            "
+            box-shadow:
+              0 30px 80px rgba(0, 0, 0, 0.55),
+              inset 0 1px 0 rgba(255,255,255,0.04);
+          "
           >
-            <div class="px-5 pt-5 pb-3">
-              <div class="flex items-start justify-between mb-3">
+            <!-- HEADER -->
+            <div
+              class="px-6 pt-5 pb-4 border-b border-white/10 bg-white/[0.02]"
+            >
+              <div class="flex items-start justify-between gap-4">
                 <div>
                   <h2
-                    class="text-[15px] font-semibold tracking-tight leading-snug"
+                    class="text-base font-semibold tracking-tight text-white"
                   >
                     Pilih Paket MCU
                   </h2>
-                  <p class="text-xs text-muted mt-0.5">
+
+                  <p class="text-xs text-neutral-400 mt-1">
                     Paket pemeriksaan yang akan dijalani pasien
                   </p>
                 </div>
+
                 <button
-                  class="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-default hover:bg-elevated transition-all"
+                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-all"
                   @click="paketModalOpen = false"
                 >
-                  <UIcon name="i-lucide-x" class="text-xs" />
+                  <UIcon name="i-lucide-x" class="text-sm" />
                 </button>
               </div>
-              <div class="relative">
+
+              <!-- SEARCH -->
+              <div class="relative mt-4">
                 <UIcon
                   name="i-lucide-search"
-                  class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                  style="font-size: 13px"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
                 />
+
                 <input
                   v-model="paketSearch"
                   type="text"
                   placeholder="Cari nama paket..."
                   autofocus
-                  class="w-full pl-8 pr-3 py-1.5 text-sm bg-elevated rounded-lg outline-none border border-transparent focus:border-primary/40 focus:bg-background transition-all placeholder:text-muted/60"
+                  class="w-full h-11 rounded-xl bg-neutral-800/90 border border-white/10 pl-10 pr-4 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 >
               </div>
             </div>
 
-            <div class="h-px bg-default/60 mx-4" />
-
-            <div class="overflow-y-auto py-1.5" style="max-height: 360px">
-              <div v-if="paketListPending" class="py-8 text-center">
+            <!-- BODY -->
+            <div
+              class="overflow-y-auto"
+              style="max-height: min(65vh, 620px)"
+            >
+              <!-- LOADING -->
+              <div
+                v-if="paketListPending"
+                class="py-14 flex flex-col items-center justify-center"
+              >
                 <UIcon
                   name="i-lucide-loader-circle"
-                  class="animate-spin text-muted text-lg mx-auto"
+                  class="animate-spin text-primary text-2xl"
                 />
-                <p class="text-xs text-muted mt-2">
+
+                <p class="text-sm text-neutral-400 mt-3">
                   Memuat paket...
                 </p>
               </div>
 
+              <!-- LIST -->
               <template v-else-if="filteredPakets.length">
-                <button
-                  v-for="p in filteredPakets"
-                  :key="p.id"
-                  class="w-full flex items-start gap-3 px-4 py-3 hover:bg-primary/5 transition-colors text-left border-b border-default last:border-0"
-                  :class="selectedPaket?.id === p.id ? 'bg-primary/5' : ''"
-                  @click="selectPaket(p)"
-                >
-                  <div
-                    class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5"
-                    :class="selectedPaket?.id === p.id ? 'bg-primary' : ''"
+                <div class="p-3 space-y-2">
+                  <button
+                    v-for="p in filteredPakets"
+                    :key="p.id"
+                    class="group relative w-full rounded-2xl border transition-all overflow-hidden"
+                    :class="
+                      selectedPaket?.id === p.id
+                        ? 'border-primary/40 bg-primary/10'
+                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/20'
+                    "
+                    @click="selectPaket(p)"
                   >
-                    <UIcon
-                      name="i-lucide-package"
-                      :class="
-                        selectedPaket?.id === p.id
-                          ? 'text-white'
-                          : 'text-primary'
-                      "
-                      class="text-sm"
-                    />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p
-                      class="text-sm font-semibold truncate"
-                      :class="selectedPaket?.id === p.id ? 'text-primary' : ''"
-                    >
-                      {{ p.name }}
-                    </p>
-                    <div class="flex items-center gap-2 mt-1 flex-wrap">
-                      <span class="text-[11px] text-muted">{{ p.paketItems.length }} item</span>
-                      <span class="text-[11px] text-muted">·</span>
-                      <span class="text-[11px] text-muted">
-                        {{
-                          p.paketItems.reduce(
-                            (s, pi) => s + pi.item.inputans.length,
-                            0
-                          )
-                        }}
-                        inputan
-                      </span>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mt-1.5">
-                      <span
-                        v-for="pi in p.paketItems.slice(0, 3)"
-                        :key="pi.id"
-                        class="text-[10px] px-1.5 py-0.5 rounded bg-elevated border border-default text-muted"
+                    <div class="flex items-start gap-4 p-4">
+                      <!-- ICON -->
+                      <div
+                        class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all"
+                        :class="
+                          selectedPaket?.id === p.id
+                            ? 'bg-primary text-white'
+                            : 'bg-primary/15 text-primary'
+                        "
                       >
-                        {{ pi.item.name }}
-                      </span>
-                      <span
-                        v-if="p.paketItems.length > 3"
-                        class="text-[10px] text-muted self-center"
-                      >
-                        +{{ p.paketItems.length - 3 }} lainnya
-                      </span>
+                        <UIcon
+                          name="i-lucide-package"
+                          class="text-lg"
+                        />
+                      </div>
+
+                      <!-- CONTENT -->
+                      <div class="flex-1 min-w-0 text-left">
+                        <div class="flex items-start gap-2">
+                          <div class="flex-1 min-w-0">
+                            <p
+                              class="text-sm font-semibold truncate transition-colors"
+                              :class="
+                                selectedPaket?.id === p.id
+                                  ? 'text-primary'
+                                  : 'text-white'
+                              "
+                            >
+                              {{ p.name }}
+                            </p>
+
+                            <div
+                              class="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-neutral-400"
+                            >
+                              <span>
+                                {{ p.paketItems.length }} item
+                              </span>
+
+                              <span>•</span>
+
+                              <span>
+                                {{
+                                  p.paketItems.reduce(
+                                    (s, pi) => s + pi.item.inputans.length,
+                                    0
+                                  )
+                                }}
+                                inputan
+                              </span>
+                            </div>
+                          </div>
+
+                          <UIcon
+                            v-if="selectedPaket?.id === p.id"
+                            name="i-lucide-check-circle-2"
+                            class="text-primary text-lg flex-shrink-0"
+                          />
+                        </div>
+
+                        <!-- TAGS -->
+                        <div class="flex flex-wrap gap-1.5 mt-3">
+                          <span
+                            v-for="pi in p.paketItems.slice(0, 4)"
+                            :key="pi.id"
+                            class="px-2 py-1 rounded-lg text-[10px] border border-white/10 bg-neutral-800/80 text-neutral-300"
+                          >
+                            {{ pi.item.name }}
+                          </span>
+
+                          <span
+                            v-if="p.paketItems.length > 4"
+                            class="px-2 py-1 rounded-lg text-[10px] border border-primary/20 bg-primary/10 text-primary"
+                          >
+                            +{{ p.paketItems.length - 4 }} lainnya
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <UIcon
-                    v-if="selectedPaket?.id === p.id"
-                    name="i-lucide-check"
-                    class="text-primary flex-shrink-0 text-sm mt-1"
-                  />
-                </button>
+                  </button>
+                </div>
               </template>
 
-              <div v-else class="py-8 text-center">
-                <p class="text-sm text-muted">
+              <!-- EMPTY -->
+              <div
+                v-else
+                class="py-16 flex flex-col items-center justify-center text-center px-6"
+              >
+                <div
+                  class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4"
+                >
+                  <UIcon
+                    name="i-lucide-package-x"
+                    class="text-neutral-500 text-2xl"
+                  />
+                </div>
+
+                <p class="text-sm font-medium text-neutral-300">
                   Tidak ada paket
                 </p>
-                <p class="text-xs text-muted/50 mt-1">
+
+                <p class="text-xs text-neutral-500 mt-1">
                   Coba kata kunci lain
                 </p>
               </div>
             </div>
 
-            <div class="h-px bg-default/60 mx-4" />
-            <div class="px-5 py-3 flex items-center justify-between">
-              <p class="text-[11px] text-muted/60">
+            <!-- FOOTER -->
+            <div
+              class="px-6 py-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between"
+            >
+              <p class="text-[11px] text-neutral-500">
                 {{ filteredPakets.length }} paket tersedia
               </p>
+
               <button
-                class="text-xs text-muted hover:text-default transition-colors"
+                class="px-4 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-neutral-300 transition-all"
                 @click="paketModalOpen = false"
               >
                 Tutup
@@ -2144,180 +2207,212 @@ async function submit() {
   </Teleport>
 
   <!-- ════════════════════════════════════════════
-       MODAL TAMBAH ADDITIONAL ITEM
-  ════════════════════════════════════════════ -->
+     MODAL TAMBAH ADDITIONAL ITEM
+═════════════════════════════════════════════ -->
   <Teleport to="body">
     <Transition name="modal-fade">
       <div
         v-if="additionalModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 z-[999] flex items-center justify-center p-4"
         style="
-          backdrop-filter: blur(8px) saturate(150%);
-          background: rgba(0, 0, 0, 0.1);
-        "
+        backdrop-filter: blur(10px) saturate(160%);
+        background: rgba(10, 10, 15, 0.55);
+      "
         @click.self="additionalModalOpen = false"
       >
         <Transition name="modal-pop">
           <div
             v-if="additionalModalOpen"
-            class="w-full max-w-md bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden"
+            class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/95 backdrop-blur-xl"
             style="
-              box-shadow:
-                0 32px 64px -12px rgba(0, 0, 0, 0.3),
-                0 0 0 1px rgba(128, 128, 128, 0.12);
-            "
+            box-shadow:
+              0 30px 80px rgba(0, 0, 0, 0.55),
+              inset 0 1px 0 rgba(255,255,255,0.04);
+          "
           >
-            <div class="px-5 pt-5 pb-3">
-              <div class="flex items-start justify-between mb-3">
+            <!-- HEADER -->
+            <div
+              class="px-6 pt-5 pb-4 border-b border-white/10 bg-white/[0.02]"
+            >
+              <div class="flex items-start justify-between gap-4">
                 <div>
                   <h2
-                    class="text-[15px] font-semibold tracking-tight leading-snug"
+                    class="text-base font-semibold tracking-tight text-white"
                   >
                     Tambah Item Pemeriksaan
                   </h2>
-                  <p class="text-xs text-muted mt-0.5">
+
+                  <p class="text-xs text-neutral-400 mt-1">
                     Item ekstra di luar paket yang sudah dipilih
                   </p>
                 </div>
+
                 <button
-                  class="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-default hover:bg-elevated transition-all"
+                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-all"
                   @click="additionalModalOpen = false"
                 >
-                  <UIcon name="i-lucide-x" class="text-xs" />
+                  <UIcon name="i-lucide-x" class="text-sm" />
                 </button>
               </div>
 
-              <div class="relative">
+              <!-- SEARCH -->
+              <div class="relative mt-4">
                 <UIcon
                   name="i-lucide-search"
-                  class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                  style="font-size: 13px"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
                 />
+
                 <input
                   v-model="additionalSearch"
                   type="text"
                   placeholder="Ketik nama atau kode item..."
                   autofocus
-                  class="w-full pl-8 pr-3 py-1.5 text-sm bg-elevated rounded-lg outline-none border border-transparent focus:border-primary/40 focus:bg-background transition-all placeholder:text-muted/60"
+                  class="w-full h-11 rounded-xl bg-neutral-800/90 border border-white/10 pl-10 pr-10 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 >
+
                 <UIcon
                   v-if="additionalPending"
                   name="i-lucide-loader-circle"
-                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted animate-spin"
-                  style="font-size: 13px"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-neutral-500"
                 />
               </div>
 
+              <!-- SELECTED ITEMS -->
               <div
                 v-if="additionalItems.length"
-                class="mt-2 flex flex-wrap gap-1"
+                class="flex flex-wrap gap-2 mt-4"
               >
                 <div
                   v-for="item in additionalItems"
                   :key="item.id"
-                  class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/20 bg-primary/10"
                 >
                   <span
-                    class="text-[11px] font-medium text-primary truncate max-w-[120px]"
-                  >{{ item.name }}</span>
+                    class="text-[11px] font-medium text-primary truncate max-w-[160px]"
+                  >
+                    {{ item.name }}
+                  </span>
+
                   <button
-                    class="text-primary/60 hover:text-error transition-colors"
+                    class="text-primary/70 hover:text-red-400 transition-colors"
                     @click="removeAdditionalItem(item.id)"
                   >
-                    <UIcon name="i-lucide-x" style="font-size: 10px" />
+                    <UIcon
+                      name="i-lucide-x"
+                      class="text-[11px]"
+                    />
                   </button>
                 </div>
               </div>
             </div>
 
-            <div class="h-px bg-default/60 mx-4" />
-
-            <div class="overflow-y-auto py-1.5" style="max-height: 360px">
+            <!-- BODY -->
+            <div
+              class="overflow-y-auto"
+              style="max-height: min(65vh, 620px)"
+            >
+              <!-- EMPTY SEARCH -->
               <div
                 v-if="!additionalSearch && !additionalPending"
-                class="py-6 text-center px-4"
+                class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
-                <UIcon
-                  name="i-lucide-search"
-                  class="text-muted/40 text-2xl mx-auto mb-2"
-                />
-                <p class="text-sm text-muted">
+                <div
+                  class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4"
+                >
+                  <UIcon
+                    name="i-lucide-search"
+                    class="text-neutral-500 text-3xl"
+                  />
+                </div>
+
+                <p class="text-sm font-medium text-neutral-300">
                   Ketik untuk mencari item
                 </p>
-                <p class="text-[11px] text-muted/60 mt-1">
+
+                <p class="text-xs text-neutral-500 mt-1 max-w-sm">
                   Item yang sudah ada di paket tidak akan ditampilkan
                 </p>
               </div>
 
+              <!-- LOADING -->
               <div
                 v-else-if="additionalPending && !additionalResults.length"
-                class="py-8 text-center"
+                class="py-16 flex flex-col items-center justify-center"
               >
                 <UIcon
                   name="i-lucide-loader-circle"
-                  class="animate-spin text-muted text-lg mx-auto"
+                  class="animate-spin text-primary text-2xl"
                 />
-                <p class="text-xs text-muted mt-2">
+
+                <p class="text-sm text-neutral-400 mt-3">
                   Mencari item...
                 </p>
               </div>
 
+              <!-- RESULTS -->
               <template v-else-if="groupedAdditionalResults.length">
-                <div class="space-y-3 p-3">
+                <div class="space-y-4 p-4">
                   <div
                     v-for="[groupName, items] in groupedAdditionalResults"
                     :key="groupName"
-                    class="rounded-xl border border-default overflow-hidden bg-background"
+                    class="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden"
                   >
                     <!-- GROUP HEADER -->
                     <div
-                      class="sticky top-0 z-10 px-4 py-2 bg-elevated/95 backdrop-blur border-b border-default flex items-center gap-2"
+                      class="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-neutral-900/95 backdrop-blur-xl"
                     >
                       <div
-                        class="w-5 h-5 rounded bg-primary/10 flex items-center justify-center"
+                        class="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center"
                       >
                         <UIcon
                           name="i-lucide-folder"
-                          class="text-primary"
-                          style="font-size: 11px"
+                          class="text-sm"
                         />
                       </div>
-                      <p
-                        class="text-xs font-semibold uppercase tracking-wider flex-1"
-                      >
-                        {{ groupName }}
-                      </p>
+
+                      <div class="flex-1 min-w-0">
+                        <p
+                          class="text-xs font-semibold uppercase tracking-wider text-white truncate"
+                        >
+                          {{ groupName }}
+                        </p>
+                      </div>
+
                       <span
-                        class="text-[10px] text-muted bg-elevated border border-default rounded-full px-2 py-0.5"
+                        class="px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-[10px] text-neutral-400"
                       >
                         {{ items.length }} item
                       </span>
                     </div>
 
                     <!-- ITEMS -->
-                    <div class="divide-y divide-default">
+                    <div class="divide-y divide-white/5">
                       <button
                         v-for="item in items"
                         :key="item.id"
-                        class="w-full flex items-start gap-3 px-4 py-3 hover:bg-primary/5 transition-all text-left"
+                        class="group w-full flex items-start gap-4 px-4 py-3 text-left hover:bg-primary/[0.07] transition-all"
                         @click="addAdditionalItem(item)"
                       >
+                        <!-- ICON -->
                         <div
-                          class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"
+                          class="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0"
                         >
-                          <uicon
+                          <UIcon
                             name="i-lucide-flask-conical"
-                            class="text-primary"
+                            class="text-primary text-lg"
                           />
                         </div>
 
+                        <!-- CONTENT -->
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2 flex-wrap">
-                            <p class="text-sm font-medium truncate">
+                            <p
+                              class="text-sm font-medium text-white truncate"
+                            >
                               {{ item.name }}
                             </p>
 
-                            <ubadge
+                            <UBadge
                               v-if="item.group?.code"
                               :label="item.group.code"
                               size="xs"
@@ -2327,7 +2422,7 @@ async function submit() {
                           </div>
 
                           <div
-                            class="flex items-center gap-1.5 mt-1 flex-wrap text-[11px] text-muted"
+                            class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-neutral-400"
                           >
                             <span class="font-mono">
                               {{ item.code }}
@@ -2335,6 +2430,7 @@ async function submit() {
 
                             <template v-if="getDepartmentName(item)">
                               <span>•</span>
+
                               <span>
                                 {{ getDepartmentName(item) }}
                               </span>
@@ -2342,16 +2438,19 @@ async function submit() {
 
                             <span>•</span>
 
-                            <span> {{ item.inputans.length }} inputan </span>
+                            <span>
+                              {{ item.inputans.length }} inputan
+                            </span>
                           </div>
                         </div>
 
+                        <!-- ACTION -->
                         <div
-                          class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1"
+                          class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform"
                         >
-                          <uicon
+                          <UIcon
                             name="i-lucide-plus"
-                            class="text-primary text-xs"
+                            class="text-primary text-sm"
                           />
                         </div>
                       </button>
@@ -2359,34 +2458,50 @@ async function submit() {
                   </div>
                 </div>
               </template>
+
+              <!-- EMPTY -->
               <div
                 v-else-if="additionalSearch && !additionalPending"
-                class="py-8 text-center"
+                class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
-                <p class="text-sm text-muted">
+                <div
+                  class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4"
+                >
+                  <UIcon
+                    name="i-lucide-search-x"
+                    class="text-neutral-500 text-3xl"
+                  />
+                </div>
+
+                <p class="text-sm font-medium text-neutral-300">
                   Tidak ditemukan
                 </p>
-                <p class="text-[11px] text-muted/60 mt-1">
+
+                <p class="text-xs text-neutral-500 mt-1">
                   Coba kata kunci lain atau periksa master item
                 </p>
               </div>
             </div>
 
-            <div class="h-px bg-default/60 mx-4" />
-
-            <div class="px-5 py-3 flex items-center justify-between">
-              <p class="text-[11px] text-muted/60">
+            <!-- FOOTER -->
+            <div
+              class="px-6 py-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between"
+            >
+              <p class="text-[11px] text-neutral-500">
                 <template v-if="additionalItems.length">
                   {{ additionalItems.length }} item ditambahkan
                 </template>
+
                 <template v-else>
                   Belum ada item tambahan
                 </template>
               </p>
+
               <UButton
-                size="xs"
+                size="sm"
                 color="primary"
                 variant="soft"
+                class="rounded-xl"
                 @click="additionalModalOpen = false"
               >
                 Selesai
