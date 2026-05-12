@@ -1,121 +1,172 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
+import { h, resolveComponent, computed, ref } from 'vue'
 import { upperFirst } from 'scule'
-import type { TableColumn } from '@nuxt/ui'
-import { getPaginationRowModel } from '@tanstack/table-core'
+import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
 import type { Row } from '@tanstack/table-core'
+import { getPaginationRowModel } from '@tanstack/table-core'
+import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
+import ItemExamTemplateModal from '~/components/item/ItemExamTemplateModal.vue'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UBadge = resolveComponent('UBadge')
+
 const api = useApi()
 const toast = useToast()
+
+
+type Department =
+  | 'Laboratorium'
+  | 'DoctorConsultation'
+  | 'MCU'
+  | 'Vaccine'
+  | 'Antigen'
+  | 'PCR'
+  | 'VitaminInjection'
+  | 'Pharmacy'
+  | 'Dental'
+  | 'Radiologi'
 
 type Item = {
   id: string
   name: string
   code: string
-  department: string
+  department: Department
   isActive?: boolean
   createdAt: string
 }
 
-const { data: items, refresh } = await useAsyncData('items', () =>
-  api.get('/mcu/items').then(res => res.data.data)
-)
+const SERVICE_TYPE_LABEL: Record<Department, string> = {
+  Laboratorium: 'Lab',
+  DoctorConsultation: 'Consultation',
+  MCU: 'MCU',
+  Vaccine: 'Vaksin',
+  Antigen: 'Antigen',
+  PCR: 'PCR',
+  VitaminInjection: 'Vitamin',
+  Pharmacy: 'Farmasi',
+  Dental: 'Gigi',
+  Radiologi: 'Radiologi'
+}
 
-const data = computed(() => items.value?.data ?? items.value ?? [])
+const SERVICE_TYPE_COLOR: Record<Department, any> = {
+  Laboratory: 'success',
+  DoctorConsultation: 'info',
+  MCU: 'warning',
+  Vaccine: 'success',
+  Antigen: 'success',
+  PCR: 'primary',
+  VitaminInjection: 'secondary',
+  Pharmacy: 'neutral',
+  Dental: 'warning',
+  Radiology: 'warning'
+}
 
-const columnFilters = ref([
-  {
-    id: 'code',
-    value: ''
-  }
-])
-const columnVisibility = ref()
+const {
+  data: items,
+  refresh,
+  pending
+} = await useAsyncData('items', async () => {
+  const res = await api.get('/mcu/items')
+  return res.data.data
+})
+
+const data = computed<Item[]>(() => items.value ?? [])
+const isAddModalOpen = ref(false)
+const columnFilters = ref([{ id: 'name', value: '' }])
+const columnVisibility = ref({})
 const rowSelection = ref({})
 
+const table = useTemplateRef('table')
+
 const selectedDeleteId = ref<string | null>(null)
+const isDeleteModalOpen = ref(false)
+
+// ─── Exam Template Modal ───────────────────────────────────────────────────────
+const isExamTemplateModalOpen = ref(false)
+const selectedTemplateItem = ref<{ id: string; name: string } | null>(null)
+
+function openExamTemplate(row: Row<Item>) {
+  selectedTemplateItem.value = { id: row.original.id, name: row.original.name }
+  isExamTemplateModalOpen.value = true
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function deleteItem(id: string) {
   try {
     await api.delete(`/mcu/items/${id}`)
-
-    toast.add({
-      title: 'Berhasil',
-      description: 'Items berhasil dihapus',
-      color: 'success'
-    })
-
+    toast.add({ title: 'Berhasil', description: 'Item berhasil dihapus', color: 'success' })
     await refresh()
-  } catch (err) {
-    toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus item',
-      color: 'error'
-    })
+  } catch {
+    toast.add({ title: 'Gagal', description: 'Gagal menghapus item', color: 'error' })
   }
 }
 
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
-
   await deleteItem(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
 async function deleteSelectedItems() {
-  const selectedRows
-    = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
-
+  const selectedRows = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
   if (!selectedRows.length) return
-
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/mcu/items/${row.original.id}`))
+      selectedRows.map((row: Row<Item>) => api.delete(`/mcu/items/${row.original.id}`))
     )
-
-    toast.add({
-      title: 'Berhasil',
-      description: 'Data item berhasil dihapus',
-      color: 'success'
-    })
-
+    toast.add({ title: 'Berhasil', description: 'Data item berhasil dihapus', color: 'success' })
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
-    toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus data',
-      color: 'error'
-    })
+  } catch {
+    toast.add({ title: 'Gagal', description: 'Gagal menghapus data', color: 'error' })
   }
 }
 
-const isDeleteModalOpen = ref(false)
+function sortableHeader(label: string, column: any) {
+  const isSorted = column.getIsSorted()
+  return h(UButton, {
+    color: 'neutral',
+    variant: 'ghost',
+    label,
+    class: '-mx-2.5',
+    icon: isSorted
+      ? isSorted === 'asc'
+        ? 'i-lucide-arrow-up-narrow-wide'
+        : 'i-lucide-arrow-down-wide-narrow'
+      : 'i-lucide-arrow-up-down',
+    onClick: () => column.toggleSorting(isSorted === 'asc')
+  })
+}
 
-function getRowItems(row: Row<Item>) {
+function getRowItems(row: Row<Item>): DropdownMenuItem[][] {
   return [
-    {
-      type: 'label',
-      label: 'Actions'
-    },
-    {
-      label: 'View item details',
-      icon: 'i-lucide-eye',
-      to: `/items/mcu/${row.original.id}`
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'Delete item',
-      icon: 'i-lucide-trash',
-      color: 'error',
-      onSelect() {
-        selectedDeleteId.value = row.original.id
-        isDeleteModalOpen.value = true
+    [
+      {
+        label: 'View detail',
+        icon: 'i-lucide-eye',
+        to: `/mcu/items/${row.original.id}`
+      },
+      {
+        label: 'Edit Template Exam',
+        icon: 'i-lucide-test-tube',
+        onSelect() {
+          openExamTemplate(row)
+        }
       }
-    }
+    ],
+    [
+      {
+        label: 'Delete item',
+        icon: 'i-lucide-trash',
+        color: 'error',
+        onSelect() {
+          selectedDeleteId.value = row.original.id
+          isDeleteModalOpen.value = true
+        }
+      }
+    ]
   ]
 }
 
@@ -124,116 +175,64 @@ const columns: TableColumn<Item>[] = [
     id: 'select',
     header: ({ table }) =>
       h(UCheckbox, {
-        'modelValue': table.getIsSomePageRowsSelected()
+        modelValue: table.getIsSomePageRowsSelected()
           ? 'indeterminate'
           : table.getIsAllPageRowsSelected(),
         'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
           table.toggleAllPageRowsSelected(!!value),
-        'ariaLabel': 'Select all'
+        ariaLabel: 'Select all'
       }),
     cell: ({ row }) =>
       h(UCheckbox, {
-        'modelValue': row.getIsSelected(),
+        modelValue: row.getIsSelected(),
         'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
           row.toggleSelected(!!value),
-        'ariaLabel': 'Select row'
+        ariaLabel: 'Select row'
       })
   },
   {
     accessorKey: 'code',
-    header: 'Code',
-    cell: ({ row }) => `${row.getValue('code')}`
+    header: ({ column }) => sortableHeader('Code', column)
   },
   {
     accessorKey: 'name',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Name',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    },
-    cell: ({ row }) => {
-      const p = row.original
-
-      return h('div', { class: 'flex items-center gap-3' }, [
-        h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, p.name)
-          // h("p", { class: "text-muted" }, `ID: ${p.PatientId}`),
-        ])
+    header: ({ column }) => sortableHeader('Name', column),
+    cell: ({ row }) =>
+      h('div', { class: 'flex flex-col' }, [
+        h('span', { class: 'font-medium text-highlighted' }, row.original.name),
+        h('span', { class: 'text-xs text-muted' }, row.original.code)
       ])
-    }
   },
   {
     accessorKey: 'department',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Version',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+    header: ({ column }) => sortableHeader('Department', column),
+    cell: ({ row }) => {
+      const department = row.original.department?.name as Department
+      console.log('departmentss:', department)
+      return h(UBadge, {
+        label: SERVICE_TYPE_LABEL[department] ?? '-',
+        color: SERVICE_TYPE_COLOR[department] ?? 'neutral',
+        variant: 'subtle'
       })
-    },
-    cell: ({ row }) =>
-      row.getValue('department')
+    }
   },
   {
     accessorKey: 'isActive',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Active?',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+    header: ({ column }) => sortableHeader('Status', column),
+    cell: ({ row }) =>
+      h(UBadge, {
+        label: row.original.isActive ? 'Active' : 'Inactive',
+        color: row.original.isActive ? 'success' : 'neutral',
+        variant: 'subtle'
       })
-    },
-    cell: ({ row }) => row.getValue('isActive') === true ? 'Yes' : 'No'
   },
   {
     accessorKey: 'createdAt',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Registered',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    },
+    header: ({ column }) => sortableHeader('Created At', column),
     cell: ({ row }) => {
-      return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
+      const value = row.getValue('createdAt')
+      if (!value) return '-'
+      return new Date(value as string).toLocaleString('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -244,49 +243,33 @@ const columns: TableColumn<Item>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => {
-      return h(
+    cell: ({ row }) =>
+      h(
         'div',
         { class: 'text-right' },
         h(
           UDropdownMenu,
-          {
-            content: {
-              align: 'end'
-            },
-            items: getRowItems(row)
-          },
+          { items: getRowItems(row), content: { align: 'end' } },
           () =>
             h(UButton, {
               icon: 'i-lucide-ellipsis-vertical',
               color: 'neutral',
-              variant: 'ghost',
-              class: 'ml-auto'
+              variant: 'ghost'
             })
         )
       )
-    }
   }
 ]
 
-const table = useTemplateRef('table')
-
-const searchQuery = computed({
-  get: (): string => {
-    return (
-      (table.value?.tableApi
-        ?.getColumn('name')
-        ?.getFilterValue() as string) || ''
-    )
-  },
+const searchQuery = <any>computed({
+  get: () =>
+    (table.value?.tableApi?.getColumn('name')?.getFilterValue() as string) || '',
   set: (value: string) => {
-    table.value?.tableApi
-      ?.getColumn('name')
-      ?.setFilterValue(value || undefined)
+    table.value?.tableApi?.getColumn('name')?.setFilterValue(value || undefined)
   }
 })
 
-const currentPageSize = computed({
+const currentPageSize = <any>computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
     table.value?.tableApi?.setPageSize(value)
@@ -295,29 +278,23 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="items_mcu">
-    <template #header>
-      <UDashboardNavbar title="Items MCU">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-
-        <template #right>
-          <!-- <ItemsAddModal @created="refresh" /> -->
-        </template>
-      </UDashboardNavbar>
-    </template>
-
+  <UDashboardPanel id="items">
     <template #body>
-      <div class="flex flex-wrap items-center justify-between gap-1.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <UInput
           v-model="searchQuery"
-          class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Search by name / ID number..."
+          placeholder="Search item..."
+          class="max-w-sm"
         />
 
-        <div class="flex flex-wrap items-center gap-1.5">
+        <div class="flex items-center gap-2">
+          <UButton
+            label="Add Item"
+            icon="i-lucide-plus"
+            @click="isAddModalOpen = true"
+          />
+
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="item"
@@ -327,14 +304,12 @@ const currentPageSize = computed({
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
               label="Delete"
               color="error"
-              variant="subtle"
+              variant="soft"
               icon="i-lucide-trash"
             >
               <template #trailing>
                 <UKbd>
-                  {{
-                    table?.tableApi?.getFilteredSelectedRowModel().rows.length
-                  }}
+                  {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length }}
                 </UKbd>
               </template>
             </UButton>
@@ -350,12 +325,10 @@ const currentPageSize = computed({
                   type: 'checkbox' as const,
                   checked: column.getIsVisible(),
                   onUpdateChecked(checked: boolean) {
-                    table?.tableApi
-                      ?.getColumn(column.id)
-                      ?.toggleVisibility(!!checked);
+                    column.toggleVisibility(checked)
                   },
                   onSelect(e?: Event) {
-                    e?.preventDefault();
+                    e?.preventDefault()
                   }
                 }))
             "
@@ -376,59 +349,72 @@ const currentPageSize = computed({
         v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
+        :data="data"
+        :columns="columns"
+        :loading="pending"
+        sticky
+        class="w-full"
         :pagination-options="{
           getPaginationRowModel: getPaginationRowModel()
         }"
-        sticky
-        class="w-full"
-        :data="data"
-        :columns="columns"
         :ui="{
           base: 'table-fixed border-separate border-spacing-0',
-          thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-          tbody: '[&>tr]:last:[&>td]:border-b-0',
-          th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
-          td: 'border-b border-default',
-          separator: 'h-0'
+          thead: '[&>tr]:bg-elevated/50',
+          th: 'py-3 border-y border-default first:border-l last:border-r',
+          td: 'border-b border-default align-middle'
         }"
       />
 
-      <div
-        class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto"
-      >
+      <div class="mt-4 flex items-center justify-between border-t border-default pt-4">
         <div class="text-sm text-muted">
           {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0 }}
           of
-          {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} row(s)
-          selected.
+          {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }}
+          row(s) selected
         </div>
 
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-2">
           <USelect
             v-model="currentPageSize"
+            class="w-32"
             :items="[
               { label: '10 items', value: 10 },
               { label: '20 items', value: 20 },
               { label: '50 items', value: 50 },
               { label: 'All', value: 1000 }
             ]"
-            class="w-32"
           />
+
           <UPagination
-            :default-page="
-              (table?.tableApi?.getState().pagination.pageIndex || 0) + 1
-            "
+            :default-page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
             :items-per-page="table?.tableApi?.getState().pagination.pageSize"
             :total="table?.tableApi?.getFilteredRowModel().rows.length"
             @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
           />
         </div>
       </div>
+
+      <!-- Delete single item modal -->
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
         entity="item"
         @confirm="handleDeleteById"
+      />
+
+      <!-- Add item modal -->
+      <ItemsAddModal
+        v-model:open="isAddModalOpen"
+        @success="refresh()"
+      />
+
+      <!-- Edit exam template modal -->
+      <ItemExamTemplateModal
+        v-if="selectedTemplateItem"
+        v-model:open="isExamTemplateModalOpen"
+        :item-id="selectedTemplateItem.id"
+        :item-name="selectedTemplateItem.name"
+        @close="selectedTemplateItem = null"
       />
     </template>
   </UDashboardPanel>
