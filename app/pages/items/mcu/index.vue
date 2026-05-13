@@ -1,3 +1,4 @@
+<!-- app/pages/items/mcu/index.vue -->
 <script setup lang="ts">
 import { h, resolveComponent, computed, ref } from 'vue'
 import { upperFirst } from 'scule'
