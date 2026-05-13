@@ -30,12 +30,34 @@ type Registration = {
   } | null
   branch: { branchId: string, nameBranch: string } | null
   company: { id: number, codeCostumer: string, customerName: string } | null
+  exam: {
+    id: string
+    status: string
+    paket: { id: string, name: string } | null
+    examItems: ExamItem[]
+    results: any[]
+  } | null
 }
 
-const { data: reg, refresh } = await useAsyncData(
+type ExamItem = {
+  id: string
+  source: 'paket' | 'additional'
+  sortOrder: number
+  item: {
+    id: string
+    code: string
+    name: string
+    department?: { id: string, name: string } | null
+    group?: { id: string, name: string } | null
+  }
+}
+
+const { data: reg , refresh } = await useAsyncData(
   `registration-${route.params.id}`,
   () => api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
 )
+
+console.log('data reg',reg.value.exam)
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -91,38 +113,53 @@ function formatDateTime(d?: string) {
 // ─────────────────────────────────────────────
 // MCU Breakdown (static mock — replace with API)
 // ─────────────────────────────────────────────
-const mcuCategories = [
-  {
-    label: 'Physical Examination',
-    icon: 'i-lucide-stethoscope',
-    items: [
-      { name: 'General Physical Exam', done: true },
-      { name: 'Eyes (Vision/Color)', done: true },
-      { name: 'Dental Examination', done: false }
-    ]
-  },
-  {
-    label: 'Laboratory Tests',
-    icon: 'i-lucide-flask-conical',
-    items: [
-      { name: 'Hematology (Complete)', done: true },
-      { name: 'Kidney Function', done: false },
-      { name: 'Liver Function', done: false },
-      { name: 'Lipid Profile', done: false },
-      { name: 'Diabetes (HbA1c)', done: false }
-    ]
-  },
-  {
-    label: 'Radiology & Imaging',
-    icon: 'i-lucide-scan',
-    items: [
-      { name: 'Chest X-Ray', done: false },
-      { name: 'EKG (Resting)', done: false },
-      { name: 'USG Abdomen', done: false }
-    ]
-  }
-]
 
+
+// Group examItems by department
+const mcuCategories = computed(() => {
+  const items = reg.value?.exam?.examItems ?? []
+  
+  // Filter hanya source = 'paket'
+  const paketItems = items.filter(ei => ei.source === 'paket')
+  
+  // Group by department
+  const grouped = new Map<string, {
+    label: string
+    icon: string
+    items: { id: string, name: string, done: boolean }[]
+  }>()
+
+  const DEPT_ICON: Record<string, string> = {
+    'Laboratorium':  'i-lucide-flask-conical',
+    'Radiologi':     'i-lucide-scan',
+    'default':       'i-lucide-stethoscope',
+  }
+
+  for (const ei of paketItems) {
+    const deptName = ei.item.department?.name ?? 'Lainnya'
+    if (!grouped.has(deptName)) {
+      grouped.set(deptName, {
+        label: deptName,
+        icon: DEPT_ICON[deptName] ?? DEPT_ICON['default'],
+        items: []
+      })
+    }
+    grouped.get(deptName)!.items.push({
+      id:   ei.id,
+      name: ei.item.name,
+      done: false // nanti dari results
+    })
+  }
+
+  return [...grouped.values()]
+})
+
+// Additional items (source = 'additional')
+const additionalItems = computed(() => {
+  return (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
+})
+
+console.log('additionalItems', additionalItems.value)
 // ─────────────────────────────────────────────
 // Questionnaires (static mock — replace with API)
 // ─────────────────────────────────────────────
@@ -320,8 +357,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                 </div>
                 <div>
                   <p class="text-xs text-muted mb-1">
-                    ID Type
-                  </p>
+                    ID Type                  </p>
                   <p class="font-medium">
                     {{ reg.patient.idType }}
                   </p>
@@ -366,52 +402,14 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                 <span class="text-xs text-muted">Branch</span>
                 <span class="text-sm font-semibold">{{ reg.branch?.nameBranch ?? '-' }}</span>
               </div>
+              <div v-if="reg.exam?.paket"  class="flex items-center justify-between px-5 py-3">
+                <span class="text-xs text-muted">Paket</span>
+                <span class="text-sm font-semibold">{{ reg.exam?.paket?.name ?? '-' }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- ════ MCU Breakdown (12 cols, only MCU) ════ -->
-          <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
-            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-              <h3 class="font-semibold flex items-center gap-2">
-                <UIcon name="i-lucide-activity" class="text-primary" />
-                MCU Breakdown
-              </h3>
-              <div class="flex items-center gap-4 text-xs text-muted">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-green-500" /> Completed
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-default" /> Pending
-                </span>
-              </div>
-            </div>
-            <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                v-for="cat in mcuCategories"
-                :key="cat.label"
-                class="bg-elevated rounded-xl p-4"
-              >
-                <h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-3">
-                  <UIcon :name="cat.icon" class="text-sm" />
-                  {{ cat.label }}
-                </h4>
-                <ul class="space-y-2">
-                  <li
-                    v-for="item in cat.items"
-                    :key="item.name"
-                    class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2"
-                  >
-                    <span class="text-sm">{{ item.name }}</span>
-                    <UIcon
-                      :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-                      :class="item.done ? 'text-green-500' : 'text-muted'"
-                      class="text-base flex-shrink-0"
-                    />
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
+         
 
           <!-- ════ Payment & Priority (4 cols) ════ -->
           <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
@@ -565,7 +563,79 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </table>
             </div>
           </div>
-
+ <!-- ════ MCU Breakdown (12 cols, only MCU) ════ -->
+          <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
+              <h3 class="font-semibold flex items-center gap-2">
+                <UIcon name="i-lucide-activity" class="text-primary" />
+                MCU Breakdown
+              </h3>
+              <div class="flex items-center gap-4 text-xs text-muted">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-green-500" /> Completed
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-default" /> Pending
+                </span>
+              </div>
+            </div>
+            <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div
+                v-for="cat in mcuCategories"
+                :key="cat.label"
+                class="bg-elevated rounded-xl p-4"
+              >
+                <h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-3">
+                  <UIcon :name="cat.icon" class="text-sm" />
+                  {{ cat.label }}
+                </h4>
+                <ul class="space-y-2">
+                  <li
+                    v-for="item in cat.items"
+                    :key="item.name"
+                    class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2"
+                  >
+                    <span class="text-sm">{{ item.name }}</span>
+                    <UIcon
+                      :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
+                      :class="item.done ? 'text-green-500' : 'text-muted'"
+                      class="text-base flex-shrink-0"
+                    />
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+                      <!-- ════ Additional Items (12 cols, only MCU) ════ -->
+<div
+  v-if="isMCU && additionalItems.length"
+  class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+>
+  <div class="px-5 py-4 border-b border-default flex items-center justify-between">
+    <h3 class="font-semibold flex items-center gap-2">
+      <UIcon name="i-lucide-plus-circle" class="text-primary" />
+      Additional Exam Items
+    </h3>
+    <UBadge :label="`${additionalItems.length} item`" color="neutral" variant="subtle" size="sm" />
+  </div>
+  <div class="p-5">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div
+        v-for="ei in additionalItems"
+        :key="ei.id"
+        class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3"
+      >
+        <div>
+          <p class="text-sm font-semibold">{{ ei.item.name }}</p>
+          <p class="text-xs text-muted mt-0.5">
+            {{ ei.item.department?.name ?? '-' }} · {{ ei.item.group?.name ?? '-' }}
+          </p>
+        </div>
+        <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
+      </div>
+    </div>
+  </div>
+</div>
           <!-- ════ Map / Branch location (12 cols) ════ -->
           <div
             class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm"

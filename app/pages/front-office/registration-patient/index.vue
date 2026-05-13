@@ -324,14 +324,14 @@ const columns: TableColumn<Patient>[] = [
       row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'dob',
+    accessorKey: 'IdNumber',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'DOB',
+        label: 'Id Number',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
