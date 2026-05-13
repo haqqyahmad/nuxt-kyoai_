@@ -32,6 +32,37 @@ const questionnaireDescription = ref(
 const isPreviewOpen = ref(false)
 
 /**
+ * ANSWERS
+ */
+const answers = ref<Record<string, any>>({})
+
+/**
+ * CONDITIONAL LOGIC
+ */
+function shouldShowQuestion(question: any) {
+  // tidak punya conditional => tampil
+  if (!question.conditional) {
+    return true
+  }
+
+  const parentQuestionId
+    = question.conditional.parentQuestionId
+
+  const showIfOptionId
+    = question.conditional.showIfOptionId
+
+  const answer = answers.value[parentQuestionId]
+
+  // checkbox
+  if (Array.isArray(answer)) {
+    return answer.includes(showIfOptionId)
+  }
+
+  // radio/select
+  return answer === showIfOptionId
+}
+
+/**
  * ADD SECTION
  */
 function handleAddSection() {
@@ -199,158 +230,150 @@ function handleAddSection() {
 
             <!-- QUESTIONS -->
             <div class="p-6 space-y-8">
-              <div
+              <template
                 v-for="question in section.questions"
                 :key="question.id"
-                class="space-y-4"
               >
-                <!-- QUESTION TITLE -->
-                <div class="space-y-2">
-                  <div
-                    class="
+                <div
+                  v-if="shouldShowQuestion(question)"
+                  class="space-y-4"
+                >
+                  <!-- QUESTION TITLE -->
+                  <div class="space-y-2">
+                    <div
+                      class="
                       flex items-start
                       gap-2
                       flex-wrap
                     "
-                  >
-                    <h3
-                      class="
+                    >
+                      <h3
+                        class="
                         font-medium
                         text-base
                         break-words
                       "
-                    >
-                      {{
-                        question.questionText
-                          || 'Untitled Question'
-                      }}
-                    </h3>
+                      >
+                        {{
+                          question.questionText
+                            || 'Untitled Question'
+                        }}
+                      </h3>
 
-                    <span
-                      v-if="question.isRequired"
-                      class="text-error"
-                    >
-                      *
-                    </span>
+                      <span
+                        v-if="question.isRequired"
+                        class="text-error"
+                      >
+                        *
+                      </span>
 
-                    <UBadge
-                      v-if="question.conditional"
-                      color="warning"
-                      variant="soft"
-                      size="sm"
-                    >
-                      Conditional
-                    </UBadge>
-                  </div>
+                      <UBadge
+                        v-if="question.conditional"
+                        color="warning"
+                        variant="soft"
+                        size="sm"
+                      >
+                        Conditional
+                      </UBadge>
+                    </div>
 
-                  <p
-                    v-if="
-                      question.questionDescription
-                    "
-                    class="
+                    <p
+                      v-if="
+                        question.questionDescription
+                      "
+                      class="
                       text-sm
                       text-muted
                       whitespace-pre-line
                     "
-                  >
-                    {{
-                      question.questionDescription
-                    }}
-                  </p>
+                    >
+                      {{
+                        question.questionDescription
+                      }}
+                    </p>
+                  </div>
+
+                  <!-- ================================================= -->
+                  <!-- INPUT RENDER -->
+                  <!-- ================================================= -->
+
+                  <!-- TEXT -->
+                  <UInput
+                    v-if="question.questionType === 'text'"
+                    v-model="answers[question.id]"
+                    placeholder="Your answer"
+                  />
+
+                  <!-- NUMBER -->
+                  <UInput
+                    v-else-if="
+                      question.questionType
+                        === 'number'
+                    "
+                    v-model="answers[question.id]"
+                    type="number"
+                    placeholder="Enter number"
+                  />
+
+                  <!-- TEXTAREA -->
+                  <UTextarea
+                    v-else-if="
+                      question.questionType
+                        === 'textarea'
+                    "
+                    v-model="answers[question.id]"
+                    :rows="4"
+                    autoresize
+                    placeholder="Your answer"
+                  />
+
+                  <!-- DATE -->
+                  <UInput
+                    v-else-if="
+                      question.questionType
+                        === 'date'
+                    "
+                    type="date"
+                  />
+
+                  <!-- SELECT -->
+                  <USelect
+                    v-else-if="question.questionType === 'select'"
+                    v-model="answers[question.id]"
+                    :items="
+                      question.options.map(option => ({
+                        label: option.label,
+                        value: option.id
+                      }))
+                    "
+                    placeholder="Choose option"
+                  />
+
+                  <!-- RADIO -->
+                  <URadioGroup
+                    v-else-if="question.questionType === 'radio'"
+                    v-model="answers[question.id]"
+                    :items="
+                      question.options.map(option => ({
+                        label: option.label,
+                        value: option.id
+                      }))
+                    "
+                  />
+
+                  <!-- CHECKBOX -->
+                  <UCheckboxGroup
+                    v-else-if="question.questionType === 'checkbox'"
+                    v-model="answers[question.id]"
+                    :items="
+                      question.options.map(option => ({
+                        label: option.label,
+                        value: option.id
+                      }))
+                    "
+                  />
                 </div>
-
-                <!-- ================================================= -->
-                <!-- INPUT RENDER -->
-                <!-- ================================================= -->
-
-                <!-- TEXT -->
-                <UInput
-                  v-if="
-                    question.questionType
-                      === 'text'
-                  "
-                  placeholder="Your answer"
-                />
-
-                <!-- NUMBER -->
-                <UInput
-                  v-else-if="
-                    question.questionType
-                      === 'number'
-                  "
-                  type="number"
-                  placeholder="Enter number"
-                />
-
-                <!-- TEXTAREA -->
-                <UTextarea
-                  v-else-if="
-                    question.questionType
-                      === 'textarea'
-                  "
-                  :rows="4"
-                  autoresize
-                  placeholder="Your answer"
-                />
-
-                <!-- DATE -->
-                <UInput
-                  v-else-if="
-                    question.questionType
-                      === 'date'
-                  "
-                  type="date"
-                />
-
-                <!-- SELECT -->
-                <USelect
-                  v-else-if="
-                    question.questionType
-                      === 'select'
-                  "
-                  :items="
-                    question.options.map(
-                      option => ({
-                        label: option.label,
-                        value: option.value
-                      })
-                    )
-                  "
-                  placeholder="Choose option"
-                />
-
-                <!-- RADIO -->
-                <URadioGroup
-                  v-else-if="
-                    question.questionType
-                      === 'radio'
-                  "
-                  :items="
-                    question.options.map(
-                      option => ({
-                        label: option.label,
-                        value: option.value
-                      })
-                    )
-                  "
-                />
-
-                <!-- CHECKBOX -->
-                <UCheckboxGroup
-                  v-else-if="
-                    question.questionType
-                      === 'checkbox'
-                  "
-                  :items="
-                    question.options.map(
-                      option => ({
-                        label: option.label,
-                        value: option.value
-                      })
-                    )
-                  "
-                />
-              </div>
+              </template>
             </div>
           </div>
 

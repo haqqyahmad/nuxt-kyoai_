@@ -1,3 +1,4 @@
+<!-- app/components/questionnaire/Builder/OptionEditor.vue -->
 <script setup lang="ts">
 import type { Question } from '~/types/questionnaire'
 

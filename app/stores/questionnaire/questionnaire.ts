@@ -253,10 +253,7 @@ export const useQuestionnaireStore = () => {
     sectionId: string,
     questionId: string
   ) {
-    const question = findQuestion(
-      sectionId,
-      questionId
-    )
+    const question = findQuestion(sectionId, questionId)
 
     if (!question) return
 
