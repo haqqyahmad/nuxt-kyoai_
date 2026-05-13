@@ -1,17 +1,39 @@
 <!-- app/pages/questionnaire/[id]/builder.vue -->
 <script setup lang="ts">
-import { useQuestionnaireAutosave } from '~/composables/questionnaire/useQuestionnaireAutosave'
-import { useQuestionnaireStore } from '~/stores/questionnaire/questionnaire'
+import { ref } from 'vue'
+
 import { useToast } from '#imports'
+
+import { useQuestionnaireStore }
+  from '~/stores/questionnaire/questionnaire'
 
 const toast = useToast()
 
-const { sections, addSection, addQuestion } = useQuestionnaireStore()
+const {
+  sections,
+  addSection,
+  addQuestion
+} = useQuestionnaireStore()
 
-// useQuestionnaireAutosave()
+/**
+ * FORM META
+ */
+const questionnaireTitle = ref(
+  'Untitled Questionnaire'
+)
 
+const questionnaireDescription = ref(
+  'Form description'
+)
+
+/**
+ * PREVIEW
+ */
 const isPreviewOpen = ref(false)
 
+/**
+ * ADD SECTION
+ */
 function handleAddSection() {
   addSection()
 
@@ -25,64 +47,150 @@ function handleAddSection() {
 </script>
 
 <template>
+  <!-- BUILDER -->
   <QuestionnaireBuilder
     :sections="sections"
+    :title="questionnaireTitle"
+    :description="questionnaireDescription"
+    @update:title="questionnaireTitle = $event"
+    @update:description="
+      questionnaireDescription = $event
+    "
     @add-section="handleAddSection"
     @add-question="addQuestion"
     @preview="isPreviewOpen = true"
   />
 
+  <!-- ================================================= -->
+  <!-- PREVIEW MODAL -->
+  <!-- ================================================= -->
+
   <UModal
     v-model:open="isPreviewOpen"
+    fullscreen
     :ui="{
-      content: 'max-w-4xl'
+      content: 'bg-elevated overflow-hidden'
     }"
   >
     <template #content>
-      <div class="max-h-[90vh] overflow-y-auto bg-elevated/30">
+      <div class="h-screen overflow-y-auto">
+        <!-- CLOSE BUTTON -->
+        <div class="fixed top-4 right-4 z-50">
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="soft"
+            class="rounded-full shadow-lg"
+            @click="isPreviewOpen = false"
+          />
+        </div>
         <!-- HEADER -->
-        <div
-          class="bg-background border-b border-default sticky top-0 z-20 backdrop-blur"
-        >
-          <div class="h-3 bg-primary" />
+        <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-6">
+          <div
+            class="
+              bg-background
+              rounded-3xl
+              overflow-hidden
+              border border-default
+              shadow-sm
+            "
+          >
+            <!-- TOP ACCENT -->
+            <div class="h-3 bg-primary" />
 
-          <div class="p-6 space-y-3">
-            <h1 class="text-3xl font-bold">
-              {{ questionnaireTitle }}
-            </h1>
+            <div class="p-6 sm:p-8 space-y-4">
+              <div class="space-y-2">
+                <h1
+                  class="
+                    text-2xl sm:text-4xl
+                    font-bold
+                    break-words
+                  "
+                >
+                  {{ questionnaireTitle }}
+                </h1>
 
-            <p
-              v-if="questionnaireDescription"
-              class="text-muted whitespace-pre-line"
-            >
-              {{ questionnaireDescription }}
-            </p>
+                <p
+                  v-if="questionnaireDescription"
+                  class="
+                    text-sm sm:text-base
+                    text-muted
+                    whitespace-pre-line
+                  "
+                >
+                  {{ questionnaireDescription }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- BODY -->
-        <div class="p-4 sm:p-6 space-y-6">
+        <div
+          class="
+            max-w-3xl
+            mx-auto
+            px-4 sm:px-6
+            py-6
+            space-y-6
+          "
+        >
+          <!-- SECTION -->
           <div
             v-for="(section, index) in sections"
             :key="section.id"
-            class="bg-background border border-default rounded-3xl shadow-sm overflow-hidden"
+            class="
+              bg-background
+              border border-default
+              rounded-3xl
+              overflow-hidden
+              shadow-sm
+            "
           >
             <!-- SECTION HEADER -->
-            <div class="border-b border-default p-6">
-              <div class="space-y-2">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-xs uppercase tracking-wide text-muted">
-                    Section {{ index + 1 }}
-                  </span>
-                </div>
+            <div
+              class="
+                border-b border-default
+                p-6
+                space-y-3
+              "
+            >
+              <div
+                class="
+                  flex items-center
+                  gap-2
+                  flex-wrap
+                "
+              >
+                <UBadge
+                  color="primary"
+                  variant="soft"
+                >
+                  Section {{ index + 1 }}
+                </UBadge>
+              </div>
 
-                <h2 class="text-xl font-semibold">
-                  {{ section.sectionTitle }}
+              <div class="space-y-2">
+                <h2
+                  class="
+                    text-xl
+                    font-semibold
+                    break-words
+                  "
+                >
+                  {{
+                    section.sectionTitle
+                      || 'Untitled Section'
+                  }}
                 </h2>
 
                 <p
                   v-if="section.description"
-                  class="text-sm text-muted whitespace-pre-line"
+                  class="
+                    text-sm
+                    text-muted
+                    whitespace-pre-line
+                  "
                 >
                   {{ section.description }}
                 </p>
@@ -96,14 +204,32 @@ function handleAddSection() {
                 :key="question.id"
                 class="space-y-4"
               >
-                <!-- TITLE -->
-                <div class="space-y-1">
-                  <div class="flex items-start gap-2 flex-wrap">
-                    <h3 class="font-medium text-base">
-                      {{ question.questionText }}
+                <!-- QUESTION TITLE -->
+                <div class="space-y-2">
+                  <div
+                    class="
+                      flex items-start
+                      gap-2
+                      flex-wrap
+                    "
+                  >
+                    <h3
+                      class="
+                        font-medium
+                        text-base
+                        break-words
+                      "
+                    >
+                      {{
+                        question.questionText
+                          || 'Untitled Question'
+                      }}
                     </h3>
 
-                    <span v-if="question.isRequired" class="text-error">
+                    <span
+                      v-if="question.isRequired"
+                      class="text-error"
+                    >
                       *
                     </span>
 
@@ -118,70 +244,110 @@ function handleAddSection() {
                   </div>
 
                   <p
-                    v-if="question.questionDescription"
-                    class="text-sm text-muted whitespace-pre-line"
+                    v-if="
+                      question.questionDescription
+                    "
+                    class="
+                      text-sm
+                      text-muted
+                      whitespace-pre-line
+                    "
                   >
-                    {{ question.questionDescription }}
+                    {{
+                      question.questionDescription
+                    }}
                   </p>
                 </div>
 
+                <!-- ================================================= -->
+                <!-- INPUT RENDER -->
+                <!-- ================================================= -->
+
                 <!-- TEXT -->
                 <UInput
-                  v-if="question.questionType === 'text'"
+                  v-if="
+                    question.questionType
+                      === 'text'
+                  "
                   placeholder="Your answer"
                 />
 
                 <!-- NUMBER -->
                 <UInput
-                  v-else-if="question.questionType === 'number'"
+                  v-else-if="
+                    question.questionType
+                      === 'number'
+                  "
                   type="number"
                   placeholder="Enter number"
                 />
 
                 <!-- TEXTAREA -->
                 <UTextarea
-                  v-else-if="question.questionType === 'textarea'"
+                  v-else-if="
+                    question.questionType
+                      === 'textarea'
+                  "
                   :rows="4"
+                  autoresize
                   placeholder="Your answer"
                 />
 
                 <!-- DATE -->
                 <UInput
-                  v-else-if="question.questionType === 'date'"
+                  v-else-if="
+                    question.questionType
+                      === 'date'
+                  "
                   type="date"
                 />
 
                 <!-- SELECT -->
                 <USelect
-                  v-else-if="question.questionType === 'select'"
+                  v-else-if="
+                    question.questionType
+                      === 'select'
+                  "
                   :items="
-                    question.options.map((option) => ({
-                      label: option.label,
-                      value: option.value
-                    }))
+                    question.options.map(
+                      option => ({
+                        label: option.label,
+                        value: option.value
+                      })
+                    )
                   "
                   placeholder="Choose option"
                 />
 
                 <!-- RADIO -->
                 <URadioGroup
-                  v-else-if="question.questionType === 'radio'"
+                  v-else-if="
+                    question.questionType
+                      === 'radio'
+                  "
                   :items="
-                    question.options.map((option) => ({
-                      label: option.label,
-                      value: option.value
-                    }))
+                    question.options.map(
+                      option => ({
+                        label: option.label,
+                        value: option.value
+                      })
+                    )
                   "
                 />
 
                 <!-- CHECKBOX -->
                 <UCheckboxGroup
-                  v-else-if="question.questionType === 'checkbox'"
+                  v-else-if="
+                    question.questionType
+                      === 'checkbox'
+                  "
                   :items="
-                    question.options.map((option) => ({
-                      label: option.label,
-                      value: option.value
-                    }))
+                    question.options.map(
+                      option => ({
+                        label: option.label,
+                        value: option.value
+                      })
+                    )
                   "
                 />
               </div>
@@ -189,8 +355,18 @@ function handleAddSection() {
           </div>
 
           <!-- SUBMIT -->
-          <div class="flex justify-end">
-            <UButton size="lg" color="primary" icon="i-lucide-send">
+          <div
+            class="
+              flex justify-end
+              pb-10
+            "
+          >
+            <UButton
+              size="lg"
+              color="primary"
+              icon="i-lucide-send"
+              class="rounded-xl px-6"
+            >
               Submit Form
             </UButton>
           </div>
