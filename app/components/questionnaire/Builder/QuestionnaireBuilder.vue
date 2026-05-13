@@ -1,37 +1,124 @@
 <!-- app/components/questionnaire/Builder/QuestionnaireBuilder.vue -->
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import {
+  nextTick,
+  ref,
+  watch
+} from 'vue'
+
 import draggable from 'vuedraggable'
 
-import { useQuestionDnD } from '~/composables/questionnaire/useQuestionDnD'
+import { useQuestionDnD }
+  from '~/composables/questionnaire/useQuestionDnD'
 
 import SectionCard from './SectionCard.vue'
 
-import type { Section } from '~/types/questionnaire'
+import type {
+  Section
+} from '~/types/questionnaire'
 
-const questionnaireTitle = ref('Judul Questionnaire')
-const questionnaireDescription = ref('')
-
+/**
+ * =====================================================
+ * EMIT
+ * =====================================================
+ */
 const emit = defineEmits<{
-  (e: 'update:sections', value: Section[]): void
+  (
+    e: 'update:sections',
+    value: Section[]
+  ): void
 
-  (e: 'add-question', sectionId: string): void
+  (
+    e: 'update:title',
+    value: string
+  ): void
 
-  (e: 'add-section'): void
+  (
+    e: 'update:description',
+    value: string
+  ): void
 
-  (e: 'preview'): void
+  (
+    e: 'add-question',
+    sectionId: string
+  ): void
+
+  (
+    e: 'add-section'
+  ): void
+
+  (
+    e: 'preview'
+  ): void
 }>()
 
-const { sections } = defineProps<{
+/**
+ * =====================================================
+ * PROPS
+ * =====================================================
+ */
+const props = defineProps<{
   sections: Section[]
+  title: string
+  description: string
 }>()
 
-const { sectionDragOptions } = useQuestionDnD()
+/**
+ * =====================================================
+ * FORM META
+ * =====================================================
+ */
+const questionnaireTitle = ref(
+  props.title
+)
 
-const sectionsModel = ref<Section[]>([...sections])
+const questionnaireDescription = ref(
+  props.description
+)
+
+/**
+ * sync from parent
+ */
+watch(
+  () => props.title,
+  (value) => {
+    questionnaireTitle.value = value
+  }
+)
 
 watch(
-  () => sections,
+  () => props.description,
+  (value) => {
+    questionnaireDescription.value = value
+  }
+)
+
+/**
+ * emit to parent
+ */
+watch(questionnaireTitle, (value) => {
+  emit('update:title', value)
+})
+
+watch(questionnaireDescription, (value) => {
+  emit('update:description', value)
+})
+
+/**
+ * =====================================================
+ * DND
+ * =====================================================
+ */
+const {
+  sectionDragOptions
+} = useQuestionDnD()
+
+const sectionsModel = ref<Section[]>([
+  ...props.sections
+])
+
+watch(
+  () => props.sections,
   (value) => {
     sectionsModel.value = [...value]
   },
@@ -39,84 +126,76 @@ watch(
 )
 
 function handleSectionDragEnd() {
-  emit('update:sections', [...sectionsModel.value])
+  emit(
+    'update:sections',
+    [...sectionsModel.value]
+  )
 }
 
-function updateQuestions(sectionId: string, questions: Section['questions']) {
-  const updated = sectionsModel.value.map((section) => {
-    if (section.id !== sectionId) {
-      return section
-    }
+function updateQuestions(
+  sectionId: string,
+  questions: Section['questions']
+) {
+  const updated
+    = sectionsModel.value.map((section) => {
+      if (section.id !== sectionId) {
+        return section
+      }
 
-    section.questions = questions
-
-    return section
-  })
+      return {
+        ...section,
+        questions
+      }
+    })
 
   sectionsModel.value = updated
+
+  emit(
+    'update:sections',
+    updated
+  )
 }
 
 /**
- * EDIT MODE
+ * =====================================================
+ * TITLE / DESCRIPTION EDIT
+ * =====================================================
  */
-// const isEditing = ref(false)
-
-// function startEditing() {
-//   isEditing.value = true
-// }
-
-// function cancelEditing() {
-//   isEditing.value = false
-// }
-
-// function saveChanges() {
-//   console.log('SAVE DATA', sectionsModel.value)
-
-//   isEditing.value = false
-// }
-
-// TITLE EDIT
 const isTitleEditing = ref(false)
+
 const isDescriptionEditing = ref(false)
 
 const titleInput = ref()
+
 const descriptionInput = ref()
 
 function enableTitleEdit() {
   isTitleEditing.value = true
 
   nextTick(() => {
-    titleInput.value?.inputRef?.focus?.()
+    titleInput.value
+      ?.inputRef
+      ?.focus?.()
   })
 }
 
 function saveTitle() {
   isTitleEditing.value = false
-
-  /**
-   * AUTO SAVE API
-   */
-  console.log('AUTO SAVE TITLE:', questionnaireTitle.value)
 }
 
 function enableDescriptionEdit() {
   isDescriptionEditing.value = true
 
   nextTick(() => {
-    descriptionInput.value?.textareaRef?.focus?.()
+    descriptionInput.value
+      ?.textareaRef
+      ?.focus?.()
   })
 }
 
 function saveDescription() {
   isDescriptionEditing.value = false
 }
-
-/**
- * AUTO SAVE
- */
-watch(questionnaireTitle, (value) => {
-  console.log('AUTO SAVE:', value)
-})
 </script>
 
 <template>

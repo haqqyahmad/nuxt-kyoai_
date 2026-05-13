@@ -2072,8 +2072,9 @@ async function submit() {
                   </p>
                 </div>
 
+                <!-- CLOSE BUTTON -->
                 <button
-                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-all"
+                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all"
                   @click="paketModalOpen = false"
                 >
                   <UIcon name="i-lucide-x" class="text-sm" />
@@ -2124,7 +2125,7 @@ async function submit() {
                     :class="
                       selectedPaket?.id === p.id
                         ? 'border-primary/40 bg-primary/10'
-                        : 'border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/20'
+                        : 'border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] hover:bg-neutral-100 dark:hover:bg-white/[0.04] hover:border-primary/20'
                     "
                     @click="selectPaket(p)"
                   >
@@ -2150,7 +2151,7 @@ async function submit() {
                               :class="
                                 selectedPaket?.id === p.id
                                   ? 'text-primary'
-                                  : 'text-white'
+                                  : 'text-neutral-900 dark:text-white'
                               "
                             >
                               {{ p.name }}
@@ -2219,7 +2220,9 @@ async function submit() {
                   />
                 </div>
 
-                <p class="text-sm font-medium text-neutral-300">
+                <p
+                  class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
                   Tidak ada paket
                 </p>
 
@@ -2231,14 +2234,14 @@ async function submit() {
 
             <!-- FOOTER -->
             <div
-              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-between"
+              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
             >
               <p class="text-[11px] text-neutral-500">
                 {{ filteredPakets.length }} paket tersedia
               </p>
 
               <button
-                class="px-4 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-black/10 dark:border-white/10 text-sm text-neutral-300 transition-all"
+                class="px-4 h-9 rounded-xl bg-neutral-100 dark:bg-white/5 hover:bg-neutral-200 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-sm text-neutral-700 dark:text-neutral-300 transition-all"
                 @click="paketModalOpen = false"
               >
                 Tutup
@@ -2262,12 +2265,12 @@ async function submit() {
           backdrop-filter: blur(10px) saturate(160%);
           background: rgba(10, 10, 15, 0.55);
         "
-        @click.self="additionalModalOpen = false"
+        @keydown.esc.stop.prevent
       >
         <Transition name="modal-pop">
           <div
             v-if="additionalModalOpen"
-            class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-neutral-900/95 backdrop-blur-xl"
+            class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
             style="
               box-shadow:
                 0 30px 80px rgba(0, 0, 0, 0.55),
@@ -2294,7 +2297,7 @@ async function submit() {
                 </div>
 
                 <button
-                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition-all"
+                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all"
                   @click="additionalModalOpen = false"
                 >
                   <UIcon name="i-lucide-x" class="text-sm" />
@@ -2313,7 +2316,7 @@ async function submit() {
                   type="text"
                   placeholder="Ketik nama atau kode item..."
                   autofocus
-                  class="w-full h-11 rounded-xl bg-neutral-800/90 border border-black/10 dark:border-white/10 pl-10 pr-10 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+                  class="w-full h-11 rounded-xl bg-white dark:bg-neutral-800/90 border border-black/10 dark:border-white/10 pl-10 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 >
 
                 <UIcon
@@ -2357,7 +2360,7 @@ async function submit() {
                 class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
                 <div
-                  class="w-16 h-16 rounded-2xl bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
+                  class="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
                 >
                   <UIcon
                     name="i-lucide-search"
@@ -2365,7 +2368,9 @@ async function submit() {
                   />
                 </div>
 
-                <p class="text-sm font-medium text-neutral-300">
+                <p
+                  class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
                   Ketik untuk mencari item
                 </p>
 
@@ -2395,11 +2400,11 @@ async function submit() {
                   <div
                     v-for="[groupName, items] in groupedAdditionalResults"
                     :key="groupName"
-                    class="rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] overflow-hidden"
+                    class="rounded-2xl border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] overflow-hidden"
                   >
                     <!-- GROUP HEADER -->
                     <div
-                      class="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-black/10 dark:border-white/10 bg-neutral-900/95 backdrop-blur-xl"
+                      class="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
                     >
                       <div
                         class="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center"
@@ -2409,25 +2414,25 @@ async function submit() {
 
                       <div class="flex-1 min-w-0">
                         <p
-                          class="text-xs font-semibold uppercase tracking-wider text-white truncate"
+                          class="text-xs font-semibold uppercase tracking-wider text-neutral-900 dark:text-white truncate"
                         >
                           {{ groupName }}
                         </p>
                       </div>
 
                       <span
-                        class="px-2 py-1 rounded-lg border border-black/10 dark:border-white/10 bg-white/5 text-[10px] text-neutral-500 dark:text-neutral-400"
+                        class="px-2 py-1 rounded-lg border border-black/10 dark:border-white/10 bg-neutral-100 dark:bg-white/5 text-[10px] text-neutral-600 dark:text-neutral-400"
                       >
                         {{ items.length }} item
                       </span>
                     </div>
 
                     <!-- ITEMS -->
-                    <div class="divide-y divide-white/5">
+                    <div class="divide-y divide-black/5 dark:divide-white/5">
                       <button
                         v-for="item in items"
                         :key="item.id"
-                        class="group w-full flex items-start gap-4 px-4 py-3 text-left hover:bg-primary/[0.07] transition-all"
+                        class="group w-full flex items-start gap-4 px-4 py-3 text-left hover:bg-primary/[0.08] transition-all"
                         @click="addAdditionalItem(item)"
                       >
                         <!-- ICON -->
@@ -2443,7 +2448,9 @@ async function submit() {
                         <!-- CONTENT -->
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2 flex-wrap">
-                            <p class="text-sm font-medium text-white truncate">
+                            <p
+                              class="text-sm font-medium text-neutral-900 dark:text-white truncate"
+                            >
                               {{ item.name }}
                             </p>
 
@@ -2498,7 +2505,7 @@ async function submit() {
                 class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
                 <div
-                  class="w-16 h-16 rounded-2xl bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
+                  class="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
                 >
                   <UIcon
                     name="i-lucide-search-x"
@@ -2506,7 +2513,9 @@ async function submit() {
                   />
                 </div>
 
-                <p class="text-sm font-medium text-neutral-300">
+                <p
+                  class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
                   Tidak ditemukan
                 </p>
 
@@ -2518,7 +2527,7 @@ async function submit() {
 
             <!-- FOOTER -->
             <div
-              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-between"
+              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
             >
               <p class="text-[11px] text-neutral-500">
                 <template v-if="additionalItems.length">

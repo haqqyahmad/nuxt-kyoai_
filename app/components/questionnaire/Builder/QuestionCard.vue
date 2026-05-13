@@ -2,28 +2,19 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-import type {
-  Question
-} from '~/types/questionnaire'
+import type { Question } from '~/types/questionnaire'
 
-import {
-  useQuestionnaireStore
-} from '~/stores/questionnaire/questionnaire'
+import { useQuestionnaireStore } from '~/stores/questionnaire/questionnaire'
 
-import DragHandle
-  from '../Shared/DragHandle.vue'
+import DragHandle from '../Shared/DragHandle.vue'
 
-import RequiredBadge
-  from '../Shared/RequiredBadge.vue'
+import RequiredBadge from '../Shared/RequiredBadge.vue'
 
-import ConditionalLogic
-  from './ConditionalLogic.vue'
+import ConditionalLogic from './ConditionalLogic.vue'
 
-import QuestionRenderer
-  from './QuestionRenderer.vue'
+import QuestionRenderer from './QuestionRenderer.vue'
 
-import OptionEditor
-  from './OptionEditor.vue'
+import OptionEditor from './OptionEditor.vue'
 
 const props = defineProps<{
   sectionId: string
@@ -31,10 +22,7 @@ const props = defineProps<{
   questions: Question[]
 }>()
 
-const {
-  duplicateQuestion,
-  removeQuestion
-} = useQuestionnaireStore()
+const { duplicateQuestion, removeQuestion } = useQuestionnaireStore()
 
 /**
  * =====================================================
@@ -78,8 +66,7 @@ const questionTypes = [
  * =====================================================
  */
 function toggleEdit() {
-  props.question.isEditing
-    = !props.question.isEditing
+  props.question.isEditing = !props.question.isEditing
 }
 
 /**
@@ -91,10 +78,7 @@ function toggleEdit() {
 const isDeleteModalOpen = ref(false)
 
 function handleDelete() {
-  removeQuestion(
-    props.sectionId,
-    props.question.id
-  )
+  removeQuestion(props.sectionId, props.question.id)
 }
 
 /**
@@ -109,37 +93,22 @@ watch(
     /**
      * reset options
      */
-    if (
-      !['radio', 'checkbox', 'select']
-        .includes(type)
-    ) {
+    if (!['radio', 'checkbox', 'select'].includes(type)) {
       props.question.options = []
     }
 
     /**
      * reset conditional
      */
-    if (
-      !['radio', 'checkbox', 'select']
-        .includes(type)
-    ) {
-      props.question.conditional
-        = undefined
+    if (!['radio', 'checkbox', 'select'].includes(type)) {
+      props.question.conditional = undefined
     }
   }
 )
 </script>
 
 <template>
-  <div
-    class="
-      border border-default
-      rounded-xl
-      p-4
-      bg-default
-      space-y-4
-    "
-  >
+  <div class="border border-default rounded-xl p-4 bg-default space-y-4">
     <div class="flex items-start gap-4">
       <!-- DRAG -->
       <DragHandle />
@@ -154,13 +123,7 @@ watch(
           <div class="space-y-5">
             <!-- QUESTION -->
             <div class="space-y-2">
-              <label
-                class="
-          text-sm
-          font-medium
-          text-highlighted
-        "
-              >
+              <label class="text-sm font-medium text-highlighted">
                 Question Title
               </label>
 
@@ -174,13 +137,7 @@ watch(
 
             <!-- DESCRIPTION -->
             <div class="space-y-2">
-              <label
-                class="
-          text-sm
-          font-medium
-          text-highlighted
-        "
-              >
+              <label class="text-sm font-medium text-highlighted">
                 Description
               </label>
 
@@ -195,23 +152,11 @@ watch(
 
             <!-- TYPE + REQUIRED -->
             <div
-              class="
-        grid
-        grid-cols-1
-        lg:grid-cols-[1fr_auto]
-        gap-4
-        items-start
-      "
+              class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-start"
             >
               <!-- TYPE -->
               <div class="space-y-2">
-                <label
-                  class="
-            text-sm
-            font-medium
-            text-highlighted
-          "
-                >
+                <label class="text-sm font-medium text-highlighted">
                   Question Type
                 </label>
 
@@ -226,17 +171,7 @@ watch(
 
               <!-- REQUIRED -->
               <div
-                class="
-          flex items-center
-          justify-between
-          gap-4
-          border border-default
-          rounded-xl
-          px-4
-          py-3
-          min-w-[240px]
-          bg-elevated/40
-        "
+                class="flex items-center justify-between gap-4 border border-default rounded-xl px-4 py-3 min-w-[240px] bg-elevated/40"
               >
                 <div class="space-y-0.5">
                   <p class="text-sm font-medium">
@@ -248,21 +183,12 @@ watch(
                   </p>
                 </div>
 
-                <USwitch
-                  v-model="question.isRequired"
-                />
+                <USwitch v-model="question.isRequired" />
               </div>
             </div>
 
             <!-- CONDITIONAL -->
-            <div
-              v-if="
-                ['radio', 'checkbox', 'select']
-                  .includes(question.questionType)
-              "
-              class="space-y-4"
-            >
-              <!-- ADD CONDITIONAL -->
+            <div class="space-y-4">
               <UButton
                 v-if="!question.conditional"
                 icon="i-lucide-git-branch"
@@ -272,23 +198,16 @@ watch(
                 @click="
                   question.conditional = {
                     parentQuestionId: '',
-                    operator: 'equals',
-                    value: ''
+                    showIfOptionId: ''
                   }
                 "
               >
                 Add Conditional Logic
               </UButton>
 
-              <!-- CONDITIONAL FORM -->
               <div
                 v-else
-                class="
-          border border-default
-          rounded-xl
-          p-4
-          bg-elevated/30
-        "
+                class="border border-default rounded-xl p-4 bg-elevated/30"
               >
                 <ConditionalLogic
                   :section-id="sectionId"
@@ -301,9 +220,9 @@ watch(
             <!-- EMPTY OPTIONS -->
             <UAlert
               v-if="
-                ['radio', 'checkbox', 'select']
-                  .includes(question.questionType)
-                  && !question.options.length
+                ['radio', 'checkbox', 'select'].includes(
+                  question.questionType
+                ) && !question.options.length
               "
               color="warning"
               variant="soft"
@@ -314,15 +233,9 @@ watch(
             <!-- OPTIONS -->
             <div
               v-if="
-                ['radio', 'checkbox', 'select']
-                  .includes(question.questionType)
+                ['radio', 'checkbox', 'select'].includes(question.questionType)
               "
-              class="
-        border border-default
-        rounded-xl
-        p-4
-        bg-elevated/20
-      "
+              class="border border-default rounded-xl p-4 bg-elevated/20"
             >
               <div class="mb-4">
                 <h4 class="font-medium">
@@ -334,10 +247,7 @@ watch(
                 </p>
               </div>
 
-              <OptionEditor
-                :section-id="sectionId"
-                :question="question"
-              />
+              <OptionEditor :section-id="sectionId" :question="question" />
             </div>
           </div>
         </template>
@@ -349,25 +259,12 @@ watch(
         <template v-else>
           <!-- TITLE -->
           <div class="space-y-2">
-            <div
-              class="
-                flex items-center
-                gap-2
-                flex-wrap
-              "
-            >
-              <h3
-                class="
-                  text-base
-                  font-semibold
-                "
-              >
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-base font-semibold">
                 {{ question.questionText }}
               </h3>
 
-              <RequiredBadge
-                v-if="question.isRequired"
-              />
+              <RequiredBadge v-if="question.isRequired" />
 
               <UBadge
                 v-if="question.conditional"
@@ -379,45 +276,22 @@ watch(
             </div>
 
             <!-- DESCRIPTION -->
-            <p
-              v-if="question.questionDescription"
-              class="
-                text-sm
-                text-muted
-              "
-            >
+            <p v-if="question.questionDescription" class="text-sm text-muted">
               {{ question.questionDescription }}
             </p>
           </div>
 
           <!-- QUESTION PREVIEW -->
-          <QuestionRenderer
-            :question="question"
-          />
+          <QuestionRenderer :question="question" />
         </template>
       </div>
 
       <!-- ACTIONS -->
-      <div
-        class="
-          flex flex-col
-          gap-2
-        "
-      >
+      <div class="flex flex-col gap-2">
         <!-- EDIT -->
-        <UTooltip
-          :text="
-            question.isEditing
-              ? 'Save'
-              : 'Edit'
-          "
-        >
+        <UTooltip :text="question.isEditing ? 'Save' : 'Edit'">
           <UButton
-            :icon="
-              question.isEditing
-                ? 'i-lucide-check'
-                : 'i-lucide-pencil'
-            "
+            :icon="question.isEditing ? 'i-lucide-check' : 'i-lucide-pencil'"
             color="neutral"
             variant="ghost"
             @click="toggleEdit"
@@ -430,12 +304,7 @@ watch(
             icon="i-lucide-copy"
             color="neutral"
             variant="ghost"
-            @click="
-              duplicateQuestion(
-                sectionId,
-                question.id
-              )
-            "
+            @click="duplicateQuestion(sectionId, question.id)"
           />
         </UTooltip>
 
