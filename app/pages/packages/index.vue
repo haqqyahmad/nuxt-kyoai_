@@ -291,9 +291,9 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="paket-mcu">
+  <UDashboardPanel id="packages">
     <template #header>
-      <UDashboardNavbar title="Paket MCU">
+      <UDashboardNavbar title="Service Packages">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -302,7 +302,7 @@ const currentPageSize = computed({
           <UButton
             icon="i-lucide-plus"
             color="primary"
-            to="/paket-mcu/create"
+            to="/packages/create"
           >
             New Paket
           </UButton>

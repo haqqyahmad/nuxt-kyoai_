@@ -6,51 +6,64 @@ const toast = useToast()
 
 const open = ref(false)
 
+// Update active menu berdasarkan route
+const menuGroups: Record<string, string[]> = {
+  'Master Data': [
+    '/customer',
+    '/patients',
+    '/users',
+    '/items',
+    '/questionnaire',
+    '/packages'
+  ],
+  'Front Office': [
+    '/front-office'
+  ],
+  'Settings': [
+    '/settings'
+  ],
+  'Items': [
+    '/item-category',
+    '/item-group'
+  ]
+}
+
 // State untuk menu yang aktif terbuka
 const activeOpenMenu = ref<string | null>(null)
 
-// State untuk semua menu trigger
-const menuOpenState = ref({
-  'Master Data': false,
-  'Front Office': false,
-  'Settings': false,
-  'Items': false
-})
+// generate otomatis state menu
+const menuOpenState = ref<Record<string, boolean>>(
+  Object.fromEntries(
+    Object.keys(menuGroups).map(key => [key, false])
+  )
+)
 
-// Update active menu berdasarkan route
 const updateActiveMenu = () => {
   const currentPath = route.path
 
-  // Reset semua menu state
-  menuOpenState.value = {
-    'Master Data': false,
-    'Front Office': false,
-    'Settings': false,
-    'Items': false
-  }
+  // reset semua
+  Object.keys(menuOpenState.value).forEach((key) => {
+    menuOpenState.value[key] = false
+  })
 
-  if (currentPath.startsWith('/customer')
-    || currentPath.startsWith('/patients')
-    || currentPath.startsWith('/users')
-    || currentPath.startsWith('/items')
-    || currentPath.startsWith('/questionnaire')) {
-    activeOpenMenu.value = 'Master Data'
-    menuOpenState.value['Master Data'] = true
-  } else if (currentPath.startsWith('/front-office')) {
-    activeOpenMenu.value = 'Front Office'
-    menuOpenState.value['Front Office'] = true
-  } else if (currentPath.startsWith('/settings')) {
-    activeOpenMenu.value = 'Settings'
-    menuOpenState.value['Settings'] = true
-  } else {
-    activeOpenMenu.value = null
+  // cari menu aktif
+  const activeMenu = Object.entries(menuGroups).find(([_, paths]) =>
+    paths.some(path => currentPath.startsWith(path))
+  )?.[0] || null
+
+  activeOpenMenu.value = activeMenu
+
+  // buka menu aktif
+  if (activeMenu) {
+    menuOpenState.value[activeMenu] = true
   }
 }
 
-// Watch route changes
-watch(() => route.path, () => {
-  updateActiveMenu()
-}, { immediate: true })
+watch(
+  () => route.path,
+  updateActiveMenu,
+  { immediate: true }
+)
 
 // Fungsi untuk update menu state ketika user klik
 const updateMenuState = (menuName: string, isOpen: boolean) => {
@@ -91,6 +104,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Questionnaire',
           to: '/questionnaire'
+        },
+        {
+          label: 'Service Packages',
+          to: '/packages'
         }
         // {
         //   label: 'Items',

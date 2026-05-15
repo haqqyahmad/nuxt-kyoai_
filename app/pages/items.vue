@@ -7,7 +7,7 @@ const links: NavigationMenuItem[] = [
   {
     label: 'MCU',
     icon: 'i-lucide-clipboard',
-    to: '/items'
+    to: '/items/mcu'
   }
 ]
 console.log('path', route.path)
