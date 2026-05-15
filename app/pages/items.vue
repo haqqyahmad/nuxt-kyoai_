@@ -1,8 +1,13 @@
-<!-- app/pages/items/index.vue -->
+<!-- app/pages/items.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+
+if (route.path === '/items') {
+  await navigateTo('/items/mcu', { replace: true })
+}
+
 const links: NavigationMenuItem[] = [
   {
     label: 'MCU',

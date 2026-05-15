@@ -21,11 +21,11 @@ const menuGroups: Record<string, string[]> = {
   ],
   'Settings': [
     '/settings'
-  ],
-  'Items': [
-    '/item-category',
-    '/item-group'
   ]
+  // 'Items': [
+  //   '/item-category',
+  //   '/item-group'
+  // ]
 }
 
 // State untuk menu yang aktif terbuka

@@ -147,7 +147,7 @@ function getRowItems(row: Row<Item>): DropdownMenuItem[][] {
       {
         label: 'View detail',
         icon: 'i-lucide-eye',
-        to: `/mcu/items/${row.original.id}`
+        to: `/items/mcu/${row.original.id}`
       },
       {
         label: 'Edit Template Exam',
