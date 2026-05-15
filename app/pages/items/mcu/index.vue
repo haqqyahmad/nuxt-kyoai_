@@ -6,7 +6,7 @@ import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
 import type { Row } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
-import ItemExamTemplateModal from '~/components/item/ItemExamTemplateModal.vue'
+import ItemExamTemplateModal from '~/components/item/itemExamTemplateModal.vue'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -18,7 +18,7 @@ const toast = useToast()
 
 
 type Department =
-  | 'Laboratorium'
+  | 'Laboratory'
   | 'DoctorConsultation'
   | 'MCU'
   | 'Vaccine'
@@ -27,7 +27,7 @@ type Department =
   | 'VitaminInjection'
   | 'Pharmacy'
   | 'Dental'
-  | 'Radiologi'
+  | 'Radiology'
 
 type Item = {
   id: string
@@ -39,7 +39,7 @@ type Item = {
 }
 
 const SERVICE_TYPE_LABEL: Record<Department, string> = {
-  Laboratorium: 'Lab',
+  Laboratory: 'Lab',
   DoctorConsultation: 'Consultation',
   MCU: 'MCU',
   Vaccine: 'Vaksin',
@@ -48,7 +48,7 @@ const SERVICE_TYPE_LABEL: Record<Department, string> = {
   VitaminInjection: 'Vitamin',
   Pharmacy: 'Farmasi',
   Dental: 'Gigi',
-  Radiologi: 'Radiologi'
+  Radiology: 'Radiologi'
 }
 
 const SERVICE_TYPE_COLOR: Record<Department, any> = {

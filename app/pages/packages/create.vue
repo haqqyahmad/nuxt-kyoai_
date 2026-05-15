@@ -1,3 +1,4 @@
+<!-- app/pages/packages/create.vue -->
 <script setup lang="ts">
 const api = useApi()
 const toast = useToast()
@@ -80,6 +81,39 @@ const displayPaketName = computed(() =>
 
 const paketName = ref('')
 
+// ────────────────────────────────────────────
+// Department
+// ────────────────────────────────────────────
+const departments = ref<MstDepartment[]>([])
+const departmentsPending = ref(false)
+
+async function fetchDepartments() {
+  departmentsPending.value = true
+
+  try {
+    const res = await api.get('/medical/departments')
+
+    console.log('departments full response:', res.data?.data)
+
+    const payload = res.data?.data
+
+    departments.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+
+    console.log('departments parsed:', departments.value)
+    console.log('department id:', departments.value[0]?.id)
+    console.log('department name:', departments.value[0]?.name)
+  } catch (err) {
+    console.error('fetch departments error:', err)
+    departments.value = []
+  } finally {
+    departmentsPending.value = false
+  }
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -126,53 +160,133 @@ const additionalPending = ref(false)
 const additionalResults = ref<MstItem[]>([])
 const expandedAdditional = ref<Set<string>>(new Set())
 
+const ALL_VALUE = 'ALL'
+
+const selectedDepartmentId = ref(ALL_VALUE)
+const selectedGroupId = ref(ALL_VALUE)
+
 let additionalDebounce: ReturnType<typeof setTimeout>
 let additionalReqId = 0
 
-watch(additionalSearch, (val) => {
-  clearTimeout(additionalDebounce)
-  additionalResults.value = []
+const departmentOptions = computed(() => {
+  return [
+    {
+      label: 'Semua Department',
+      value: ALL_VALUE
+    },
+    ...departments.value.map(dep => ({
+      label: dep.name ?? '-',
+      value: dep.id ?? ''
+    }))
+  ]
+})
 
-  if (!val || val.trim().length < 1) {
-    additionalPending.value = false
-    return
+// DUMMY DEPARTMENT
+// const departmentOptions = computed(() => [
+//   { label: 'Semua Department', value: ALL_VALUE },
+//   { label: 'Laboratory', value: '1' },
+//   { label: 'Radiology', value: '2' }
+// ])
+
+const groupOptions = computed(() => {
+  const map = new Map<string, MstItemGroup>()
+
+  for (const item of additionalResults.value) {
+    if (item.group?.id && item.group?.name) {
+      map.set(item.group.id, item.group)
+    }
   }
 
+  return [
+    {
+      label: 'Semua Item Group',
+      value: ALL_VALUE
+    },
+    ...Array.from(map.values()).map(group => ({
+      label: group.name,
+      value: group.id
+    }))
+  ]
+})
+
+// DUMMY GROUP
+// const groupOptions = computed(() => [
+//   { label: 'Semua Item Group', value: ALL_VALUE },
+//   { label: 'Hematology', value: '10' },
+//   { label: 'Urine', value: '11' }
+// ])
+
+const filteredAdditionalResults = computed(() => {
+  return additionalResults.value.filter((item) => {
+    const matchDepartment
+      = selectedDepartmentId.value === ALL_VALUE
+        || item.department?.id === selectedDepartmentId.value
+
+    const matchGroup
+      = selectedGroupId.value === ALL_VALUE
+        || item.group?.id === selectedGroupId.value
+
+    return matchDepartment && matchGroup
+  })
+})
+
+async function fetchAdditionalItems(search = '') {
   const currentId = ++additionalReqId
   additionalPending.value = true
 
-  additionalDebounce = setTimeout(async () => {
-    try {
-      const res = await api.get('/mcu/items', {
-        params: {
-          search: val.trim(),
-          limit: 20
-        }
-      })
+  try {
+    const res = await api.get('/mcu/items', {
+      params: {
+        search: search.trim(),
+        limit: 100
+      }
+    })
 
-      if (currentId === additionalReqId) {
-        const addedIds = new Set(additionalItems.value.map(i => i.id))
+    const payload = res.data?.data
 
-        additionalResults.value = (res.data.data as MstItem[]).filter(
-          i => !addedIds.has(i.id)
-        )
-      }
-    } catch {
-      if (currentId === additionalReqId) {
-        additionalResults.value = []
-      }
-    } finally {
-      if (currentId === additionalReqId) {
-        additionalPending.value = false
-      }
+    const items: MstItem[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+
+    if (currentId === additionalReqId) {
+      const addedIds = new Set(additionalItems.value.map(i => i.id))
+
+      additionalResults.value = items.filter(
+        item => item?.id && !addedIds.has(item.id)
+      )
     }
+  } catch (err) {
+    console.error('fetch additional items error:', err)
+
+    if (currentId === additionalReqId) {
+      additionalResults.value = []
+    }
+  } finally {
+    if (currentId === additionalReqId) {
+      additionalPending.value = false
+    }
+  }
+}
+
+watch(additionalSearch, (val) => {
+  clearTimeout(additionalDebounce)
+
+  additionalDebounce = setTimeout(() => {
+    fetchAdditionalItems(val)
   }, 300)
 })
 
-function openAdditionalModal() {
+async function openAdditionalModal() {
   additionalSearch.value = ''
   additionalResults.value = []
+  selectedDepartmentId.value = ALL_VALUE
+  selectedGroupId.value = ALL_VALUE
   additionalModalOpen.value = true
+
+  fetchDepartments()
+  fetchAdditionalItems()
 }
 
 function addAdditionalItem(item: MstItem) {
@@ -186,6 +300,8 @@ function addAdditionalItem(item: MstItem) {
 function removeAdditionalItem(itemId: string) {
   additionalItems.value = additionalItems.value.filter(i => i.id !== itemId)
   expandedAdditional.value.delete(itemId)
+
+  fetchAdditionalItems(additionalSearch.value)
 }
 
 function toggleAdditional(itemId: string) {
@@ -203,7 +319,7 @@ const totalAdditionalInputan = computed(() =>
 const groupedAdditionalResults = computed(() => {
   const groups: Record<string, MstItem[]> = {}
 
-  for (const item of additionalResults.value) {
+  for (const item of filteredAdditionalResults.value) {
     const groupName = item.group?.name ?? 'Tanpa Group'
 
     if (!groups[groupName]) {
@@ -685,7 +801,7 @@ async function submit() {
         <Transition name="modal-pop">
           <div
             v-if="additionalModalOpen"
-            class="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
+            class="relative w-full max-w-3xl overflow-visible rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
             style="
               box-shadow:
                 0 30px 80px rgba(0, 0, 0, 0.55),
@@ -728,8 +844,45 @@ async function submit() {
                 </button>
               </div>
 
+              <!-- FILTER -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 relative z-[1000]">
+                <USelect
+                  v-model="selectedDepartmentId"
+                  :items="departmentOptions"
+                  placeholder="Semua Department"
+                  icon="i-lucide-building-2"
+                  class="w-full"
+                  :portal="true"
+                  :content="{
+                    side: 'bottom',
+                    sideOffset: 6,
+                    class: 'z-[99999]'
+                  }"
+                />
+
+                <USelect
+                  v-model="selectedGroupId"
+                  :items="groupOptions"
+                  placeholder="Semua Item Group"
+                  icon="i-lucide-folder"
+                  class="w-full"
+                  :portal="true"
+                  :content="{
+                    side: 'bottom',
+                    sideOffset: 6,
+                    class: 'z-[99999]'
+                  }"
+                />
+              </div>
+
+              <!-- DEBUG -->
+              <!-- <div class="mt-4 text-sm">
+                <p>Department: {{ selectedDepartmentId }}</p>
+                <p>Group: {{ selectedGroupId }}</p>
+              </div> -->
+
               <!-- SEARCH -->
-              <div class="relative mt-4">
+              <div class="relative mt-3">
                 <UIcon
                   name="i-lucide-search"
                   class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
@@ -738,7 +891,7 @@ async function submit() {
                 <input
                   v-model="additionalSearch"
                   type="text"
-                  placeholder="Ketik nama atau kode item..."
+                  placeholder="Cari item pemeriksaan..."
                   autofocus
                   class="w-full h-11 rounded-xl bg-white dark:bg-neutral-800/90 border border-black/10 dark:border-white/10 pl-10 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 >
@@ -777,35 +930,10 @@ async function submit() {
             </div>
 
             <!-- BODY -->
-            <div class="overflow-y-auto" style="max-height: min(65vh, 620px)">
-              <!-- EMPTY SEARCH -->
-              <div
-                v-if="!additionalSearch && !additionalPending"
-                class="py-16 flex flex-col items-center justify-center text-center px-6"
-              >
-                <div
-                  class="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
-                >
-                  <UIcon
-                    name="i-lucide-search"
-                    class="text-neutral-500 text-3xl"
-                  />
-                </div>
-
-                <p
-                  class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                >
-                  Ketik untuk mencari item
-                </p>
-
-                <p class="text-xs text-neutral-500 mt-1 max-w-sm">
-                  Item yang sudah ada di paket tidak akan ditampilkan
-                </p>
-              </div>
-
+            <div class="overflow-y-auto relative z-0" style="max-height: min(65vh, 620px)">
               <!-- LOADING -->
               <div
-                v-else-if="additionalPending && !additionalResults.length"
+                v-if="additionalPending && !additionalResults.length"
                 class="py-16 flex flex-col items-center justify-center"
               >
                 <UIcon
@@ -814,7 +942,7 @@ async function submit() {
                 />
 
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
-                  Mencari item...
+                  Memuat item pemeriksaan...
                 </p>
               </div>
 
@@ -904,7 +1032,7 @@ async function submit() {
 
                             <span>•</span>
 
-                            <span> {{ item.inputans.length }} inputan </span>
+                            <span>{{ item.inputans.length }} inputan</span>
                           </div>
                         </div>
 
@@ -925,7 +1053,7 @@ async function submit() {
 
               <!-- EMPTY -->
               <div
-                v-else-if="additionalSearch && !additionalPending"
+                v-else-if="!additionalPending"
                 class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
                 <div
@@ -940,7 +1068,7 @@ async function submit() {
                 <p
                   class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Tidak ditemukan
+                  Tidak ada item pemeriksaan
                 </p>
 
                 <p class="text-xs text-neutral-500 mt-1">
