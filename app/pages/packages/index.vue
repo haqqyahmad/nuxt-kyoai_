@@ -40,10 +40,11 @@ function mapPaket(paket: any): PaketRow[] {
 }
 
 const { data: paketData, refresh } = await useAsyncData('paket-mcu', () =>
-  api.get('/paket').then(res => res.data.data.flatMap(mapPaket))
+  api.get('/mcu/pakets').then(res => res.data.data.flatMap(mapPaket))
 )
 
 const data = computed(() => paketData.value ?? [])
+console.log('Data Paket', data)
 
 const columnFilters = ref([
   {
@@ -178,36 +179,36 @@ const columns: TableColumn<PaketRow>[] = [
     },
     cell: ({ row }) => {
       return h('div', { class: 'flex flex-col' }, [
-        h('p', { class: 'font-medium text-highlighted' }, row.original.paketName),
-        h('p', { class: 'text-xs text-muted' }, row.original.paketId)
+        h('p', { class: 'font-medium text-highlighted' }, row.original.paketName)
+        // h('p', { class: 'text-xs text-muted' }, row.original.paketId)
       ])
     }
   },
-  {
-    accessorKey: 'itemCode',
-    header: 'Item Code',
-    cell: ({ row }) => row.getValue('itemCode') || '-'
-  },
-  {
-    accessorKey: 'itemName',
-    header: 'Item Name',
-    cell: ({ row }) => {
-      return h('div', { class: 'flex flex-col' }, [
-        h('p', { class: 'font-medium text-highlighted' }, row.original.itemName),
-        h('p', { class: 'text-xs text-muted' }, row.original.itemId)
-      ])
-    }
-  },
-  {
-    accessorKey: 'inputanCount',
-    header: 'Total Input',
-    cell: ({ row }) =>
-      h(UBadge, {
-        label: `${row.getValue('inputanCount')} input`,
-        color: 'info',
-        variant: 'subtle'
-      })
-  },
+  // {
+  //   accessorKey: 'itemCode',
+  //   header: 'Item Code',
+  //   cell: ({ row }) => row.getValue('itemCode') || '-'
+  // },
+  // {
+  //   accessorKey: 'itemName',
+  //   header: 'Item Name',
+  //   cell: ({ row }) => {
+  //     return h('div', { class: 'flex flex-col' }, [
+  //       h('p', { class: 'font-medium text-highlighted' }, row.original.itemName),
+  //       h('p', { class: 'text-xs text-muted' }, row.original.itemId)
+  //     ])
+  //   }
+  // },
+  // {
+  //   accessorKey: 'inputanCount',
+  //   header: 'Total Input',
+  //   cell: ({ row }) =>
+  //     h(UBadge, {
+  //       label: `${row.getValue('inputanCount')} input`,
+  //       color: 'info',
+  //       variant: 'subtle'
+  //     })
+  // },
   {
     accessorKey: 'isActive',
     header: 'Status',
