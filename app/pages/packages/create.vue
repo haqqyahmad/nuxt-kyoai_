@@ -358,7 +358,7 @@ async function submit() {
       color: 'success'
     })
 
-    router.push('/items')
+    router.push('/packages')
   } catch (err: any) {
     toast.add({
       title: 'Gagal',
@@ -874,12 +874,6 @@ async function submit() {
                   }"
                 />
               </div>
-
-              <!-- DEBUG -->
-              <!-- <div class="mt-4 text-sm">
-                <p>Department: {{ selectedDepartmentId }}</p>
-                <p>Group: {{ selectedGroupId }}</p>
-              </div> -->
 
               <!-- SEARCH -->
               <div class="relative mt-3">
