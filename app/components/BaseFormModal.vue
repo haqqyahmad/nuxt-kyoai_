@@ -1,5 +1,7 @@
+<!-- app/components/BaseFormModal.vue -->
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { handleSuccessGeneral } from '~/utils/handlers'
 
 const props = defineProps<{
   title: string
@@ -24,12 +26,13 @@ async function onSubmit(event: FormSubmitEvent<any>) {
   loading.value = true
   try {
     await props.submit(event.data)
+    console.log(event)
 
-    toast.add({
-      title: 'Success',
-      description: 'Data berhasil disimpan',
-      color: 'success'
-    })
+    handleSuccessGeneral(
+      toast,
+      event.data?.name ?? 'Data',
+      event.data?.message ?? 'data'
+    )
 
     open.value = false
     emit('success')
@@ -47,7 +50,6 @@ async function onSubmit(event: FormSubmitEvent<any>) {
 
 <template>
   <UModal v-model:open="open" :title="title" :description="description">
-    
     <!-- 🔥 Trigger -->
     <slot name="trigger">
       <UButton label="Add" />

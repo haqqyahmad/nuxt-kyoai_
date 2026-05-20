@@ -9,6 +9,7 @@ const open = ref(false)
 // Update active menu berdasarkan route
 const menuGroups: Record<string, string[]> = {
   'Master Data': [
+    '/branches',
     '/customer',
     '/patients',
     '/users',
@@ -85,6 +86,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
       open: menuOpenState.value['Master Data'],
       onUpdateOpen: (val: boolean) => updateMenuState('Master Data', val),
       children: [
+        {
+          label: 'Branches',
+          to: '/branches'
+        },
         {
           label: 'Customers',
           to: '/customer'
