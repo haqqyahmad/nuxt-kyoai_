@@ -11,6 +11,7 @@ const menuGroups: Record<string, string[]> = {
   'Master Data': [
     '/branches',
     '/customer',
+    '/departments',
     '/patients',
     '/users',
     '/items',
@@ -95,6 +96,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/customer'
         },
         {
+          label: 'Departments',
+          to: '/departments'
+        },
+        {
           label: 'Patients',
           to: '/patients'
         },
@@ -114,18 +119,6 @@ const links = computed<NavigationMenuItem[][]>(() => [
           label: 'Service Packages',
           to: '/packages'
         }
-        // {
-        //   label: 'Items',
-        //   type: 'trigger',
-        //   open: menuOpenState.value['Items'],
-        //   onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
-        //   children: [
-        //     {
-        //       label: 'MCU',
-        //       to: '/items/mcu'
-        //     }
-        //   ]
-        // }
       ]
     },
     {

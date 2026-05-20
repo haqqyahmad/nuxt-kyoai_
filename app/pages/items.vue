@@ -13,6 +13,11 @@ const links: NavigationMenuItem[] = [
     label: 'MCU',
     icon: 'i-lucide-clipboard',
     to: '/items/mcu'
+  },
+  {
+    label: 'Sample',
+    icon: 'i-lucide-flask-round',
+    to: '/items/sample-types'
   }
 ]
 console.log('path', route.path)
