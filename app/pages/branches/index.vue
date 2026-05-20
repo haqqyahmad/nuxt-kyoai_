@@ -96,27 +96,6 @@ function getRowItems(row: Row<Branch>) {
       type: 'separator'
     },
     {
-      label: 'Copy user ID',
-      icon: 'i-lucide-copy',
-      onSelect() {
-        copy(row.original.id.toString())
-        toast.add({
-          title: 'Copied to clipboard',
-          description: 'Branch copied to clipboard'
-        })
-      }
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'View Branch Details',
-      icon: 'i-lucide-list'
-    },
-    {
-      type: 'separator'
-    },
-    {
       label: 'Delete Branch',
       icon: 'i-lucide-trash',
       color: 'error',
