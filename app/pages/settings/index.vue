@@ -2,6 +2,13 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 
+useSeoMeta({
+  title: 'Profile',
+  description: 'Halaman untuk mengelola profile user.',
+  ogTitle: 'Profile',
+  ogDescription: 'Halaman untuk mengelola profile user.'
+})
+
 const fileRef = ref<HTMLInputElement>()
 console.log(fileRef)
 const profileSchema = z.object({

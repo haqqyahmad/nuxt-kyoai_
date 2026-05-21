@@ -3,6 +3,13 @@ import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import RolePermissionsModal from '~/components/roles/RolePermissionsModal.vue'
 
+useSeoMeta({
+  title: 'Manage Roles Permissions',
+  description: 'Halaman untuk mengelola permission dan akses role user.',
+  ogTitle: 'Manage Roles Permissions',
+  ogDescription: 'Halaman untuk mengelola permission dan akses role user.'
+})
+
 const api = useApi()
 
 type Permission = {

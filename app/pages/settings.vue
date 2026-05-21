@@ -5,7 +5,7 @@ const route = useRoute()
 const links = [
   [
     {
-      label: 'General',
+      label: 'Profile',
       icon: 'i-lucide-user',
       to: '/settings',
       exact: true

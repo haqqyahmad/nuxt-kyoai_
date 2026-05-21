@@ -3,6 +3,11 @@ import { sub } from 'date-fns'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { Period, Range } from '~/types'
 
+useSeoMeta({
+  title: 'Dashboard',
+  description: 'Ringkasan data dan aktivitas sistem.'
+})
+
 definePageMeta({
   middleware: 'auth'
 })

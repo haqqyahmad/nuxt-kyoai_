@@ -2,6 +2,13 @@
 import * as z from 'zod'
 import type { FormError } from '@nuxt/ui'
 
+useSeoMeta({
+  title: 'Change Password',
+  description: 'Halaman untuk mengubah password user.',
+  ogTitle: 'Change Password',
+  ogDescription: 'Halaman untuk mengubah password user.'
+})
+
 const passwordSchema = z.object({
   current: z.string().min(8, 'Must be at least 8 characters'),
   new: z.string().min(8, 'Must be at least 8 characters')
