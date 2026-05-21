@@ -29,6 +29,11 @@ const links = [
       label: 'Roles',
       icon: 'i-lucide-circle-user-round',
       to: '/settings/roles'
+    },
+    {
+      label: 'Permission',
+      icon: 'i-lucide-shield-check',
+      to: '/settings/permissions'
     }
   ],
   [
