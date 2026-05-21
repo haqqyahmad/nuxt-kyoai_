@@ -30,7 +30,7 @@ const data = computed(() => {
 
 const pagination = ref({
   pageIndex: 0,
-  pageSize: 10
+  pageSize: 5
 })
 
 const modalOpen = ref(false)
@@ -267,10 +267,13 @@ const table = useTemplateRef('table')
       </div>
     </UPageCard>
 
+    <!-- FOOTER -->
     <div class="text-sm text-muted mt-2 px-1">
-      {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length || 0 }} of
-      {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} row(s)
-      selected.
+      Showing
+      {{ table?.tableApi?.getPaginationRowModel().rows.length || 0 }}
+      of
+      {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }}
+      data
     </div>
   </div>
 </template>
