@@ -223,7 +223,7 @@ const table = useTemplateRef('table')
           getPaginationRowModel: getPaginationRowModel()
         }"
       >
-        <template #actions-cell="{ row }">
+        <template #actions-cell="">
           <UButton
             icon="i-lucide-pencil"
             color="neutral"

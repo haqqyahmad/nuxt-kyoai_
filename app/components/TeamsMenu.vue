@@ -1,89 +1,103 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from "@nuxt/ui";
+import type { DropdownMenuItem } from '@nuxt/ui'
 
 defineProps<{
-  collapsed?: boolean;
-}>();
+  collapsed?: boolean
+}>()
 
-const { user, fetchUser } = useUser();
+const { user, fetchUser } = useUser()
 
 onMounted(async () => {
-  const { getToken } = useAuth();
-  const token = getToken();
+  const { getToken } = useAuth()
+  const token = getToken()
 
-  console.log("TOKEN:", token);
+  console.log('TOKEN:', token)
 
   if (token) {
-    await fetchUser();
+    await fetchUser()
   }
-});
+})
 
-console.log("USER:", user.value?.data);
+console.log('USER:', user.value?.data?.data?.name)
 
-function capitalizeWords(text: string) {
+function capitalizeWords(text?: string | null) {
+  if (!text) return 'User'
+
   return text
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 const userDisplay = computed(() => {
-  return {
-    name: user.value?.data?.name
-      ? capitalizeWords(user.value.data.name)
-      : "User",
-    avatar: {
-      src: user.value?.data?.avatar || "/default-avatar.png",
-      alt: user.value?.data?.name || "User",
-    },
-  };
-});
+  const name = user.value?.data?.data?.name
+  const avatar = user.value?.data?.data?.avatar
 
-const teams = ref([
-  {
-    label: userDisplay.value?.name,
+  return {
+    name: capitalizeWords(name),
     avatar: {
-      src: userDisplay.value?.avatar,
-      alt: userDisplay.value?.name,
-    },
-  },
-  {
-    label: "NuxtHub",
-    avatar: {
-      src: "https://github.com/nuxt-hub.png",
-      alt: "NuxtHub",
-    },
-  },
-  {
-    label: "NuxtLabs",
-    avatar: {
-      src: "https://github.com/nuxtlabs.png",
-      alt: "NuxtLabs",
-    },
-  },
-]);
-const selectedTeam = ref(teams.value[0]);
+      src: avatar || '/default-avatar.png',
+      alt: name || 'User'
+    }
+  }
+})
+
+const userRoles = computed(() => {
+  return user.value?.data?.data?.roles?.map((item: any) => item.role.name) || []
+})
+
+console.log('User Display', user.value?.data?.data?.name)
+console.log('User Roles', userRoles.value)
+
+function formatRoleName(role?: string) {
+  if (!role) return '-'
+
+  const specialRoles: Record<string, string> = {
+    superadmin: 'Super Admin'
+  }
+
+  const normalized = role.toLowerCase()
+
+  if (specialRoles[normalized]) {
+    return specialRoles[normalized]
+  }
+
+  return normalized
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+const teams = computed(() => {
+  const roles = user.value?.data?.data?.roles || []
+
+  return roles.map((item: any) => ({
+    label: formatRoleName(item.role.name),
+    avatar: userDisplay.value.avatar
+  }))
+})
+
+const selectedTeam = ref<any>(null)
+
+watchEffect(() => {
+  if (!selectedTeam.value && teams.value.length) {
+    selectedTeam.value = teams.value[0]
+  }
+})
 
 const items = computed<DropdownMenuItem[][]>(() => {
   return [
-    teams.value.map((team) => ({
+    teams.value.map(team => ({
       ...team,
       onSelect() {
-        selectedTeam.value = team;
-      },
-    })),
-    [
-      {
-        label: "Create team",
-        icon: "i-lucide-circle-plus",
-      },
-      {
-        label: "Manage teams",
-        icon: "i-lucide-cog",
-      },
-    ],
-  ];
-});
+        selectedTeam.value = team
+      }
+    }))
+  ]
+})
 </script>
 
 <template>
@@ -91,14 +105,15 @@ const items = computed<DropdownMenuItem[][]>(() => {
     :items="items"
     :content="{ align: 'center', collisionPadding: 12 }"
     :ui="{
-      content: collapsed ? 'w-40' : 'w-(--reka-dropdown-menu-trigger-width)',
+      content: collapsed ? 'w-40' : 'w-(--reka-dropdown-menu-trigger-width)'
     }"
   >
     <UButton
+      v-if="selectedTeam"
       v-bind="{
         ...selectedTeam,
         label: collapsed ? undefined : selectedTeam?.label,
-        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down',
+        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
       }"
       color="neutral"
       variant="ghost"
@@ -107,7 +122,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
       class="data-[state=open]:bg-elevated"
       :class="[!collapsed && 'py-2']"
       :ui="{
-        trailingIcon: 'text-dimmed',
+        trailingIcon: 'text-dimmed'
       }"
     />
   </UDropdownMenu>
