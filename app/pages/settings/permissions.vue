@@ -3,13 +3,6 @@ import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 
-useSeoMeta({
-  title: 'Manage Permissions',
-  description: 'Halaman untuk mengelola permission.',
-  ogTitle: 'Manage Permissions',
-  ogDescription: 'Halaman untuk mengelola permission.'
-})
-
 const api = useApi()
 const toast = useToast()
 

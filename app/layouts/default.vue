@@ -1,3 +1,4 @@
+<!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
@@ -96,8 +97,8 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/customer'
         },
         {
-          label: 'Departments'
-          // to: '/departments'
+          label: 'Departments',
+          to: '/departments'
         },
         {
           label: 'Patients',
@@ -141,16 +142,17 @@ const links = computed<NavigationMenuItem[][]>(() => [
     {
       label: 'Settings',
       icon: 'i-lucide-settings',
-      type: 'trigger',
-      open: menuOpenState.value['Settings'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Settings', val),
-      children: [
-        { label: 'General', to: '/settings', exact: true },
-        { label: 'Members', to: '/settings/members' },
-        { label: 'Notifications', to: '/settings/notifications' },
-        { label: 'Security', to: '/settings/security' },
-        { label: 'Roles', to: '/settings/roles' }
-      ]
+      to: '/settings'
+      // type: 'trigger',
+      // open: menuOpenState.value['Settings'],
+      // onUpdateOpen: (val: boolean) => updateMenuState('Settings', val),
+      // children: [
+      //   { label: 'Profile', to: '/settings', exact: true },
+      //   { label: 'Members', to: '/settings/members' },
+      //   { label: 'Notifications', to: '/settings/notifications' },
+      //   { label: 'Security', to: '/settings/security' },
+      //   { label: 'Roles', to: '/settings/roles' }
+      // ]
     }
   ],
   []
