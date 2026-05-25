@@ -7,6 +7,7 @@ const api = useApi()
 const toast = useToast()
 const fileRef = ref<HTMLInputElement>()
 
+const { fetchUser } = useUser()
 const userId = ref<number | string | null>(null)
 
 const profileSchema = z.object({
@@ -21,7 +22,6 @@ type ProfileSchema = z.output<typeof profileSchema>
 const profile = reactive<Partial<ProfileSchema>>({
   name: '',
   email: '',
-  username: '',
   avatar: undefined,
   bio: undefined
 })
@@ -47,7 +47,6 @@ async function fetchProfile() {
     // isi form
     profile.name = data.name ?? ''
     profile.email = data.email ?? ''
-    profile.username = data.username ?? ''
     profile.avatar = data.avatar ?? undefined
     profile.bio = data.bio ?? undefined
   } catch (err) {
@@ -80,14 +79,17 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
       bio: event.data.bio
     })
 
+    await fetchProfile()
+
+    // ini untuk refresh data di UserMenu tanpa reload
+    await fetchUser()
+
     toast.add({
       title: 'Success',
       description: 'Profile berhasil diperbarui.',
       icon: 'i-lucide-check',
       color: 'success'
     })
-
-    await fetchProfile()
   } catch (err) {
     console.error(err)
 

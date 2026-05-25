@@ -1,7 +1,7 @@
 <!-- app/components/branches/AddModal.vue -->
 <script setup lang="ts">
 import * as z from 'zod'
-import { handleError, handleSuccessGeneral } from '~/utils/handlers'
+import { handleError } from '~/utils/handlers'
 
 const api = useApi()
 const toast = useToast()

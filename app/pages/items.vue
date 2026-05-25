@@ -15,7 +15,7 @@ const links: NavigationMenuItem[] = [
     to: '/items/mcu'
   },
   {
-    label: 'Sample',
+    label: 'Sample Types',
     icon: 'i-lucide-flask-round',
     to: '/items/sample-types'
   }
