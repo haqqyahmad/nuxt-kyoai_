@@ -18,7 +18,7 @@ const schema = z
     confirm_password: z.string().min(8, 'Must be at least 8 characters')
   })
   .refine(data => data.password === data.confirm_password, {
-    message: "Passwords don't match",
+    message: 'Passwords don\'t match',
     path: ['confirm_password']
   })
 
@@ -60,7 +60,7 @@ async function submit(data: any) {
   >
     <!-- 🔥 Trigger -->
     <template #trigger>
-      <UButton label="New User" icon="i-lucide-plus" />
+      <UButton label="New User" icon="i-lucide-user-round-plus" />
     </template>
 
     <!-- 🔥 FORM -->

@@ -52,7 +52,7 @@ async function submit(data: typeof state) {
     @success="$emit('created')"
   >
     <template #trigger>
-      <UButton label="New Branch" icon="i-lucide-plus" />
+      <UButton label="New Branch" icon="i-lucide-building" />
     </template>
 
     <UFormField label="ID" name="branchId">

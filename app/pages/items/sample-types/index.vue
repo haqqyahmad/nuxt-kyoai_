@@ -275,8 +275,8 @@ const currentPageSize = <any>computed({
 
         <div class="flex items-center gap-2">
           <UButton
-            label="Add Item"
-            icon="i-lucide-plus"
+            label="Add Sample Type"
+            icon="i-lucide-flask-round"
             @click="isAddModalOpen = true"
           />
 

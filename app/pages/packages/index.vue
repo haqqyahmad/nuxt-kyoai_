@@ -301,7 +301,7 @@ const currentPageSize = computed({
 
         <template #right>
           <UButton
-            icon="i-lucide-plus"
+            icon="i-lucide-package-plus"
             color="primary"
             to="/packages/create"
           >

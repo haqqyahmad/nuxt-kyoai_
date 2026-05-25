@@ -134,7 +134,7 @@ const submit = async () => {
   <!-- Trigger Button -->
   <UButton
     label="Tambah Customer"
-    icon="i-lucide-plus"
+    icon="i-lucide-house-plus"
     color="primary"
     @click="open"
   />
