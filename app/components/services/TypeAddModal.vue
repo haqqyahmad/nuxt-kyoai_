@@ -124,7 +124,7 @@ async function submit() {
                 <BaseIconGridPicker v-model="form.icon" />
               </UFormField>
 
-              <UFormField
+              <!-- <UFormField
                 label="Description"
                 class="md:col-span-2"
               >
@@ -134,7 +134,7 @@ async function submit() {
                   class="w-full"
                   :rows="3"
                 />
-              </UFormField>
+              </UFormField> -->
             </div>
 
             <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
