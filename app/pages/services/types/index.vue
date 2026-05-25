@@ -301,22 +301,6 @@ const currentPageSize = computed({
 
 <template>
   <UDashboardPanel id="service-types">
-    <template #header>
-      <UDashboardNavbar title="Service Types">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-
-        <template #right>
-          <UButton
-            label="New Type"
-            icon="i-lucide-heart-plus"
-            @click="isAddModalOpen = true"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-1.5">
         <UInput
@@ -327,6 +311,12 @@ const currentPageSize = computed({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <UButton
+            label="New Type"
+            icon="i-lucide-heart-plus"
+            @click="isAddModalOpen = true"
+          />
+
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="service type"

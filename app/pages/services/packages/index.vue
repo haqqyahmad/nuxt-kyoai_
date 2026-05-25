@@ -293,24 +293,6 @@ const currentPageSize = computed({
 
 <template>
   <UDashboardPanel id="packages">
-    <template #header>
-      <UDashboardNavbar title="Service Packages">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-
-        <template #right>
-          <UButton
-            icon="i-lucide-package-plus"
-            color="primary"
-            to="/services/packages/create"
-          >
-            New Paket
-          </UButton>
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-1.5">
         <UInput
@@ -321,6 +303,14 @@ const currentPageSize = computed({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <UButton
+            icon="i-lucide-package-plus"
+            color="primary"
+            to="/services/packages/create"
+          >
+            New Package
+          </UButton>
+
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="item paket"

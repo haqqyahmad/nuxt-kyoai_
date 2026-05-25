@@ -10,12 +10,12 @@ if (route.path === '/services') {
 
 const links: NavigationMenuItem[] = [
   {
-    label: 'Services Types',
+    label: 'Types',
     icon: 'i-lucide-heart-pulse',
     to: '/services/types'
   },
   {
-    label: 'Service Packages',
+    label: 'Packages',
     icon: 'i-lucide-package',
     to: '/services/packages'
   }
