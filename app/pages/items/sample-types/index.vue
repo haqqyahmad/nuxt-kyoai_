@@ -263,7 +263,7 @@ const currentPageSize = <any>computed({
 </script>
 
 <template>
-  <UDashboardPanel id="items">
+  <UDashboardPanel id="sample">
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <UInput

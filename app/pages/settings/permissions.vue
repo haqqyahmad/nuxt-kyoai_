@@ -127,6 +127,7 @@ const table = useTemplateRef('table')
               v-model="form.name"
               placeholder="Contoh: user:create"
               class="w-full"
+              autofocus
             />
           </UFormField>
 

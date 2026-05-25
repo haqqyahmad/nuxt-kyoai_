@@ -167,7 +167,7 @@ const columns: TableColumn<PaketRow>[] = [
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Paket MCU',
+        label: 'Name',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -303,7 +303,7 @@ const currentPageSize = computed({
           <UButton
             icon="i-lucide-package-plus"
             color="primary"
-            to="/packages/create"
+            to="/services/packages/create"
           >
             New Paket
           </UButton>
