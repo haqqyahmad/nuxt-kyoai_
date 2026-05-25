@@ -121,6 +121,7 @@ async function submit() {
                   v-model="form.code"
                   placeholder="EX: LAB001"
                   class="w-full"
+                  autofocus
                 />
               </UFormField>
 
