@@ -1,5 +1,7 @@
 <!-- app/app.vue -->
 <script setup lang="ts">
+import { defaultSeo, pageSeo } from '~/constants/seo'
+
 const route = useRoute()
 const colorMode = useColorMode()
 
@@ -20,112 +22,21 @@ useHead({
 })
 
 /**
- * SEO CONFIG PER PAGE
- */
-const pageSeo: Record<string, { title: string, description: string }> = {
-  '/': {
-    title: 'Dashboard',
-    description: 'Dashboard overview.'
-  },
-
-  '/branches': {
-    title: 'Master Branches',
-    description: 'Halaman untuk mengelola branch.'
-  },
-
-  '/customer': {
-    title: 'Master Customers',
-    description: 'Halaman untuk mengelola customer.'
-  },
-
-  '/departments': {
-    title: 'Master Departments',
-    description: 'Halaman untuk mengelola department.'
-  },
-
-  '/patients': {
-    title: 'Master Patients',
-    description: 'Halaman untuk mengelola patient.'
-  },
-
-  '/users': {
-    title: 'Master Users',
-    description: 'Halaman untuk mengelola user.'
-  },
-
-  '/items/mcu': {
-    title: 'Items MCU',
-    description: 'Halaman untuk mengelola item mcu.'
-  },
-
-  '/questionnaire': {
-    title: 'Master Questionnaire',
-    description: 'Halaman untuk mengelola questionnaire.'
-  },
-
-  '/packages': {
-    title: 'Master Service Packages',
-    description: 'Halaman untuk mengelola service packages.'
-  },
-
-  '/front-office/registration-temp': {
-    title: 'Temp Registrastion | Front Office',
-    description: 'Halaman untuk mengelola temp registration.'
-  },
-
-  '/front-office/registration-patient': {
-    title: 'Patient Appointment | Front Office',
-    description: 'Halaman untuk mengelola patient appointment.'
-  },
-
-  '/settings': {
-    title: 'Profile',
-    description: 'Halaman untuk mengelola profile user.'
-  },
-
-  '/settings/security': {
-    title: 'Change Password',
-    description: 'Halaman untuk mengubah password user.'
-  },
-
-  '/settings/roles': {
-    title: 'Manage Roles Permissions',
-    description: 'Halaman untuk mengelola permission dan akses role user.'
-  },
-
-  '/settings/permissions': {
-    title: 'Permissions',
-    description: 'Halaman untuk mengelola permissions.'
-  }
-
-}
-
-/**
- * CURRENT PAGE SEO
- */
-const currentSeo = computed(() => {
-  return (
-    pageSeo[route.path] || {
-      title: 'Kyoai Medical Services',
-      description: 'Medical management system.'
-    }
-  )
-})
-
-/**
  * AUTO SEO
  */
-useSeoMeta({
-  title: () => currentSeo.value.title,
-  description: () => currentSeo.value.description,
+const seo = computed(() => pageSeo[route.path] || defaultSeo)
 
-  ogTitle: () => currentSeo.value.title,
-  ogDescription: () => currentSeo.value.description,
+useSeoMeta({
+  title: () => seo.value.title,
+  description: () => seo.value.description,
+
+  ogTitle: () => seo.value.title,
+  ogDescription: () => seo.value.description,
 
   titleTemplate: title =>
     title
-      ? `${title} - Kyoai Medical Services`
-      : 'Kyoai Medical Services',
+      ? `${title} - ${defaultSeo.title}`
+      : defaultSeo.title,
 
   ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png',
   twitterCard: 'summary_large_image'

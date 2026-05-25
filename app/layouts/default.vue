@@ -14,7 +14,9 @@ const menuGroups: Record<string, string[]> = {
     '/customer',
     '/departments',
     '/patients',
-    '/users',
+    '/users'
+  ],
+  'Medical': [
     '/items',
     '/questionnaire',
     '/packages'
@@ -107,7 +109,17 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'User',
           to: '/users'
-        },
+        }
+      ]
+    },
+    {
+      label: 'Medical',
+      icon: 'i-lucide-briefcase-medical',
+      type: 'trigger',
+      // Gunakan activeOpenMenu untuk kontrol defaultOpen
+      open: menuOpenState.value['Medical'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Medical', val),
+      children: [
         {
           label: 'Items',
           to: '/items'
@@ -143,16 +155,6 @@ const links = computed<NavigationMenuItem[][]>(() => [
       label: 'Settings',
       icon: 'i-lucide-settings',
       to: '/settings'
-      // type: 'trigger',
-      // open: menuOpenState.value['Settings'],
-      // onUpdateOpen: (val: boolean) => updateMenuState('Settings', val),
-      // children: [
-      //   { label: 'Profile', to: '/settings', exact: true },
-      //   { label: 'Members', to: '/settings/members' },
-      //   { label: 'Notifications', to: '/settings/notifications' },
-      //   { label: 'Security', to: '/settings/security' },
-      //   { label: 'Roles', to: '/settings/roles' }
-      // ]
     }
   ],
   []
