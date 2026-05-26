@@ -15,8 +15,18 @@ export const medicalSeo = {
     description: 'Manage questionnaires.'
   },
 
-  '/packages': {
+  '/rooms': {
+    title: 'Rooms | Medical',
+    description: 'Manage rooms.'
+  },
+
+  '/services/packages': {
     title: 'Service Packages | Medical',
     description: 'Manage service packages.'
+  },
+
+  '/services/types': {
+    title: 'Service Types | Medical',
+    description: 'Manage service types.'
   }
 }
