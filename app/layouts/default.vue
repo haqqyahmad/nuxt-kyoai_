@@ -6,6 +6,7 @@ const route = useRoute()
 const toast = useToast()
 
 const open = ref(false)
+const openPrivacyPolicy = ref(false)
 
 // Update active menu berdasarkan route
 const menuGroups: Record<string, string[]> = {
@@ -186,30 +187,46 @@ const groups = computed(() => [
   }
 ])
 
-onMounted(async () => {
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') {
+onMounted(() => {
+  const cookie = useCookie<'accepted' | 'rejected' | null>('cookie-consent', {
+    maxAge: 60 * 60 * 24 * 365,
+    default: () => null
+  })
+
+  if (cookie.value) {
     return
   }
 
-  toast.add({
-    title:
-      'We use first-party cookies to enhance your experience on our website.',
+  const toastId = toast.add({
+    title: 'Cookie Notice',
+    description:
+  'This website uses cookies to ensure you get the best experience on our website. Please review our Privacy Policy for more information.',
     duration: 0,
     close: false,
     actions: [
       {
-        label: 'Accept',
+        label: 'Privacy Policy',
         color: 'neutral',
-        variant: 'outline',
+        variant: 'ghost',
+        onClick: () => {
+          openPrivacyPolicy.value = true
+        }
+      },
+      {
+        label: 'Accept',
+        color: 'primary',
         onClick: () => {
           cookie.value = 'accepted'
+          toast.remove(toastId)
         }
       },
       {
         label: 'Opt out',
         color: 'neutral',
-        variant: 'ghost'
+        onClick: () => {
+          cookie.value = 'rejected'
+          toast.remove(toastId)
+        }
       }
     ]
   })
@@ -267,5 +284,9 @@ onMounted(async () => {
 
       <NotificationsSlideover />
     </UDashboardGroup>
+
+    <PrivacyPolicyModal
+      v-model:open="openPrivacyPolicy"
+    />
   </ClientOnly>
 </template>

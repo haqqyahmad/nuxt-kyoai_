@@ -10,11 +10,11 @@ const links = [
       to: '/settings',
       exact: true
     },
-    {
-      label: 'Members',
-      icon: 'i-lucide-users',
-      to: '/settings/members'
-    },
+    // {
+    //   label: 'Members',
+    //   icon: 'i-lucide-users',
+    //   to: '/settings/members'
+    // },
     {
       label: 'Notifications',
       icon: 'i-lucide-bell',
