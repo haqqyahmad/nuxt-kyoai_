@@ -12,23 +12,23 @@ const UDropdownMenu = resolveComponent('UDropdownMenu')
 const api = useApi()
 const toast = useToast()
 
-type Branch = {
+type Department = {
   id: string
-  branchId: string
-  nameBranch: string
-  addressBranch: string
+  code: string
+  name: string
   createdAt: string
+  updatedAt: string
 }
 
-const { data: branches, refresh } = await useAsyncData('branches', () =>
-  api.get('/branch?limit=100').then(res => res.data.data)
+const { data: departments, refresh } = await useAsyncData('departments', () =>
+  api.get('/medical/departments').then(res => res.data.data)
 )
 
-const data = computed(() => branches.value?.data ?? branches.value ?? [])
+const data = computed(() => departments.value?.data ?? departments.value ?? [])
 
 const columnFilters = ref([
   {
-    id: 'nameBranch',
+    id: 'name',
     value: ''
   }
 ])
@@ -39,13 +39,13 @@ const rowSelection = ref({})
 const selectedDeleteId = ref<string | null>(null)
 const isDeleteModalOpen = ref(false)
 
-async function deleteBranch(id: string) {
+async function deleteDepartment(id: string) {
   try {
-    await api.delete(`/branch/${id}`)
+    await api.delete(`/medical/departments/${id}`)
 
     toast.add({
       title: 'Berhasil',
-      description: 'Branch berhasil dihapus',
+      description: 'Department berhasil dihapus',
       color: 'success'
     })
 
@@ -53,7 +53,7 @@ async function deleteBranch(id: string) {
   } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus branch',
+      description: 'Gagal menghapus department',
       color: 'error'
     })
   }
@@ -62,11 +62,11 @@ async function deleteBranch(id: string) {
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
 
-  await deleteBranch(selectedDeleteId.value)
+  await deleteDepartment(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
-async function deleteSelectedBranches() {
+async function deleteSelectedDepartments() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
@@ -75,13 +75,13 @@ async function deleteSelectedBranches() {
   try {
     await Promise.all(
       selectedRows.map((row: any) =>
-        api.delete(`/branch/${row.original.id}`)
+        api.delete(`/medical/departments/${row.original.id}`)
       )
     )
 
     toast.add({
       title: 'Berhasil',
-      description: 'Data branch berhasil dihapus',
+      description: 'Data department berhasil dihapus',
       color: 'success'
     })
 
@@ -90,28 +90,28 @@ async function deleteSelectedBranches() {
   } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus data branch',
+      description: 'Gagal menghapus data department',
       color: 'error'
     })
   }
 }
 
-function getRowItems(row: Row<Branch>) {
+function getRowItems(row: Row<Department>) {
   return [
     {
       type: 'label',
       label: 'Actions'
     },
     {
-      label: 'Edit Branch',
+      label: 'Edit department',
       icon: 'i-lucide-pencil',
-      to: `/branches/${row.original.id}`
+      to: `/departments/${row.original.id}`
     },
     {
       type: 'separator'
     },
     {
-      label: 'Delete Branch',
+      label: 'Delete department',
       icon: 'i-lucide-trash',
       color: 'error',
       onSelect() {
@@ -122,7 +122,7 @@ function getRowItems(row: Row<Branch>) {
   ]
 }
 
-const columns: TableColumn<Branch>[] = [
+const columns: TableColumn<Department>[] = [
   {
     id: 'select',
     header: ({ table }) =>
@@ -143,12 +143,29 @@ const columns: TableColumn<Branch>[] = [
       })
   },
   {
-    accessorKey: 'branchId',
-    header: 'Branch ID',
-    cell: ({ row }) => `#${row.getValue('branchId')}`
+    accessorKey: 'code',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Code',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => {
+      return h('p', { class: 'font-medium text-highlighted' }, row.getValue('code'))
+    }
   },
   {
-    accessorKey: 'nameBranch',
+    accessorKey: 'name',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -165,37 +182,7 @@ const columns: TableColumn<Branch>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => {
-      return h('div', { class: 'flex items-center gap-3' }, [
-        h('div', undefined, [
-          h(
-            'p',
-            { class: 'font-medium text-highlighted' },
-            row.original.nameBranch
-          )
-        ])
-      ])
-    }
-  },
-  {
-    accessorKey: 'addressBranch',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Address',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    },
-    cell: ({ row }) => row.getValue('addressBranch') || '-'
+    cell: ({ row }) => row.getValue('name')
   },
   {
     accessorKey: 'createdAt',
@@ -258,13 +245,13 @@ const searchQuery = computed({
   get: (): string => {
     return (
       (table.value?.tableApi
-        ?.getColumn('nameBranch')
+        ?.getColumn('name')
         ?.getFilterValue() as string) || ''
     )
   },
   set: (value: string) => {
     table.value?.tableApi
-      ?.getColumn('nameBranch')
+      ?.getColumn('name')
       ?.setFilterValue(value || undefined)
   }
 })
@@ -278,15 +265,15 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="branches">
+  <UDashboardPanel id="departments">
     <template #header>
-      <UDashboardNavbar title="Branches">
+      <UDashboardNavbar title="Departments">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <BranchesAddModal @created="refresh" />
+          <DepartmentsAddModal @created="refresh" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -297,14 +284,14 @@ const currentPageSize = computed({
           v-model="searchQuery"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Search by branch name..."
+          placeholder="Search by department name..."
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="branch"
-            @confirm="deleteSelectedBranches"
+            entity="department"
+            @confirm="deleteSelectedDepartments"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -412,7 +399,7 @@ const currentPageSize = computed({
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
-        entity="branch"
+        entity="department"
         @confirm="handleDeleteById"
       />
     </template>
