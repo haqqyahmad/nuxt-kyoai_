@@ -20,11 +20,16 @@ const {
 
 const isFormOpen = ref(false)
 const isDeleteOpen = ref(false)
+
 const saving = ref(false)
 const deleting = ref(false)
 
 const selectedRoom = ref<Room | null>(null)
 const selectedDeleteId = ref<string | null>(null)
+
+const polling = ref(false)
+
+let interval: ReturnType<typeof setInterval> | null = null
 
 function openAddModal() {
   selectedRoom.value = null
@@ -41,7 +46,16 @@ function openDeleteModal(id: string) {
   isDeleteOpen.value = true
 }
 
+function closeDeleteModal() {
+  if (deleting.value) return
+
+  selectedDeleteId.value = null
+  isDeleteOpen.value = false
+}
+
 async function handleSubmit(payload: RoomForm) {
+  if (saving.value) return
+
   saving.value = true
 
   try {
@@ -79,7 +93,7 @@ async function handleSubmit(payload: RoomForm) {
 }
 
 async function handleDelete() {
-  if (!selectedDeleteId.value) return
+  if (!selectedDeleteId.value || deleting.value) return
 
   deleting.value = true
 
@@ -92,8 +106,8 @@ async function handleDelete() {
       color: 'success'
     })
 
-    isDeleteOpen.value = false
     selectedDeleteId.value = null
+    isDeleteOpen.value = false
   } catch (error: any) {
     toast.add({
       title: 'Gagal',
@@ -107,13 +121,11 @@ async function handleDelete() {
   }
 }
 
-/**
- * Realtime-ready polling.
- * Aktifkan kalau backend belum pakai websocket.
- */
-const polling = ref(false)
-
-let interval: ReturnType<typeof setInterval> | null = null
+watch(isDeleteOpen, (value) => {
+  if (!value && !deleting.value) {
+    selectedDeleteId.value = null
+  }
+})
 
 watch(polling, (enabled) => {
   if (interval) {
@@ -123,6 +135,7 @@ watch(polling, (enabled) => {
 
   if (enabled) {
     interval = setInterval(() => {
+      if (document.hidden) return
       refresh()
     }, 5000)
   }
@@ -136,7 +149,10 @@ onBeforeUnmount(() => {
 <template>
   <UDashboardPanel id="rooms">
     <template #header>
-      <UDashboardNavbar title="Rooms" subtitle="Manage Rooms">
+      <UDashboardNavbar
+        title="Rooms"
+        subtitle="Manage Rooms"
+      >
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -173,7 +189,7 @@ onBeforeUnmount(() => {
 
         <div
           v-if="pending"
-          class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]"
         >
           <USkeleton
             v-for="item in 8"
@@ -202,7 +218,7 @@ onBeforeUnmount(() => {
 
         <div
           v-else
-          class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]"
         >
           <RoomsRoomCard
             v-for="room in filteredRooms"
@@ -224,8 +240,12 @@ onBeforeUnmount(() => {
 
       <BaseDeleteModal
         v-model:open="isDeleteOpen"
+        :loading="deleting"
         :count="1"
         entity="ruangan"
+        title="Hapus ruangan?"
+        description="Data ruangan yang dihapus tidak dapat dikembalikan."
+        @close="closeDeleteModal"
         @confirm="handleDelete"
       />
     </template>

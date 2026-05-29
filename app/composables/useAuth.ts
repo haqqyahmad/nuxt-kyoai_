@@ -1,22 +1,30 @@
 export const useAuth = () => {
   const getToken = () => {
-    if (import.meta.client) {
-      return localStorage.getItem('token')
-    }
-    return null
+    if (!import.meta.client) return null
+
+    return (
+      localStorage.getItem('token')
+      || sessionStorage.getItem('token')
+    )
   }
 
-  const setToken = (token: string) => {
-    if (import.meta.client) {
-      console.log('set token', token)
+  const setToken = (token: string, remember = false) => {
+    if (!import.meta.client) return
+
+    removeToken()
+
+    if (remember) {
       localStorage.setItem('token', token)
+    } else {
+      sessionStorage.setItem('token', token)
     }
   }
 
   const removeToken = () => {
-    if (import.meta.client) {
-      localStorage.removeItem('token')
-    }
+    if (!import.meta.client) return
+
+    localStorage.removeItem('token')
+    sessionStorage.removeItem('token')
   }
 
   return {
