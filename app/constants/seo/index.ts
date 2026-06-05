@@ -2,6 +2,8 @@ import { masterSeo } from './master'
 import { medicalSeo } from './medical'
 import { frontOfficeSeo } from './front-office'
 import { settingsSeo } from './settings'
+import { hrisSeo } from './hris'
+import { loginSeo } from './login'
 
 /**
  * SEO CONFIG PER PAGE
@@ -23,8 +25,10 @@ export const pageSeo: Record<string, PageSeo> = {
     description: 'Dashboard overview.'
   },
 
+  ...loginSeo,
   ...masterSeo,
   ...medicalSeo,
   ...frontOfficeSeo,
-  ...settingsSeo
+  ...settingsSeo,
+  ...hrisSeo
 }

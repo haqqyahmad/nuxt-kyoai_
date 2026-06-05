@@ -28,11 +28,22 @@ const menuGroups: Record<string, string[]> = {
   ],
   'Settings': [
     '/settings'
+  ],
+  'HRIS': [
+    '/hris',
+    '/hris/employees',
+    '/hris/leaves',
+    '/hris/reimbursement',
+    '/hris/recruitment'
+    // '/hris/shifts'
+  ],
+  'Attendance': [
+    '/hris/attendance',
+    '/hris/attendance/analytics',
+    '/hris/attendance/tracking',
+    '/hris/attendance/shift-configuration',
+    '/hris/attendance/shift-schedule'
   ]
-  // 'Items': [
-  //   '/item-category',
-  //   '/item-group'
-  // ]
 }
 
 // State untuk menu yang aktif terbuka
@@ -45,6 +56,10 @@ const menuOpenState = ref<Record<string, boolean>>(
   )
 )
 
+const parentMenus: Record<string, string[]> = {
+  Attendance: ['HRIS']
+}
+
 const updateActiveMenu = () => {
   const currentPath = route.path
 
@@ -54,15 +69,28 @@ const updateActiveMenu = () => {
   })
 
   // cari menu aktif
-  const activeMenu = Object.entries(menuGroups).find(([_, paths]) =>
-    paths.some(path => currentPath.startsWith(path))
-  )?.[0] || null
+  const activeMenu = Object.entries(menuGroups)
+    .sort((a, b) => {
+      const maxA = Math.max(...a[1].map(path => path.length))
+      const maxB = Math.max(...b[1].map(path => path.length))
+
+      return maxB - maxA
+    })
+    .find(([_, paths]) =>
+      paths.some(path =>
+        currentPath === path || currentPath.startsWith(`${path}/`)
+      )
+    )?.[0] || null
 
   activeOpenMenu.value = activeMenu
 
   // buka menu aktif
   if (activeMenu) {
     menuOpenState.value[activeMenu] = true
+
+    parentMenus[activeMenu]?.forEach((parent) => {
+      menuOpenState.value[parent] = true
+    })
   }
 }
 
@@ -154,6 +182,67 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Patient Appointment',
           to: '/front-office/registration-patient'
+        }
+      ]
+    },
+    {
+      label: 'HRIS',
+      icon: 'i-lucide-file-user',
+      type: 'trigger',
+      open: menuOpenState.value['HRIS'],
+      onUpdateOpen: (val: boolean) => updateMenuState('HRIS', val),
+      children: [
+        {
+          label: 'Dashboard HRIS',
+          to: '/hris'
+        },
+        {
+          label: 'Employees',
+          to: '/hris/employees'
+        },
+        // {
+        //   label: 'Shift Management',
+        //   to: '/hris/shifts'
+        // },
+        {
+          label: 'Attendance',
+          type: 'trigger',
+          open: menuOpenState.value['Attendance'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Attendance', val),
+          children: [
+            {
+              label: 'Dashboard Attendance',
+              to: '/hris/attendance'
+            },
+            {
+              label: 'Attendance Analytics',
+              to: '/hris/attendance/analytics'
+            },
+            {
+              label: 'Attendance Tracking',
+              to: '/hris/attendance/tracking'
+            },
+            {
+              label: 'Shift Configuration',
+              to: '/hris/attendance/shift-configuration'
+            },
+            {
+              label: 'Shift Schedule',
+              to: '/hris/attendance/shift-schedule'
+            }
+          ]
+        },
+        {
+          label: 'Leave Management',
+          to: '/hris/leaves'
+        },
+        {
+          label: 'Reimbursement',
+          to: '/hris/reimbursement'
+        },
+        {
+          label: 'Recruitment',
+          to: '/hris/recruitment'
         }
       ]
     },
