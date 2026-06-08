@@ -1,473 +1,476 @@
 <!-- app/components/hris/attendance/schedule/ShiftCalendar.vue -->
 
 <script setup lang="ts">
-type DayValue
-  = | 'sunday'
-    | 'monday'
-    | 'tuesday'
-    | 'wednesday'
-    | 'thursday'
-    | 'friday'
-    | 'saturday'
+type DayValue =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday";
 
-type ViewMode = 'day' | 'week' | 'month'
+type ViewMode = "day" | "week" | "month";
 
-type FinalShiftStatus = 'active' | 'off'
+type FinalShiftStatus = "active" | "off";
 
-type ShiftCode
-  = | 'morning-shift'
-    | 'evening-shift'
-    | 'night-shift'
-    | 'flexi-time'
+type ShiftCode =
+  | "morning-shift"
+  | "evening-shift"
+  | "night-shift"
+  | "flexi-time";
 
 type FinalShiftItem = {
-  employee_id: number
-  employee_name?: string
-  department?: string
+  employee_id: number;
+  employee_name?: string;
+  department?: string;
 
-  date: string
-  hari: string
+  date: string;
+  hari: string;
 
-  shift_code?: ShiftCode | null
-  shift_name?: string | null
+  shift_code?: ShiftCode | null;
+  shift_name?: string | null;
 
-  start_time: string | null
-  end_time: string | null
+  start_time: string | null;
+  end_time: string | null;
 
-  status: FinalShiftStatus
+  status: FinalShiftStatus;
 
-  source: string
+  source: string;
 
-  override_type: string | null
-  override_reason: string | null
-}
+  override_type: string | null;
+  override_reason: string | null;
+};
 
 type FinalShiftResponse = {
-  success: boolean
-  message: string
-  data: FinalShiftItem[]
-}
+  success: boolean;
+  message: string;
+  data: FinalShiftItem[];
+};
 
 type CalendarEmployee = {
-  id: number
-  name: string
-  department: string
-  avatar: string
-  shifts: (FinalShiftItem | null)[]
-}
+  id: number;
+  name: string;
+  department: string;
+  avatar: string;
+  shifts: (FinalShiftItem | null)[];
+};
 
 type CalendarDay = {
-  label: string
-  date: number
-  fullDate: Date
-  value: DayValue
-  weekend: boolean
-}
+  label: string;
+  date: number;
+  fullDate: Date;
+  value: DayValue;
+  weekend: boolean;
+};
 
 const props = defineProps<{
-  finalShiftResponse?: FinalShiftResponse
-  selectedDate: Date
-  viewMode: ViewMode
-  departmentFilter?: string
-  shiftFilter?: string
-}>()
+  finalShiftResponse?: FinalShiftResponse;
+  selectedDate: Date;
+  viewMode: ViewMode;
+  departmentFilter?: string;
+  shiftFilter?: string;
+}>();
 
 const holidays = [
-  '2025-06-01',
-  '2026-01-01',
-  '2026-04-03',
-  '2026-04-04',
-  '2026-05-01',
-  '2026-05-14',
-  '2026-08-17',
-  '2026-12-25'
-]
+  "2025-06-01",
+  "2026-01-01",
+  "2026-04-03",
+  "2026-04-04",
+  "2026-05-01",
+  "2026-05-14",
+  "2026-08-17",
+  "2026-12-25",
+];
 
 const dayValues: DayValue[] = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday'
-]
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 
 const staffColumnWidth = computed(() => {
-  if (props.viewMode === 'month') return 150
-  if (props.viewMode === 'day') return 160
+  if (props.viewMode === "month") return 150;
+  if (props.viewMode === "day") return 160;
 
-  return 180
-})
+  return 180;
+});
 
 const dayColumnMinWidth = computed(() => {
-  if (props.viewMode === 'day') return 220
-  if (props.viewMode === 'month') return 90
+  if (props.viewMode === "day") return 220;
+  if (props.viewMode === "month") return 90;
 
-  return 128
-})
+  return 128;
+});
 
 const calendarMinWidth = computed(() => {
-  if (props.viewMode === 'day') return '420px'
-  if (props.viewMode === 'month') return '3000px'
+  if (props.viewMode === "day") return "420px";
+  if (props.viewMode === "month") return "3000px";
 
-  return '1080px'
-})
+  return "1080px";
+});
 
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `${staffColumnWidth.value}px repeat(${days.value.length}, minmax(${dayColumnMinWidth.value}px, 1fr))`
-}))
+  gridTemplateColumns: `${staffColumnWidth.value}px repeat(${days.value.length}, minmax(${dayColumnMinWidth.value}px, 1fr))`,
+}));
 
 function normalizeDate(value: Date | string) {
-  return value instanceof Date ? new Date(value) : new Date(value)
+  return value instanceof Date ? new Date(value) : new Date(value);
 }
 
 function formatYmd(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-  return `${year}-${month}-${day}`
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeApiDate(value: string) {
-  return value.includes('T')
-    ? value.slice(0, 10)
-    : value
+  return value.includes("T") ? value.slice(0, 10) : value;
 }
 
 function getStartOfWeek(date: Date) {
-  const start = new Date(date)
-  const day = start.getDay()
-  const diff = day === 0 ? -6 : 1 - day
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
 
-  start.setDate(start.getDate() + diff)
+  start.setDate(start.getDate() + diff);
 
-  return start
+  return start;
 }
 
 const days = computed<CalendarDay[]>(() => {
-  const selectedDate = normalizeDate(props.selectedDate)
+  const selectedDate = normalizeDate(props.selectedDate);
 
-  if (props.viewMode === 'day') {
-    const dayNumber = selectedDate.getDay()
+  if (props.viewMode === "day") {
+    const dayNumber = selectedDate.getDay();
 
     return [
       {
-        label: selectedDate.toLocaleString('en-US', { weekday: 'short' }),
+        label: selectedDate.toLocaleString("en-US", { weekday: "short" }),
         date: selectedDate.getDate(),
         fullDate: new Date(selectedDate),
         value: dayValues[dayNumber],
-        weekend: dayNumber === 0 || dayNumber === 6
-      }
-    ]
+        weekend: dayNumber === 0 || dayNumber === 6,
+      },
+    ];
   }
 
-  if (props.viewMode === 'month') {
-    const year = selectedDate.getFullYear()
-    const month = selectedDate.getMonth()
-    const totalDays = new Date(year, month + 1, 0).getDate()
+  if (props.viewMode === "month") {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const totalDays = new Date(year, month + 1, 0).getDate();
 
     return Array.from({ length: totalDays }, (_, index) => {
-      const date = new Date(year, month, index + 1)
-      const dayNumber = date.getDay()
+      const date = new Date(year, month, index + 1);
+      const dayNumber = date.getDay();
 
       return {
-        label: date.toLocaleString('en-US', { weekday: 'short' }),
+        label: date.toLocaleString("en-US", { weekday: "short" }),
         date: date.getDate(),
         fullDate: date,
         value: dayValues[dayNumber],
-        weekend: dayNumber === 0 || dayNumber === 6
-      }
-    })
+        weekend: dayNumber === 0 || dayNumber === 6,
+      };
+    });
   }
 
-  const start = getStartOfWeek(selectedDate)
+  const start = getStartOfWeek(selectedDate);
 
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(start)
-    date.setDate(start.getDate() + index)
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
 
-    const dayNumber = date.getDay()
+    const dayNumber = date.getDay();
 
     return {
-      label: date.toLocaleString('en-US', { weekday: 'short' }),
+      label: date.toLocaleString("en-US", { weekday: "short" }),
       date: date.getDate(),
       fullDate: date,
       value: dayValues[dayNumber],
-      weekend: dayNumber === 0 || dayNumber === 6
-    }
-  })
-})
+      weekend: dayNumber === 0 || dayNumber === 6,
+    };
+  });
+});
 
 function getAvatarName(name: string) {
   return name
-    .split(' ')
-    .map(item => item[0])
-    .join('')
+    .split(" ")
+    .map((item) => item[0])
+    .join("")
     .slice(0, 2)
-    .toUpperCase()
+    .toUpperCase();
 }
 
 function isSameDate(apiDate: string, calendarDate: Date) {
-  return normalizeApiDate(apiDate) === formatYmd(calendarDate)
+  return normalizeApiDate(apiDate) === formatYmd(calendarDate);
 }
 
 function getShiftItemForDate(
   shiftItems: FinalShiftItem[],
-  date: Date
+  date: Date,
 ): FinalShiftItem | null {
-  return shiftItems.find(item => isSameDate(item.date, date)) ?? null
+  return shiftItems.find((item) => isSameDate(item.date, date)) ?? null;
 }
 
 const employees = computed<CalendarEmployee[]>(() => {
-  const response = props.finalShiftResponse
+  const response = props.finalShiftResponse;
 
   if (!response?.data?.length) {
-    return []
+    return [];
   }
 
   const grouped = response.data.reduce<Record<number, FinalShiftItem[]>>(
     (result, item) => {
       if (!result[item.employee_id]) {
-        result[item.employee_id] = []
+        result[item.employee_id] = [];
       }
 
-      result[item.employee_id].push(item)
+      result[item.employee_id].push(item);
 
-      return result
+      return result;
     },
-    {}
-  )
+    {},
+  );
 
   return Object.entries(grouped)
     .map(([employeeId, shiftItems]) => {
-      const firstItem = shiftItems[0]
-      const name = firstItem?.employee_name ?? `Employee ${employeeId}`
-      const department = firstItem?.department ?? 'General'
+      const firstItem = shiftItems[0];
+      const name = firstItem?.employee_name ?? `Employee ${employeeId}`;
+      const department = firstItem?.department ?? "General";
 
       return {
         id: Number(employeeId),
         name,
         department,
         avatar: getAvatarName(name),
-        shifts: days.value.map(day =>
-          getShiftItemForDate(shiftItems, day.fullDate)
-        )
-      }
+        shifts: days.value.map((day) =>
+          getShiftItemForDate(shiftItems, day.fullDate),
+        ),
+      };
     })
     .filter((employee) => {
-      const matchDepartment = props.departmentFilter && props.departmentFilter !== 'all'
-        ? employee.department === props.departmentFilter
-        : true
+      const matchDepartment =
+        props.departmentFilter && props.departmentFilter !== "all"
+          ? employee.department === props.departmentFilter
+          : true;
 
-      const matchShift = props.shiftFilter && props.shiftFilter !== 'all'
-        ? employee.shifts.some(shift =>
-            shift?.shift_code === props.shiftFilter
-            || shift?.status === props.shiftFilter
-          )
-        : true
+      const matchShift =
+        props.shiftFilter && props.shiftFilter !== "all"
+          ? employee.shifts.some(
+              (shift) =>
+                shift?.shift_code === props.shiftFilter ||
+                shift?.status === props.shiftFilter,
+            )
+          : true;
 
-      return matchDepartment && matchShift
-    })
-})
+      return matchDepartment && matchShift;
+    });
+});
 
 function getShiftBadgeColor(shift: FinalShiftItem) {
-  if (shift.status === 'off') return 'neutral'
-  if (shift.override_type) return 'warning'
+  if (shift.status === "off") return "neutral";
+  if (shift.override_type) return "warning";
 
-  return 'success'
+  return "success";
 }
 
 function getShiftBadgeLabel(shift: FinalShiftItem) {
-  if (shift.status === 'off') return 'OFF'
-  if (shift.override_type) return 'Override'
+  if (shift.status === "off") return "OFF";
+  if (shift.override_type) return "Override";
 
-  return shift.shift_name ?? 'Active'
+  return shift.shift_name ?? "Active";
 }
 
 function getShiftTime(shift: FinalShiftItem) {
-  if (!shift.start_time || !shift.end_time) return '-'
+  if (!shift.start_time || !shift.end_time) return "-";
 
-  return `${shift.start_time} - ${shift.end_time}`
+  return `${shift.start_time} - ${shift.end_time}`;
 }
 
 function isToday(day: CalendarDay) {
-  const today = new Date()
+  const today = new Date();
 
   return (
-    today.getDate() === day.fullDate.getDate()
-    && today.getMonth() === day.fullDate.getMonth()
-    && today.getFullYear() === day.fullDate.getFullYear()
-  )
+    today.getDate() === day.fullDate.getDate() &&
+    today.getMonth() === day.fullDate.getMonth() &&
+    today.getFullYear() === day.fullDate.getFullYear()
+  );
 }
 
 function isSunday(day: CalendarDay) {
-  return day.value === 'sunday'
+  return day.value === "sunday";
 }
 
 function isHoliday(day: CalendarDay) {
-  return holidays.includes(formatYmd(day.fullDate))
+  return holidays.includes(formatYmd(day.fullDate));
 }
 
 function isRedDay(day: CalendarDay) {
-  return isSunday(day) || isHoliday(day)
+  return isSunday(day) || isHoliday(day);
 }
+console.log("days", days);
+
+const weeks = computed(() => {
+  if (props.viewMode !== "month") {
+    return [days.value];
+  }
+  const chunks: CalendarDay[][] = [];
+  for (let i = 0; i < days.value.length; i += 7) {
+    chunks.push(days.value.slice(i, i + 7));
+  }
+  return chunks;
+});
 </script>
 
 <template>
-  <UCard class="overflow-hidden">
-    <div class="overflow-x-auto">
-      <div :style="{ minWidth: calendarMinWidth }">
-        <div
-          class="grid border-b border-default bg-muted"
-          :style="gridStyle"
-        >
-          <div class="sticky left-0 z-30 border-r border-default bg-muted px-3 py-4 text-sm font-semibold text-muted shadow-sm">
-            Staff
-          </div>
 
+<UCard class="overflow-hidden border-0 bg-transparent shadow-none">
+  <div class="space-y-6">
+    <!-- EMPLOYEE -->
+    <div
+      v-for="employee in employees"
+      :key="employee.id"
+      class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm"
+    >
+      <!-- EMPLOYEE HEADER -->
+      <div
+        class="flex items-center justify-between border-b border-default bg-muted/30 px-5 py-4"
+      >
+        <div class="flex items-center gap-3">
+          <UAvatar
+            :text="employee.avatar"
+            size="sm"
+          />
+
+          <div>
+            <p class="text-sm font-semibold text-highlighted">
+              {{ employee.name }}
+            </p>
+
+            <p class="text-xs text-muted">
+              {{ employee.department }}
+            </p>
+          </div>
+        </div>
+
+        <UBadge
+          color="neutral"
+          variant="soft"
+        >
+          {{ employee.shifts.length }} Days
+        </UBadge>
+      </div>
+
+      <!-- WEEK -->
+      <div
+        v-for="(week, weekIndex) in weeks"
+        :key="weekIndex"
+        class="border-b border-default last:border-b-0"
+      >
+        <!-- DAYS -->
+        <div class="grid grid-cols-7">
           <div
-            v-for="day in days"
+            v-for="day in week"
             :key="day.fullDate.toISOString()"
-            class="border-r border-default px-3 py-4 text-center last:border-r-0"
+            class="border-r border-default p-3 last:border-r-0"
             :class="[
               isRedDay(day)
-                ? 'bg-error/10 text-error'
-                : day.weekend
-                  ? 'bg-muted/70 text-muted'
-                  : 'text-highlighted',
+                ? 'bg-error/5'
+                : '',
 
               isToday(day)
-                ? 'ring-2 ring-primary bg-primary/10 text-primary'
+                ? 'bg-primary/5'
                 : ''
             ]"
           >
-            <p class="text-[11px] font-medium uppercase">
-              {{ day.label }}
-            </p>
-
-            <p class="text-lg font-semibold">
-              {{ day.date }}
-            </p>
-
-            <UBadge
-              v-if="isHoliday(day)"
-              color="error"
-              variant="soft"
-              size="xs"
-              class="mt-1"
-            >
-              Holiday
-            </UBadge>
-          </div>
-        </div>
-
-        <div
-          v-if="!employees.length"
-          class="border-b border-default p-6 text-center text-sm text-muted"
-        >
-          Tidak ada data shift.
-        </div>
-
-        <div
-          v-for="employee in employees"
-          :key="employee.id"
-          class="grid border-b border-default last:border-b-0 hover:bg-muted/40"
-          :style="gridStyle"
-        >
-          <div class="sticky left-0 z-20 flex items-center gap-2 border-r border-default bg-default px-3 py-3 shadow-sm">
-            <UAvatar
-              :text="employee.avatar"
-              size="xs"
-            />
-
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-highlighted">
-                {{ employee.name }}
-              </p>
-
-              <p class="mt-0.5 truncate text-xs text-muted">
-                {{ employee.department }}
-              </p>
-            </div>
-          </div>
-
-          <div
-            v-for="(shift, index) in employee.shifts"
-            :key="`${employee.id}-${days[index]?.fullDate.toISOString()}`"
-            class="border-r border-default p-2 last:border-r-0"
-            :class="[
-              isRedDay(days[index])
-                ? 'bg-error/5'
-                : days[index]?.weekend
-                  ? 'bg-muted/50'
-                  : '',
-
-              isToday(days[index])
-                ? 'ring-1 ring-primary bg-primary/5'
-                : '',
-
-              viewMode === 'day'
-                ? 'min-h-28'
-                : 'min-h-24'
-            ]"
-          >
-            <div
-              v-if="!shift"
-              class="flex h-full min-h-20 flex-col items-center justify-center rounded-lg border border-dashed border-default text-sm font-medium text-muted"
-            >
-              <UIcon
-                name="i-lucide-calendar-x"
-                class="mb-1 size-4"
-              />
-
-              <span>Not Scheduled</span>
-            </div>
-
-            <div
-              v-else-if="shift.status === 'off'"
-              class="flex h-full min-h-20 flex-col items-center justify-center rounded-lg bg-error/10 text-sm font-semibold text-error"
-            >
-              <span>OFF</span>
-            </div>
-
-            <div
-              v-else
-              class="h-full rounded-lg border border-default bg-elevated p-3 shadow-sm"
-            >
-              <UBadge
-                :color="getShiftBadgeColor(shift)"
-                variant="soft"
-                size="xs"
-                class="mb-2"
+            <!-- DATE -->
+            <div class="mb-3">
+              <p
+                class="text-[10px] font-bold uppercase tracking-wide"
+                :class="[
+                  isRedDay(day)
+                    ? 'text-error'
+                    : 'text-muted'
+                ]"
               >
-                {{ getShiftBadgeLabel(shift) }}
-              </UBadge>
+                {{ day.label }}
+              </p>
 
-              <div class="space-y-1">
-                <p class="text-xs font-semibold leading-snug text-highlighted">
+              <p
+                class="text-lg font-bold"
+                :class="[
+                  isToday(day)
+                    ? 'text-primary'
+                    : 'text-highlighted'
+                ]"
+              >
+                {{ day.date }}
+              </p>
+            </div>
+
+            <!-- SHIFT -->
+            <template
+              v-for="shift in employee.shifts.filter(
+                s => s && isSameDate(s.date, day.fullDate)
+              )"
+              :key="shift.date"
+            >
+              <!-- OFF -->
+              <div
+                v-if="shift.status === 'off'"
+                class="flex h-18 items-center justify-center rounded-2xl bg-error/10 text-sm font-bold text-error"
+              >
+                OFF
+              </div>
+
+              <!-- ACTIVE -->
+              <div
+                v-else
+                class="rounded-2xl border border-default bg-elevated p-3 transition hover:shadow-md"
+              >
+                <div class="mb-2 flex items-center justify-between">
+                  <UBadge
+                    :color="getShiftBadgeColor(shift)"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ getShiftBadgeLabel(shift) }}
+                  </UBadge>
+                </div>
+
+                <p class="text-sm font-semibold text-highlighted">
                   {{ getShiftTime(shift) }}
                 </p>
 
                 <p
-                  v-if="shift.override_type"
-                  class="text-[11px] font-medium text-warning"
-                >
-                  {{ shift.override_type }}
-                </p>
-
-                <p
                   v-if="shift.override_reason"
-                  class="text-[11px] text-muted"
+                  class="mt-2 line-clamp-2 text-[11px] text-muted"
                 >
                   {{ shift.override_reason }}
                 </p>
               </div>
+            </template>
+
+            <!-- EMPTY -->
+            <div
+              v-if="!employee.shifts.some(
+                s => s && isSameDate(s.date, day.fullDate)
+              )"
+              class="flex h-24 items-center justify-center rounded-2xl border border-dashed border-default text-xs text-muted"
+            >
+              Empty
             </div>
           </div>
         </div>
       </div>
     </div>
-  </UCard>
+  </div>
+</UCard>
+
 </template>
