@@ -4,7 +4,7 @@ import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import type { Row } from '@tanstack/table-core'
-import Customeraddmodal from '~/components/customer/Customeraddmodal.vue'
+import { CustomerCustomeraddmodal } from '#components'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -237,7 +237,7 @@ const columns: TableColumn<Customer>[] = [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <Customeraddmodal @created="refresh" />
+          <CustomerCustomeraddmodal @created="refresh" />
         </template>
       </UDashboardNavbar>
     </template>

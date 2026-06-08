@@ -1,3 +1,4 @@
+<!-- app/components/UserMenu.vue -->
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
@@ -44,9 +45,11 @@ onMounted(async () => {
 
 const userDisplay = computed(() => {
   return {
-    name: user.value?.data?.data?.email || 'User',
-    avatar: user.value?.data?.data?.avatar || '/default-avatar.png',
-    alt: user.value?.data?.data?.name || 'User'
+    name: user.value?.data?.data?.name || 'User',
+    avatar: {
+      src: user.value?.data?.data?.avatar || '/default-avatar.png',
+      alt: user.value?.data?.data?.name || 'User'
+    }
   }
 })
 
@@ -54,8 +57,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
   [
     {
       type: 'label',
-      label: userDisplay.value?.name,
-      avatar: userDisplay.value?.avatar
+      label: userDisplay.value.name,
+      description: user.value?.data?.data?.email || '-',
+      avatar: userDisplay.value.avatar
     }
   ],
   [

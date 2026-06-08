@@ -8,70 +8,52 @@ import type { Row } from '@tanstack/table-core'
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
-const UBadge = resolveComponent('UBadge')
 
 const api = useApi()
 const toast = useToast()
 
-type PaketRow = {
+type Branch = {
   id: string
-  paketId: string
-  paketName: string
-  itemId: string
-  itemCode: string
-  itemName: string
-  inputanCount: number
-  isActive: boolean
+  branchId: string
+  nameBranch: string
+  addressBranch: string
   createdAt: string
 }
 
-function mapPaket(paket: any): PaketRow[] {
-  return paket.paketItems.map((paketItem: any) => ({
-    id: paketItem.id,
-    paketId: paket.id,
-    paketName: paket.name,
-    itemId: paketItem.item?.id,
-    itemCode: paketItem.item?.code,
-    itemName: paketItem.item?.name,
-    inputanCount: paketItem.item?.inputans?.length ?? 0,
-    isActive: paket.isActive,
-    createdAt: paket.createdAt
-  }))
-}
-
-const { data: paketData, refresh } = await useAsyncData('paket-mcu', () =>
-  api.get('/paket').then(res => res.data.data.flatMap(mapPaket))
+const { data: branches, refresh } = await useAsyncData('branches', () =>
+  api.get('/branch?limit=100').then(res => res.data.data)
 )
 
-const data = computed(() => paketData.value ?? [])
+const data = computed(() => branches.value?.data ?? branches.value ?? [])
 
 const columnFilters = ref([
   {
-    id: 'paketName',
+    id: 'nameBranch',
     value: ''
   }
 ])
 
 const columnVisibility = ref()
 const rowSelection = ref({})
-const isDeleteModalOpen = ref(false)
-const selectedDeleteId = ref<string | null>(null)
 
-async function deletePaketItem(id: string) {
+const selectedDeleteId = ref<string | null>(null)
+const isDeleteModalOpen = ref(false)
+
+async function deleteBranch(id: string) {
   try {
-    await api.delete(`/paket-item/${id}`)
+    await api.delete(`/branch/${id}`)
 
     toast.add({
       title: 'Berhasil',
-      description: 'Item paket berhasil dihapus',
+      description: 'Branch berhasil dihapus',
       color: 'success'
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus item paket',
+      description: 'Gagal menghapus branch',
       color: 'error'
     })
   }
@@ -80,11 +62,11 @@ async function deletePaketItem(id: string) {
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
 
-  await deletePaketItem(selectedDeleteId.value)
+  await deleteBranch(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
-async function deleteSelectedRows() {
+async function deleteSelectedBranches() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
@@ -92,42 +74,44 @@ async function deleteSelectedRows() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/paket-item/${row.original.id}`))
+      selectedRows.map((row: any) =>
+        api.delete(`/branch/${row.original.id}`)
+      )
     )
 
     toast.add({
       title: 'Berhasil',
-      description: 'Data item paket berhasil dihapus',
+      description: 'Data branch berhasil dihapus',
       color: 'success'
     })
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus data',
+      description: 'Gagal menghapus data branch',
       color: 'error'
     })
   }
 }
 
-function getRowItems(row: Row<PaketRow>) {
+function getRowItems(row: Row<Branch>) {
   return [
     {
       type: 'label',
       label: 'Actions'
     },
     {
-      label: 'View detail',
-      icon: 'i-lucide-eye',
-      to: `/items/${row.original.itemId}`
+      label: 'Edit Branch',
+      icon: 'i-lucide-pencil',
+      to: `/branches/${row.original.id}`
     },
     {
       type: 'separator'
     },
     {
-      label: 'Delete item paket',
+      label: 'Delete Branch',
       icon: 'i-lucide-trash',
       color: 'error',
       onSelect() {
@@ -138,7 +122,7 @@ function getRowItems(row: Row<PaketRow>) {
   ]
 }
 
-const columns: TableColumn<PaketRow>[] = [
+const columns: TableColumn<Branch>[] = [
   {
     id: 'select',
     header: ({ table }) =>
@@ -159,14 +143,19 @@ const columns: TableColumn<PaketRow>[] = [
       })
   },
   {
-    accessorKey: 'paketName',
+    accessorKey: 'branchId',
+    header: 'Branch ID',
+    cell: ({ row }) => `#${row.getValue('branchId')}`
+  },
+  {
+    accessorKey: 'nameBranch',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Paket MCU',
+        label: 'Name',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -177,59 +166,57 @@ const columns: TableColumn<PaketRow>[] = [
       })
     },
     cell: ({ row }) => {
-      return h('div', { class: 'flex flex-col' }, [
-        h('p', { class: 'font-medium text-highlighted' }, row.original.paketName),
-        h('p', { class: 'text-xs text-muted' }, row.original.paketId)
+      return h('div', { class: 'flex items-center gap-3' }, [
+        h('div', undefined, [
+          h(
+            'p',
+            { class: 'font-medium text-highlighted' },
+            row.original.nameBranch
+          )
+        ])
       ])
     }
   },
   {
-    accessorKey: 'itemCode',
-    header: 'Item Code',
-    cell: ({ row }) => row.getValue('itemCode') || '-'
-  },
-  {
-    accessorKey: 'itemName',
-    header: 'Item Name',
-    cell: ({ row }) => {
-      return h('div', { class: 'flex flex-col' }, [
-        h('p', { class: 'font-medium text-highlighted' }, row.original.itemName),
-        h('p', { class: 'text-xs text-muted' }, row.original.itemId)
-      ])
-    }
-  },
-  {
-    accessorKey: 'inputanCount',
-    header: 'Total Input',
-    cell: ({ row }) =>
-      h(UBadge, {
-        label: `${row.getValue('inputanCount')} input`,
-        color: 'info',
-        variant: 'subtle'
-      })
-  },
-  {
-    accessorKey: 'isActive',
-    header: 'Status',
-    cell: ({ row }) => {
-      const active = row.getValue('isActive') as boolean
+    accessorKey: 'addressBranch',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
 
-      return h(UBadge, {
-        label: active ? 'Active' : 'Inactive',
-        color: active ? 'success' : 'error',
-        variant: 'subtle'
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Address',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
-    }
+    },
+    cell: ({ row }) => row.getValue('addressBranch') || '-'
   },
   {
     accessorKey: 'createdAt',
-    header: 'Created',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Created',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
     cell: ({ row }) => {
-      const value = row.getValue('createdAt') as string
-
-      if (!value) return '-'
-
-      return new Date(value).toLocaleString('id-ID', {
+      return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -271,13 +258,13 @@ const searchQuery = computed({
   get: (): string => {
     return (
       (table.value?.tableApi
-        ?.getColumn('paketName')
+        ?.getColumn('nameBranch')
         ?.getFilterValue() as string) || ''
     )
   },
   set: (value: string) => {
     table.value?.tableApi
-      ?.getColumn('paketName')
+      ?.getColumn('nameBranch')
       ?.setFilterValue(value || undefined)
   }
 })
@@ -291,21 +278,15 @@ const currentPageSize = computed({
 </script>
 
 <template>
-  <UDashboardPanel id="paket-mcu">
+  <UDashboardPanel id="branches">
     <template #header>
-      <UDashboardNavbar title="Paket MCU">
+      <UDashboardNavbar title="Branches">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <UButton
-            icon="i-lucide-plus"
-            color="primary"
-            to="/paket-mcu/create"
-          >
-            New Paket
-          </UButton>
+          <BranchesAddModal @created="refresh" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -316,14 +297,14 @@ const currentPageSize = computed({
           v-model="searchQuery"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Search paket MCU..."
+          placeholder="Search by branch name..."
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="item paket"
-            @confirm="deleteSelectedRows"
+            entity="branch"
+            @confirm="deleteSelectedBranches"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -431,7 +412,7 @@ const currentPageSize = computed({
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
-        entity="item paket"
+        entity="branch"
         @confirm="handleDeleteById"
       />
     </template>

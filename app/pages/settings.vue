@@ -5,16 +5,16 @@ const route = useRoute()
 const links = [
   [
     {
-      label: 'General',
+      label: 'Profile',
       icon: 'i-lucide-user',
       to: '/settings',
       exact: true
     },
-    {
-      label: 'Members',
-      icon: 'i-lucide-users',
-      to: '/settings/members'
-    },
+    // {
+    //   label: 'Members',
+    //   icon: 'i-lucide-users',
+    //   to: '/settings/members'
+    // },
     {
       label: 'Notifications',
       icon: 'i-lucide-bell',
@@ -29,14 +29,11 @@ const links = [
       label: 'Roles',
       icon: 'i-lucide-circle-user-round',
       to: '/settings/roles'
-    }
-  ],
-  [
+    },
     {
-      label: 'Documentation',
-      icon: 'i-lucide-book-open',
-      to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-      target: '_blank'
+      label: 'Permission',
+      icon: 'i-lucide-shield-check',
+      to: '/settings/permissions'
     }
   ]
 ] satisfies NavigationMenuItem[][]

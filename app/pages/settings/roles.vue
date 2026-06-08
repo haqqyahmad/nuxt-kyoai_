@@ -74,11 +74,12 @@ const table = useTemplateRef('table')
       class="mb-4"
     >
       <UButton
-        label="Manage Role Permissions"
+        label="Manage Permissions"
         color="neutral"
         variant="outline"
         icon="i-lucide-shield-check"
         class="w-fit lg:ms-auto"
+        to="/settings/permissions"
       />
     </UPageCard>
 

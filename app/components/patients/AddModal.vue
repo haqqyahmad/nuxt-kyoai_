@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import * as z from "zod";
-import { handleError, handleSuccess } from "~/utils/handlers";
+import * as z from 'zod'
+import { handleError } from '~/utils/handlers'
 
-const api = useApi();
-const toast = useToast();
+const api = useApi()
+const toast = useToast()
 
 const emit = defineEmits<{
-  (e: "created"): void;
-}>();
+  (e: 'created'): void
+}>()
 
 // ✅ schema tetap di sini
 const schema = z.object({
@@ -15,59 +15,61 @@ const schema = z.object({
   firstName: z.string().min(1),
   middleName: z.string().optional(),
   lastName: z.string().min(1),
-  gender: z.enum(["MALE", "FEMALE"]),
-  idType: z.enum(["KTP", "PASSPORT", "SIM"]),
+  gender: z.enum(['MALE', 'FEMALE']),
+  idType: z.enum(['KTP', 'PASSPORT', 'SIM']),
   idNumber: z.string().min(1),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal('')),
   dob: z.string().min(1),
-  maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED"]).optional(),
-  phone: z.string().optional(),
-});
+  maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED']).optional(),
+  phone: z.string().optional()
+})
 
 const state = reactive({
   branchId: 1,
-  firstName: "",
-  middleName: "",
-  lastName: "",
+  firstName: '',
+  middleName: '',
+  lastName: '',
   gender: undefined,
   idType: undefined,
-  idNumber: "",
-  email: "",
-  dob: "",
+  idNumber: '',
+  email: '',
+  dob: '',
   maritalStatus: undefined,
-  phone: "",
-});
+  phone: ''
+})
 
 const genderOptions = [
-  { label: "Laki-laki", value: "MALE" },
-  { label: "Perempuan", value: "FEMALE" },
-];
+  { label: 'Laki-laki', value: 'MALE' },
+  { label: 'Perempuan', value: 'FEMALE' }
+]
 
 const idTypeOptions = [
-  { label: "KTP", value: "KTP" },
-  { label: "Passport", value: "PASSPORT" },
-  { label: "SIM", value: "SIM" },
-];
+  { label: 'KTP', value: 'KTP' },
+  { label: 'Passport', value: 'PASSPORT' },
+  { label: 'SIM', value: 'SIM' }
+]
 
 const maritalOptions = [
-  { label: "Belum Menikah", value: "SINGLE" },
-  { label: "Menikah", value: "MARRIED" },
-  { label: "Cerai", value: "DIVORCED" },
-];
+  { label: 'Belum Menikah', value: 'SINGLE' },
+  { label: 'Menikah', value: 'MARRIED' },
+  { label: 'Cerai', value: 'DIVORCED' }
+]
 
 // ✅ submit dipisah (ini yang dipanggil BaseFormModal)
 async function submit(data: any) {
   try {
-    await api.post("/patient", {
-      ...data,
-      email: data.email || undefined,
-    });
+    data.message = 'Patient'
+    data.name = `${data.firstName} ${data.middleName} ${data.lastName}`
 
-    handleSuccess(toast, data.firstName);
-    emit("created");
+    await api.post('/patient', {
+      ...data,
+      email: data.email || undefined
+    })
+
+    emit('created')
   } catch (err: any) {
-    handleError(toast, err);
-    throw err; // 🔥 penting biar Base tau error
+    handleError(toast, err)
+    throw err // 🔥 penting biar Base tau error
   }
 }
 </script>
@@ -88,7 +90,7 @@ async function submit(data: any) {
 
     <!-- 🔥 FORM ISI -->
     <!-- Branch ID (hidden / auto) -->
-    <input type="hidden" :value="state.branchId" />
+    <input type="hidden" :value="state.branchId">
 
     <!-- Nama -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">

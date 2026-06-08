@@ -1,3 +1,4 @@
+<!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
@@ -5,52 +6,103 @@ const route = useRoute()
 const toast = useToast()
 
 const open = ref(false)
+const openPrivacyPolicy = ref(false)
+
+// Update active menu berdasarkan route
+const menuGroups: Record<string, string[]> = {
+  'Master Data': [
+    '/branches',
+    '/customer',
+    '/departments',
+    '/patients',
+    '/users'
+  ],
+  'Medical': [
+    '/questionnaire',
+    '/rooms',
+    '/services'
+  ],
+  'Items': [
+    '/items/mcu',
+    '/items/sample-types'
+  ],
+  'Front Office': [
+    '/front-office'
+  ],
+  'Settings': [
+    '/settings'
+  ],
+  'HRIS': [
+    '/hris',
+    '/hris/employees',
+    '/hris/leaves',
+    '/hris/reimbursement',
+    '/hris/recruitment'
+    // '/hris/shifts'
+  ],
+  'Attendance': [
+    '/hris/attendance',
+    '/hris/attendance/analytics',
+    '/hris/attendance/tracking',
+    '/hris/attendance/shift-configuration',
+    '/hris/attendance/shift-schedule'
+  ]
+}
 
 // State untuk menu yang aktif terbuka
 const activeOpenMenu = ref<string | null>(null)
 
-// State untuk semua menu trigger
-const menuOpenState = ref({
-  'Master Data': false,
-  'Front Office': false,
-  'Settings': false,
-  'Items': false
-})
+// generate otomatis state menu
+const menuOpenState = ref<Record<string, boolean>>(
+  Object.fromEntries(
+    Object.keys(menuGroups).map(key => [key, false])
+  )
+)
 
-// Update active menu berdasarkan route
+const parentMenus: Record<string, string[]> = {
+  Attendance: ['HRIS'],
+  Items: ['Medical']
+}
+
 const updateActiveMenu = () => {
   const currentPath = route.path
 
-  // Reset semua menu state
-  menuOpenState.value = {
-    'Master Data': false,
-    'Front Office': false,
-    'Settings': false,
-    'Items': false
-  }
+  // reset semua
+  Object.keys(menuOpenState.value).forEach((key) => {
+    menuOpenState.value[key] = false
+  })
 
-  if (currentPath.startsWith('/customer')
-    || currentPath.startsWith('/patients')
-    || currentPath.startsWith('/users')
-    || currentPath.startsWith('/items')
-    || currentPath.startsWith('/questionnaire')) {
-    activeOpenMenu.value = 'Master Data'
-    menuOpenState.value['Master Data'] = true
-  } else if (currentPath.startsWith('/front-office')) {
-    activeOpenMenu.value = 'Front Office'
-    menuOpenState.value['Front Office'] = true
-  } else if (currentPath.startsWith('/settings')) {
-    activeOpenMenu.value = 'Settings'
-    menuOpenState.value['Settings'] = true
-  } else {
-    activeOpenMenu.value = null
+  // cari menu aktif
+  const activeMenu = Object.entries(menuGroups)
+    .sort((a, b) => {
+      const maxA = Math.max(...a[1].map(path => path.length))
+      const maxB = Math.max(...b[1].map(path => path.length))
+
+      return maxB - maxA
+    })
+    .find(([_, paths]) =>
+      paths.some(path =>
+        currentPath === path || currentPath.startsWith(`${path}/`)
+      )
+    )?.[0] || null
+
+  activeOpenMenu.value = activeMenu
+
+  // buka menu aktif
+  if (activeMenu) {
+    menuOpenState.value[activeMenu] = true
+
+    parentMenus[activeMenu]?.forEach((parent) => {
+      menuOpenState.value[parent] = true
+    })
   }
 }
 
-// Watch route changes
-watch(() => route.path, () => {
-  updateActiveMenu()
-}, { immediate: true })
+watch(
+  () => route.path,
+  updateActiveMenu,
+  { immediate: true }
+)
 
 // Fungsi untuk update menu state ketika user klik
 const updateMenuState = (menuName: string, isOpen: boolean) => {
@@ -73,8 +125,16 @@ const links = computed<NavigationMenuItem[][]>(() => [
       onUpdateOpen: (val: boolean) => updateMenuState('Master Data', val),
       children: [
         {
+          label: 'Branches',
+          to: '/branches'
+        },
+        {
           label: 'Customers',
           to: '/customer'
+        },
+        {
+          label: 'Departments',
+          to: '/departments'
         },
         {
           label: 'Patients',
@@ -83,27 +143,45 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'User',
           to: '/users'
-        },
+        }
+      ]
+    },
+    {
+      label: 'Medical',
+      icon: 'i-lucide-briefcase-medical',
+      type: 'trigger',
+      // Gunakan activeOpenMenu untuk kontrol defaultOpen
+      open: menuOpenState.value['Medical'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Medical', val),
+      children: [
         {
           label: 'Items',
-          to: '/items/mcu'
+          type: 'trigger',
+          open: menuOpenState.value['Items'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
+          children: [
+            {
+              label: 'MCU',
+              to: '/items/mcu'
+            },
+            {
+              label: 'Sample Types',
+              to: '/items/sample-types'
+            }
+          ]
         },
         {
           label: 'Questionnaire',
           to: '/questionnaire'
+        },
+        {
+          label: 'Rooms',
+          to: '/rooms'
+        },
+        {
+          label: 'Services',
+          to: '/services'
         }
-        // {
-        //   label: 'Items',
-        //   type: 'trigger',
-        //   open: menuOpenState.value['Items'],
-        //   onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
-        //   children: [
-        //     {
-        //       label: 'MCU',
-        //       to: '/items/mcu'
-        //     }
-        //   ]
-        // }
       ]
     },
     {
@@ -124,18 +202,70 @@ const links = computed<NavigationMenuItem[][]>(() => [
       ]
     },
     {
+      label: 'HRIS',
+      icon: 'i-lucide-file-user',
+      type: 'trigger',
+      open: menuOpenState.value['HRIS'],
+      onUpdateOpen: (val: boolean) => updateMenuState('HRIS', val),
+      children: [
+        {
+          label: 'Dashboard HRIS',
+          to: '/hris'
+        },
+        {
+          label: 'Employees',
+          to: '/hris/employees'
+        },
+        // {
+        //   label: 'Shift Management',
+        //   to: '/hris/shifts'
+        // },
+        {
+          label: 'Attendance',
+          type: 'trigger',
+          open: menuOpenState.value['Attendance'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Attendance', val),
+          children: [
+            {
+              label: 'Dashboard Attendance',
+              to: '/hris/attendance'
+            },
+            {
+              label: 'Attendance Analytics',
+              to: '/hris/attendance/analytics'
+            },
+            {
+              label: 'Attendance Tracking',
+              to: '/hris/attendance/tracking'
+            },
+            {
+              label: 'Shift Configuration',
+              to: '/hris/attendance/shift-configuration'
+            },
+            {
+              label: 'Shift Schedule',
+              to: '/hris/attendance/shift-schedule'
+            }
+          ]
+        },
+        {
+          label: 'Leave Management',
+          to: '/hris/leaves'
+        },
+        {
+          label: 'Reimbursement',
+          to: '/hris/reimbursement'
+        },
+        {
+          label: 'Recruitment',
+          to: '/hris/recruitment'
+        }
+      ]
+    },
+    {
       label: 'Settings',
       icon: 'i-lucide-settings',
-      type: 'trigger',
-      open: menuOpenState.value['Settings'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Settings', val),
-      children: [
-        { label: 'General', to: '/settings', exact: true },
-        { label: 'Members', to: '/settings/members' },
-        { label: 'Notifications', to: '/settings/notifications' },
-        { label: 'Security', to: '/settings/security' },
-        { label: 'Roles', to: '/settings/roles' }
-      ]
+      to: '/settings'
     }
   ],
   []
@@ -162,30 +292,46 @@ const groups = computed(() => [
   }
 ])
 
-onMounted(async () => {
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') {
+onMounted(() => {
+  const cookie = useCookie<'accepted' | 'rejected' | null>('cookie-consent', {
+    maxAge: 60 * 60 * 24 * 365,
+    default: () => null
+  })
+
+  if (cookie.value) {
     return
   }
 
-  toast.add({
-    title:
-      'We use first-party cookies to enhance your experience on our website.',
+  const toastId = toast.add({
+    title: 'Cookie Notice',
+    description:
+  'This website uses cookies to ensure you get the best experience on our website. Please review our Privacy Policy for more information.',
     duration: 0,
     close: false,
     actions: [
       {
-        label: 'Accept',
+        label: 'Privacy Policy',
         color: 'neutral',
-        variant: 'outline',
+        variant: 'ghost',
+        onClick: () => {
+          openPrivacyPolicy.value = true
+        }
+      },
+      {
+        label: 'Accept',
+        color: 'primary',
         onClick: () => {
           cookie.value = 'accepted'
+          toast.remove(toastId)
         }
       },
       {
         label: 'Opt out',
         color: 'neutral',
-        variant: 'ghost'
+        onClick: () => {
+          cookie.value = 'rejected'
+          toast.remove(toastId)
+        }
       }
     ]
   })
@@ -243,5 +389,9 @@ onMounted(async () => {
 
       <NotificationsSlideover />
     </UDashboardGroup>
+
+    <PrivacyPolicyModal
+      v-model:open="openPrivacyPolicy"
+    />
   </ClientOnly>
 </template>

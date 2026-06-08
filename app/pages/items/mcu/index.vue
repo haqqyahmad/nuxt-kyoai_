@@ -6,7 +6,7 @@ import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
 import type { Row } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
-import ItemExamTemplateModal from '~/components/item/ItemExamTemplateModal.vue'
+import ItemExamTemplateModal from '~/components/item/itemExamTemplateModal.vue'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -18,7 +18,7 @@ const toast = useToast()
 
 
 type Department =
-  | 'Laboratorium'
+  | 'Laboratory'
   | 'DoctorConsultation'
   | 'MCU'
   | 'Vaccine'
@@ -27,7 +27,7 @@ type Department =
   | 'VitaminInjection'
   | 'Pharmacy'
   | 'Dental'
-  | 'Radiologi'
+  | 'Radiology'
 
 type Item = {
   id: string
@@ -39,7 +39,7 @@ type Item = {
 }
 
 const SERVICE_TYPE_LABEL: Record<Department, string> = {
-  Laboratorium: 'Lab',
+  Laboratory: 'Lab',
   DoctorConsultation: 'Consultation',
   MCU: 'MCU',
   Vaccine: 'Vaksin',
@@ -48,7 +48,7 @@ const SERVICE_TYPE_LABEL: Record<Department, string> = {
   VitaminInjection: 'Vitamin',
   Pharmacy: 'Farmasi',
   Dental: 'Gigi',
-  Radiologi: 'Radiologi'
+  Radiology: 'Radiologi'
 }
 
 const SERVICE_TYPE_COLOR: Record<Department, any> = {
@@ -147,7 +147,7 @@ function getRowItems(row: Row<Item>): DropdownMenuItem[][] {
       {
         label: 'View detail',
         icon: 'i-lucide-eye',
-        to: `/mcu/items/${row.original.id}`
+        to: `/items/mcu/${row.original.id}`
       },
       {
         label: 'Edit Template Exam',
@@ -280,6 +280,14 @@ const currentPageSize = <any>computed({
 
 <template>
   <UDashboardPanel id="items">
+    <template #header>
+      <UDashboardNavbar title="MCU">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+      </UDashboardNavbar>
+    </template>
+    
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <UInput
@@ -292,7 +300,7 @@ const currentPageSize = <any>computed({
         <div class="flex items-center gap-2">
           <UButton
             label="Add Item"
-            icon="i-lucide-plus"
+            icon="i-lucide-clipboard-plus"
             @click="isAddModalOpen = true"
           />
 

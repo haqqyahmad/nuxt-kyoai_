@@ -1,13 +1,23 @@
-<!-- app/pages/items/index.vue -->
+<!-- app/pages/items.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+
+if (route.path === '/services') {
+  await navigateTo('/services/types', { replace: true })
+}
+
 const links: NavigationMenuItem[] = [
   {
-    label: 'MCU',
-    icon: 'i-lucide-clipboard',
-    to: '/items'
+    label: 'Types',
+    icon: 'i-lucide-heart-pulse',
+    to: '/services/types'
+  },
+  {
+    label: 'Packages',
+    icon: 'i-lucide-package',
+    to: '/services/packages'
   }
 ]
 console.log('path', route.path)
@@ -16,9 +26,9 @@ console.log('path', route.path)
 </script>
 
 <template>
-  <UDashboardPanel id="items" :ui="{ body: 'py-4 sm:py-6' }">
+  <UDashboardPanel id="services" :ui="{ body: 'py-4 sm:py-6' }">
     <template #header>
-      <UDashboardNavbar title="Items">
+      <UDashboardNavbar title="Services">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

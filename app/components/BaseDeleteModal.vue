@@ -1,62 +1,79 @@
 <script setup lang="ts">
-const $props = withDefaults(
+const props = withDefaults(
   defineProps<{
+    open?: boolean
     count?: number
     entity?: string
     title?: string
     description?: string
+    loading?: boolean
   }>(),
   {
+    open: false,
     count: 1,
-    entity: 'item'
+    entity: 'item',
+    loading: false
   }
 )
 
 const emit = defineEmits<{
-  (e: 'confirm'): void
+  'update:open': [value: boolean]
+  'confirm': []
+  'close': []
 }>()
 
-const open = ref(false)
-
-function onSubmit() {
-  emit('confirm')
-  open.value = false
-}
+const isOpen = computed({
+  get: () => props.open,
+  set: value => emit('update:open', value)
+})
 
 const computedTitle = computed(() => {
-  if ($props.title) return $props.title
-  return `Delete ${$props.count} ${$props.entity}${$props.count > 1 ? 's' : ''}`
+  if (props.title) return props.title
+
+  return `Delete ${props.count} ${props.entity}${props.count > 1 ? 's' : ''}`
 })
 
 const computedDescription = computed(() => {
-  if ($props.description) return $props.description
-  return 'Are you sure? This action cannot be undone.'
+  return props.description || 'Are you sure? This action cannot be undone.'
 })
+
+function closeModal() {
+  if (props.loading) return
+
+  isOpen.value = false
+  emit('close')
+}
+
+function onConfirm() {
+  if (props.loading) return
+
+  emit('confirm')
+}
 </script>
 
 <template>
   <UModal
-    v-model:open="open"
+    v-model:open="isOpen"
     :title="computedTitle"
     :description="computedDescription"
   >
-    <!-- 🔥 trigger bebas -->
-    <slot />
-
     <template #body>
       <div class="flex justify-end gap-2">
         <UButton
           label="Cancel"
           color="neutral"
           variant="subtle"
-          @click="open = false"
+          :disabled="loading"
+          @click="closeModal"
         />
+
         <UButton
           label="Delete"
           color="error"
           variant="solid"
-          loading-auto
-          @click="onSubmit"
+          :loading="loading"
+          :disabled="loading"
+          @click="onConfirm"
         />
       </div>
     </template>

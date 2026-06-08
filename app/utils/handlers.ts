@@ -16,6 +16,15 @@ export const handleError = (toast: any, err: any) => {
   showError(toast, message)
 }
 
+export const handleSuccessGeneral = (toast: any, name: string, message: string) => {
+  console.log('Handlers')
+  toast.add({
+    title: 'Success',
+    description: `New ${message} ${name} added`,
+    color: 'success'
+  })
+}
+
 export const handleSuccess = (toast: any, name: string) => {
   toast.add({
     title: 'Success',

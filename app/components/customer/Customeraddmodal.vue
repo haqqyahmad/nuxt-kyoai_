@@ -1,100 +1,100 @@
 <script setup lang="ts">
 const emit = defineEmits<{
-  created: [];
-}>();
+  created: []
+}>()
 
-const api = useApi();
-const toast = useToast();
+const api = useApi()
+const toast = useToast()
 
-const isOpen = ref(false);
-const isLoading = ref(false);
+const isOpen = ref(false)
+const isLoading = ref(false)
 
 type CustomerForm = {
-  customerName: string;
-  CustomerType: string;
+  customerName: string
+  CustomerType: string
   // Contact
-  contactType: "EMAIL" | "PHONE";
-  contactValue: string;
+  contactType: 'EMAIL' | 'PHONE'
+  contactValue: string
   // Address
-  addressType: string;
-  addressDetail: string;
-  addressCountry: string;
-  addressProvince: string;
-  addressCity: string;
-  addressDistrict: string;
-  addressNote: string;
-};
+  addressType: string
+  addressDetail: string
+  addressCountry: string
+  addressProvince: string
+  addressCity: string
+  addressDistrict: string
+  addressNote: string
+}
 
 const defaultForm = (): CustomerForm => ({
-  customerName: "",
-  CustomerType: "PT",
-  contactType: "EMAIL",
-  contactValue: "",
-  addressType: "OFFICE",
-  addressDetail: "",
-  addressCountry: "Indonesia",
-  addressProvince: "",
-  addressCity: "",
-  addressDistrict: "",
-  addressNote: "",
-});
+  customerName: '',
+  CustomerType: 'PT',
+  contactType: 'EMAIL',
+  contactValue: '',
+  addressType: 'OFFICE',
+  addressDetail: '',
+  addressCountry: 'Indonesia',
+  addressProvince: '',
+  addressCity: '',
+  addressDistrict: '',
+  addressNote: ''
+})
 
-const form = ref<CustomerForm>(defaultForm());
+const form = ref<CustomerForm>(defaultForm())
 
 const customerTypeOptions = [
-  { label: "PT", value: "PT" },
-  { label: "CV", value: "CV" },
-  { label: "PERSONAL", value: "PERSONAL" },
-];
+  { label: 'PT', value: 'PT' },
+  { label: 'CV', value: 'CV' },
+  { label: 'PERSONAL', value: 'PERSONAL' }
+]
 
 const contactTypeOptions = [
-  { value: "EMAIL", label: "Email" },
-  { value: "PHONE", label: "Telepon" },
-];
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'PHONE', label: 'Telepon' }
+]
 
 const addressTypeOptions = [
-  { value: "HOME", label: "Rumah" },
-  { value: "OFFICE", label: "Office" },
-  { value: "OTHER", label: "Lainnya" },
-  { value: "CUSTOMER", label: "Customer" },
-];
+  { value: 'HOME', label: 'Rumah' },
+  { value: 'OFFICE', label: 'Office' },
+  { value: 'OTHER', label: 'Lainnya' },
+  { value: 'CUSTOMER', label: 'Customer' }
+]
 
 const open = () => {
-  form.value = defaultForm();
-  isOpen.value = true;
-};
+  form.value = defaultForm()
+  isOpen.value = true
+}
 
 const close = () => {
-  isOpen.value = false;
-};
+  isOpen.value = false
+}
 
 const submit = async () => {
   if (!form.value.customerName.trim()) {
-    toast.add({ title: "Validasi", description: "Nama customer wajib diisi", color: "error" });
-    return;
+    toast.add({ title: 'Validasi', description: 'Nama customer wajib diisi', color: 'error' })
+    return
   }
 
-  isLoading.value = true;
+  isLoading.value = true
   try {
     // 1. Create customer
-    const customerRes = await api.post("/customer", {
+    const customerRes = await api.post('/customer', {
       customerName: form.value.customerName,
-      CustomerType: form.value.CustomerType,
-    });
+      CustomerType: form.value.CustomerType
+    })
 
-    const customerId =
-      customerRes.data?.data?.id ??
-      customerRes.data?.id;
+    const customerId
+      = customerRes.data?.data?.id
+        ?? customerRes.data?.id
 
     // 2. Optionally add contact
     if (form.value.contactValue.trim() && customerId) {
-      await api.post("/contact", {
+      await api.post('/contact', {
         parentId: Number(customerId),
-        modelType: "Customer",
+        modelType: 'Customer',
         type: form.value.contactType,
         value: form.value.contactValue.trim(),
-        isPrimary: true,
-      });
+        isPrimary: true
+      })
     }
 
     // 3. Optionally add address
@@ -106,35 +106,35 @@ const submit = async () => {
         province: form.value.addressProvince,
         city: form.value.addressCity,
         district: form.value.addressDistrict,
-        note: form.value.addressNote,
-      });
+        note: form.value.addressNote
+      })
     }
 
     toast.add({
-      title: "Berhasil",
-      description: "Customer berhasil ditambahkan",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: 'Customer berhasil ditambahkan',
+      color: 'success'
+    })
 
-    emit("created");
-    close();
+    emit('created')
+    close()
   } catch {
     toast.add({
-      title: "Gagal",
-      description: "Gagal menambahkan customer",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal menambahkan customer',
+      color: 'error'
+    })
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-};
+}
 </script>
 
 <template>
   <!-- Trigger Button -->
   <UButton
     label="Tambah Customer"
-    icon="i-lucide-plus"
+    icon="i-lucide-house-plus"
     color="primary"
     @click="open"
   />
@@ -148,7 +148,6 @@ const submit = async () => {
   >
     <template #body>
       <div class="space-y-6">
-
         <!-- ── Informasi Utama ── -->
         <div>
           <p class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
@@ -181,7 +180,12 @@ const submit = async () => {
           <p class="text-xs font-semibold text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <UIcon name="i-lucide-contact" class="w-3.5 h-3.5" />
             Kontak
-            <UBadge label="Opsional" color="neutral" variant="subtle" size="xs" />
+            <UBadge
+              label="Opsional"
+              color="neutral"
+              variant="subtle"
+              size="xs"
+            />
           </p>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <UFormField label="Tipe">
@@ -210,7 +214,12 @@ const submit = async () => {
           <p class="text-xs font-semibold text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <UIcon name="i-lucide-map-pin" class="w-3.5 h-3.5" />
             Alamat
-            <UBadge label="Opsional" color="neutral" variant="subtle" size="xs" />
+            <UBadge
+              label="Opsional"
+              color="neutral"
+              variant="subtle"
+              size="xs"
+            />
           </p>
           <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -252,16 +261,25 @@ const submit = async () => {
             </UFormField>
           </div>
         </div>
-
       </div>
     </template>
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :disabled="isLoading" @click="close">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          :disabled="isLoading"
+          @click="close"
+        >
           Batal
         </UButton>
-        <UButton color="primary" icon="i-lucide-user-plus" :loading="isLoading" @click="submit">
+        <UButton
+          color="primary"
+          icon="i-lucide-user-plus"
+          :loading="isLoading"
+          @click="submit"
+        >
           Tambah Customer
         </UButton>
       </div>

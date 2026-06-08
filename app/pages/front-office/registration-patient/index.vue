@@ -34,7 +34,6 @@ type Patient = {
   createdAt: string
   examDate: string
 
-
 }
 
 function mapPatient(item: any): Patient & { id_reg: string } {

@@ -1,3 +1,4 @@
+<!-- app/pages/packages/create.vue -->
 <script setup lang="ts">
 const api = useApi()
 const toast = useToast()
@@ -80,6 +81,39 @@ const displayPaketName = computed(() =>
 
 const paketName = ref('')
 
+// ────────────────────────────────────────────
+// Department
+// ────────────────────────────────────────────
+const departments = ref<MstDepartment[]>([])
+const departmentsPending = ref(false)
+
+async function fetchDepartments() {
+  departmentsPending.value = true
+
+  try {
+    const res = await api.get('/medical/departments')
+
+    console.log('departments full response:', res.data?.data)
+
+    const payload = res.data?.data
+
+    departments.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+
+    console.log('departments parsed:', departments.value)
+    console.log('department id:', departments.value[0]?.id)
+    console.log('department name:', departments.value[0]?.name)
+  } catch (err) {
+    console.error('fetch departments error:', err)
+    departments.value = []
+  } finally {
+    departmentsPending.value = false
+  }
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -126,53 +160,133 @@ const additionalPending = ref(false)
 const additionalResults = ref<MstItem[]>([])
 const expandedAdditional = ref<Set<string>>(new Set())
 
+const ALL_VALUE = 'ALL'
+
+const selectedDepartmentId = ref(ALL_VALUE)
+const selectedGroupId = ref(ALL_VALUE)
+
 let additionalDebounce: ReturnType<typeof setTimeout>
 let additionalReqId = 0
 
-watch(additionalSearch, (val) => {
-  clearTimeout(additionalDebounce)
-  additionalResults.value = []
+const departmentOptions = computed(() => {
+  return [
+    {
+      label: 'Semua Department',
+      value: ALL_VALUE
+    },
+    ...departments.value.map(dep => ({
+      label: dep.name ?? '-',
+      value: dep.id ?? ''
+    }))
+  ]
+})
 
-  if (!val || val.trim().length < 1) {
-    additionalPending.value = false
-    return
+// DUMMY DEPARTMENT
+// const departmentOptions = computed(() => [
+//   { label: 'Semua Department', value: ALL_VALUE },
+//   { label: 'Laboratory', value: '1' },
+//   { label: 'Radiology', value: '2' }
+// ])
+
+const groupOptions = computed(() => {
+  const map = new Map<string, MstItemGroup>()
+
+  for (const item of additionalResults.value) {
+    if (item.group?.id && item.group?.name) {
+      map.set(item.group.id, item.group)
+    }
   }
 
+  return [
+    {
+      label: 'Semua Item Group',
+      value: ALL_VALUE
+    },
+    ...Array.from(map.values()).map(group => ({
+      label: group.name,
+      value: group.id
+    }))
+  ]
+})
+
+// DUMMY GROUP
+// const groupOptions = computed(() => [
+//   { label: 'Semua Item Group', value: ALL_VALUE },
+//   { label: 'Hematology', value: '10' },
+//   { label: 'Urine', value: '11' }
+// ])
+
+const filteredAdditionalResults = computed(() => {
+  return additionalResults.value.filter((item) => {
+    const matchDepartment
+      = selectedDepartmentId.value === ALL_VALUE
+        || item.department?.id === selectedDepartmentId.value
+
+    const matchGroup
+      = selectedGroupId.value === ALL_VALUE
+        || item.group?.id === selectedGroupId.value
+
+    return matchDepartment && matchGroup
+  })
+})
+
+async function fetchAdditionalItems(search = '') {
   const currentId = ++additionalReqId
   additionalPending.value = true
 
-  additionalDebounce = setTimeout(async () => {
-    try {
-      const res = await api.get('/mcu/items', {
-        params: {
-          search: val.trim(),
-          limit: 20
-        }
-      })
+  try {
+    const res = await api.get('/mcu/items', {
+      params: {
+        search: search.trim(),
+        limit: 100
+      }
+    })
 
-      if (currentId === additionalReqId) {
-        const addedIds = new Set(additionalItems.value.map(i => i.id))
+    const payload = res.data?.data
 
-        additionalResults.value = (res.data.data as MstItem[]).filter(
-          i => !addedIds.has(i.id)
-        )
-      }
-    } catch {
-      if (currentId === additionalReqId) {
-        additionalResults.value = []
-      }
-    } finally {
-      if (currentId === additionalReqId) {
-        additionalPending.value = false
-      }
+    const items: MstItem[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+
+    if (currentId === additionalReqId) {
+      const addedIds = new Set(additionalItems.value.map(i => i.id))
+
+      additionalResults.value = items.filter(
+        item => item?.id && !addedIds.has(item.id)
+      )
     }
+  } catch (err) {
+    console.error('fetch additional items error:', err)
+
+    if (currentId === additionalReqId) {
+      additionalResults.value = []
+    }
+  } finally {
+    if (currentId === additionalReqId) {
+      additionalPending.value = false
+    }
+  }
+}
+
+watch(additionalSearch, (val) => {
+  clearTimeout(additionalDebounce)
+
+  additionalDebounce = setTimeout(() => {
+    fetchAdditionalItems(val)
   }, 300)
 })
 
-function openAdditionalModal() {
+async function openAdditionalModal() {
   additionalSearch.value = ''
   additionalResults.value = []
+  selectedDepartmentId.value = ALL_VALUE
+  selectedGroupId.value = ALL_VALUE
   additionalModalOpen.value = true
+
+  fetchDepartments()
+  fetchAdditionalItems()
 }
 
 function addAdditionalItem(item: MstItem) {
@@ -186,6 +300,8 @@ function addAdditionalItem(item: MstItem) {
 function removeAdditionalItem(itemId: string) {
   additionalItems.value = additionalItems.value.filter(i => i.id !== itemId)
   expandedAdditional.value.delete(itemId)
+
+  fetchAdditionalItems(additionalSearch.value)
 }
 
 function toggleAdditional(itemId: string) {
@@ -199,6 +315,22 @@ function toggleAdditional(itemId: string) {
 const totalAdditionalInputan = computed(() =>
   additionalItems.value.reduce((sum, item) => sum + item.inputans.length, 0)
 )
+
+const groupedAdditionalResults = computed(() => {
+  const groups: Record<string, MstItem[]> = {}
+
+  for (const item of filteredAdditionalResults.value) {
+    const groupName = item.group?.name ?? 'Tanpa Group'
+
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+
+    groups[groupName].push(item)
+  }
+
+  return Object.entries(groups)
+})
 
 // ─────────────────────────────────────────────
 // Submit
@@ -226,7 +358,7 @@ async function submit() {
       color: 'success'
     })
 
-    router.push('/items')
+    router.push('/packages')
   } catch (err: any) {
     toast.add({
       title: 'Gagal',
@@ -242,26 +374,14 @@ async function submit() {
 <template>
   <UDashboardPanel id="paket-mcu-create">
     <template #header>
-      <UDashboardNavbar :title="`Buat ${displayPaketName}`">
+      <UDashboardNavbar :title="`New ${displayPaketName} Package`">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/items"
+            to="/services/packages"
           />
-        </template>
-
-        <template #right>
-          <UButton
-            color="primary"
-            icon="i-lucide-check"
-            :loading="submitting"
-            :disabled="!canSubmit || submitting"
-            @click="submit"
-          >
-            Simpan
-          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
@@ -393,84 +513,6 @@ async function submit() {
                     class="text-muted text-xs"
                   />
                 </button>
-
-                <div
-                  v-if="additionalItems.length"
-                  class="space-y-1.5"
-                >
-                  <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-                      Item Dipilih
-                    </p>
-
-                    <span class="text-[11px] text-muted">
-                      {{ totalAdditionalInputan }} inputan
-                    </span>
-                  </div>
-
-                  <div
-                    v-for="item in additionalItems"
-                    :key="item.id"
-                    class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden"
-                  >
-                    <div class="flex items-center gap-2.5 px-3 py-2.5">
-                      <div class="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <UIcon
-                          name="i-lucide-flask-conical"
-                          class="text-primary text-sm"
-                        />
-                      </div>
-
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5">
-                          <p class="text-xs font-semibold truncate">
-                            {{ item.name }}
-                          </p>
-
-                          <UBadge
-                            label="Dipilih"
-                            color="primary"
-                            variant="subtle"
-                            size="xs"
-                          />
-                        </div>
-
-                        <p class="text-[11px] text-muted">
-                          {{ item.code }}
-
-                          <template v-if="getDepartmentName(item)">
-                            · {{ getDepartmentName(item) }}
-                          </template>
-
-                          · {{ item.inputans.length }} inputan
-                        </p>
-                      </div>
-
-                      <button
-                        class="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-error hover:bg-error/10"
-                        @click="removeAdditionalItem(item.id)"
-                      >
-                        <UIcon
-                          name="i-lucide-x"
-                          class="text-xs"
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  v-else
-                  class="py-3 text-center"
-                >
-                  <p class="text-xs text-muted">
-                    Belum ada item pemeriksaan
-                  </p>
-
-                  <p class="text-[11px] text-muted/60 mt-0.5">
-                    Klik tombol cari untuk menambahkan item ke paket
-                  </p>
-                </div>
               </div>
             </div>
           </div>
@@ -754,113 +796,304 @@ async function submit() {
           backdrop-filter: blur(10px) saturate(160%);
           background: rgba(10, 10, 15, 0.55);
         "
-        @click.self="additionalModalOpen = false"
+        @keydown.esc.stop.prevent
       >
         <Transition name="modal-pop">
           <div
             v-if="additionalModalOpen"
-            class="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/95 backdrop-blur-xl"
+            class="relative w-full max-w-3xl overflow-visible rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
+            style="
+              box-shadow:
+                0 30px 80px rgba(0, 0, 0, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            "
           >
-            <div class="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-primary/15 flex items-center justify-center">
-                <UIcon
-                  name="i-lucide-plus-circle"
-                  class="text-primary text-xl"
+            <!-- HEADER -->
+            <div
+              class="px-6 pt-5 pb-4 border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <!-- LEFT -->
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-primary/15 flex items-center justify-center">
+                    <UIcon
+                      name="i-lucide-plus-circle"
+                      class="text-primary text-xl"
+                    />
+                  </div>
+                  <div>
+                    <h2
+                      class="text-base font-semibold tracking-tight text-gray-900 dark:text-white"
+                    >
+                      Tambah Item Pemeriksaan
+                    </h2>
+
+                    <p
+                      class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
+                    >
+                      Item ekstra di luar paket yang sudah dipilih
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  class="w-8 h-8 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all"
+                  @click="additionalModalOpen = false"
+                >
+                  <UIcon name="i-lucide-x" class="text-sm" />
+                </button>
+              </div>
+
+              <!-- FILTER -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 relative z-[1000]">
+                <USelect
+                  v-model="selectedDepartmentId"
+                  :items="departmentOptions"
+                  placeholder="Semua Department"
+                  icon="i-lucide-building-2"
+                  class="w-full"
+                  :portal="true"
+                  :content="{
+                    side: 'bottom',
+                    sideOffset: 6,
+                    class: 'z-[99999]'
+                  }"
+                />
+
+                <USelect
+                  v-model="selectedGroupId"
+                  :items="groupOptions"
+                  placeholder="Semua Item Group"
+                  icon="i-lucide-folder"
+                  class="w-full"
+                  :portal="true"
+                  :content="{
+                    side: 'bottom',
+                    sideOffset: 6,
+                    class: 'z-[99999]'
+                  }"
                 />
               </div>
 
-              <div class="flex-1">
-                <h3 class="text-lg font-bold text-white">
-                  Tambah Item Pemeriksaan
-                </h3>
+              <!-- SEARCH -->
+              <div class="relative mt-3">
+                <UIcon
+                  name="i-lucide-search"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
+                />
 
-                <p class="text-xs text-neutral-400">
-                  Cari item pemeriksaan untuk dimasukkan ke paket
-                </p>
+                <input
+                  v-model="additionalSearch"
+                  type="text"
+                  placeholder="Cari item pemeriksaan..."
+                  autofocus
+                  class="w-full h-11 rounded-xl bg-white dark:bg-neutral-800/90 border border-black/10 dark:border-white/10 pl-10 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+                >
+
+                <UIcon
+                  v-if="additionalPending"
+                  name="i-lucide-loader-circle"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-neutral-500"
+                />
               </div>
 
-              <button
-                class="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-neutral-400 hover:text-white"
-                @click="additionalModalOpen = false"
+              <!-- SELECTED ITEMS -->
+              <div
+                v-if="additionalItems.length"
+                class="flex flex-wrap gap-2 mt-4"
               >
-                <UIcon name="i-lucide-x" />
-              </button>
+                <div
+                  v-for="item in additionalItems"
+                  :key="item.id"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/20 bg-primary/10"
+                >
+                  <span
+                    class="text-[11px] font-medium text-primary truncate max-w-[160px]"
+                  >
+                    {{ item.name }}
+                  </span>
+
+                  <button
+                    class="text-primary/70 hover:text-red-400 transition-colors"
+                    @click="removeAdditionalItem(item.id)"
+                  >
+                    <UIcon name="i-lucide-x" class="text-[11px]" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div class="p-5 space-y-4">
-              <UInput
-                v-model="additionalSearch"
-                icon="i-lucide-search"
-                :loading="additionalPending"
-                placeholder="Cari item pemeriksaan..."
-                class="w-full"
-              />
-
+            <!-- BODY -->
+            <div class="overflow-y-auto relative z-0" style="max-height: min(65vh, 620px)">
+              <!-- LOADING -->
               <div
-                v-if="additionalPending"
-                class="py-10 text-center text-sm text-neutral-400"
+                v-if="additionalPending && !additionalResults.length"
+                class="py-16 flex flex-col items-center justify-center"
               >
                 <UIcon
                   name="i-lucide-loader-circle"
-                  class="animate-spin text-2xl mx-auto mb-2"
+                  class="animate-spin text-primary text-2xl"
                 />
 
-                Mencari item...
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
+                  Memuat item pemeriksaan...
+                </p>
               </div>
 
-              <div
-                v-else-if="additionalSearch && !additionalResults.length"
-                class="py-10 text-center text-sm text-neutral-400"
-              >
-                Item tidak ditemukan
-              </div>
+              <!-- RESULTS -->
+              <template v-else-if="groupedAdditionalResults.length">
+                <div class="space-y-4 p-4">
+                  <div
+                    v-for="[groupName, items] in groupedAdditionalResults"
+                    :key="groupName"
+                    class="rounded-2xl border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] overflow-hidden"
+                  >
+                    <!-- GROUP HEADER -->
+                    <div
+                      class="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
+                    >
+                      <div
+                        class="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center"
+                      >
+                        <UIcon name="i-lucide-folder" class="text-sm" />
+                      </div>
 
-              <div
-                v-else-if="!additionalSearch"
-                class="py-10 text-center text-sm text-neutral-400"
-              >
-                Ketik nama atau kode item untuk mencari
-              </div>
+                      <div class="flex-1 min-w-0">
+                        <p
+                          class="text-xs font-semibold uppercase tracking-wider text-neutral-900 dark:text-white truncate"
+                        >
+                          {{ groupName }}
+                        </p>
+                      </div>
 
+                      <span
+                        class="px-2 py-1 rounded-lg border border-black/10 dark:border-white/10 bg-neutral-100 dark:bg-white/5 text-[10px] text-neutral-600 dark:text-neutral-400"
+                      >
+                        {{ items.length }} item
+                      </span>
+                    </div>
+
+                    <!-- ITEMS -->
+                    <div class="divide-y divide-black/5 dark:divide-white/5">
+                      <button
+                        v-for="item in items"
+                        :key="item.id"
+                        class="group w-full flex items-start gap-4 px-4 py-3 text-left hover:bg-primary/[0.08] transition-all"
+                        @click="addAdditionalItem(item)"
+                      >
+                        <!-- ICON -->
+                        <div
+                          class="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0"
+                        >
+                          <UIcon
+                            name="i-lucide-flask-conical"
+                            class="text-primary text-lg"
+                          />
+                        </div>
+
+                        <!-- CONTENT -->
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <p
+                              class="text-sm font-medium text-neutral-900 dark:text-white truncate"
+                            >
+                              {{ item.name }}
+                            </p>
+
+                            <UBadge
+                              v-if="item.group?.code"
+                              :label="item.group.code"
+                              size="xs"
+                              color="neutral"
+                              variant="subtle"
+                            />
+                          </div>
+
+                          <div
+                            class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-neutral-500 dark:text-neutral-400"
+                          >
+                            <span class="font-mono">
+                              {{ item.code }}
+                            </span>
+
+                            <template v-if="getDepartmentName(item)">
+                              <span>•</span>
+
+                              <span>
+                                {{ getDepartmentName(item) }}
+                              </span>
+                            </template>
+
+                            <span>•</span>
+
+                            <span>{{ item.inputans.length }} inputan</span>
+                          </div>
+                        </div>
+
+                        <!-- ACTION -->
+                        <div
+                          class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform"
+                        >
+                          <UIcon
+                            name="i-lucide-plus"
+                            class="text-primary text-sm"
+                          />
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- EMPTY -->
               <div
-                v-else
-                class="max-h-[420px] overflow-y-auto space-y-2 pr-1"
+                v-else-if="!additionalPending"
+                class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
-                <button
-                  v-for="item in additionalResults"
-                  :key="item.id"
-                  class="w-full flex items-center gap-3 p-4 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] hover:border-primary/40 transition-all text-left"
-                  @click="addAdditionalItem(item)"
+                <div
+                  class="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
                 >
-                  <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <UIcon
-                      name="i-lucide-flask-conical"
-                      class="text-primary"
-                    />
-                  </div>
-
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-white truncate">
-                      {{ item.name }}
-                    </p>
-
-                    <p class="text-xs text-neutral-400">
-                      {{ item.code }}
-
-                      <template v-if="getDepartmentName(item)">
-                        · {{ getDepartmentName(item) }}
-                      </template>
-
-                      · {{ item.inputans.length }} inputan
-                    </p>
-                  </div>
-
                   <UIcon
-                    name="i-lucide-plus"
-                    class="text-neutral-500"
+                    name="i-lucide-search-x"
+                    class="text-neutral-500 text-3xl"
                   />
-                </button>
+                </div>
+
+                <p
+                  class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  Tidak ada item pemeriksaan
+                </p>
+
+                <p class="text-xs text-neutral-500 mt-1">
+                  Coba kata kunci lain atau periksa master item
+                </p>
               </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div
+              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
+            >
+              <p class="text-[11px] text-neutral-500">
+                <template v-if="additionalItems.length">
+                  {{ additionalItems.length }} item ditambahkan
+                </template>
+
+                <template v-else>
+                  Belum ada item tambahan
+                </template>
+              </p>
+
+              <UButton
+                size="sm"
+                color="primary"
+                variant="soft"
+                class="rounded-xl"
+                @click="additionalModalOpen = false"
+              >
+                Selesai
+              </UButton>
             </div>
           </div>
         </Transition>
