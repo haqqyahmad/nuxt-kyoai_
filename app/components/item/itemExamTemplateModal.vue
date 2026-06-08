@@ -12,7 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const open    = defineModel<boolean>('open', { default: false })
-const activeTab = ref<'template' | 'sample'>('sample')
+const activeTab = ref<'template' | 'sample'>('template')
 
 watch(open, (val) => {
   if (!val) emit('close')
@@ -69,17 +69,17 @@ const tabs = [
         <!-- BODY -->
         <div class="overflow-y-auto h-full px-6 py-4">
 
+          <!-- Tab: Template Exam -->
+          <ItemExamTemplate
+            v-if="activeTab === 'template'"
+            :item-id="props.itemId"
+          />
           <!-- Tab: Sample -->
           <ItemSampleManager
-            v-if="activeTab === 'sample'"
+            v-else-if="activeTab === 'sample'"
             :item-id="props.itemId"
           />
 
-          <!-- Tab: Template Exam -->
-          <ItemExamTemplate
-            v-else-if="activeTab === 'template'"
-            :item-id="props.itemId"
-          />
 
         </div>
 

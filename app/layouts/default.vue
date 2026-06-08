@@ -86,7 +86,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
         },
         {
           label: 'Items',
-          to: '/items'
+          to: '/items/mcu'
         },
         {
           label: 'Questionnaire',

@@ -52,12 +52,10 @@ type ExamItem = {
   }
 }
 
-const { data: reg , refresh } = await useAsyncData(
+const { data: reg, refresh } = await useAsyncData(
   `registration-${route.params.id}`,
   () => api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
 )
-
-console.log('data reg',reg.value.exam)
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -111,30 +109,21 @@ function formatDateTime(d?: string) {
 }
 
 // ─────────────────────────────────────────────
-// MCU Breakdown (static mock — replace with API)
+// MCU Breakdown
 // ─────────────────────────────────────────────
-
-
-// Group examItems by department
 const mcuCategories = computed(() => {
   const items = reg.value?.exam?.examItems ?? []
-  
-  // Filter hanya source = 'paket'
   const paketItems = items.filter(ei => ei.source === 'paket')
-  
-  // Group by department
   const grouped = new Map<string, {
     label: string
     icon: string
     items: { id: string, name: string, done: boolean }[]
   }>()
-
   const DEPT_ICON: Record<string, string> = {
-    'Laboratorium':  'i-lucide-flask-conical',
-    'Radiologi':     'i-lucide-scan',
-    'default':       'i-lucide-stethoscope',
+    'Laboratorium': 'i-lucide-flask-conical',
+    'Radiologi': 'i-lucide-scan',
+    'default': 'i-lucide-stethoscope',
   }
-
   for (const ei of paketItems) {
     const deptName = ei.item.department?.name ?? 'Lainnya'
     if (!grouped.has(deptName)) {
@@ -144,24 +133,17 @@ const mcuCategories = computed(() => {
         items: []
       })
     }
-    grouped.get(deptName)!.items.push({
-      id:   ei.id,
-      name: ei.item.name,
-      done: false // nanti dari results
-    })
+    grouped.get(deptName)!.items.push({ id: ei.id, name: ei.item.name, done: false })
   }
-
   return [...grouped.values()]
 })
 
-// Additional items (source = 'additional')
-const additionalItems = computed(() => {
-  return (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
-})
+const additionalItems = computed(() =>
+  (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
+)
 
-console.log('additionalItems', additionalItems.value)
 // ─────────────────────────────────────────────
-// Questionnaires (static mock — replace with API)
+// Questionnaires (mock)
 // ─────────────────────────────────────────────
 const questionnaires = [
   { name: 'MCU Questionnaire', completionDate: 'May 06, 2026', status: 'Completed' },
@@ -169,7 +151,7 @@ const questionnaires = [
   { name: 'Physical Assessment Questionnaire', completionDate: null, status: 'Pending' }
 ]
 
-// Modal
+// Modal questionnaire
 const modalOpen = ref(false)
 const modalTitle = ref('')
 function openModal(name: string) { modalTitle.value = name; modalOpen.value = true }
@@ -196,10 +178,71 @@ const statusHistory = computed(() => {
 })
 
 // ─────────────────────────────────────────────
-// Actions
+// Computed flags
+// ─────────────────────────────────────────────
+const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
+const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
+const isMCU = computed(() => reg.value?.serviceType === 'MCU')
+
+// ─────────────────────────────────────────────
+// CHECKIN — modal konfirmasi
+// ─────────────────────────────────────────────
+const checkinModalOpen = ref(false)
+const checkinLoading = ref(false)
+
+// Nomor antrian hasil check-in (ditampilkan di modal sukses)
+const checkinResult = ref<{ queueCode: string, queueNumber: number } | null>(null)
+const checkinSuccessOpen = ref(false)
+
+function openCheckinModal() {
+  checkinModalOpen.value = true
+}
+
+async function confirmCheckin() {
+  if (!reg.value) return
+  checkinLoading.value = true
+
+  try {
+    // Ambil tanggal hari ini format YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0]
+
+    // Satu call ke /queue/checkin — generate QueueEntry + RoomQueueItem
+    // + StageQueueItem + SampleCollection sekaligus
+    const res = await api.post('medical/exams/queue/checkin', {
+      registrationId: reg.value.id,
+      branchId: reg.value.branch?.branchId,
+      queueDate: today,
+    })
+
+    const entry = res.data.data
+    checkinResult.value = {
+      queueCode: entry.queueCode,
+      queueNumber: entry.queueNumber,
+    }
+
+    checkinModalOpen.value = false
+    checkinSuccessOpen.value = true
+
+    // Refresh data registrasi — status sudah jadi Checkin di BE
+    await refresh()
+
+    toast.add({
+      title: 'Check-in berhasil',
+      description: `Nomor antrian: ${entry.queueCode}`,
+      color: 'success'
+    })
+  } catch (err: any) {
+    const msg = err?.response?.data?.message ?? 'Gagal melakukan check-in'
+    toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
+  } finally {
+    checkinLoading.value = false
+  }
+}
+
+// ─────────────────────────────────────────────
+// Cancel
 // ─────────────────────────────────────────────
 const cancelLoading = ref(false)
-const checkinLoading = ref(false)
 
 async function cancelRegistration() {
   cancelLoading.value = true
@@ -209,23 +252,10 @@ async function cancelRegistration() {
     await refresh()
   } catch {
     toast.add({ title: 'Gagal', description: 'Gagal membatalkan registrasi', color: 'error' })
-  } finally { cancelLoading.value = false }
+  } finally {
+    cancelLoading.value = false
+  }
 }
-
-async function checkinPatient() {
-  checkinLoading.value = true
-  try {
-    await api.patch(`/registration/${reg.value?.id_reg}/status`, { status: 'Checkin' })
-    toast.add({ title: 'Berhasil', description: 'Pasien berhasil check-in', color: 'success' })
-    await refresh()
-  } catch {
-    toast.add({ title: 'Gagal', description: 'Gagal check-in', color: 'error' })
-  } finally { checkinLoading.value = false }
-}
-
-const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
-const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
-const isMCU = computed(() => reg.value?.serviceType === 'MCU')
 </script>
 
 <template>
@@ -262,8 +292,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               icon="i-lucide-user-check"
               color="primary"
               label="Check-in Pasien"
-              :loading="checkinLoading"
-              @click="checkinPatient"
+              @click="openCheckinModal"
             />
           </div>
         </template>
@@ -271,21 +300,16 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
     </template>
 
     <template #body>
-      <!-- Loading -->
       <div v-if="!reg" class="flex items-center justify-center h-full">
         <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
       </div>
 
       <div v-else class="w-full max-w-7xl mx-auto py-6 px-4 space-y-6">
-        <!-- ── Page title + actions ── -->
+        <!-- Page title -->
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p class="text-xs text-muted mb-1">
-              Kembali ke Daftar Registrasi
-            </p>
-            <h1 class="text-2xl font-bold text-default">
-              Registration Detail
-            </h1>
+            <p class="text-xs text-muted mb-1">Kembali ke Daftar Registrasi</p>
+            <h1 class="text-2xl font-bold text-default">Registration Detail</h1>
             <div class="flex items-center gap-3 mt-2">
               <code class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg">
                 {{ reg.id_reg }}
@@ -300,9 +324,9 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
           </div>
         </div>
 
-        <!-- ── Grid layout ── -->
+        <!-- Grid layout -->
         <div class="grid grid-cols-12 gap-5">
-          <!-- ════ Patient Info (8 cols) ════ -->
+          <!-- Patient Info -->
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -314,25 +338,15 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
             <div v-if="reg.patient" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Full Name
-                  </p>
-                  <p class="font-semibold text-base">
-                    {{ reg.patient.patientName }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">Full Name</p>
+                  <p class="font-semibold text-base">{{ reg.patient.patientName }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Gender
-                  </p>
-                  <p class="font-semibold">
-                    {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">Gender</p>
+                  <p class="font-semibold">{{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Contact Status
-                  </p>
+                  <p class="text-xs text-muted mb-1">Contact Status</p>
                   <p class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
                     <UIcon name="i-lucide-check-circle-2" class="text-base" /> Verified
                   </p>
@@ -340,35 +354,20 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Nomor HP
-                  </p>
-                  <p class="font-medium">
-                    {{ reg.patient.phone ?? '-' }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">Nomor HP</p>
+                  <p class="font-medium">{{ reg.patient.phone ?? '-' }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Email
-                  </p>
-                  <p class="font-medium truncate">
-                    {{ reg.patient.email ?? '-' }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">Email</p>
+                  <p class="font-medium truncate">{{ reg.patient.email ?? '-' }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID Type                  </p>
-                  <p class="font-medium">
-                    {{ reg.patient.idType }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">ID Type</p>
+                  <p class="font-medium">{{ reg.patient.idType }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID Number
-                  </p>
-                  <p class="font-mono text-xs font-medium">
-                    {{ reg.patient.idNumber }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">ID Number</p>
+                  <p class="font-mono text-xs font-medium">{{ reg.patient.idNumber }}</p>
                 </div>
               </div>
             </div>
@@ -377,7 +376,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
             </div>
           </div>
 
-          <!-- ════ Registration Details (4 cols) ════ -->
+          <!-- Registration Details -->
           <div class="col-span-12 lg:col-span-4 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default">
               <h3 class="font-semibold flex items-center gap-2">
@@ -402,16 +401,14 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                 <span class="text-xs text-muted">Branch</span>
                 <span class="text-sm font-semibold">{{ reg.branch?.nameBranch ?? '-' }}</span>
               </div>
-              <div v-if="reg.exam?.paket"  class="flex items-center justify-between px-5 py-3">
+              <div v-if="reg.exam?.paket" class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Paket</span>
                 <span class="text-sm font-semibold">{{ reg.exam?.paket?.name ?? '-' }}</span>
               </div>
             </div>
           </div>
 
-         
-
-          <!-- ════ Payment & Priority (4 cols) ════ -->
+          <!-- Payment & Priority + Status History -->
           <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
             <div class="rounded-xl border border-default bg-background overflow-hidden shadow-sm">
               <div class="px-5 py-4 border-b border-default">
@@ -426,18 +423,16 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                     <UIcon
                       :name="reg.paymentType === 'Insurance' ? 'i-lucide-shield-check'
                         : reg.paymentType === 'BillToCompany' ? 'i-lucide-building-2'
-                          : 'i-lucide-wallet'"
+                        : 'i-lucide-wallet'"
                       class="text-primary"
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted">
-                      Payment Type
-                    </p>
+                    <p class="text-xs text-muted">Payment Type</p>
                     <p class="font-bold text-sm">
                       {{ reg.paymentType === 'Personal' ? 'Personal'
                         : reg.paymentType === 'Insurance' ? 'Insurance'
-                          : 'Bill to Company' }}
+                        : 'Bill to Company' }}
                     </p>
                   </div>
                 </div>
@@ -448,7 +443,6 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </div>
             </div>
 
-            <!-- Status History -->
             <div class="flex-grow rounded-xl border border-default bg-background overflow-hidden shadow-sm">
               <div class="px-5 py-4 border-b border-default">
                 <h3 class="font-semibold flex items-center gap-2">
@@ -459,25 +453,12 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               <div class="p-4">
                 <div class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
-                  <div
-                    v-for="(item, i) in statusHistory"
-                    :key="i"
-                    class="relative flex gap-3 pl-6"
-                  >
-                    <div
-                      class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0"
-                      :class="item.dot"
-                    />
+                  <div v-for="(item, i) in statusHistory" :key="i" class="relative flex gap-3 pl-6">
+                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="item.dot" />
                     <div>
-                      <p class="text-sm font-semibold">
-                        {{ item.label }}
-                      </p>
-                      <p class="text-xs text-muted mt-0.5">
-                        {{ formatDateTime(item.time) }}
-                      </p>
-                      <p class="text-xs text-muted italic mt-0.5">
-                        {{ item.desc }}
-                      </p>
+                      <p class="text-sm font-semibold">{{ item.label }}</p>
+                      <p class="text-xs text-muted mt-0.5">{{ formatDateTime(item.time) }}</p>
+                      <p class="text-xs text-muted italic mt-0.5">{{ item.desc }}</p>
                     </div>
                   </div>
                 </div>
@@ -485,77 +466,39 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
             </div>
           </div>
 
-          <!-- ════ Questionnaires (8 cols) ════ -->
+          <!-- Questionnaires -->
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-clipboard-check" class="text-primary" />
                 Medical Questionnaires List
               </h3>
-              <UButton
-                icon="i-lucide-printer"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                label="Print All Results"
-              />
+              <UButton icon="i-lucide-printer" color="neutral" variant="outline" size="xs" label="Print All Results" />
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left">
                 <thead>
                   <tr class="border-b border-default">
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                      Questionnaire Name
-                    </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
-                      Completion Date
-                    </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
-                      Status
-                    </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right">
-                      Action
-                    </th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Questionnaire Name</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">Completion Date</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">Status</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
-                  <tr
-                    v-for="q in questionnaires"
-                    :key="q.name"
-                    class="hover:bg-elevated transition-colors"
-                  >
-                    <td class="px-5 py-3">
-                      <span class="text-sm font-semibold">{{ q.name }}</span>
-                    </td>
+                  <tr v-for="q in questionnaires" :key="q.name" class="hover:bg-elevated transition-colors">
+                    <td class="px-5 py-3"><span class="text-sm font-semibold">{{ q.name }}</span></td>
                     <td class="px-5 py-3 text-center">
                       <span v-if="q.completionDate" class="text-sm text-muted">{{ q.completionDate }}</span>
                       <span v-else class="text-sm text-muted italic">Not completed</span>
                     </td>
                     <td class="px-5 py-3 text-center">
-                      <UBadge
-                        :label="q.status"
-                        :color="q.status === 'Completed' ? 'success' : 'neutral'"
-                        variant="subtle"
-                        size="sm"
-                      />
+                      <UBadge :label="q.status" :color="q.status === 'Completed' ? 'success' : 'neutral'" variant="subtle" size="sm" />
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
-                        <UButton
-                          icon="i-lucide-eye"
-                          color="primary"
-                          variant="ghost"
-                          size="xs"
-                          :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openModal(q.name)"
-                        />
-                        <UButton
-                          icon="i-lucide-printer"
-                          color="primary"
-                          variant="ghost"
-                          size="xs"
-                          :disabled="q.status !== 'Completed'"
-                        />
+                        <UButton icon="i-lucide-eye" color="primary" variant="ghost" size="xs" :disabled="q.status !== 'Completed'" @click="q.status === 'Completed' && openModal(q.name)" />
+                        <UButton icon="i-lucide-printer" color="primary" variant="ghost" size="xs" :disabled="q.status !== 'Completed'" />
                       </div>
                     </td>
                   </tr>
@@ -563,7 +506,8 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </table>
             </div>
           </div>
- <!-- ════ MCU Breakdown (12 cols, only MCU) ════ -->
+
+          <!-- MCU Breakdown -->
           <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -571,156 +515,170 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                 MCU Breakdown
               </h3>
               <div class="flex items-center gap-4 text-xs text-muted">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-green-500" /> Completed
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-default" /> Pending
-                </span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-500" /> Completed</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-default" /> Pending</span>
               </div>
             </div>
             <div class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                v-for="cat in mcuCategories"
-                :key="cat.label"
-                class="bg-elevated rounded-xl p-4"
-              >
+              <div v-for="cat in mcuCategories" :key="cat.label" class="bg-elevated rounded-xl p-4">
                 <h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5 mb-3">
                   <UIcon :name="cat.icon" class="text-sm" />
                   {{ cat.label }}
                 </h4>
                 <ul class="space-y-2">
-                  <li
-                    v-for="item in cat.items"
-                    :key="item.name"
-                    class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2"
-                  >
+                  <li v-for="item in cat.items" :key="item.name" class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2">
                     <span class="text-sm">{{ item.name }}</span>
-                    <UIcon
-                      :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-                      :class="item.done ? 'text-green-500' : 'text-muted'"
-                      class="text-base flex-shrink-0"
-                    />
+                    <UIcon :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'" :class="item.done ? 'text-green-500' : 'text-muted'" class="text-base flex-shrink-0" />
                   </li>
                 </ul>
               </div>
             </div>
           </div>
-                      <!-- ════ Additional Items (12 cols, only MCU) ════ -->
-<div
-  v-if="isMCU && additionalItems.length"
-  class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
->
-  <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-    <h3 class="font-semibold flex items-center gap-2">
-      <UIcon name="i-lucide-plus-circle" class="text-primary" />
-      Additional Exam Items
-    </h3>
-    <UBadge :label="`${additionalItems.length} item`" color="neutral" variant="subtle" size="sm" />
-  </div>
-  <div class="p-5">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      <div
-        v-for="ei in additionalItems"
-        :key="ei.id"
-        class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3"
-      >
-        <div>
-          <p class="text-sm font-semibold">{{ ei.item.name }}</p>
-          <p class="text-xs text-muted mt-0.5">
-            {{ ei.item.department?.name ?? '-' }} · {{ ei.item.group?.name ?? '-' }}
-          </p>
-        </div>
-        <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
-      </div>
-    </div>
-  </div>
-</div>
-          <!-- ════ Map / Branch location (12 cols) ════ -->
-          <div
-            class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm"
-          >
-            <!-- Google Maps Embed -->
-            <iframe
-              class="absolute inset-0 w-full h-full"
-              :src="BRANCH_MAP[reg.branch?.branchId ?? '-']"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-            />
 
-            <!-- Overlay gradient -->
+          <!-- Additional Items -->
+          <div v-if="isMCU && additionalItems.length" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
+              <h3 class="font-semibold flex items-center gap-2">
+                <UIcon name="i-lucide-plus-circle" class="text-primary" />
+                Additional Exam Items
+              </h3>
+              <UBadge :label="`${additionalItems.length} item`" color="neutral" variant="subtle" size="sm" />
+            </div>
+            <div class="p-5">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div v-for="ei in additionalItems" :key="ei.id" class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3">
+                  <div>
+                    <p class="text-sm font-semibold">{{ ei.item.name }}</p>
+                    <p class="text-xs text-muted mt-0.5">{{ ei.item.department?.name ?? '-' }} · {{ ei.item.group?.name ?? '-' }}</p>
+                  </div>
+                  <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Map -->
+          <div class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm">
+            <iframe class="absolute inset-0 w-full h-full" :src="BRANCH_MAP[reg.branch?.branchId ?? '-']" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
             <div class="absolute inset-0 bg-gradient-to-t from-elevated/80 to-transparent pointer-events-none" />
-
-            <!-- Branch Info -->
-            <div
-              class="absolute bottom-4 left-4 bg-background border border-default rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm"
-            >
-              <div
-                class="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl text-primary flex-shrink-0"
-              >
+            <div class="absolute bottom-4 left-4 bg-background border border-default rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              <div class="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl text-primary flex-shrink-0">
                 <UIcon name="i-lucide-building-2" />
               </div>
-
               <div>
-                <p class="text-xs text-muted">
-                  Current Location
-                </p>
-
-                <p class="text-sm font-bold">
-                  {{ reg.branch?.nameBranch ?? '-' }}
-                </p>
+                <p class="text-xs text-muted">Current Location</p>
+                <p class="text-sm font-bold">{{ reg.branch?.nameBranch ?? '-' }}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ════ Questionnaire Modal ════ -->
+      <!-- ════ Modal: Konfirmasi Check-in ════ -->
+      <UModal v-model:open="checkinModalOpen" title="Konfirmasi Check-in Pasien">
+        <template #body>
+          <div class="space-y-4">
+            <!-- Info pasien -->
+            <div class="flex items-center gap-3 p-4 rounded-xl bg-elevated border border-default">
+              <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-user-circle" class="text-primary text-2xl" />
+              </div>
+              <div>
+                <p class="font-bold text-base">{{ reg?.patient?.patientName ?? '-' }}</p>
+                <p class="text-xs text-muted mt-0.5">{{ reg?.patient?.idType }}: {{ reg?.patient?.idNumber }}</p>
+              </div>
+            </div>
+
+            <!-- Detail registrasi -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 rounded-xl bg-elevated border border-default">
+                <p class="text-xs text-muted mb-1">No. Registrasi</p>
+                <code class="text-sm font-bold text-primary">{{ reg?.id_reg }}</code>
+              </div>
+              <div class="p-3 rounded-xl bg-elevated border border-default">
+                <p class="text-xs text-muted mb-1">Layanan</p>
+                <p class="text-sm font-semibold">{{ SERVICE_LABEL[reg?.serviceType ?? ''] ?? reg?.serviceType }}</p>
+              </div>
+              <div class="p-3 rounded-xl bg-elevated border border-default">
+                <p class="text-xs text-muted mb-1">Tanggal Periksa</p>
+                <p class="text-sm font-semibold">{{ reg?.examDate }}</p>
+              </div>
+              <div class="p-3 rounded-xl bg-elevated border border-default">
+                <p class="text-xs text-muted mb-1">Branch</p>
+                <p class="text-sm font-semibold">{{ reg?.branch?.nameBranch ?? '-' }}</p>
+              </div>
+            </div>
+
+            <p class="text-sm text-muted">
+              Sistem akan membuat nomor antrian dan memasukkan pasien ke ruang tunggu. Pastikan data sudah benar sebelum melanjutkan.
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" label="Batal" :disabled="checkinLoading" @click="checkinModalOpen = false" />
+            <UButton
+              color="primary"
+              icon="i-lucide-user-check"
+              label="Ya, Check-in Sekarang"
+              :loading="checkinLoading"
+              @click="confirmCheckin"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <!-- ════ Modal: Check-in Sukses ════ -->
+      <UModal v-model:open="checkinSuccessOpen" title="Check-in Berhasil">
+        <template #body>
+          <div class="flex flex-col items-center gap-4 py-4 text-center">
+            <div class="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
+              <UIcon name="i-lucide-check-circle-2" class="text-green-500 text-4xl" />
+            </div>
+            <div>
+              <p class="text-sm text-muted mb-2">Nomor Antrian</p>
+              <p class="text-5xl font-black text-primary tracking-tight">
+                {{ checkinResult?.queueCode }}
+              </p>
+            </div>
+            <p class="text-sm text-muted max-w-xs">
+              Pasien telah masuk ruang tunggu. Petugas masing-masing ruangan akan memanggil sesuai urutan.
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton icon="i-lucide-printer" color="neutral" variant="outline" label="Print Tiket" />
+            <UButton color="primary" label="Selesai" @click="checkinSuccessOpen = false" />
+          </div>
+        </template>
+      </UModal>
+
+      <!-- ════ Modal: Questionnaire Detail ════ -->
       <UModal v-model:open="modalOpen" :title="modalTitle">
         <template #body>
           <div class="space-y-3">
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Allergies
-              </p>
-              <p class="text-sm font-semibold">
-                None reported
-              </p>
+              <p class="text-xs text-muted mb-1">Allergies</p>
+              <p class="text-sm font-semibold">None reported</p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Current Medications
-              </p>
-              <p class="text-sm font-semibold">
-                Amoxicillin (500mg, 1x Daily)
-              </p>
+              <p class="text-xs text-muted mb-1">Current Medications</p>
+              <p class="text-sm font-semibold">Amoxicillin (500mg, 1x Daily)</p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Previous Surgeries
-              </p>
-              <p class="text-sm font-semibold">
-                Appendectomy (2018)
-              </p>
+              <p class="text-xs text-muted mb-1">Previous Surgeries</p>
+              <p class="text-sm font-semibold">Appendectomy (2018)</p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Family History
-              </p>
-              <p class="text-sm font-semibold">
-                Hypertension (Father), Diabetes Type 2 (Mother)
-              </p>
+              <p class="text-xs text-muted mb-1">Family History</p>
+              <p class="text-sm font-semibold">Hypertension (Father), Diabetes Type 2 (Mother)</p>
             </div>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              label="Close"
-              @click="modalOpen = false"
-            />
+            <UButton color="neutral" variant="ghost" label="Close" @click="modalOpen = false" />
             <UButton color="primary" icon="i-lucide-printer" label="Print Answers" />
           </div>
         </template>
