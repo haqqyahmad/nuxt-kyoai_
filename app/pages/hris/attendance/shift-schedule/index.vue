@@ -45,19 +45,19 @@ const finalShiftResponse = ref<FinalShiftResponse>({
   data: []
 })
 
-async function loadShiftSchedule() { 
-  loading.value = true 
-  try { 
-    const response = await api.get<FinalShiftResponse>('/hris/shift/view', 
+async function loadShiftSchedule() {
+  loading.value = true
+  try {
+    const response = await api.get<FinalShiftResponse>('/hris/shift/view',
       { params: {
-         employee_id: 3, start_date: '2025-06-01', end_date: '2025-06-30' 
-        } }) 
-    finalShiftResponse.value = response.data 
-    console.log('shift-response', response.data) 
-  } catch (error) { 
-    console.error(error) 
-    finalShiftResponse.value = { success: false, message: 'Failed to load final shift view', data: [] } 
-  } finally { loading.value = false } 
+        employee_id: 1, start_date: '2025-06-01', end_date: '2025-06-30'
+      } })
+    finalShiftResponse.value = response.data
+    console.log('shift-response', response.data)
+  } catch (error) {
+    console.error(error)
+    finalShiftResponse.value = { success: false, message: 'Failed to load final shift view', data: [] }
+  } finally { loading.value = false }
 }
 //   try {
 //     const response = await api.get<FinalShiftResponse>(
@@ -87,7 +87,6 @@ async function loadShiftSchedule() {
 //     loading.value = false
 //   }
 // }
-
 
 onMounted(() => {
   loadShiftSchedule()
@@ -120,19 +119,29 @@ watch(
         <div class="w-full max-w-none">
           <div class="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
             <div class="min-w-0 space-y-6">
-              <HrisAttendanceScheduleShiftHeader v-model:selected-date="selectedDate" v-model:view-mode="viewMode"
-                @assign="openAssignModal = true" />
+              <HrisAttendanceScheduleShiftHeader
+                v-model:selected-date="selectedDate"
+                v-model:view-mode="viewMode"
+                @assign="openAssignModal = true"
+              />
 
-              <HrisAttendanceScheduleShiftFilters v-model:department="filters.department"
-                v-model:shift-type="filters.shiftType" />
+              <HrisAttendanceScheduleShiftFilters
+                v-model:department="filters.department"
+                v-model:shift-type="filters.shiftType"
+              />
 
               <div v-if="loading" class="rounded-xl border border-default p-6 text-center text-sm text-muted">
                 Loading shift schedule...
               </div>
 
-              <HrisAttendanceScheduleShiftCalendar v-else :final-shift-response="finalShiftResponse"
-                :selected-date="selectedDate" :view-mode="viewMode" :department-filter="filters.department"
-                :shift-filter="filters.shiftType" />
+              <HrisAttendanceScheduleShiftCalendar
+                v-else
+                :final-shift-response="finalShiftResponse"
+                :selected-date="selectedDate"
+                :view-mode="viewMode"
+                :department-filter="filters.department"
+                :shift-filter="filters.shiftType"
+              />
             </div>
 
             <aside class="min-w-0">
