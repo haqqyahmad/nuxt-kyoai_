@@ -264,6 +264,14 @@ const currentPageSize = <any>computed({
 
 <template>
   <UDashboardPanel id="sample">
+    <template #header>
+      <UDashboardNavbar title="Sample Types">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+      </UDashboardNavbar>
+    </template>
+    
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <UInput

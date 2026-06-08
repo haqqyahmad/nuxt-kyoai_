@@ -14,39 +14,24 @@ type ShiftOption = {
   type: 'FIXED' | 'FLEXI'
 }
 
-type WeekSchedule = {
-  weekNumber: number
-  week: string
-  startDate: string
-  endDate: string
-  dateRange: string
-  totalDays: number
-  workingDays: number
-  offDays: number
-}
-
-type EmployeeShiftAssignment = {
-  employee: string
+type EmployeeOption = {
+  label: string
+  value: number
   department: string
-  year: number
-  shift: ShiftOption
-  weeklySchedules: WeekSchedule[]
-  summary: {
-    totalWeeks: number
-    totalWorkingDays: number
-    totalOffDays: number
-  }
 }
 
 const emit = defineEmits<{
-  save: [payload: EmployeeShiftAssignment]
+  refresh: []
 }>()
 
 const open = defineModel<boolean>('open', {
   default: false
 })
 
+const toast = useToast()
+
 const currentYear = new Date().getFullYear()
+const loading = ref(false)
 
 const years = Array.from({ length: 6 }, (_, index) => {
   const year = currentYear - 2 + index
@@ -57,345 +42,252 @@ const years = Array.from({ length: 6 }, (_, index) => {
   }
 })
 
-const form = reactive({
-  employee: '',
-  department: '',
-  shiftType: '' as ShiftTypeValue | '',
-  year: currentYear
-})
-
-const employees = [
-  'Sarah J.',
-  'Mark R.',
-  'Elena P.',
-  'Andi Saputra',
-  'Budi Mahendra'
-]
-
-const departments = [
-  'Engineering',
-  'Operations',
-  'Customer Support',
-  'HR',
-  'Finance'
+const employees: EmployeeOption[] = [
+  {
+    label: 'John Doe',
+    value: 3,
+    department: 'Engineering'
+  },
+  {
+    label: 'Sarah J.',
+    value: 4,
+    department: 'Operations'
+  },
+  {
+    label: 'Mark R.',
+    value: 5,
+    department: 'Engineering'
+  },
+  {
+    label: 'Elena P.',
+    value: 6,
+    department: 'HR'
+  },
+  {
+    label: 'Andi Saputra',
+    value: 7,
+    department: 'Customer Support'
+  }
 ]
 
 const shiftOptions: ShiftOption[] = [
   {
     label: 'Morning Shift',
     value: 'morning-shift',
-    description: 'Mon-Fri 08:00-16:00, Sat 08:00-13:00',
+    description: 'Senin - Jumat 08:00 - 17:00',
     type: 'FIXED'
   },
   {
     label: 'Evening Shift',
     value: 'evening-shift',
-    description: 'Mon-Fri 14:00-23:00',
+    description: 'Senin - Jumat 14:00 - 23:00',
     type: 'FIXED'
   },
   {
     label: 'Night Shift',
     value: 'night-shift',
-    description: 'Mon-Fri 22:00-07:00',
+    description: 'Senin - Jumat 22:00 - 07:00',
     type: 'FIXED'
   },
   {
     label: 'Flexi-time',
     value: 'flexi-time',
-    description: 'Mon-Fri • Core Time 10:00-15:00 • Min 8 Hours',
+    description: 'Core time 10:00 - 15:00, minimum 8 jam kerja',
     type: 'FLEXI'
   }
 ]
+
+const form = reactive({
+  employeeId: undefined as number | undefined,
+  shiftType: undefined as ShiftTypeValue | undefined,
+  year: currentYear
+})
+
+const selectedEmployee = computed(() => {
+  return employees.find(employee => employee.value === form.employeeId)
+})
 
 const selectedShift = computed(() => {
   return shiftOptions.find(shift => shift.value === form.shiftType)
 })
 
-function formatDate(date: Date) {
-  return date.toLocaleString('en-US', {
-    day: 'numeric',
-    month: 'short'
-  })
-}
-
-function formatDateValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function isWorkingDay(date: Date) {
-  if (!selectedShift.value) return false
-
-  const dayNumber = date.getDay()
-  const isSunday = dayNumber === 0
-  const isSaturday = dayNumber === 6
-
-  if (selectedShift.value.value === 'morning-shift') {
-    return !isSunday
-  }
-
-  return !isSaturday && !isSunday
-}
-
-const weeklySchedule = computed<WeekSchedule[]>(() => {
-  if (!selectedShift.value) return []
-
-  const weeks: WeekSchedule[] = []
-  const startDate = new Date(form.year, 0, 1)
-  const endDate = new Date(form.year, 11, 31)
-
-  let currentWeekDates: Date[] = []
-
-  for (
-    let date = new Date(startDate);
-    date <= endDate;
-    date.setDate(date.getDate() + 1)
-  ) {
-    const currentDate = new Date(date)
-
-    currentWeekDates.push(currentDate)
-
-    const isSunday = currentDate.getDay() === 0
-    const isLastDate = currentDate.toDateString() === endDate.toDateString()
-
-    if (isSunday || isLastDate) {
-      const firstDate = currentWeekDates[0]
-      const lastDate = currentWeekDates[currentWeekDates.length - 1]
-      const workingDays = currentWeekDates.filter(item => isWorkingDay(item)).length
-      const weekNumber = weeks.length + 1
-
-      weeks.push({
-        weekNumber,
-        week: `Week ${weekNumber}`,
-        startDate: formatDateValue(firstDate),
-        endDate: formatDateValue(lastDate),
-        dateRange: `${formatDate(firstDate)} - ${formatDate(lastDate)}`,
-        totalDays: currentWeekDates.length,
-        workingDays,
-        offDays: currentWeekDates.length - workingDays
-      })
-
-      currentWeekDates = []
-    }
-  }
-
-  return weeks
-})
-
-const totalWorkingDays = computed(() => {
-  return weeklySchedule.value.reduce((total, item) => total + item.workingDays, 0)
-})
-
-const totalOffDays = computed(() => {
-  return weeklySchedule.value.reduce((total, item) => total + item.offDays, 0)
-})
-
 function resetForm() {
   Object.assign(form, {
-    employee: '',
-    department: '',
-    shiftType: '',
+    employeeId: undefined,
+    shiftType: undefined,
     year: currentYear
   })
 }
 
-function submit() {
-  if (!selectedShift.value) return
+async function submit() {
+  if (!form.employeeId || !form.shiftType) return
 
-  emit('save', {
-    employee: form.employee,
-    department: form.department,
-    year: form.year,
-    shift: selectedShift.value,
-    weeklySchedules: weeklySchedule.value,
-    summary: {
-      totalWeeks: weeklySchedule.value.length,
-      totalWorkingDays: totalWorkingDays.value,
-      totalOffDays: totalOffDays.value
-    }
-  })
+  loading.value = true
 
-  resetForm()
+  try {
+    await $fetch('/api/hris/attendance/assign-shift', {
+      method: 'POST',
+      body: {
+        employee_id: form.employeeId,
+        shift_type: form.shiftType,
+        year: form.year
+      }
+    })
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Shift karyawan berhasil disimpan.',
+      color: 'success'
+    })
+
+    emit('refresh')
+
+    open.value = false
+
+    resetForm()
+  } catch (error) {
+    console.error(error)
+
+    toast.add({
+      title: 'Gagal',
+      description: 'Shift karyawan gagal disimpan.',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
 }
+
+watch(open, (value) => {
+  if (!value) {
+    resetForm()
+  }
+})
 </script>
 
 <template>
   <UModal
     v-model:open="open"
     title="Assign Shift"
-    description="Tambahkan jadwal shift karyawan selama satu tahun."
+    description="Tambahkan jadwal shift karyawan. Setelah disimpan, calendar akan mengambil ulang final shift view dari backend."
     :ui="{
-      content: 'sm:max-w-5xl'
+      content: 'sm:max-w-2xl'
     }"
   >
     <template #body>
-      <div class="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <div class="space-y-4">
-          <UFormField label="Employee">
-            <USelect
-              v-model="form.employee"
-              :items="employees"
-              placeholder="Pilih karyawan"
-              class="w-full"
+      <div class="space-y-5">
+        <UFormField
+          label="Employee"
+          required
+        >
+          <USelect
+            v-model="form.employeeId"
+            :items="employees"
+            label-key="label"
+            value-key="value"
+            placeholder="Pilih karyawan"
+            class="w-full"
+          />
+        </UFormField>
+
+        <div
+          v-if="selectedEmployee"
+          class="rounded-xl border border-default bg-muted/30 p-4"
+        >
+          <div class="flex items-start gap-3">
+            <UIcon
+              name="i-lucide-user-round"
+              class="mt-0.5 size-5 text-primary"
             />
-          </UFormField>
 
-          <UFormField label="Department">
-            <USelect
-              v-model="form.department"
-              :items="departments"
-              placeholder="Pilih departemen"
-              class="w-full"
-            />
-          </UFormField>
+            <div>
+              <p class="text-sm font-semibold text-highlighted">
+                {{ selectedEmployee.label }}
+              </p>
 
-          <UFormField label="Year">
-            <USelect
-              v-model="form.year"
-              :items="years"
-              placeholder="Pilih tahun"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField label="Shift">
-            <USelect
-              v-model="form.shiftType"
-              :items="shiftOptions"
-              placeholder="Pilih shift"
-              label-key="label"
-              value-key="value"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div
-            v-if="selectedShift"
-            class="rounded-xl border border-default bg-muted/30 p-4"
-          >
-            <div class="flex items-start gap-3">
-              <UIcon
-                :name="selectedShift.type === 'FLEXI'
-                  ? 'i-lucide-clock-3'
-                  : 'i-lucide-calendar-days'"
-                class="mt-0.5 size-5 text-primary"
-              />
-
-              <div>
-                <p class="text-sm font-semibold text-highlighted">
-                  {{ selectedShift.label }}
-                </p>
-
-                <p class="mt-1 text-sm text-muted">
-                  {{ selectedShift.description }}
-                </p>
-              </div>
+              <p class="mt-1 text-sm text-muted">
+                Department: {{ selectedEmployee.department }}
+              </p>
             </div>
           </div>
         </div>
 
-        <div class="rounded-xl border border-default p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <UFormField
+          label="Year"
+          required
+        >
+          <USelect
+            v-model="form.year"
+            :items="years"
+            placeholder="Pilih tahun"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Shift"
+          required
+        >
+          <USelect
+            v-model="form.shiftType"
+            :items="shiftOptions"
+            label-key="label"
+            value-key="value"
+            placeholder="Pilih shift"
+            class="w-full"
+          />
+        </UFormField>
+
+        <div
+          v-if="selectedShift"
+          class="rounded-xl border border-default bg-muted/30 p-4"
+        >
+          <div class="flex items-start gap-3">
+            <UIcon
+              :name="selectedShift.type === 'FLEXI'
+                ? 'i-lucide-clock-3'
+                : 'i-lucide-calendar-days'"
+              class="mt-0.5 size-5 text-primary"
+            />
+
             <div>
-              <h3 class="font-semibold text-highlighted">
-                Yearly Shift Preview
-              </h3>
-
-              <p class="mt-1 text-sm text-muted">
-                Detail jadwal shift per minggu selama tahun {{ form.year }}.
-              </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <UBadge color="primary" variant="soft">
-                {{ weeklySchedule.length }} Weeks
-              </UBadge>
-
-              <UBadge color="success" variant="soft">
-                {{ totalWorkingDays }} Working
-              </UBadge>
-
-              <UBadge color="warning" variant="soft">
-                {{ totalOffDays }} Off
-              </UBadge>
-            </div>
-          </div>
-
-          <div
-            v-if="selectedShift"
-            class="mt-4 max-h-[430px] space-y-2 overflow-y-auto pr-1"
-          >
-            <div
-              v-for="item in weeklySchedule"
-              :key="item.weekNumber"
-              class="rounded-lg border border-default bg-muted/20 p-3"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <p class="font-semibold text-highlighted">
-                    {{ item.week }}
-                  </p>
-
-                  <p class="font-normal text-error">
-                    ( {{ item.dateRange }} )
-                  </p>
-
-                  <p class="mt-1 text-xs text-muted">
-                    {{ item.startDate }} - {{ item.endDate }}
-                  </p>
-                </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="text-sm font-semibold text-highlighted">
+                  {{ selectedShift.label }}
+                </p>
 
                 <UBadge
-                  color="primary"
+                  :color="selectedShift.type === 'FLEXI' ? 'info' : 'primary'"
                   variant="soft"
-                  class="shrink-0"
+                  size="xs"
                 >
-                  {{ item.workingDays }} Working
+                  {{ selectedShift.type }}
                 </UBadge>
               </div>
 
-              <div class="mt-3 grid grid-cols-3 gap-2 text-sm">
-                <div class="rounded-md bg-muted/40 p-2">
-                  <p class="text-xs text-muted">
-                    Total
-                  </p>
-
-                  <p class="font-semibold text-highlighted">
-                    {{ item.totalDays }}
-                  </p>
-                </div>
-
-                <div class="rounded-md bg-muted/40 p-2">
-                  <p class="text-xs text-muted">
-                    Working
-                  </p>
-
-                  <p class="font-semibold text-success">
-                    {{ item.workingDays }}
-                  </p>
-                </div>
-
-                <div class="rounded-md bg-muted/40 p-2">
-                  <p class="text-xs text-muted">
-                    Off
-                  </p>
-
-                  <p class="font-semibold text-warning">
-                    {{ item.offDays }}
-                  </p>
-                </div>
-              </div>
+              <p class="mt-1 text-sm text-muted">
+                {{ selectedShift.description }}
+              </p>
             </div>
           </div>
+        </div>
 
-          <div
-            v-else
-            class="mt-4 rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted"
-          >
-            Pilih shift terlebih dahulu untuk melihat preview jadwal tahunan.
+        <div class="rounded-xl border border-dashed border-default bg-muted/20 p-4">
+          <div class="flex gap-3">
+            <UIcon
+              name="i-lucide-info"
+              class="mt-0.5 size-5 text-muted"
+            />
+
+            <div class="text-sm text-muted">
+              <p>
+                Preview tahunan tidak lagi dibuat di frontend.
+              </p>
+
+              <p class="mt-1">
+                Backend akan generate schedule, lalu calendar membaca data dari final shift view.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -407,6 +299,7 @@ function submit() {
           color="neutral"
           variant="outline"
           class="justify-center"
+          :disabled="loading"
           @click="open = false"
         >
           Batal
@@ -415,7 +308,8 @@ function submit() {
         <UButton
           icon="i-lucide-save"
           class="justify-center"
-          :disabled="!form.employee || !form.department || !form.shiftType"
+          :loading="loading"
+          :disabled="!form.employeeId || !form.shiftType"
           @click="submit"
         >
           Simpan Shift

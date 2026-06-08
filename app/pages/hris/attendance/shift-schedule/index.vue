@@ -1,69 +1,90 @@
+<!-- app/pages/hris/attendance/shift-schedule/index.vue -->
+
 <script setup lang="ts">
 type ViewMode = 'day' | 'week' | 'month'
 
-type ShiftTypeValue
-  = | 'morning-shift'
-    | 'evening-shift'
-    | 'night-shift'
-    | 'flexi-time'
+type FinalShiftStatus = 'active' | 'off'
 
-type ShiftOption = {
-  label: string
-  value: ShiftTypeValue
-  description: string
-  type: 'FIXED' | 'FLEXI'
+type FinalShiftItem = {
+  employee_id: number
+  employee_name?: string
+  department?: string
+  date: string
+  hari: string
+  start_time: string | null
+  end_time: string | null
+  status: FinalShiftStatus
+  source: string
+  override_type: string | null
+  override_reason: string | null
 }
 
-type WeekSchedule = {
-  weekNumber: number
-  week: string
-  startDate: string
-  endDate: string
-  dateRange: string
-  totalDays: number
-  workingDays: number
-  offDays: number
-}
-
-type EmployeeShiftAssignment = {
-  employee: string
-  department: string
-  year: number
-  shift: ShiftOption
-  weeklySchedules: WeekSchedule[]
-  summary: {
-    totalWeeks: number
-    totalWorkingDays: number
-    totalOffDays: number
-  }
+type FinalShiftResponse = {
+  success: boolean
+  message: string
+  data: FinalShiftItem[]
 }
 
 const openAssignModal = ref(false)
 
-const selectedDate = ref(new Date())
+const selectedDate = ref(new Date('2025-06-02'))
 const viewMode = ref<ViewMode>('week')
+
+const loading = ref(false)
 
 const filters = reactive({
   department: 'all',
   shiftType: 'all'
 })
 
-const assignments = ref<EmployeeShiftAssignment[]>([])
+const finalShiftResponse = ref<FinalShiftResponse>({
+  success: true,
+  message: 'Get final shift view success',
+  data: []
+})
 
-function handleSaveAssignment(payload: EmployeeShiftAssignment) {
-  const existingIndex = assignments.value.findIndex(item =>
-    item.employee === payload.employee
-    && item.year === payload.year
-  )
+async function loadShiftSchedule() {
+  loading.value = true
 
-  if (existingIndex >= 0) {
-    assignments.value[existingIndex] = payload
-  } else {
-    assignments.value.push(payload)
+  try {
+    const response = await $fetch<FinalShiftResponse>(
+      '/api/hris/attendance/final-shift-view',
+      {
+        query: {
+          year: selectedDate.value.getFullYear(),
+          month: selectedDate.value.getMonth() + 1
+        }
+      }
+    )
+
+    finalShiftResponse.value = response
+  } catch (error) {
+    console.error(error)
+
+    finalShiftResponse.value = {
+      success: false,
+      message: 'Failed to load final shift view',
+      data: []
+    }
+  } finally {
+    loading.value = false
   }
-
-  openAssignModal.value = false
 }
+
+onMounted(() => {
+  loadShiftSchedule()
+})
+
+watch(
+  () => [
+    selectedDate.value.getFullYear(),
+    selectedDate.value.getMonth(),
+    viewMode.value
+  ],
+  () => {
+    loadShiftSchedule()
+  }
+)
 </script>
 
 <template>
@@ -80,10 +101,10 @@ function handleSaveAssignment(payload: EmployeeShiftAssignment) {
     </template>
 
     <template #body>
-      <div class="h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
-        <div class="mx-auto w-full max-w-7xl">
-          <div class="grid min-w-0 gap-6 xl:grid-cols-4">
-            <div class="min-w-0 space-y-6 xl:col-span-3">
+      <div class="h-full min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+        <div class="w-full max-w-none">
+          <div class="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div class="min-w-0 space-y-6">
               <HrisAttendanceScheduleShiftHeader
                 v-model:selected-date="selectedDate"
                 v-model:view-mode="viewMode"
@@ -95,8 +116,16 @@ function handleSaveAssignment(payload: EmployeeShiftAssignment) {
                 v-model:shift-type="filters.shiftType"
               />
 
+              <div
+                v-if="loading"
+                class="rounded-xl border border-default p-6 text-center text-sm text-muted"
+              >
+                Loading shift schedule...
+              </div>
+
               <HrisAttendanceScheduleShiftCalendar
-                :assignments="assignments"
+                v-else
+                :final-shift-response="finalShiftResponse"
                 :selected-date="selectedDate"
                 :view-mode="viewMode"
                 :department-filter="filters.department"
@@ -104,16 +133,16 @@ function handleSaveAssignment(payload: EmployeeShiftAssignment) {
               />
             </div>
 
-            <div class="min-w-0">
+            <aside class="min-w-0">
               <HrisAttendanceScheduleShiftSummary />
-            </div>
+            </aside>
           </div>
         </div>
       </div>
 
       <HrisAttendanceScheduleAssignShiftModal
         v-model:open="openAssignModal"
-        @save="handleSaveAssignment"
+        @refresh="loadShiftSchedule"
       />
     </template>
   </UDashboardPanel>

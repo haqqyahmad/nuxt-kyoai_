@@ -12,80 +12,48 @@ type DayValue
 
 type ViewMode = 'day' | 'week' | 'month'
 
+type FinalShiftStatus = 'active' | 'off'
+
 type ShiftCode
   = | 'morning-shift'
     | 'evening-shift'
     | 'night-shift'
     | 'flexi-time'
-    | 'off'
-    | ''
 
-type ShiftType = 'FIXED' | 'FLEXI'
+type FinalShiftItem = {
+  employee_id: number
+  employee_name?: string
+  department?: string
 
-type WorkingHour = {
-  startTime: string
-  endTime: string
-  days: DayValue[]
+  date: string
+  hari: string
+
+  shift_code?: ShiftCode | null
+  shift_name?: string | null
+
+  start_time: string | null
+  end_time: string | null
+
+  status: FinalShiftStatus
+
+  source: string
+
+  override_type: string | null
+  override_reason: string | null
 }
 
-type FlexiConfig = {
-  minimumWorkHours: number
-  coreStartTime: string
-  coreEndTime: string
-  days: DayValue[]
-}
-
-type ShiftConfiguration = {
-  label: string
-  value: ShiftCode
-  color: 'success' | 'warning' | 'primary' | 'info' | 'neutral'
-  type: ShiftType
-  workingHours: WorkingHour[]
-  flexiConfig?: FlexiConfig
-}
-
-type ShiftOption = {
-  label: string
-  value: string
-  description: string
-  type: ShiftType
-}
-
-type WeekSchedule = {
-  weekNumber: number
-  week: string
-  startDate: string
-  endDate: string
-  dateRange: string
-  totalDays: number
-  workingDays: number
-  offDays: number
-}
-
-type ShiftDetail = {
-  weekNumber: number
-  shiftCode: ShiftCode
-}
-
-type EmployeeShiftAssignment = {
-  employee: string
-  department: string
-  year: number
-  shift: ShiftOption
-  weeklySchedules: WeekSchedule[]
-  shiftDetails?: ShiftDetail[]
-  summary: {
-    totalWeeks: number
-    totalWorkingDays: number
-    totalOffDays: number
-  }
+type FinalShiftResponse = {
+  success: boolean
+  message: string
+  data: FinalShiftItem[]
 }
 
 type CalendarEmployee = {
+  id: number
   name: string
   department: string
   avatar: string
-  shifts: ShiftCode[]
+  shifts: (FinalShiftItem | null)[]
 }
 
 type CalendarDay = {
@@ -97,7 +65,7 @@ type CalendarDay = {
 }
 
 const props = defineProps<{
-  assignments?: EmployeeShiftAssignment[]
+  finalShiftResponse?: FinalShiftResponse
   selectedDate: Date
   viewMode: ViewMode
   departmentFilter?: string
@@ -105,6 +73,7 @@ const props = defineProps<{
 }>()
 
 const holidays = [
+  '2025-06-01',
   '2026-01-01',
   '2026-04-03',
   '2026-04-04',
@@ -161,6 +130,12 @@ function formatYmd(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+function normalizeApiDate(value: string) {
+  return value.includes('T')
+    ? value.slice(0, 10)
+    : value
+}
+
 function getStartOfWeek(date: Date) {
   const start = new Date(date)
   const day = start.getDay()
@@ -169,15 +144,6 @@ function getStartOfWeek(date: Date) {
   start.setDate(start.getDate() + diff)
 
   return start
-}
-
-function getWeekNumber(date: Date) {
-  const start = new Date(date.getFullYear(), 0, 1)
-  const diffDays = Math.floor(
-    (date.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-  )
-
-  return Math.ceil((diffDays + start.getDay() + 1) / 7)
 }
 
 const days = computed<CalendarDay[]>(() => {
@@ -234,70 +200,6 @@ const days = computed<CalendarDay[]>(() => {
   })
 })
 
-const shiftConfigurations: ShiftConfiguration[] = [
-  {
-    label: 'Morning',
-    value: 'morning-shift',
-    color: 'success',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '08:00',
-        endTime: '16:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      },
-      {
-        startTime: '08:00',
-        endTime: '13:00',
-        days: ['saturday']
-      }
-    ]
-  },
-  {
-    label: 'Evening',
-    value: 'evening-shift',
-    color: 'warning',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '14:00',
-        endTime: '23:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      }
-    ]
-  },
-  {
-    label: 'Night',
-    value: 'night-shift',
-    color: 'primary',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '22:00',
-        endTime: '07:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      }
-    ]
-  },
-  {
-    label: 'Flexi-time',
-    value: 'flexi-time',
-    color: 'info',
-    type: 'FLEXI',
-    workingHours: [],
-    flexiConfig: {
-      minimumWorkHours: 8,
-      coreStartTime: '10:00',
-      coreEndTime: '15:00',
-      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-    }
-  }
-]
-
-function getShiftConfig(shiftCode: ShiftCode) {
-  return shiftConfigurations.find(item => item.value === shiftCode)
-}
-
 function getAvatarName(name: string) {
   return name
     .split(' ')
@@ -307,175 +209,87 @@ function getAvatarName(name: string) {
     .toUpperCase()
 }
 
-function mapShiftValue(value: string): ShiftCode {
-  const map: Record<string, ShiftCode> = {
-    'morning-shift': 'morning-shift',
-    'evening-shift': 'evening-shift',
-    'night-shift': 'night-shift',
-    'flexi-time': 'flexi-time'
-  }
-
-  return map[value] || ''
+function isSameDate(apiDate: string, calendarDate: Date) {
+  return normalizeApiDate(apiDate) === formatYmd(calendarDate)
 }
 
-function isShiftActiveOnDay(shiftCode: ShiftCode, day: DayValue) {
-  if (!shiftCode || shiftCode === 'off') return false
-
-  const config = getShiftConfig(shiftCode)
-
-  if (!config) return false
-
-  if (config.type === 'FLEXI') {
-    return config.flexiConfig?.days.includes(day) ?? false
-  }
-
-  return config.workingHours.some(hour => hour.days.includes(day))
-}
-
-function getShiftCodeForDate(
-  assignment: EmployeeShiftAssignment,
+function getShiftItemForDate(
+  shiftItems: FinalShiftItem[],
   date: Date
-): ShiftCode {
-  const weekNumber = getWeekNumber(date)
-
-  const detail = assignment.shiftDetails?.find(item =>
-    item.weekNumber === weekNumber
-  )
-
-  return detail?.shiftCode ?? mapShiftValue(assignment.shift.value)
+): FinalShiftItem | null {
+  return shiftItems.find(item => isSameDate(item.date, date)) ?? null
 }
-
-function generateShiftByVisibleDays(shiftCode: ShiftCode): ShiftCode[] {
-  return days.value.map((day) => {
-    if (!shiftCode) return ''
-
-    return isShiftActiveOnDay(shiftCode, day.value)
-      ? shiftCode
-      : 'off'
-  })
-}
-
-function generateShiftFromAssignment(
-  assignment: EmployeeShiftAssignment
-): ShiftCode[] {
-  return days.value.map((day) => {
-    const shiftCode = getShiftCodeForDate(assignment, day.fullDate)
-
-    if (!shiftCode) return ''
-
-    return isShiftActiveOnDay(shiftCode, day.value)
-      ? shiftCode
-      : 'off'
-  })
-}
-
-const defaultEmployees = computed<CalendarEmployee[]>(() => [
-  {
-    name: 'Sarah J.',
-    department: 'Operations',
-    avatar: 'SJ',
-    shifts: generateShiftByVisibleDays('morning-shift')
-  },
-  {
-    name: 'Mark R.',
-    department: 'Engineering',
-    avatar: 'MR',
-    shifts: generateShiftByVisibleDays('evening-shift')
-  },
-  {
-    name: 'Elena P.',
-    department: 'HR',
-    avatar: 'EP',
-    shifts: generateShiftByVisibleDays('flexi-time')
-  }
-])
 
 const employees = computed<CalendarEmployee[]>(() => {
-  const data = defaultEmployees.value.map(employee => ({
-    ...employee,
-    shifts: [...employee.shifts]
-  }))
+  const response = props.finalShiftResponse
 
-  props.assignments?.forEach((assignment) => {
-    const shiftPreview = generateShiftFromAssignment(assignment)
+  if (!response?.data?.length) {
+    return []
+  }
 
-    const existingEmployee = data.find(employee =>
-      employee.name === assignment.employee
-    )
+  const grouped = response.data.reduce<Record<number, FinalShiftItem[]>>(
+    (result, item) => {
+      if (!result[item.employee_id]) {
+        result[item.employee_id] = []
+      }
 
-    if (existingEmployee) {
-      existingEmployee.department = assignment.department
-      existingEmployee.avatar = getAvatarName(assignment.employee)
-      existingEmployee.shifts = shiftPreview
-      return
-    }
+      result[item.employee_id].push(item)
 
-    data.push({
-      name: assignment.employee,
-      department: assignment.department,
-      avatar: getAvatarName(assignment.employee),
-      shifts: shiftPreview
+      return result
+    },
+    {}
+  )
+
+  return Object.entries(grouped)
+    .map(([employeeId, shiftItems]) => {
+      const firstItem = shiftItems[0]
+      const name = firstItem?.employee_name ?? `Employee ${employeeId}`
+      const department = firstItem?.department ?? 'General'
+
+      return {
+        id: Number(employeeId),
+        name,
+        department,
+        avatar: getAvatarName(name),
+        shifts: days.value.map(day =>
+          getShiftItemForDate(shiftItems, day.fullDate)
+        )
+      }
     })
-  })
+    .filter((employee) => {
+      const matchDepartment = props.departmentFilter && props.departmentFilter !== 'all'
+        ? employee.department === props.departmentFilter
+        : true
 
-  return data.filter((employee) => {
-    const matchDepartment = props.departmentFilter && props.departmentFilter !== 'all'
-      ? employee.department === props.departmentFilter
-      : true
+      const matchShift = props.shiftFilter && props.shiftFilter !== 'all'
+        ? employee.shifts.some(shift =>
+            shift?.shift_code === props.shiftFilter
+            || shift?.status === props.shiftFilter
+          )
+        : true
 
-    const matchShift = props.shiftFilter && props.shiftFilter !== 'all'
-      ? employee.shifts.some((shift) => {
-          const meta = getShiftMeta(shift)
-          return meta.label === props.shiftFilter
-        })
-      : true
-
-    return matchDepartment && matchShift
-  })
+      return matchDepartment && matchShift
+    })
 })
 
-function getShiftMeta(shiftCode: ShiftCode) {
-  if (shiftCode === 'off') {
-    return {
-      label: 'OFF',
-      color: 'neutral'
-    } as const
-  }
+function getShiftBadgeColor(shift: FinalShiftItem) {
+  if (shift.status === 'off') return 'neutral'
+  if (shift.override_type) return 'warning'
 
-  if (!shiftCode) {
-    return {
-      label: '',
-      color: 'neutral'
-    } as const
-  }
-
-  const config = getShiftConfig(shiftCode)
-
-  return {
-    label: config?.label ?? '',
-    color: config?.color ?? 'neutral'
-  } as const
+  return 'success'
 }
 
-function getShiftTimes(shiftCode: ShiftCode, dayIndex: number) {
-  if (!shiftCode || shiftCode === 'off') return []
+function getShiftBadgeLabel(shift: FinalShiftItem) {
+  if (shift.status === 'off') return 'OFF'
+  if (shift.override_type) return 'Override'
 
-  const day = days.value[dayIndex]
-  const config = getShiftConfig(shiftCode)
+  return shift.shift_name ?? 'Active'
+}
 
-  if (!day || !config) return []
+function getShiftTime(shift: FinalShiftItem) {
+  if (!shift.start_time || !shift.end_time) return '-'
 
-  if (config.type === 'FLEXI') {
-    if (!config.flexiConfig?.days.includes(day.value)) return []
-
-    return [
-      `Core ${config.flexiConfig.coreStartTime} - ${config.flexiConfig.coreEndTime}`
-    ]
-  }
-
-  return config.workingHours
-    .filter(hour => hour.days.includes(day.value))
-    .map(hour => `${hour.startTime} - ${hour.endTime}`)
+  return `${shift.start_time} - ${shift.end_time}`
 }
 
 function isToday(day: CalendarDay) {
@@ -550,8 +364,15 @@ function isRedDay(day: CalendarDay) {
         </div>
 
         <div
+          v-if="!employees.length"
+          class="border-b border-default p-6 text-center text-sm text-muted"
+        >
+          Tidak ada data shift.
+        </div>
+
+        <div
           v-for="employee in employees"
-          :key="employee.name"
+          :key="employee.id"
           class="grid border-b border-default last:border-b-0 hover:bg-muted/40"
           :style="gridStyle"
         >
@@ -574,7 +395,7 @@ function isRedDay(day: CalendarDay) {
 
           <div
             v-for="(shift, index) in employee.shifts"
-            :key="`${employee.name}-${index}`"
+            :key="`${employee.id}-${days[index]?.fullDate.toISOString()}`"
             class="border-r border-default p-2 last:border-r-0"
             :class="[
               isRedDay(days[index])
@@ -592,49 +413,58 @@ function isRedDay(day: CalendarDay) {
                 : 'min-h-24'
             ]"
           >
-            <template v-if="shift">
-              <div
-                v-if="shift === 'off'"
-                class="flex h-full min-h-20 items-center justify-center rounded-lg bg-error/10 text-sm font-semibold text-error"
-              >
-                OFF
-              </div>
-
-              <div
-                v-else
-                class="h-full rounded-lg border border-default bg-elevated p-3 shadow-sm"
-              >
-                <UBadge
-                  :color="getShiftMeta(shift).color"
-                  variant="soft"
-                  size="xs"
-                  class="mb-2"
-                >
-                  {{ getShiftMeta(shift).label }}
-                </UBadge>
-
-                <div class="space-y-1">
-                  <p
-                    v-for="time in getShiftTimes(shift, index)"
-                    :key="time"
-                    class="text-xs font-semibold leading-snug text-highlighted"
-                  >
-                    {{ time }}
-                  </p>
-                </div>
-              </div>
-            </template>
-
-            <button
-              v-else
-              type="button"
-              class="flex h-full min-h-20 w-full items-center justify-center rounded-lg border border-dashed border-default text-muted transition hover:border-primary hover:text-primary"
+            <div
+              v-if="!shift"
+              class="flex h-full min-h-20 flex-col items-center justify-center rounded-lg border border-dashed border-default text-sm font-medium text-muted"
             >
               <UIcon
-                name="i-lucide-plus"
-                class="size-4"
+                name="i-lucide-calendar-x"
+                class="mb-1 size-4"
               />
-            </button>
+
+              <span>Not Scheduled</span>
+            </div>
+
+            <div
+              v-else-if="shift.status === 'off'"
+              class="flex h-full min-h-20 flex-col items-center justify-center rounded-lg bg-error/10 text-sm font-semibold text-error"
+            >
+              <span>OFF</span>
+            </div>
+
+            <div
+              v-else
+              class="h-full rounded-lg border border-default bg-elevated p-3 shadow-sm"
+            >
+              <UBadge
+                :color="getShiftBadgeColor(shift)"
+                variant="soft"
+                size="xs"
+                class="mb-2"
+              >
+                {{ getShiftBadgeLabel(shift) }}
+              </UBadge>
+
+              <div class="space-y-1">
+                <p class="text-xs font-semibold leading-snug text-highlighted">
+                  {{ getShiftTime(shift) }}
+                </p>
+
+                <p
+                  v-if="shift.override_type"
+                  class="text-[11px] font-medium text-warning"
+                >
+                  {{ shift.override_type }}
+                </p>
+
+                <p
+                  v-if="shift.override_reason"
+                  class="text-[11px] text-muted"
+                >
+                  {{ shift.override_reason }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

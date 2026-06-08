@@ -18,10 +18,13 @@ const menuGroups: Record<string, string[]> = {
     '/users'
   ],
   'Medical': [
-    '/items',
     '/questionnaire',
     '/rooms',
     '/services'
+  ],
+  'Items': [
+    '/items/mcu',
+    '/items/sample-types'
   ],
   'Front Office': [
     '/front-office'
@@ -57,7 +60,8 @@ const menuOpenState = ref<Record<string, boolean>>(
 )
 
 const parentMenus: Record<string, string[]> = {
-  Attendance: ['HRIS']
+  Attendance: ['HRIS'],
+  Items: ['Medical']
 }
 
 const updateActiveMenu = () => {
@@ -152,7 +156,19 @@ const links = computed<NavigationMenuItem[][]>(() => [
       children: [
         {
           label: 'Items',
-          to: '/items'
+          type: 'trigger',
+          open: menuOpenState.value['Items'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
+          children: [
+            {
+              label: 'MCU',
+              to: '/items/mcu'
+            },
+            {
+              label: 'Sample Types',
+              to: '/items/sample-types'
+            }
+          ]
         },
         {
           label: 'Questionnaire',
