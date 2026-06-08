@@ -1,19 +1,40 @@
 <!-- app/components/hris/attendance/configuration/ShiftSummaryCard.vue -->
 
 <script setup lang="ts">
-const summary = reactive({
-  totalShifts: 4,
-  totalEmployees: 95,
-  assignedEmployees: 85,
-  unassignedEmployees: 10
+type ShiftTemplateDay = {
+  is_working: boolean
+}
+
+type ShiftTemplate = {
+  id: number
+  status: 'active' | 'inactive'
+  shiftTemplateDays: ShiftTemplateDay[]
+}
+
+const props = defineProps<{
+  shifts: ShiftTemplate[]
+}>()
+
+const totalShifts = computed(() => props.shifts.length)
+
+const activeShifts = computed(() => {
+  return props.shifts.filter(shift => shift.status === 'active').length
 })
 
-const coverageRate = computed(() => {
-  if (summary.totalEmployees === 0) return 0
+const inactiveShifts = computed(() => {
+  return props.shifts.filter(shift => shift.status === 'inactive').length
+})
 
-  return Math.round(
-    (summary.assignedEmployees / summary.totalEmployees) * 100
-  )
+const totalWorkingDays = computed(() => {
+  return props.shifts.reduce((total, shift) => {
+    return total + (shift.shiftTemplateDays?.filter(day => day.is_working).length || 0)
+  }, 0)
+})
+
+const activeRate = computed(() => {
+  if (!totalShifts.value) return 0
+
+  return Math.round((activeShifts.value / totalShifts.value) * 100)
 })
 </script>
 
@@ -26,7 +47,7 @@ const coverageRate = computed(() => {
         </h3>
 
         <p class="mt-1 text-sm text-muted">
-          Employee shift coverage overview.
+          Shift template overview.
         </p>
       </div>
     </template>
@@ -36,11 +57,11 @@ const coverageRate = computed(() => {
         <div class="flex items-end justify-between gap-4">
           <div>
             <p class="text-sm text-muted">
-              Coverage Rate
+              Active Rate
             </p>
 
             <h2 class="mt-1 text-3xl font-bold text-highlighted">
-              {{ coverageRate }}%
+              {{ activeRate }}%
             </h2>
           </div>
 
@@ -48,12 +69,12 @@ const coverageRate = computed(() => {
             color="success"
             variant="soft"
           >
-            {{ summary.assignedEmployees }} Assigned
+            {{ activeShifts }} Active
           </UBadge>
         </div>
 
         <UProgress
-          :model-value="coverageRate"
+          :model-value="activeRate"
           color="success"
           class="mt-4"
         />
@@ -66,37 +87,37 @@ const coverageRate = computed(() => {
           </p>
 
           <p class="mt-1 text-xl font-semibold text-highlighted">
-            {{ summary.totalShifts }}
+            {{ totalShifts }}
           </p>
         </div>
 
         <div class="rounded-xl border border-default p-3">
           <p class="text-xs text-muted">
-            Employees
+            Working Days
           </p>
 
           <p class="mt-1 text-xl font-semibold text-highlighted">
-            {{ summary.totalEmployees }}
+            {{ totalWorkingDays }}
           </p>
         </div>
 
         <div class="rounded-xl border border-default p-3">
           <p class="text-xs text-muted">
-            Assigned
+            Active
           </p>
 
           <p class="mt-1 text-xl font-semibold text-success">
-            {{ summary.assignedEmployees }}
+            {{ activeShifts }}
           </p>
         </div>
 
         <div class="rounded-xl border border-default p-3">
           <p class="text-xs text-muted">
-            Unassigned
+            Inactive
           </p>
 
           <p class="mt-1 text-xl font-semibold text-warning">
-            {{ summary.unassignedEmployees }}
+            {{ inactiveShifts }}
           </p>
         </div>
       </div>

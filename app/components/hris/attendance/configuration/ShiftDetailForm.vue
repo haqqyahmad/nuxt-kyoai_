@@ -1,162 +1,143 @@
+<!-- app/components/hris/attendance/configuration/ShiftDetailForm.vue -->
+
 <script setup lang="ts">
-type ShiftType = 'FIXED' | 'FLEXI'
+type ShiftStatus = 'active' | 'inactive'
+
+type ShiftTemplateDay = {
+  id?: number
+  template_id?: number
+  day_of_week: number
+  start_time: string | null
+  end_time: string | null
+  is_working: boolean
+}
+
+type ShiftTemplate = {
+  id: number
+  name: string
+  description: string | null
+  status: ShiftStatus
+  shiftTemplateDays: ShiftTemplateDay[]
+}
 
 type WorkingHour = {
-  startTime: string
-  endTime: string
-  days: string[]
-}
-
-type FlexiConfig = {
-  minimumWorkHours: number
-  coreStartTime: string
-  coreEndTime: string
-  days: string[]
-}
-
-type ShiftForm = {
-  name: string
-  description: string
-  type: ShiftType
-  workingHours: WorkingHour[]
-  flexiConfig: FlexiConfig
-  breakTime: number
-  gracePeriod: number
-  overtimeThreshold: number
+  start_time: string
+  end_time: string
+  days: number[]
 }
 
 const props = defineProps<{
-  selectedShift: string
+  shift: ShiftTemplate | null
 }>()
 
+const emit = defineEmits<{
+  refresh: []
+}>()
+
+const api = useApi()
+const toast = useToast()
+
+const loading = ref(false)
+
 const days = [
-  { label: 'M', name: 'Mon', value: 'monday' },
-  { label: 'T', name: 'Tue', value: 'tuesday' },
-  { label: 'W', name: 'Wed', value: 'wednesday' },
-  { label: 'T', name: 'Thu', value: 'thursday' },
-  { label: 'F', name: 'Fri', value: 'friday' },
-  { label: 'S', name: 'Sat', value: 'saturday' },
-  { label: 'S', name: 'Sun', value: 'sunday' }
+  { label: 'M', name: 'Mon', fullName: 'Monday', day_of_week: 1 },
+  { label: 'T', name: 'Tue', fullName: 'Tuesday', day_of_week: 2 },
+  { label: 'W', name: 'Wed', fullName: 'Wednesday', day_of_week: 3 },
+  { label: 'T', name: 'Thu', fullName: 'Thursday', day_of_week: 4 },
+  { label: 'F', name: 'Fri', fullName: 'Friday', day_of_week: 5 },
+  { label: 'S', name: 'Sat', fullName: 'Saturday', day_of_week: 6 },
+  { label: 'S', name: 'Sun', fullName: 'Sunday', day_of_week: 7 }
 ]
 
-const defaultWorkingHour = (): WorkingHour => ({
-  startTime: '',
-  endTime: '',
-  days: []
+const form = reactive({
+  id: null as number | null,
+  name: '',
+  description: '',
+  status: 'active' as ShiftStatus,
+  workingHours: [] as WorkingHour[]
 })
 
-const defaultFlexiConfig = (): FlexiConfig => ({
-  minimumWorkHours: 8,
-  coreStartTime: '10:00',
-  coreEndTime: '15:00',
-  days: []
+const previewShiftDays = computed<ShiftTemplateDay[]>(() => {
+  return days.map((day) => {
+    const workingHour = form.workingHours.find(hour =>
+      hour.days.includes(day.day_of_week)
+    )
+
+    return {
+      day_of_week: day.day_of_week,
+      start_time: workingHour ? workingHour.start_time : null,
+      end_time: workingHour ? workingHour.end_time : null,
+      is_working: !!workingHour
+    }
+  })
 })
 
-const shiftData: Record<string, ShiftForm> = {
-  'Morning Shift': {
-    name: 'Morning Shift',
-    description: 'Regular morning working shift.',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '08:00',
-        endTime: '16:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      },
-      {
-        startTime: '08:00',
-        endTime: '13:00',
-        days: ['saturday']
-      }
-    ],
-    flexiConfig: defaultFlexiConfig(),
-    breakTime: 60,
-    gracePeriod: 15,
-    overtimeThreshold: 60
-  },
+const totalWorkingDays = computed(() => {
+  return previewShiftDays.value.filter(day => day.is_working).length
+})
 
-  'Evening Shift': {
-    name: 'Evening Shift',
-    description: 'Evening operational shift.',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '14:00',
-        endTime: '23:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      }
-    ],
-    flexiConfig: defaultFlexiConfig(),
-    breakTime: 60,
-    gracePeriod: 15,
-    overtimeThreshold: 60
-  },
-
-  'Night Shift': {
-    name: 'Night Shift',
-    description: 'Night operational shift.',
-    type: 'FIXED',
-    workingHours: [
-      {
-        startTime: '22:00',
-        endTime: '07:00',
-        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-      }
-    ],
-    flexiConfig: defaultFlexiConfig(),
-    breakTime: 60,
-    gracePeriod: 15,
-    overtimeThreshold: 60
-  },
-
-  'Flexi-time': {
-    name: 'Flexi-time',
-    description: 'Flexible working schedule with core time.',
-    type: 'FLEXI',
-    workingHours: [],
-    flexiConfig: {
-      minimumWorkHours: 8,
-      coreStartTime: '10:00',
-      coreEndTime: '15:00',
-      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-    },
-    breakTime: 60,
-    gracePeriod: 0,
-    overtimeThreshold: 60
+function defaultWorkingHour(): WorkingHour {
+  return {
+    start_time: '08:00',
+    end_time: '17:00',
+    days: []
   }
 }
 
-const form = reactive<ShiftForm>({
-  name: '',
-  description: '',
-  type: 'FIXED',
-  workingHours: [defaultWorkingHour()],
-  flexiConfig: defaultFlexiConfig(),
-  breakTime: 60,
-  gracePeriod: 15,
-  overtimeThreshold: 60
-})
+function groupDaysToWorkingHours(templateDays: ShiftTemplateDay[]) {
+  const workingDays = templateDays
+    .filter(day => day.is_working)
+    .sort((a, b) => a.day_of_week - b.day_of_week)
+
+  const groups = new Map<string, WorkingHour>()
+
+  workingDays.forEach((day) => {
+    const key = `${day.start_time}-${day.end_time}`
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        start_time: day.start_time || '08:00',
+        end_time: day.end_time || '17:00',
+        days: []
+      })
+    }
+
+    groups.get(key)?.days.push(day.day_of_week)
+  })
+
+  return Array.from(groups.values())
+}
 
 watch(
-  () => props.selectedShift,
-  (shiftName) => {
-    const selected = shiftData[shiftName]
+  () => props.shift,
+  (shift) => {
+    if (!shift) {
+      Object.assign(form, {
+        id: null,
+        name: '',
+        description: '',
+        status: 'active',
+        workingHours: [defaultWorkingHour()]
+      })
 
-    if (!selected) return
+      return
+    }
+
+    const workingHours = groupDaysToWorkingHours(
+      shift.shiftTemplateDays || []
+    )
 
     Object.assign(form, {
-      ...selected,
-      workingHours: selected.workingHours.map(hour => ({
-        ...hour,
-        days: [...hour.days]
-      })),
-      flexiConfig: {
-        ...selected.flexiConfig,
-        days: [...selected.flexiConfig.days]
-      }
+      id: shift.id,
+      name: shift.name,
+      description: shift.description || '',
+      status: shift.status,
+      workingHours: workingHours.length
+        ? workingHours
+        : [defaultWorkingHour()]
     })
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 )
 
 function addWorkingHour() {
@@ -165,20 +146,149 @@ function addWorkingHour() {
 
 function removeWorkingHour(index: number) {
   if (form.workingHours.length <= 1) return
-
   form.workingHours.splice(index, 1)
 }
 
-function toggleDay(hour: WorkingHour, value: string) {
-  hour.days = hour.days.includes(value)
-    ? hour.days.filter(item => item !== value)
-    : [...hour.days, value]
+function isDaySelected(hour: WorkingHour, dayOfWeek: number) {
+  return hour.days.includes(dayOfWeek)
 }
 
-function toggleFlexiDay(value: string) {
-  form.flexiConfig.days = form.flexiConfig.days.includes(value)
-    ? form.flexiConfig.days.filter(item => item !== value)
-    : [...form.flexiConfig.days, value]
+function toggleDay(hour: WorkingHour, dayOfWeek: number) {
+  if (hour.days.includes(dayOfWeek)) {
+    hour.days = hour.days.filter(day => day !== dayOfWeek)
+    return
+  }
+
+  form.workingHours.forEach((item) => {
+    item.days = item.days.filter(day => day !== dayOfWeek)
+  })
+
+  hour.days.push(dayOfWeek)
+}
+
+function setWeekdays(hour: WorkingHour) {
+  const weekdays = [1, 2, 3, 4, 5]
+
+  form.workingHours.forEach((item) => {
+    item.days = item.days.filter(day => !weekdays.includes(day))
+  })
+
+  hour.days = [...new Set([...hour.days, ...weekdays])]
+}
+
+function clearWorkingHourDays(hour: WorkingHour) {
+  hour.days = []
+}
+
+function getDayName(dayOfWeek: number) {
+  return days.find(day => day.day_of_week === dayOfWeek)?.fullName ?? '-'
+}
+
+function getPreviewDay(dayOfWeek: number) {
+  return previewShiftDays.value.find(day => day.day_of_week === dayOfWeek)
+}
+
+function calculateHours(startTime?: string | null, endTime?: string | null) {
+  if (!startTime || !endTime) return 0
+
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+  const [endHour, endMinute] = endTime.split(':').map(Number)
+
+  const startTotal = startHour * 60 + startMinute
+  let endTotal = endHour * 60 + endMinute
+
+  if (endTotal <= startTotal) {
+    endTotal += 24 * 60
+  }
+
+  return (endTotal - startTotal) / 60
+}
+
+function validateForm() {
+  if (!form.name.trim()) {
+    toast.add({
+      title: 'Validasi',
+      description: 'Nama shift wajib diisi.',
+      color: 'warning'
+    })
+
+    return false
+  }
+
+  if (!totalWorkingDays.value) {
+    toast.add({
+      title: 'Validasi',
+      description: 'Minimal pilih 1 hari kerja.',
+      color: 'warning'
+    })
+
+    return false
+  }
+
+  const invalidHour = form.workingHours.find(hour =>
+    calculateHours(hour.start_time, hour.end_time) <= 0
+  )
+
+  if (invalidHour) {
+    toast.add({
+      title: 'Validasi',
+      description: 'Jam shift tidak valid.',
+      color: 'warning'
+    })
+
+    return false
+  }
+
+  return true
+}
+
+async function saveChanges() {
+  if (!form.id) return
+  if (loading.value) return
+  if (!validateForm()) return
+
+  loading.value = true
+
+  try {
+    const shiftTemplateDays = previewShiftDays.value.map(day => ({
+      day_of_week: day.day_of_week,
+      start_time: day.is_working ? day.start_time : null,
+      end_time: day.is_working ? day.end_time : null,
+      is_working: day.is_working
+    }))
+
+    const payload = {
+      name: form.name,
+      description: form.description,
+      status: form.status,
+      shiftTemplateDays,
+      shift_template_days: shiftTemplateDays,
+      days: shiftTemplateDays
+    }
+
+    await api(`/hris/shift/templates/${form.id}`, {
+      method: 'PATCH',
+      data: payload
+    })
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Shift berhasil diperbarui.',
+      color: 'success'
+    })
+
+    emit('refresh')
+  } catch (error: any) {
+    console.error(error)
+
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Shift gagal diperbarui.',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -196,27 +306,35 @@ function toggleFlexiDay(value: string) {
           </p>
         </div>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-copy"
-            class="justify-center"
-          >
-            Duplicate
-          </UButton>
-
-          <UButton
-            icon="i-lucide-save"
-            class="justify-center"
-          >
-            Save Changes
-          </UButton>
-        </div>
+        <UButton
+          icon="i-lucide-save"
+          class="justify-center"
+          :loading="loading"
+          :disabled="!form.id || loading"
+          @click="saveChanges"
+        >
+          Save Changes
+        </UButton>
       </div>
     </template>
 
-    <div class="space-y-6">
+    <div
+      v-if="!shift"
+      class="rounded-xl border border-dashed border-default p-8 text-center"
+    >
+      <p class="font-medium text-highlighted">
+        Belum ada shift dipilih
+      </p>
+
+      <p class="mt-1 text-sm text-muted">
+        Pilih shift dari daftar sebelah kiri.
+      </p>
+    </div>
+
+    <div
+      v-else
+      class="space-y-6"
+    >
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Shift Name">
           <UInput
@@ -225,12 +343,12 @@ function toggleFlexiDay(value: string) {
           />
         </UFormField>
 
-        <UFormField label="Shift Type">
+        <UFormField label="Status">
           <USelect
-            v-model="form.type"
+            v-model="form.status"
             :items="[
-              { label: 'Fixed Shift', value: 'FIXED' },
-              { label: 'Flexi Time', value: 'FLEXI' }
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' }
             ]"
             class="w-full"
           />
@@ -248,189 +366,197 @@ function toggleFlexiDay(value: string) {
         </UFormField>
       </div>
 
-      <div
-        v-if="form.type === 'FIXED'"
-        class="space-y-4"
-      >
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h4 class="text-sm font-semibold text-highlighted">
-              Working Hours
-            </h4>
+      <div class="grid gap-6 lg:grid-cols-3">
+        <div class="space-y-4 lg:col-span-2">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h4 class="text-sm font-semibold text-highlighted">
+                Multiple Working Hours
+              </h4>
 
-            <p class="mt-1 text-xs text-muted">
-              Add one or more time ranges for this shift.
-            </p>
+              <p class="mt-1 text-xs text-muted">
+                Satu hari hanya bisa masuk ke satu range.
+              </p>
+            </div>
+
+            <UButton
+              type="button"
+              size="sm"
+              variant="outline"
+              icon="i-lucide-plus"
+              @click="addWorkingHour"
+            >
+              Add Hours
+            </UButton>
           </div>
 
-          <UButton
-            size="sm"
-            variant="outline"
-            icon="i-lucide-plus"
-            class="w-full justify-center sm:w-auto"
-            @click="addWorkingHour"
-          >
-            Add Hours
-          </UButton>
+          <div class="space-y-3">
+            <div
+              v-for="(hour, index) in form.workingHours"
+              :key="index"
+              class="space-y-4 rounded-xl border border-default bg-muted/30 p-4"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-highlighted">
+                    Time Range {{ index + 1 }}
+                  </p>
+
+                  <p class="mt-1 text-xs text-muted">
+                    {{ hour.days.length }} hari dipilih
+                  </p>
+                </div>
+
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  icon="i-lucide-trash-2"
+                  :disabled="form.workingHours.length === 1"
+                  @click="removeWorkingHour(index)"
+                />
+              </div>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <UFormField label="Start Time">
+                  <UInput
+                    v-model="hour.start_time"
+                    type="time"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="End Time">
+                  <UInput
+                    v-model="hour.end_time"
+                    type="time"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+
+              <UFormField label="Assigned Days">
+                <div class="space-y-3">
+                  <div class="flex flex-wrap gap-2">
+                    <UButton
+                      v-for="day in days"
+                      :key="day.day_of_week"
+                      type="button"
+                      :color="isDaySelected(hour, day.day_of_week) ? 'primary' : 'neutral'"
+                      :variant="isDaySelected(hour, day.day_of_week) ? 'solid' : 'outline'"
+                      square
+                      class="size-10"
+                      :title="day.fullName"
+                      @click="toggleDay(hour, day.day_of_week)"
+                    >
+                      {{ day.label }}
+                    </UButton>
+                  </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <UButton
+                      type="button"
+                      size="xs"
+                      variant="soft"
+                      icon="i-lucide-calendar-days"
+                      @click="setWeekdays(hour)"
+                    >
+                      Senin - Jumat
+                    </UButton>
+
+                    <UButton
+                      type="button"
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      icon="i-lucide-rotate-ccw"
+                      @click="clearWorkingHourDays(hour)"
+                    >
+                      Clear Days
+                    </UButton>
+                  </div>
+                </div>
+              </UFormField>
+
+              <div
+                v-if="hour.days.length"
+                class="flex flex-wrap gap-2"
+              >
+                <UBadge
+                  v-for="dayOfWeek in hour.days"
+                  :key="dayOfWeek"
+                  color="primary"
+                  variant="soft"
+                >
+                  {{ getDayName(dayOfWeek) }}
+                </UBadge>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="space-y-3">
-          <div
-            v-for="(hour, index) in form.workingHours"
-            :key="index"
-            class="space-y-4 rounded-xl border border-default bg-muted/30 p-4"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <p class="text-sm font-semibold text-highlighted">
-                Time Range {{ index + 1 }}
+        <div class="lg:col-span-1">
+          <div class="sticky top-0 space-y-3">
+            <div>
+              <h4 class="text-sm font-semibold text-highlighted">
+                Preview Shift Days
+              </h4>
+
+              <p class="mt-1 text-xs text-muted">
+                Preview hasil shift template days.
+              </p>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-default">
+              <div
+                v-for="day in days"
+                :key="day.day_of_week"
+                class="border-b border-default px-4 py-3 text-sm last:border-b-0"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="font-medium text-highlighted">
+                      {{ day.fullName }}
+                    </p>
+
+                    <p class="mt-1 text-xs text-muted">
+                      <template v-if="getPreviewDay(day.day_of_week)?.is_working">
+                        {{ getPreviewDay(day.day_of_week)?.start_time }}
+                        -
+                        {{ getPreviewDay(day.day_of_week)?.end_time }}
+                      </template>
+
+                      <template v-else>
+                        Libur
+                      </template>
+                    </p>
+                  </div>
+
+                  <UBadge
+                    :color="getPreviewDay(day.day_of_week)?.is_working ? 'success' : 'neutral'"
+                    variant="soft"
+                  >
+                    {{ getPreviewDay(day.day_of_week)?.is_working ? 'Working' : 'Off' }}
+                  </UBadge>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-default bg-muted/30 p-4">
+              <p class="text-xs font-semibold text-highlighted">
+                Total Working Days
               </p>
 
-              <UButton
-                color="error"
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-trash-2"
-                :disabled="form.workingHours.length === 1"
-                @click="removeWorkingHour(index)"
-              />
+              <p class="mt-1 text-2xl font-bold text-highlighted">
+                {{ totalWorkingDays }}
+              </p>
+
+              <p class="mt-1 text-xs text-muted">
+                dari 7 hari
+              </p>
             </div>
-
-            <div class="grid gap-4 sm:grid-cols-2">
-              <UFormField label="Start Time">
-                <UInput
-                  v-model="hour.startTime"
-                  type="time"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="End Time">
-                <UInput
-                  v-model="hour.endTime"
-                  type="time"
-                  class="w-full"
-                />
-              </UFormField>
-            </div>
-
-            <UFormField label="Assigned Days">
-              <div class="flex flex-wrap gap-2">
-                <UButton
-                  v-for="day in days"
-                  :key="day.value"
-                  type="button"
-                  :color="hour.days.includes(day.value) ? 'primary' : 'neutral'"
-                  :variant="hour.days.includes(day.value) ? 'solid' : 'outline'"
-                  square
-                  class="size-10"
-                  :title="day.name"
-                  @click="toggleDay(hour, day.value)"
-                >
-                  {{ day.label }}
-                </UButton>
-              </div>
-            </UFormField>
           </div>
         </div>
-      </div>
-
-      <div
-        v-else
-        class="space-y-4"
-      >
-        <div>
-          <h4 class="text-sm font-semibold text-highlighted">
-            Flexi Core Time
-          </h4>
-
-          <p class="mt-1 text-xs text-muted">
-            Employees can work flexibly but must be present during core time.
-          </p>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField label="Minimum Work Hours">
-            <UInput
-              v-model.number="form.flexiConfig.minimumWorkHours"
-              type="number"
-              trailing="hours"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div />
-
-          <UFormField label="Core Start Time">
-            <UInput
-              v-model="form.flexiConfig.coreStartTime"
-              type="time"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField label="Core End Time">
-            <UInput
-              v-model="form.flexiConfig.coreEndTime"
-              type="time"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField
-            label="Working Days"
-            class="sm:col-span-2"
-          >
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="day in days"
-                :key="day.value"
-                type="button"
-                :color="form.flexiConfig.days.includes(day.value) ? 'primary' : 'neutral'"
-                :variant="form.flexiConfig.days.includes(day.value) ? 'solid' : 'outline'"
-                square
-                class="size-10"
-                :title="day.name"
-                @click="toggleFlexiDay(day.value)"
-              >
-                {{ day.label }}
-              </UButton>
-            </div>
-          </UFormField>
-        </div>
-      </div>
-
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Break Time">
-          <UInput
-            v-model.number="form.breakTime"
-            type="number"
-            trailing="minutes"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField
-          v-if="form.type === 'FIXED'"
-          label="Grace Period"
-        >
-          <USelect
-            v-model="form.gracePeriod"
-            :items="[0, 5, 10, 15, 30]"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField
-          v-if="form.type === 'FIXED'"
-          label="Overtime Threshold"
-        >
-          <UInput
-            v-model.number="form.overtimeThreshold"
-            type="number"
-            trailing="minutes"
-            class="w-full"
-          />
-        </UFormField>
       </div>
     </div>
   </UCard>

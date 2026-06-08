@@ -1,10 +1,77 @@
 <!-- app/pages/hris/attendance/shift-configuration/index.vue -->
 
 <script setup lang="ts">
-const selectedShift = ref('Morning Shift')
+type ShiftTemplateDay = {
+  id?: number
+  template_id?: number
+  day_of_week: number
+  start_time: string | null
+  end_time: string | null
+  is_working: boolean
+}
+
+type ShiftTemplate = {
+  id: number
+  name: string
+  description: string | null
+  status: 'active' | 'inactive'
+  created_at?: string
+  updated_at?: string
+  shiftTemplateDays: ShiftTemplateDay[]
+}
+
+const api = useApi()
+const toast = useToast()
+
+const loading = ref(false)
+const shifts = ref<ShiftTemplate[]>([])
+const selectedShiftId = ref<number | null>(null)
 
 const openCreateShift = ref(false)
 const openAssignEmployee = ref(false)
+
+const selectedShift = computed(() => {
+  return shifts.value.find(shift => shift.id === selectedShiftId.value) || null
+})
+
+async function fetchShifts() {
+  loading.value = true
+
+  try {
+    const response: any = await api('/hris/shift/templates', {
+      method: 'GET'
+    })
+
+    const data = response?.data?.data || response?.data || response || []
+
+    shifts.value = Array.isArray(data) ? data : []
+
+    if (!selectedShiftId.value && shifts.value.length) {
+      selectedShiftId.value = shifts.value[0].id
+    }
+
+    if (
+      selectedShiftId.value
+      && !shifts.value.some(shift => shift.id === selectedShiftId.value)
+    ) {
+      selectedShiftId.value = shifts.value[0]?.id ?? null
+    }
+  } catch (error: any) {
+    console.error(error)
+
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Gagal mengambil data shift.',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchShifts()
+})
 </script>
 
 <template>
@@ -52,20 +119,27 @@ const openAssignEmployee = ref(false)
           <div class="grid min-w-0 gap-6 xl:grid-cols-12">
             <div class="min-w-0 space-y-6 xl:col-span-4">
               <HrisAttendanceConfigurationShiftList
-                v-model="selectedShift"
+                v-model="selectedShiftId"
+                :shifts="shifts"
+                :loading="loading"
               />
 
-              <HrisAttendanceConfigurationShiftSummaryCard />
+              <HrisAttendanceConfigurationShiftSummaryCard
+                :shifts="shifts"
+              />
             </div>
 
             <div class="min-w-0 space-y-6 xl:col-span-8">
               <HrisAttendanceConfigurationShiftDetailForm
-                :selected-shift="selectedShift"
+                :shift="selectedShift"
+                @refresh="fetchShifts"
               />
 
-              <!-- <HrisAttendanceConfigurationAssignedEmployeesTable
+              <!--
+              <HrisAttendanceConfigurationAssignedEmployeesTable
                 @add="openAssignEmployee = true"
-              /> -->
+              />
+              -->
             </div>
           </div>
         </div>
@@ -73,11 +147,14 @@ const openAssignEmployee = ref(false)
 
       <HrisAttendanceConfigurationCreateShiftModal
         v-model:open="openCreateShift"
+        @created="fetchShifts"
       />
 
-      <!-- <HrisAttendanceConfigurationAssignEmployeeModal
+      <!--
+      <HrisAttendanceConfigurationAssignEmployeeModal
         v-model:open="openAssignEmployee"
-      /> -->
+      />
+      -->
     </template>
   </UDashboardPanel>
 </template>
