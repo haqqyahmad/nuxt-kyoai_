@@ -523,6 +523,74 @@ const canSubmit = computed(() => {
   )
 })
 
+// async function submit() {
+//   if (!canSubmit.value || submitting.value) return
+//   submitting.value = true
+
+//   try {
+//     // 1. Buat pasien baru jika perlu
+//     let patientId = selectedPatient.value?.id
+//     if (isNewPatient.value) {
+//       const res = await api.post('/patient', { ...newPatient.value })
+//       patientId = res.data.data.id
+//     }
+
+//     // 2. Buat registrasi
+//     await api.post('/registration', {
+//       patientId,
+//       branchId: selectedBranch.value!.branchId,
+//       companyId: String(regForm.value.companyId),
+//       serviceType: selectedService.value,
+//       paymentType: regForm.value.paymentType,
+//       priorityRegist: regForm.value.priorityRegist,
+//       examDate: regForm.value.examDate,
+//       scheduleDateExam: regForm.value.scheduleDateExam
+//     })
+
+//     // 3. Jika MCU — buat exam
+//     if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
+//       await api.post('/mcu/exams', {
+//         paketId: selectedPaket.value.id,
+//         patientId,
+//         examDate: regForm.value.examDate
+//       })
+
+//       // CATATAN: Additional items saat ini hanya dicatat di FE (state lokal).
+//       // Backend belum memiliki endpoint untuk menambah item spesifik per-exam
+//       // tanpa memodifikasi master paket secara permanen.
+//       //
+//       // Opsi ke depan (pilih salah satu sesuai kebutuhan):
+//       //   A) Buat endpoint baru: POST /mcu/exams/:id/items  → tambah item ke exam tertentu
+//       //   B) Buat "paket sementara" baru yang di-clone dari paket yang dipilih + additional items
+//       //   C) Simpan additional item IDs ke field tambahan di TrxExam (perlu migrasi schema)
+//       //
+//       // Untuk sementara additional items TIDAK diproses ke backend
+//       // agar tidak merusak data master paket.
+//       if (additionalItems.value.length > 0) {
+//         console.warn(
+//           '[MCU] Additional items belum diproses ke backend:',
+//           additionalItems.value.map(i => i.id)
+//         )
+//       }
+//     }
+
+//     toast.add({
+//       title: 'Berhasil',
+//       description: 'Registrasi berhasil dibuat',
+//       color: 'success'
+//     })
+//     router.push('/front-office/registration-patient')
+//   } catch (err: any) {
+//     toast.add({
+//       title: 'Gagal',
+//       description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+//       color: 'error'
+//     })
+//   } finally {
+//     submitting.value = false
+//   }
+// }
+
 async function submit() {
   if (!canSubmit.value || submitting.value) return
   submitting.value = true
@@ -536,49 +604,42 @@ async function submit() {
     }
 
     // 2. Buat registrasi
-    await api.post('/registration', {
+    const regRes = await api.post('/registration', {
       patientId,
-      branchId: selectedBranch.value!.branchId,
-      companyId: String(regForm.value.companyId),
-      serviceType: selectedService.value,
-      paymentType: regForm.value.paymentType,
-      priorityRegist: regForm.value.priorityRegist,
-      examDate: regForm.value.examDate,
+      branchId:        selectedBranch.value!.branchId,
+      companyId:       String(regForm.value.companyId),
+      serviceType:     selectedService.value,
+      paymentType:     regForm.value.paymentType,
+      priorityRegist:  regForm.value.priorityRegist,
+      examDate:        regForm.value.examDate,
       scheduleDateExam: regForm.value.scheduleDateExam
     })
 
+    console.log('Registration RESPONSE:', regRes.data.data)
+
     // 3. Jika MCU — buat exam
     if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
-      await api.post('/mcu/exams', {
-        paketId: selectedPaket.value.id,
+      const examRes = await api.post('/mcu/exams', {
+        paketId:        selectedPaket.value.id,
         patientId,
-        examDate: regForm.value.examDate
+        examDate:       regForm.value.examDate,
+        registrationId: regRes.data.data.id   // ← link ke registrasi
       })
 
-      // CATATAN: Additional items saat ini hanya dicatat di FE (state lokal).
-      // Backend belum memiliki endpoint untuk menambah item spesifik per-exam
-      // tanpa memodifikasi master paket secara permanen.
-      //
-      // Opsi ke depan (pilih salah satu sesuai kebutuhan):
-      //   A) Buat endpoint baru: POST /mcu/exams/:id/items  → tambah item ke exam tertentu
-      //   B) Buat "paket sementara" baru yang di-clone dari paket yang dipilih + additional items
-      //   C) Simpan additional item IDs ke field tambahan di TrxExam (perlu migrasi schema)
-      //
-      // Untuk sementara additional items TIDAK diproses ke backend
-      // agar tidak merusak data master paket.
+      const examId = examRes.data.data.id
+
+      // 4. Tambah additional items jika ada
       if (additionalItems.value.length > 0) {
-        console.warn(
-          '[MCU] Additional items belum diproses ke backend:',
-          additionalItems.value.map(i => i.id)
-        )
+        await api.post(`/mcu/exams/${examId}/items`, {
+          items: additionalItems.value.map((item, index) => ({
+            itemId:    item.id,
+            sortOrder: selectedPaket.value!.paketItems.length + index
+          }))
+        })
       }
     }
 
-    toast.add({
-      title: 'Berhasil',
-      description: 'Registrasi berhasil dibuat',
-      color: 'success'
-    })
+    toast.add({ title: 'Berhasil', description: 'Registrasi berhasil dibuat', color: 'success' })
     router.push('/front-office/registration-patient')
   } catch (err: any) {
     toast.add({
@@ -604,17 +665,6 @@ async function submit() {
             variant="ghost"
             to="/front-office/registration-patient"
           />
-        </template>
-        <template #right>
-          <UButton
-            color="primary"
-            icon="i-lucide-check"
-            :loading="submitting"
-            :disabled="!canSubmit || submitting"
-            @click="submit"
-          >
-            Simpan
-          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
@@ -1113,7 +1163,7 @@ async function submit() {
                     :items="
                       (companies ?? []).map((c) => ({
                         label: `${c.codeCostumer} – ${c.customerName}`,
-                        value: String(c.id)
+                        value: String(c.codeCostumer)
                       }))
                     "
                     placeholder="Pilih perusahaan..."
@@ -1795,7 +1845,7 @@ async function submit() {
               class="flex items-center gap-1 text-warning"
             >
               <UIcon name="i-lucide-info" />
-              {{ additionalItems.length }} item tambahan (belum diproses)
+              terdapat {{ additionalItems.length }} item tambahan
             </span>
             <span
               v-if="selectedService === 'MCU' && !selectedPaket"

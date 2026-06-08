@@ -52,7 +52,7 @@ const SERVICE_TYPE_LABEL: Record<Department, string> = {
 }
 
 const SERVICE_TYPE_COLOR: Record<Department, any> = {
-  Laboratory: 'success',
+  Laboratorium: 'success',
   DoctorConsultation: 'info',
   MCU: 'warning',
   Vaccine: 'success',
@@ -61,7 +61,7 @@ const SERVICE_TYPE_COLOR: Record<Department, any> = {
   VitaminInjection: 'secondary',
   Pharmacy: 'neutral',
   Dental: 'warning',
-  Radiology: 'warning'
+  Radiologi: 'warning'
 }
 
 const {
