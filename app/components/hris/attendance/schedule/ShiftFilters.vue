@@ -1,71 +1,130 @@
-<!-- app/components/hris/attendance/schedule/ShiftFilters.vue -->
-
 <script setup lang="ts">
-const department = defineModel<string>('department', {
-  default: 'all'
+import { CalendarDate } from '@internationalized/date'
+
+const api = useApi()
+
+type EmployeeOption = {
+  label: string
+  value: number
+}
+
+type DateRange = {
+  start: CalendarDate | null
+  end: CalendarDate | null
+}
+
+const employeeId = defineModel<number | null>('employeeId', {
+  default: null
 })
 
-const shiftType = defineModel<string>('shiftType', {
-  default: 'all'
+const dateRange = defineModel<DateRange>('dateRange', {
+  default: () => ({
+    start: null,
+    end: null
+  })
 })
 
-const departments = [
-  { label: 'All Departments', value: 'all' },
-  { label: 'Engineering', value: 'Engineering' },
-  { label: 'Operations', value: 'Operations' },
-  { label: 'Customer Support', value: 'Customer Support' },
-  { label: 'HR', value: 'HR' },
-  { label: 'Finance', value: 'Finance' }
-]
+const emit = defineEmits<{
+  search: []
+}>()
 
-const shiftTypes = [
-  { label: 'All Shift Types', value: 'all' },
-  { label: 'Morning', value: 'Morning' },
-  { label: 'Evening', value: 'Evening' },
-  { label: 'Night', value: 'Night' },
-  { label: 'Flexi-time', value: 'Flexi-time' },
-  { label: 'OFF', value: 'OFF' }
-]
+const employees = ref<EmployeeOption[]>([])
+const loadingEmployee = ref(false)
+const employeeSearch = ref('')
+
+const canSearch = computed(() => {
+  return Boolean(employeeId.value && dateRange.value.start && dateRange.value.end)
+})
+
+const dateLabel = computed(() => {
+  if (!dateRange.value.start || !dateRange.value.end) {
+    return 'Pilih range tanggal'
+  }
+
+  return `${dateRange.value.start.toString()} - ${dateRange.value.end.toString()}`
+})
+
+async function loadEmployees(search = '') {
+  loadingEmployee.value = true
+
+  try {
+    const response = await api.get<{ data: any[] }>('/hris/employees', {
+      params: { search }
+    })
+
+    employees.value = response.data.data.map(item => ({
+      label: item.name ?? item.nama ?? `Employee ${item.id}`,
+      value: item.id
+    }))
+  } finally {
+    loadingEmployee.value = false
+  }
+}
+
+function setDefaultDateRange() {
+  dateRange.value = {
+    start: new CalendarDate(2025, 6, 1),
+    end: new CalendarDate(2025, 6, 30)
+  }
+}
+
+function onSearch() {
+  if (!canSearch.value) return
+  emit('search')
+}
+
+onMounted(() => {
+  loadEmployees()
+
+  if (!dateRange.value.start || !dateRange.value.end) {
+    setDefaultDateRange()
+  }
+})
 </script>
 
 <template>
   <UCard>
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div class="grid gap-3 sm:grid-cols-2 lg:flex">
-        <USelect
-          v-model="department"
-          :items="departments"
-          label-key="label"
-          value-key="value"
-          class="w-full lg:w-52"
-        />
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
+      <USelectMenu
+        v-model="employeeId"
+        v-model:search-term="employeeSearch"
+        :items="employees"
+        :loading="loadingEmployee"
+        label-key="label"
+        value-key="value"
+        searchable
+        placeholder="Cari nama karyawan"
+        class="w-full lg:w-80"
+        @update:search-term="loadEmployees"
+      />
 
-        <USelect
-          v-model="shiftType"
-          :items="shiftTypes"
-          label-key="label"
-          value-key="value"
-          class="w-full lg:w-52"
-        />
-      </div>
+      <UPopover>
+        <UButton
+          icon="i-lucide-calendar-days"
+          color="neutral"
+          variant="outline"
+          class="w-full justify-start lg:w-72"
+        >
+          {{ dateLabel }}
+        </UButton>
 
-      <div class="flex flex-wrap gap-2">
-        <UBadge color="success" variant="soft">
-          Morning
-        </UBadge>
-        <UBadge color="warning" variant="soft">
-          Evening
-        </UBadge>
-        <UBadge color="primary" variant="soft">
-          Night
-        </UBadge>
-        <UBadge color="info" variant="soft">
-          Flexi-time
-        </UBadge>
-        <UBadge color="neutral" variant="soft">
-          OFF
-        </UBadge>
-      </div>
+        <template #content>
+          <UCalendar
+            v-model="dateRange"
+            range
+            class="p-2"
+          />
+        </template>
+      </UPopover>
+
+      <UButton
+        icon="i-lucide-search"
+        class="w-full justify-center lg:w-auto"
+        :disabled="!canSearch"
+        @click="onSearch"
+      >
+        Search
+      </UButton>
     </div>
   </UCard>
 </template>

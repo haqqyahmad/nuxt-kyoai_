@@ -1,18 +1,23 @@
 <!-- app/pages/hris/attendance/shift-schedule/index.vue -->
 
 <script setup lang="ts">
+import { CalendarDate } from '@internationalized/date'
+
 const api = useApi()
+const toast = useToast()
 
 type ViewMode = 'day' | 'week' | 'month'
-
 type FinalShiftStatus = 'active' | 'off'
 
 type FinalShiftItem = {
+  id?: number | string
   employee_id: number
   employee_name?: string
   department?: string
   date: string
   hari: string
+  shift_code?: string | null
+  shift_name?: string | null
   start_time: string | null
   end_time: string | null
   status: FinalShiftStatus
@@ -27,16 +32,25 @@ type FinalShiftResponse = {
   data: FinalShiftItem[]
 }
 
+type HolidayItem = {
+  date: string
+  name: string
+}
+
 const openAssignModal = ref(false)
 
 const selectedDate = ref(new Date('2025-06-02'))
 const viewMode = ref<ViewMode>('week')
-
 const loading = ref(false)
 
+const holidays = ref<HolidayItem[]>([])
+
 const filters = reactive({
-  department: 'all',
-  shiftType: 'all'
+  employeeId: null as number | null,
+  dateRange: {
+    start: new CalendarDate(2025, 6, 1),
+    end: new CalendarDate(2025, 6, 30)
+  }
 })
 
 const finalShiftResponse = ref<FinalShiftResponse>({
@@ -45,67 +59,178 @@ const finalShiftResponse = ref<FinalShiftResponse>({
   data: []
 })
 
+function formatYmd(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function getStartOfWeek(date: Date) {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+
+  start.setDate(start.getDate() + diff)
+
+  return start
+}
+
+function getDateRange() {
+  const date = new Date(selectedDate.value)
+
+  if (viewMode.value === 'day') {
+    return {
+      startDate: formatYmd(date),
+      endDate: formatYmd(date)
+    }
+  }
+
+  if (viewMode.value === 'week') {
+    const start = getStartOfWeek(date)
+    const end = new Date(start)
+
+    end.setDate(start.getDate() + 6)
+
+    return {
+      startDate: formatYmd(start),
+      endDate: formatYmd(end)
+    }
+  }
+
+  const start = new Date(date.getFullYear(), date.getMonth(), 1)
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+
+  return {
+    startDate: formatYmd(start),
+    endDate: formatYmd(end)
+  }
+}
+
 async function loadShiftSchedule() {
   loading.value = true
+
   try {
-    const response = await api.get<FinalShiftResponse>('/hris/shift/view',
-      { params: {
-        employee_id: 1, start_date: '2025-06-01', end_date: '2025-06-30'
-      } })
+    const params: Record<string, string | number> = {}
+
+    if (filters.employeeId) {
+      params.employee_id = filters.employeeId
+    }
+
+    if (filters.dateRange.start) {
+      params.start_date = filters.dateRange.start.toString()
+    }
+
+    if (filters.dateRange.end) {
+      params.end_date = filters.dateRange.end.toString()
+    }
+
+    const response = await api.get<FinalShiftResponse>('/hris/shift/view', {
+      params
+    })
+
     finalShiftResponse.value = response.data
-    console.log('shift-response', response.data)
   } catch (error) {
     console.error(error)
-    finalShiftResponse.value = { success: false, message: 'Failed to load final shift view', data: [] }
-  } finally { loading.value = false }
+
+    finalShiftResponse.value = {
+      success: false,
+      message: 'Failed to load final shift view',
+      data: []
+    }
+
+    toast.add({
+      title: 'Gagal memuat jadwal shift',
+      description: 'Silakan coba lagi.',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
 }
-//   try {
-//     const response = await api.get<FinalShiftResponse>(
-//       '/api/hris/shift/view',
-//       {
-//         query: {
-//           // year: selectedDate.value.getFullYear(),
-//           // month: selectedDate.value.getMonth() + 1
-//           employee_id: 3,
-//           start_date: '2025-06-01',
-//           end_date: '2025-06-30'
-//         }
-//       }
-//     )
 
-//     finalShiftResponse.value = response
-//     console.log('shift-response',response)
-//   } catch (error) {
-//     console.error(error)
+async function loadHolidays() {
+  try {
+    const year = selectedDate.value.getFullYear()
 
-//     finalShiftResponse.value = {
-//       success: false,
-//       message: 'Failed to load final shift view',
-//       data: []
-//     }
-//   } finally {
-//     loading.value = false
-//   }
-// }
+    const response = await api.get<{
+      success: boolean
+      data: HolidayItem[]
+    }>('/hris/holidays', {
+      params: { year }
+    })
+
+    holidays.value = response.data.data ?? []
+  } catch (error) {
+    console.error(error)
+    holidays.value = []
+  }
+}
+
+async function refreshPage() {
+  await Promise.all([
+    loadShiftSchedule(),
+    loadHolidays()
+  ])
+}
+
+async function handleSearch() {
+  await loadShiftSchedule()
+}
+
+async function handleSwapShift(payload: {
+  fromEmployeeId: number
+  toEmployeeId: number
+  date: string
+  shift: FinalShiftItem
+}) {
+  try {
+    await api.post('/hris/shift/swap', payload)
+
+    toast.add({
+      title: 'Shift berhasil ditukar',
+      color: 'success'
+    })
+
+    await loadShiftSchedule()
+  } catch (error) {
+    console.error(error)
+
+    toast.add({
+      title: 'Gagal menukar shift',
+      description: 'Silakan coba lagi.',
+      color: 'error'
+    })
+  }
+}
+
+function handleEditShift(shift: FinalShiftItem) {
+  console.log('edit-shift', shift)
+}
 
 onMounted(() => {
-  loadShiftSchedule()
+  refreshPage()
 })
 
 watch(
   () => [
     selectedDate.value.getFullYear(),
     selectedDate.value.getMonth(),
+    selectedDate.value.getDate(),
     viewMode.value
   ],
   () => {
-    loadShiftSchedule()
+    refreshPage()
   }
 )
 </script>
 
 <template>
-  <UDashboardPanel id="attendance" class="min-h-0">
+  <UDashboardPanel
+    id="attendance"
+    class="min-h-0"
+  >
     <template #header>
       <UDashboardNavbar title="Shift Schedule">
         <template #leading>
@@ -126,21 +251,19 @@ watch(
               />
 
               <HrisAttendanceScheduleShiftFilters
-                v-model:department="filters.department"
-                v-model:shift-type="filters.shiftType"
+                v-model:employee-id="filters.employeeId"
+                v-model:date-range="filters.dateRange"
+                @search="handleSearch"
               />
 
-              <div v-if="loading" class="rounded-xl border border-default p-6 text-center text-sm text-muted">
-                Loading shift schedule...
-              </div>
-
               <HrisAttendanceScheduleShiftCalendar
-                v-else
                 :final-shift-response="finalShiftResponse"
                 :selected-date="selectedDate"
                 :view-mode="viewMode"
-                :department-filter="filters.department"
-                :shift-filter="filters.shiftType"
+                :holidays="holidays"
+                :loading="loading"
+                @swap-shift="handleSwapShift"
+                @edit-shift="handleEditShift"
               />
             </div>
 
@@ -151,7 +274,10 @@ watch(
         </div>
       </div>
 
-      <HrisAttendanceScheduleAssignShiftModal v-model:open="openAssignModal" @refresh="loadShiftSchedule" />
+      <HrisAttendanceScheduleAssignShiftModal
+        v-model:open="openAssignModal"
+        @refresh="refreshPage"
+      />
     </template>
   </UDashboardPanel>
 </template>
