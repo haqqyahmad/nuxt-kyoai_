@@ -20,23 +20,100 @@ type ShiftTemplate = {
   shiftTemplateDays: ShiftTemplateDay[]
 }
 
+type MonthTemplateWeek = {
+  id?: number
+  week_number: number
+  shift_template_id: number
+  shiftTemplate?: ShiftTemplate
+}
+
+type MonthTemplate = {
+  id: number
+  name: string
+  description: string | null
+  status: 'active' | 'inactive'
+  weeks: MonthTemplateWeek[]
+}
+
+type SelectedShift = {
+  id: number
+  type: 'shift' | 'month'
+}
+
 const api = useApi()
 const toast = useToast()
 
 const loading = ref(false)
+
 const shifts = ref<ShiftTemplate[]>([])
-const selectedShiftId = ref<number | null>(null)
+const monthTemplates = ref<MonthTemplate[]>([])
+
+const selectedItem = ref<SelectedShift | null>(null)
 
 const openCreateShift = ref(false)
-const openAssignEmployee = ref(false)
+const openMonthlyShiftModal = ref(false)
 
-const selectedShift = computed(() => {
-  return shifts.value.find(shift => shift.id === selectedShiftId.value) || null
+const selectedRegularShift = computed<ShiftTemplate | null>(() => {
+  if (selectedItem.value?.type !== 'shift') {
+    return null
+  }
+
+  return (
+    shifts.value.find(
+      shift => shift.id === selectedItem.value?.id
+    ) || null
+  )
 })
 
-async function fetchShifts() {
-  loading.value = true
+const selectedMonthTemplate = computed<MonthTemplate | null>(() => {
+  if (selectedItem.value?.type !== 'month') {
+    return null
+  }
 
+  return (
+    monthTemplates.value.find(
+      template => template.id === selectedItem.value?.id
+    ) || null
+  )
+})
+
+function syncSelectedItem() {
+  if (
+    selectedItem.value?.type === 'shift'
+    && shifts.value.some(shift => shift.id === selectedItem.value?.id)
+  ) {
+    return
+  }
+
+  if (
+    selectedItem.value?.type === 'month'
+    && monthTemplates.value.some(template => template.id === selectedItem.value?.id)
+  ) {
+    return
+  }
+
+  if (shifts.value.length) {
+    selectedItem.value = {
+      id: shifts.value[0].id,
+      type: 'shift'
+    }
+
+    return
+  }
+
+  if (monthTemplates.value.length) {
+    selectedItem.value = {
+      id: monthTemplates.value[0].id,
+      type: 'month'
+    }
+
+    return
+  }
+
+  selectedItem.value = null
+}
+
+async function fetchShifts() {
   try {
     const response: any = await api('/hris/shift/templates', {
       method: 'GET'
@@ -45,17 +122,6 @@ async function fetchShifts() {
     const data = response?.data?.data || response?.data || response || []
 
     shifts.value = Array.isArray(data) ? data : []
-
-    if (!selectedShiftId.value && shifts.value.length) {
-      selectedShiftId.value = shifts.value[0].id
-    }
-
-    if (
-      selectedShiftId.value
-      && !shifts.value.some(shift => shift.id === selectedShiftId.value)
-    ) {
-      selectedShiftId.value = shifts.value[0]?.id ?? null
-    }
   } catch (error: any) {
     console.error(error)
 
@@ -64,13 +130,59 @@ async function fetchShifts() {
       description: error?.response?.data?.message || 'Gagal mengambil data shift.',
       color: 'error'
     })
+  }
+}
+
+async function fetchMonthTemplates() {
+  try {
+    const response: any = await api('/hris/shift/month-templates', {
+      method: 'GET'
+    })
+
+    const data = response?.data?.data || response?.data || response || []
+
+    monthTemplates.value = Array.isArray(data) ? data : []
+  } catch (error: any) {
+    console.error(error)
+
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Gagal mengambil data monthly shift.',
+      color: 'error'
+    })
+  }
+}
+
+async function refreshPage() {
+  loading.value = true
+
+  try {
+    await Promise.all([
+      fetchShifts(),
+      fetchMonthTemplates()
+    ])
+
+    syncSelectedItem()
+
+    if (
+      !selectedItem.value
+      && monthTemplates.value.length
+    ) {
+      const lastTemplate
+        = monthTemplates.value[monthTemplates.value.length - 1]
+
+      selectedItem.value = {
+        id: lastTemplate.id,
+        type: 'month'
+      }
+    }
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  fetchShifts()
+  refreshPage()
 })
 </script>
 
@@ -92,11 +204,25 @@ onMounted(() => {
             @click="openCreateShift = true"
           >
             <span class="hidden sm:inline">
-              Create New Shift
+              New Shift
             </span>
 
             <span class="sm:hidden">
               Create
+            </span>
+          </UButton>
+
+          <UButton
+            icon="i-lucide-calendar-plus"
+            class="whitespace-nowrap"
+            @click="openMonthlyShiftModal = true"
+          >
+            <span class="hidden sm:inline">
+              New Monthly Shift
+            </span>
+
+            <span class="sm:hidden">
+              Monthly
             </span>
           </UButton>
         </template>
@@ -119,27 +245,42 @@ onMounted(() => {
           <div class="grid min-w-0 gap-6 xl:grid-cols-12">
             <div class="min-w-0 space-y-6 xl:col-span-4">
               <HrisAttendanceConfigurationShiftList
-                v-model="selectedShiftId"
+                v-model="selectedItem"
                 :shifts="shifts"
+                :month-templates="monthTemplates"
                 :loading="loading"
               />
 
               <HrisAttendanceConfigurationShiftSummaryCard
                 :shifts="shifts"
+                :month-templates="monthTemplates"
               />
             </div>
 
             <div class="min-w-0 space-y-6 xl:col-span-8">
               <HrisAttendanceConfigurationShiftDetailForm
-                :shift="selectedShift"
-                @refresh="fetchShifts"
+                v-if="selectedItem?.type === 'shift'"
+                :shift="selectedRegularShift"
+                @refresh="refreshPage"
               />
 
-              <!--
-              <HrisAttendanceConfigurationAssignedEmployeesTable
-                @add="openAssignEmployee = true"
+              <HrisAttendanceConfigurationMonthlyShiftDetailForm
+                v-else-if="selectedItem?.type === 'month'"
+                :template="selectedMonthTemplate"
+                @refresh="refreshPage"
               />
-              -->
+
+              <UCard v-else>
+                <div class="rounded-xl border border-dashed border-default p-8 text-center">
+                  <p class="font-medium text-highlighted">
+                    Belum ada shift dipilih
+                  </p>
+
+                  <p class="mt-1 text-sm text-muted">
+                    Pilih shift dari daftar sebelah kiri.
+                  </p>
+                </div>
+              </UCard>
             </div>
           </div>
         </div>
@@ -147,14 +288,13 @@ onMounted(() => {
 
       <HrisAttendanceConfigurationCreateShiftModal
         v-model:open="openCreateShift"
-        @created="fetchShifts"
+        @created="refreshPage"
       />
 
-      <!--
-      <HrisAttendanceConfigurationAssignEmployeeModal
-        v-model:open="openAssignEmployee"
+      <HrisAttendanceConfigurationMonthlyShiftModal
+        v-model:open="openMonthlyShiftModal"
+        @refresh="refreshPage"
       />
-      -->
     </template>
   </UDashboardPanel>
 </template>

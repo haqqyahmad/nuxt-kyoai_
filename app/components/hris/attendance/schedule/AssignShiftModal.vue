@@ -33,18 +33,10 @@ type EmployeeOption = {
   value: number
 }
 
-type WeeklyPreviewDay = {
-  date: string
-  dayName: string
-  isWorking: boolean
-  time: string
-}
-
-type WeeklyPreview = {
-  weekNumber: number
+type AssignmentForm = {
+  shiftTemplateId: number | undefined
   startDate: string
   endDate: string
-  shiftTime: string
 }
 
 const emit = defineEmits<{
@@ -60,120 +52,27 @@ const loadingEmployee = ref(false)
 const loadingShift = ref(false)
 
 const employeeSearch = ref('')
-
 const employees = ref<EmployeeOption[]>([])
 const shiftOptions = ref<ShiftOption[]>([])
 
+const selectedMonth = ref('')
+
 const form = reactive({
   employeeId: undefined as number | undefined,
-  shiftTemplateId: undefined as number | undefined,
-  startDate: '',
-  endDate: ''
-})
-
-const selectedEmployee = computed(() => {
-  return employees.value.find(employee => employee.value === form.employeeId)
-})
-
-const selectedShift = computed(() => {
-  return shiftOptions.value.find(shift => shift.value === form.shiftTemplateId)
+  assignments: [] as AssignmentForm[]
 })
 
 const canSubmit = computed(() => {
   return Boolean(
     form.employeeId
-    && form.shiftTemplateId
-    && form.startDate
-    && form.endDate
-    && form.startDate <= form.endDate
+    && form.assignments.length
+    && form.assignments.every(item =>
+      item.shiftTemplateId
+      && item.startDate
+      && item.endDate
+      && item.startDate <= item.endDate
+    )
   )
-})
-
-const totalCalendarDays = computed(() => {
-  if (!form.startDate || !form.endDate) return 0
-
-  const start = new Date(form.startDate)
-  const end = new Date(form.endDate)
-
-  if (start > end) return 0
-
-  const diff = end.getTime() - start.getTime()
-
-  return Math.floor(diff / 86400000) + 1
-})
-
-const estimatedWorkingDays = computed(() => {
-  if (!selectedShift.value || !form.startDate || !form.endDate) return 0
-
-  const start = new Date(form.startDate)
-  const end = new Date(form.endDate)
-
-  if (start > end) return 0
-
-  let total = 0
-  const current = new Date(start)
-
-  while (current <= end) {
-    const jsDay = current.getDay()
-    const apiDay = jsDay === 0 ? 7 : jsDay
-
-    const templateDay = selectedShift.value.days.find((day) => {
-      return day.day_of_week === apiDay
-    })
-
-    if (templateDay?.is_working) {
-      total++
-    }
-
-    current.setDate(current.getDate() + 1)
-  }
-
-  return total
-})
-
-const weeklyPreview = computed<WeeklyPreview[]>(() => {
-  if (!selectedShift.value || !form.startDate || !form.endDate) {
-    return []
-  }
-
-  const start = new Date(form.startDate)
-  const end = new Date(form.endDate)
-
-  const result: WeeklyPreview[] = []
-
-  let weekNumber = 1
-  const current = new Date(start)
-
-  const firstWorkingDay = selectedShift.value.days.find(
-    day => day.is_working
-  )
-
-  const shiftTime = firstWorkingDay
-    ? `${firstWorkingDay.start_time} - ${firstWorkingDay.end_time}`
-    : 'Libur'
-
-  while (current <= end) {
-    const weekStart = new Date(current)
-    const weekEnd = new Date(current)
-
-    weekEnd.setDate(weekEnd.getDate() + 6)
-
-    if (weekEnd > end) {
-      weekEnd.setTime(end.getTime())
-    }
-
-    result.push({
-      weekNumber,
-      startDate: formatYmd(weekStart),
-      endDate: formatYmd(weekEnd),
-      shiftTime
-    })
-
-    current.setDate(current.getDate() + 7)
-    weekNumber++
-  }
-
-  return result
 })
 
 function formatYmd(date: Date) {
@@ -184,14 +83,19 @@ function formatYmd(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function getDefaultStartDate() {
+function getCurrentMonthValue() {
   const today = new Date()
-  return formatYmd(today)
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 }
 
-function getDefaultEndDate() {
-  const today = new Date()
-  return `${today.getFullYear()}-12-31`
+function getStartOfWeek(date: Date) {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+
+  start.setDate(start.getDate() + diff)
+
+  return start
 }
 
 function getDayName(dayOfWeek: number) {
@@ -214,9 +118,49 @@ function getDayTime(day: ShiftTemplateDay) {
   return `${day.start_time} - ${day.end_time}`
 }
 
-function setDefaultDates() {
-  form.startDate = getDefaultStartDate()
-  form.endDate = getDefaultEndDate()
+function getSelectedShift(shiftTemplateId?: number) {
+  return shiftOptions.value.find(shift => shift.value === shiftTemplateId)
+}
+
+function generateWeeklyAssignments() {
+  if (!selectedMonth.value) return
+
+  const [year, month] = selectedMonth.value.split('-').map(Number)
+
+  const monthStart = new Date(year, month - 1, 1)
+  const monthEnd = new Date(year, month, 0)
+
+  const result: AssignmentForm[] = []
+  const current = getStartOfWeek(monthStart)
+
+  while (current <= monthEnd) {
+    const weekStart = new Date(current)
+    const weekEnd = new Date(current)
+
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    result.push({
+      shiftTemplateId: undefined,
+      startDate: formatYmd(weekStart),
+      endDate: formatYmd(weekEnd)
+    })
+
+    current.setDate(current.getDate() + 7)
+  }
+
+  form.assignments = result
+}
+
+function resetForm() {
+  form.employeeId = undefined
+  form.assignments = []
+  employeeSearch.value = ''
+  selectedMonth.value = ''
+}
+
+function setDefaultForm() {
+  selectedMonth.value = getCurrentMonthValue()
+  generateWeeklyAssignments()
 }
 
 async function loadEmployees(search = '') {
@@ -270,36 +214,27 @@ async function loadShiftTemplates() {
   }
 }
 
-function resetForm() {
-  Object.assign(form, {
-    employeeId: undefined,
-    shiftTemplateId: undefined,
-    startDate: '',
-    endDate: ''
-  })
-
-  employeeSearch.value = ''
-}
-
 async function submit() {
   if (!canSubmit.value) return
 
   loading.value = true
 
-  const payload = {
-    employee_id: form.employeeId,
-    template_id: form.shiftTemplateId,
-    start_date: form.startDate,
-    end_date: form.endDate
-  }
-
   try {
-    await api.post('/hris/shift/assignments', payload)
-    await api.post('/hris/shift/schedules/generate', payload)
+    for (const item of form.assignments) {
+      const payload = {
+        employee_id: form.employeeId,
+        template_id: item.shiftTemplateId,
+        start_date: item.startDate,
+        end_date: item.endDate
+      }
+
+      await api.post('/hris/shift/assignments', payload)
+      await api.post('/hris/shift/schedules/generate', payload)
+    }
 
     toast.add({
       title: 'Berhasil',
-      description: 'Shift karyawan berhasil disimpan dan schedule berhasil digenerate.',
+      description: 'Shift mingguan karyawan berhasil disimpan.',
       color: 'success'
     })
 
@@ -311,7 +246,7 @@ async function submit() {
 
     toast.add({
       title: 'Gagal',
-      description: 'Shift karyawan gagal disimpan atau schedule gagal digenerate.',
+      description: 'Shift mingguan karyawan gagal disimpan.',
       color: 'error'
     })
   } finally {
@@ -319,9 +254,15 @@ async function submit() {
   }
 }
 
+watch(selectedMonth, () => {
+  if (open.value) {
+    generateWeeklyAssignments()
+  }
+})
+
 watch(open, (value) => {
   if (value) {
-    setDefaultDates()
+    setDefaultForm()
     loadEmployees()
     loadShiftTemplates()
   } else {
@@ -333,19 +274,16 @@ watch(open, (value) => {
 <template>
   <UModal
     v-model:open="open"
-    title="Assign Shift"
-    description="Tambahkan jadwal shift karyawan berdasarkan template dan range tanggal."
+    title="Assign Weekly Shift"
+    description="Atur shift berbeda setiap minggu untuk satu karyawan."
     :ui="{
-      content: 'sm:max-w-6xl'
+      content: 'sm:max-w-7xl'
     }"
   >
     <template #body>
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div class="space-y-5">
-          <UFormField
-            label="Employee"
-            required
-          >
+          <UFormField label="Employee" required>
             <USelectMenu
               v-model="form.employeeId"
               v-model:search-term="employeeSearch"
@@ -360,84 +298,86 @@ watch(open, (value) => {
             />
           </UFormField>
 
-          <div class="grid gap-4 md:grid-cols-2">
-            <UFormField
-              label="Start Date"
-              required
-            >
+          <div class="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <UFormField label="Bulan" required>
               <UInput
-                v-model="form.startDate"
-                type="date"
+                v-model="selectedMonth"
+                type="month"
                 class="w-full"
               />
             </UFormField>
 
-            <UFormField
-              label="End Date"
-              required
+            <UButton
+              icon="i-lucide-refresh-cw"
+              variant="soft"
+              class="justify-center"
+              @click="generateWeeklyAssignments"
             >
-              <UInput
-                v-model="form.endDate"
-                type="date"
-                class="w-full"
-              />
-            </UFormField>
+              Generate Mingguan
+            </UButton>
           </div>
 
-          <UAlert
-            v-if="form.startDate && form.endDate && form.startDate > form.endDate"
-            color="error"
-            variant="soft"
-            title="Tanggal tidak valid"
-            description="End Date tidak boleh lebih kecil dari Start Date."
-          />
+          <div class="space-y-4">
+            <div
+              v-for="(assignment, index) in form.assignments"
+              :key="index"
+              class="rounded-xl border border-default bg-muted/20 p-4"
+            >
+              <div class="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p class="font-medium text-highlighted">
+                    Minggu {{ index + 1 }}
+                  </p>
 
-          <UFormField
-            label="Shift"
-            required
-          >
-            <USelect
-              v-model="form.shiftTemplateId"
-              :items="shiftOptions"
-              :loading="loadingShift"
-              label-key="label"
-              value-key="value"
-              placeholder="Pilih shift"
-              class="w-full"
-            />
-          </UFormField>
+                  <p class="text-sm text-muted">
+                    {{ assignment.startDate }} s/d {{ assignment.endDate }}
+                  </p>
+                </div>
+              </div>
 
-          <div
-            v-if="selectedShift"
-            class="rounded-xl border border-default bg-muted/30 p-4"
-          >
-            <p class="text-sm font-semibold text-highlighted">
-              {{ selectedShift.label }}
-            </p>
+              <UFormField label="Shift Template" required>
+                <USelect
+                  v-model="assignment.shiftTemplateId"
+                  :items="shiftOptions"
+                  :loading="loadingShift"
+                  label-key="label"
+                  value-key="value"
+                  placeholder="Pilih shift untuk minggu ini"
+                  class="w-full"
+                />
+              </UFormField>
 
-            <p class="mt-1 text-sm text-muted">
-              {{ selectedShift.description }}
-            </p>
-
-            <div class="mt-3 grid gap-2 sm:grid-cols-2">
               <div
-                v-for="day in selectedShift.days"
-                :key="day.id"
-                class="rounded-lg border border-default px-3 py-2 text-sm"
-                :class="day.is_working ? 'bg-default' : 'bg-muted/40'"
+                v-if="getSelectedShift(assignment.shiftTemplateId)"
+                class="mt-4 rounded-xl border border-default bg-default p-4"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <span>
-                    {{ getDayName(day.day_of_week) }}
-                  </span>
+                <p class="text-sm font-semibold text-highlighted">
+                  {{ getSelectedShift(assignment.shiftTemplateId)?.label }}
+                </p>
 
-                  <UBadge
-                    :color="day.is_working ? 'primary' : 'neutral'"
-                    variant="soft"
-                    size="xs"
+                <p class="mt-1 text-sm text-muted">
+                  {{ getSelectedShift(assignment.shiftTemplateId)?.description }}
+                </p>
+
+                <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div
+                    v-for="day in getSelectedShift(assignment.shiftTemplateId)?.days"
+                    :key="day.id"
+                    class="rounded-lg border border-default px-3 py-2 text-sm"
+                    :class="day.is_working ? 'bg-primary/5' : 'bg-muted/40'"
                   >
-                    {{ day.is_working ? getDayTime(day) : 'Libur' }}
-                  </UBadge>
+                    <div class="flex items-center justify-between gap-2">
+                      <span>{{ getDayName(day.day_of_week) }}</span>
+
+                      <UBadge
+                        :color="day.is_working ? 'primary' : 'neutral'"
+                        variant="soft"
+                        size="xs"
+                      >
+                        {{ day.is_working ? getDayTime(day) : 'Libur' }}
+                      </UBadge>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -452,43 +392,44 @@ watch(open, (value) => {
             />
 
             <p class="text-sm font-semibold text-highlighted">
-              Preview Per Minggu
+              Preview Mingguan
             </p>
           </div>
 
           <div
-            v-if="!weeklyPreview.length"
-            class="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-default text-sm text-muted"
+            v-if="!form.assignments.length"
+            class="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-default px-4 text-center text-sm text-muted"
           >
-            Pilih shift dan tanggal terlebih dahulu.
+            Pilih bulan terlebih dahulu.
           </div>
 
           <div
             v-else
-            class="space-y-3"
+            class="max-h-[620px] space-y-3 overflow-y-auto pr-1"
           >
             <div
-              v-for="week in weeklyPreview"
-              :key="week.weekNumber"
-              class="rounded-xl border border-default p-4"
+              v-for="(assignment, index) in form.assignments"
+              :key="index"
+              class="rounded-xl border border-default bg-default p-4 transition hover:bg-muted/30"
             >
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="font-semibold text-highlighted">
-                    Minggu {{ week.weekNumber }}
-                  </p>
-
-                  <p class="text-sm text-muted">
-                    {{ week.startDate }} s/d {{ week.endDate }}
-                  </p>
+              <div class="flex items-start gap-3">
+                <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {{ index + 1 }}
                 </div>
 
-                <UBadge
-                  color="primary"
-                  variant="soft"
-                >
-                  {{ week.shiftTime }}
-                </UBadge>
+                <div class="min-w-0">
+                  <p class="font-semibold text-highlighted">
+                    Minggu {{ index + 1 }}
+                  </p>
+
+                  <p class="mt-1 text-sm text-muted">
+                    {{ assignment.startDate }} s/d {{ assignment.endDate }}
+                  </p>
+
+                  <p class="mt-2 text-sm font-medium text-highlighted">
+                    {{ getSelectedShift(assignment.shiftTemplateId)?.label ?? 'Belum pilih shift' }}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -515,7 +456,7 @@ watch(open, (value) => {
           :disabled="!canSubmit"
           @click="submit"
         >
-          Simpan Shift
+          Simpan Shift Mingguan
         </UButton>
       </div>
     </template>

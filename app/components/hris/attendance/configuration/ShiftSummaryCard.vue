@@ -1,5 +1,3 @@
-<!-- app/components/hris/attendance/configuration/ShiftSummaryCard.vue -->
-
 <script setup lang="ts">
 type ShiftTemplateDay = {
   is_working: boolean
@@ -11,18 +9,36 @@ type ShiftTemplate = {
   shiftTemplateDays: ShiftTemplateDay[]
 }
 
+type MonthTemplate = {
+  id: number
+  status: 'active' | 'inactive'
+  weeks: unknown[]
+}
+
 const props = defineProps<{
   shifts: ShiftTemplate[]
+  monthTemplates?: MonthTemplate[]
 }>()
 
-const totalShifts = computed(() => props.shifts.length)
+const totalRegularShifts = computed(() => props.shifts.length)
+const totalMonthlyTemplates = computed(() => props.monthTemplates?.length || 0)
+
+const totalShifts = computed(() => {
+  return totalRegularShifts.value + totalMonthlyTemplates.value
+})
 
 const activeShifts = computed(() => {
-  return props.shifts.filter(shift => shift.status === 'active').length
+  const activeRegular = props.shifts.filter(shift => shift.status === 'active').length
+  const activeMonthly = (props.monthTemplates ?? []).filter(template => template.status === 'active').length
+
+  return activeRegular + activeMonthly
 })
 
 const inactiveShifts = computed(() => {
-  return props.shifts.filter(shift => shift.status === 'inactive').length
+  const inactiveRegular = props.shifts.filter(shift => shift.status === 'inactive').length
+  const inactiveMonthly = (props.monthTemplates ?? []).filter(template => template.status === 'inactive').length
+
+  return inactiveRegular + inactiveMonthly
 })
 
 const totalWorkingDays = computed(() => {
@@ -31,9 +47,14 @@ const totalWorkingDays = computed(() => {
   }, 0)
 })
 
+const totalRotationWeeks = computed(() => {
+  return (props.monthTemplates ?? []).reduce((total, template) => {
+    return total + (template.weeks?.length || 0)
+  }, 0)
+})
+
 const activeRate = computed(() => {
   if (!totalShifts.value) return 0
-
   return Math.round((activeShifts.value / totalShifts.value) * 100)
 })
 </script>
@@ -47,7 +68,7 @@ const activeRate = computed(() => {
         </h3>
 
         <p class="mt-1 text-sm text-muted">
-          Shift template overview.
+          Shift and monthly template overview.
         </p>
       </div>
     </template>
@@ -65,10 +86,7 @@ const activeRate = computed(() => {
             </h2>
           </div>
 
-          <UBadge
-            color="success"
-            variant="soft"
-          >
+          <UBadge color="success" variant="soft">
             {{ activeShifts }} Active
           </UBadge>
         </div>
@@ -83,11 +101,41 @@ const activeRate = computed(() => {
       <div class="grid grid-cols-2 gap-3">
         <div class="rounded-xl border border-default p-3">
           <p class="text-xs text-muted">
-            Total Shifts
+            Total Items
           </p>
 
           <p class="mt-1 text-xl font-semibold text-highlighted">
             {{ totalShifts }}
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-default p-3">
+          <p class="text-xs text-muted">
+            Regular Shifts
+          </p>
+
+          <p class="mt-1 text-xl font-semibold text-highlighted">
+            {{ totalRegularShifts }}
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-default p-3">
+          <p class="text-xs text-muted">
+            Monthly Templates
+          </p>
+
+          <p class="mt-1 text-xl font-semibold text-highlighted">
+            {{ totalMonthlyTemplates }}
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-default p-3">
+          <p class="text-xs text-muted">
+            Rotation Weeks
+          </p>
+
+          <p class="mt-1 text-xl font-semibold text-highlighted">
+            {{ totalRotationWeeks }}
           </p>
         </div>
 
