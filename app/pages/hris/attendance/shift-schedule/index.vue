@@ -109,26 +109,29 @@ function getDateRange() {
 }
 
 async function loadShiftSchedule() {
+  if (!filters.employeeId) {
+    finalShiftResponse.value = {
+      success: true,
+      message: 'Pilih employee terlebih dahulu',
+      data: []
+    }
+
+    return
+  }
+
   loading.value = true
 
   try {
-    const params: Record<string, string | number> = {}
-
-    if (filters.employeeId) {
-      params.employee_id = filters.employeeId
+    const params = {
+      employee_id: filters.employeeId,
+      start_date: filters.dateRange.start?.toString(),
+      end_date: filters.dateRange.end?.toString()
     }
 
-    if (filters.dateRange.start) {
-      params.start_date = filters.dateRange.start.toString()
-    }
-
-    if (filters.dateRange.end) {
-      params.end_date = filters.dateRange.end.toString()
-    }
-
-    const response = await api.get<FinalShiftResponse>('/hris/shift/view', {
-      params
-    })
+    const response = await api.get<FinalShiftResponse>(
+      '/hris/shift/view',
+      { params }
+    )
 
     finalShiftResponse.value = response.data
   } catch (error) {
@@ -210,7 +213,7 @@ function handleEditShift(shift: FinalShiftItem) {
 }
 
 onMounted(() => {
-  refreshPage()
+  loadHolidays()
 })
 
 watch(
@@ -268,7 +271,9 @@ watch(
             </div>
 
             <aside class="min-w-0">
-              <HrisAttendanceScheduleShiftSummary />
+              <HrisAttendanceScheduleShiftSummary
+                :final-shift-response="finalShiftResponse"
+              />
             </aside>
           </div>
         </div>

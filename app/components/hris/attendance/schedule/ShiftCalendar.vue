@@ -88,16 +88,19 @@ const draggedShift = ref<{
 
 const dayColumnClass = computed(() => {
   if (props.viewMode === 'day') return 'grid-cols-1'
-  if (props.viewMode === 'week') return 'grid-cols-7'
-
   return 'grid-cols-7'
 })
 
 const maxCalendarWidth = computed(() => {
-  if (props.viewMode === 'month') return 'min-w-[980px]'
-  if (props.viewMode === 'week') return 'min-w-[920px]'
+  if (props.viewMode === 'month') return 'min-w-[1100px]'
+  if (props.viewMode === 'week') return 'min-w-[980px]'
+  return 'min-w-[360px]'
+})
 
-  return 'min-w-[320px]'
+const dayCellHeightClass = computed(() => {
+  if (props.viewMode === 'month') return 'min-h-32'
+  if (props.viewMode === 'day') return 'min-h-52'
+  return 'min-h-40'
 })
 
 function normalizeDate(value: Date | string) {
@@ -122,6 +125,7 @@ function getStartOfWeek(date: Date) {
   const diff = day === 0 ? -6 : 1 - day
 
   start.setDate(start.getDate() + diff)
+
   return start
 }
 
@@ -131,6 +135,7 @@ function getStartOfMonthCalendar(date: Date) {
   const diff = day === 0 ? -6 : 1 - day
 
   firstDate.setDate(firstDate.getDate() + diff)
+
   return firstDate
 }
 
@@ -199,6 +204,7 @@ const weeks = computed(() => {
 const holidayMap = computed(() => {
   return props.holidays.reduce<Record<string, HolidayItem>>((result, item) => {
     result[normalizeApiDate(item.date)] = item
+
     return result
   }, {})
 })
@@ -291,6 +297,10 @@ function getTotalShiftDays(employee: CalendarEmployee) {
   return days.value.filter(day => getShifts(employee, day).length > 0).length
 }
 
+function getTotalShifts(employee: CalendarEmployee) {
+  return Object.values(employee.shiftsByDate).flat().length
+}
+
 function getShiftBadgeColor(shift: FinalShiftItem) {
   if (shift.status === 'off') return 'neutral'
   if (shift.override_type) return 'warning'
@@ -311,6 +321,18 @@ function getShiftTime(shift: FinalShiftItem) {
   if (!shift.start_time || !shift.end_time) return '-'
 
   return `${shift.start_time} - ${shift.end_time}`
+}
+
+function getTotalWorkingDays(employee: CalendarEmployee) {
+  return days.value.filter((day) => {
+    return getShifts(employee, day).some(shift => shift.status === 'active')
+  }).length
+}
+
+function getTotalOffDays(employee: CalendarEmployee) {
+  return days.value.filter((day) => {
+    return getShifts(employee, day).some(shift => shift.status === 'off')
+  }).length
 }
 
 function onDragStart(employeeId: number, date: string, shift: FinalShiftItem) {
@@ -344,20 +366,33 @@ function onDrop(toEmployeeId: number, date: string) {
       <USkeleton
         v-for="item in 5"
         :key="item"
-        class="h-40 rounded-2xl"
+        class="h-44 rounded-3xl"
       />
     </div>
 
     <div
       v-else-if="!employees.length"
-      class="flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-default text-sm text-muted"
+      class="flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-default bg-default/50 p-8 text-center"
     >
-      Tidak ada data shift.
+      <div class="mb-4 rounded-2xl bg-muted p-4 text-muted">
+        <UIcon
+          name="i-lucide-calendar-search"
+          class="size-8"
+        />
+      </div>
+
+      <h3 class="text-base font-semibold text-highlighted">
+        Tidak ada data shift
+      </h3>
+
+      <p class="mt-1 max-w-sm text-sm text-muted">
+        Silakan pilih karyawan dan range tanggal, lalu klik Search untuk menampilkan jadwal shift.
+      </p>
     </div>
 
     <div
       v-else
-      class="overflow-x-auto"
+      class="overflow-x-auto pb-2"
     >
       <div
         class="space-y-6"
@@ -366,13 +401,16 @@ function onDrop(toEmployeeId: number, date: string) {
         <div
           v-for="employee in employees"
           :key="employee.id"
-          class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm"
+          class="overflow-hidden rounded-3xl border border-default bg-default shadow-sm transition-all duration-300 hover:shadow-lg"
         >
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default bg-muted/30 px-4 py-4">
+          <div
+            class="flex flex-wrap items-center justify-between gap-4 border-b border-default bg-gradient-to-r from-primary/5 via-transparent to-transparent px-5 py-4"
+          >
             <div class="flex min-w-0 items-center gap-3">
               <UAvatar
                 :text="employee.avatar"
-                size="sm"
+                size="md"
+                class="ring-2 ring-primary/20"
               />
 
               <div class="min-w-0">
@@ -383,15 +421,36 @@ function onDrop(toEmployeeId: number, date: string) {
                 <p class="truncate text-xs text-muted">
                   {{ employee.department }}
                 </p>
+
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <UBadge
+                    color="success"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ getTotalShiftDays(employee) }} Days
+                  </UBadge>
+
+                  <UBadge
+                    color="primary"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ getTotalShifts(employee) }} Shifts
+                  </UBadge>
+                </div>
               </div>
             </div>
 
-            <UBadge
-              color="neutral"
-              variant="soft"
-            >
-              {{ getTotalShiftDays(employee) }} Days
-            </UBadge>
+            <div class="flex flex-wrap items-center gap-2">
+              <UBadge color="success" variant="soft" size="lg">
+                {{ getTotalWorkingDays(employee) }} Hari Kerja
+              </UBadge>
+
+              <UBadge color="neutral" variant="soft" size="lg">
+                {{ getTotalOffDays(employee) }} Hari Libur
+              </UBadge>
+            </div>
           </div>
 
           <div
@@ -406,10 +465,11 @@ function onDrop(toEmployeeId: number, date: string) {
               <div
                 v-for="day in week"
                 :key="day.ymd"
-                class="min-h-36 border-r border-default p-2 last:border-r-0 sm:p-3"
+                class="border-r border-default p-3 transition-colors last:border-r-0 hover:bg-muted/30"
                 :class="[
+                  dayCellHeightClass,
                   isRedDay(day) ? 'bg-error/5' : '',
-                  isToday(day) ? 'bg-primary/5' : '',
+                  isToday(day) ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : '',
                   !isCurrentMonth(day) ? 'opacity-40' : ''
                 ]"
                 @dragover.prevent
@@ -424,12 +484,21 @@ function onDrop(toEmployeeId: number, date: string) {
                       {{ day.label }}
                     </p>
 
-                    <p
-                      class="text-lg font-bold"
-                      :class="isToday(day) ? 'text-primary' : 'text-highlighted'"
-                    >
-                      {{ day.date }}
-                    </p>
+                    <div class="mt-1 flex items-center gap-2">
+                      <p
+                        class="text-xl font-bold leading-none"
+                        :class="isToday(day) ? 'text-primary' : 'text-highlighted'"
+                      >
+                        {{ day.date }}
+                      </p>
+
+                      <span
+                        v-if="isToday(day)"
+                        class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-white"
+                      >
+                        Today
+                      </span>
+                    </div>
                   </div>
 
                   <UBadge
@@ -444,7 +513,7 @@ function onDrop(toEmployeeId: number, date: string) {
 
                 <p
                   v-if="isHoliday(day)"
-                  class="mb-2 line-clamp-1 text-[11px] font-medium text-error"
+                  class="mb-2 line-clamp-1 rounded-lg bg-error/10 px-2 py-1 text-[11px] font-medium text-error"
                 >
                   {{ getHolidayName(day) }}
                 </p>
@@ -457,7 +526,7 @@ function onDrop(toEmployeeId: number, date: string) {
                     v-for="shift in getShifts(employee, day)"
                     :key="`${shift.id ?? shift.shift_code}-${shift.start_time}-${shift.end_time}`"
                     draggable="true"
-                    class="cursor-move rounded-2xl border border-default bg-elevated p-3 transition hover:shadow-md"
+                    class="cursor-move rounded-2xl border border-default bg-default p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                     @dragstart="onDragStart(employee.id, day.ymd, shift)"
                     @dblclick="emit('editShift', shift)"
                   >
@@ -471,9 +540,10 @@ function onDrop(toEmployeeId: number, date: string) {
                         {{ getShiftBadgeLabel(shift) }}
                       </UBadge>
 
-                      <!-- <span class="text-[10px] text-muted">
-                        {{ shift.source }}
-                      </span> -->
+                      <UIcon
+                        name="i-lucide-grip-vertical"
+                        class="size-4 text-muted"
+                      />
                     </div>
 
                     <template v-if="shift.status === 'off'">
@@ -483,13 +553,20 @@ function onDrop(toEmployeeId: number, date: string) {
                     </template>
 
                     <template v-else>
-                      <p class="text-sm font-semibold text-highlighted">
-                        {{ getShiftTime(shift) }}
-                      </p>
+                      <div class="flex items-center gap-2">
+                        <UIcon
+                          name="i-lucide-clock-3"
+                          class="size-4 text-muted"
+                        />
+
+                        <p class="text-sm font-semibold text-highlighted">
+                          {{ getShiftTime(shift) }}
+                        </p>
+                      </div>
 
                       <p
                         v-if="shift.override_reason"
-                        class="mt-2 line-clamp-2 text-[11px] text-muted"
+                        class="mt-2 line-clamp-2 rounded-lg bg-warning/10 px-2 py-1 text-[11px] text-warning"
                       >
                         {{ shift.override_reason }}
                       </p>
@@ -499,9 +576,16 @@ function onDrop(toEmployeeId: number, date: string) {
 
                 <div
                   v-else
-                  class="flex h-24 items-center justify-center rounded-2xl border border-dashed border-default text-xs text-muted"
+                  class="flex h-24 flex-col items-center justify-center rounded-2xl border border-dashed border-default text-muted"
                 >
-                  Empty
+                  <UIcon
+                    name="i-lucide-calendar-x"
+                    class="mb-2 size-4"
+                  />
+
+                  <span class="text-xs">
+                    No Shift
+                  </span>
                 </div>
               </div>
             </div>

@@ -38,7 +38,7 @@ const canSearch = computed(() => {
 
 const dateLabel = computed(() => {
   if (!dateRange.value.start || !dateRange.value.end) {
-    return 'Pilih range tanggal'
+    return 'Select date range'
   }
 
   return `${dateRange.value.start.toString()} - ${dateRange.value.end.toString()}`
@@ -70,6 +70,7 @@ function setDefaultDateRange() {
 
 function onSearch() {
   if (!canSearch.value) return
+
   emit('search')
 }
 
@@ -83,42 +84,78 @@ onMounted(() => {
 </script>
 
 <template>
-  <UCard>
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
-      <USelectMenu
-        v-model="employeeId"
-        v-model:search-term="employeeSearch"
-        :items="employees"
-        :loading="loadingEmployee"
-        label-key="label"
-        value-key="value"
-        searchable
-        placeholder="Cari nama karyawan"
-        class="w-full lg:w-80"
-        @update:search-term="loadEmployees"
+  <UCard
+    variant="subtle"
+    class="overflow-hidden"
+  >
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+          Filter Schedule
+        </p>
+
+        <h3 class="mt-1 text-lg font-semibold text-highlighted">
+          Find Employee Shift
+        </h3>
+      </div>
+
+      <UIcon
+        name="i-lucide-sliders-horizontal"
+        class="size-5 text-muted"
       />
+    </div>
 
-      <UPopover>
-        <UButton
-          icon="i-lucide-calendar-days"
-          color="neutral"
-          variant="outline"
-          class="w-full justify-start lg:w-72"
-        >
-          {{ dateLabel }}
-        </UButton>
+    <div class="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_280px_auto] lg:items-end">
+      <div class="space-y-1.5">
+        <label class="text-sm font-medium text-highlighted">
+          Employee
+        </label>
 
-        <template #content>
-          <UCalendar
-            v-model="dateRange"
-            range
-            class="p-2"
-          />
-        </template>
-      </UPopover>
+        <USelectMenu
+          v-model="employeeId"
+          v-model:search-term="employeeSearch"
+          :items="employees"
+          :loading="loadingEmployee"
+          label-key="label"
+          value-key="value"
+          searchable
+          placeholder="Search employee name"
+          class="w-full"
+          @update:search-term="loadEmployees"
+        />
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-sm font-medium text-highlighted">
+          Date Range
+        </label>
+
+        <UPopover>
+          <UButton
+            icon="i-lucide-calendar-days"
+            color="neutral"
+            variant="outline"
+            class="w-full justify-start"
+          >
+            <span class="truncate">
+              {{ dateLabel }}
+            </span>
+          </UButton>
+
+          <template #content>
+            <div class="p-3">
+              <UCalendar
+                v-model="dateRange"
+                range
+              />
+            </div>
+          </template>
+        </UPopover>
+      </div>
 
       <UButton
         icon="i-lucide-search"
+        size="lg"
         class="w-full justify-center lg:w-auto"
         :disabled="!canSearch"
         @click="onSearch"
