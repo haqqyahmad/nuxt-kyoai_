@@ -45,37 +45,31 @@ const finalShiftResponse = ref<FinalShiftResponse>({
   data: []
 })
 
-async function loadShiftSchedule() { 
-  loading.value = true 
-  try { 
-    const range = getDateRange() 
-    const response = await api.get<FinalShiftResponse>( '/hris/shift/view', 
-      { params: { 
-        employee_id: 3, start_date: range.start_date, end_date: range.end_date 
-      } 
+async function loadShiftSchedule() {
+  loading.value = true
+  try {
+    const range = getDateRange()
+    const response = await api.get<FinalShiftResponse>('/hris/shift/view', {
+      params: {
+        employee_id: 3,
+        start_date: range.start_date,
+        end_date: range.end_date
+      }
+    })
+
+    finalShiftResponse.value = response.data
+    console.log('shift-response', response.data)
+  } catch (error) {
+    console.error(error)
+    finalShiftResponse.value = {
+      success: false,
+      message: 'Failed to load final shift view',
+      data: []
     }
-     )
-     
-    finalShiftResponse.value = response.data 
-    console.log('shift-response', response.data) 
-  } catch (error) { 
-    console.error(error) 
-    finalShiftResponse.value = { success: false, message: 'Failed to load final shift view', data: [] } 
-  } finally { loading.value = false } 
+  } finally {
+    loading.value = false
+  }
 }
-//   try {
-//     const response = await api.get<FinalShiftResponse>(
-//       '/api/hris/shift/view',
-//       {
-//         query: {
-//           // year: selectedDate.value.getFullYear(),
-//           // month: selectedDate.value.getMonth() + 1
-//           employee_id: 3,
-//           start_date: '2025-06-01',
-//           end_date: '2025-06-30'
-//         }
-//       }
-//     )
 
 //     finalShiftResponse.value = response
 //     console.log('shift-response',response)

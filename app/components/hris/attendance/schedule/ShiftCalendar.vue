@@ -535,6 +535,6 @@ const hasEmployees = computed(() => {
           </div>
         </div>
       </div>
-    </div>
+    
   </UCard>
 </template>
