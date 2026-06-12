@@ -242,6 +242,16 @@ function toIsoDateTime(date: string) {
   return new Date(`${date}T00:00:00.000Z`).toISOString()
 }
 
+function getMonthlyStartDate() {
+  return `${form.year}-${String(form.month).padStart(2, '0')}-01`
+}
+
+function getMonthlyEndDate() {
+  const lastDay = new Date(Number(form.year), Number(form.month), 0).getDate()
+
+  return `${form.year}-${String(form.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+}
+
 async function loadEmployees(search = '') {
   loadingEmployee.value = true
 
@@ -345,14 +355,23 @@ async function submitWeekly() {
 }
 
 async function submitMonthly() {
-  const payload = {
+  const assignmentPayload = {
+    employee_id: form.employeeId,
+    template_id: form.monthTemplateId,
+    start_date: getMonthlyStartDate(),
+    end_date: getMonthlyEndDate()
+  }
+
+  await api.post('/hris/shift/assignments', assignmentPayload)
+
+  const generatePayload = {
     employee_id: form.employeeId,
     month: Number(form.month),
     year: Number(form.year),
     month_template_id: form.monthTemplateId
   }
 
-  await api.post('/hris/shift/schedules/generate-monthly', payload)
+  await api.post('/hris/shift/schedules/generate-monthly', generatePayload)
 }
 
 async function submit() {
