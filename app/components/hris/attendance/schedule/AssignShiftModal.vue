@@ -9,6 +9,21 @@ type EmployeeOption = {
   value: number
 }
 
+type ShiftTemplateDay = {
+  id: number
+  day_of_week: number
+  start_time: string | null
+  end_time: string | null
+  is_working: boolean
+}
+
+type ShiftOption = {
+  label: string
+  value: number
+  description?: string | null
+  days: ShiftTemplateDay[]
+}
+
 type MonthTemplateWeek = {
   id?: number
   week_number: number
@@ -43,14 +58,23 @@ const open = defineModel<boolean>('open', {
 
 const loading = ref(false)
 const loadingEmployee = ref(false)
+const loadingShift = ref(false)
 const loadingMonthTemplate = ref(false)
 
+const useMonthlyTemplate = ref(false)
 const employeeSearch = ref('')
+
 const employees = ref<EmployeeOption[]>([])
+const shiftOptions = ref<ShiftOption[]>([])
 const monthTemplates = ref<MonthTemplateOption[]>([])
 
 const form = reactive({
-  employeeId: undefined as string | undefined,
+  employeeId: undefined as number | undefined,
+
+  shiftTemplateId: undefined as number | undefined,
+  startDate: '',
+  endDate: '',
+
   monthTemplateId: undefined as number | undefined,
   month: new Date().getMonth() + 1,
   year: new Date().getFullYear()
@@ -73,6 +97,10 @@ const monthItems = [
 
 const selectedEmployee = computed(() => {
   return employees.value.find(employee => employee.value === form.employeeId)
+})
+
+const selectedShift = computed(() => {
+  return shiftOptions.value.find(shift => shift.value === form.shiftTemplateId)
 })
 
 const selectedMonthTemplate = computed(() => {
@@ -123,11 +151,21 @@ const weekDateRanges = computed<WeekDateRange[]>(() => {
 })
 
 const canSubmit = computed(() => {
+  if (!form.employeeId) return false
+
+  if (useMonthlyTemplate.value) {
+    return Boolean(
+      form.monthTemplateId
+      && form.month
+      && form.year
+    )
+  }
+
   return Boolean(
-    form.employeeId
-    && form.monthTemplateId
-    && form.month
-    && form.year
+    form.shiftTemplateId
+    && form.startDate
+    && form.endDate
+    && form.startDate <= form.endDate
   )
 })
 
@@ -153,15 +191,55 @@ function getWeekDateRange(weekNumber: number) {
   return weekDateRanges.value.find(week => week.weekNumber === weekNumber)
 }
 
+function formatWorkingDay(day: ShiftTemplateDay) {
+  if (!day.start_time || !day.end_time) return 'Libur'
+  return `${day.start_time} - ${day.end_time}`
+}
+
+function getDayName(dayOfWeek: number) {
+  const days: Record<number, string> = {
+    1: 'Senin',
+    2: 'Selasa',
+    3: 'Rabu',
+    4: 'Kamis',
+    5: 'Jumat',
+    6: 'Sabtu',
+    7: 'Minggu'
+  }
+
+  return days[dayOfWeek] ?? '-'
+}
+
+function getDefaultStartDate() {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+function getDefaultEndDate() {
+  const today = new Date()
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
+}
+
 function resetForm() {
   const today = new Date()
 
   form.employeeId = undefined
+
+  form.shiftTemplateId = undefined
+  form.startDate = getDefaultStartDate()
+  form.endDate = getDefaultEndDate()
+
   form.monthTemplateId = undefined
   form.month = today.getMonth() + 1
   form.year = today.getFullYear()
 
   employeeSearch.value = ''
+  useMonthlyTemplate.value = false
+}
+
+function toIsoDateTime(date: string) {
+  return new Date(`${date}T00:00:00.000Z`).toISOString()
 }
 
 async function loadEmployees(search = '') {
@@ -187,6 +265,36 @@ async function loadEmployees(search = '') {
     employees.value = []
   } finally {
     loadingEmployee.value = false
+  }
+}
+
+async function loadShiftTemplates() {
+  loadingShift.value = true
+
+  try {
+    const response = await api.get<{
+      data: {
+        id: number
+        name: string
+        description?: string | null
+        status: string
+        shiftTemplateDays: ShiftTemplateDay[]
+      }[]
+    }>('/hris/shift/templates')
+
+    shiftOptions.value = response.data.data
+      .filter(item => item.status === 'active')
+      .map(item => ({
+        label: item.name,
+        value: item.id,
+        description: item.description || '',
+        days: item.shiftTemplateDays || []
+      }))
+  } catch (error) {
+    console.error(error)
+    shiftOptions.value = []
+  } finally {
+    loadingShift.value = false
   }
 }
 
@@ -220,11 +328,23 @@ async function loadMonthTemplates() {
   }
 }
 
-async function submit() {
-  if (!canSubmit.value) return
+async function submitWeekly() {
+  const payload = {
+    employee_id: form.employeeId,
+    template_id: form.shiftTemplateId,
+    start_date: form.startDate,
+    end_date: form.endDate
+  }
 
-  loading.value = true
+  console.log('Assign Weekly', payload)
+  console.log('Start Weekly', toIsoDateTime(form.startDate))
+  console.log('End Weekly', toIsoDateTime(form.endDate))
 
+  await api.post('/hris/shift/assignments', payload)
+  await api.post('/hris/shift/schedules/generate', payload)
+}
+
+async function submitMonthly() {
   const payload = {
     employee_id: form.employeeId,
     month: Number(form.month),
@@ -232,14 +352,26 @@ async function submit() {
     month_template_id: form.monthTemplateId
   }
 
-  try {
-    console.log('GENERATE MONTHLY SHIFT:', payload)
+  await api.post('/hris/shift/schedules/generate-monthly', payload)
+}
 
-    await api.post('/hris/shift/schedules/generate-monthly', payload)
+async function submit() {
+  if (!canSubmit.value) return
+
+  loading.value = true
+
+  try {
+    if (useMonthlyTemplate.value) {
+      await submitMonthly()
+    } else {
+      await submitWeekly()
+    }
 
     toast.add({
       title: 'Berhasil',
-      description: 'Monthly shift berhasil digenerate.',
+      description: useMonthlyTemplate.value
+        ? 'Monthly shift berhasil digenerate.'
+        : 'Weekly shift berhasil disimpan.',
       color: 'success'
     })
 
@@ -251,7 +383,7 @@ async function submit() {
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Generate monthly shift gagal.',
+      description: error?.response?.data?.message || 'Generate shift gagal.',
       color: 'error'
     })
   } finally {
@@ -261,7 +393,9 @@ async function submit() {
 
 watch(open, (value) => {
   if (value) {
+    resetForm()
     loadEmployees()
+    loadShiftTemplates()
     loadMonthTemplates()
   } else {
     resetForm()
@@ -272,15 +406,31 @@ watch(open, (value) => {
 <template>
   <UModal
     v-model:open="open"
-    title="Assign Monthly Shift"
-    description="Assign monthly shift template ke karyawan."
+    title="Assign Shift"
+    description="Assign regular shift atau monthly rotation ke karyawan."
     :ui="{
-      content: 'sm:max-w-5xl'
+      content: 'sm:max-w-6xl'
     }"
   >
     <template #body>
-      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div class="space-y-5">
+          <div class="rounded-xl border border-default bg-muted/30 p-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="text-sm font-semibold text-highlighted">
+                  Monthly Rotation
+                </p>
+
+                <p class="mt-1 text-xs text-muted">
+                  Aktifkan jika ingin menggunakan Monthly Shift Template.
+                </p>
+              </div>
+
+              <USwitch v-model="useMonthlyTemplate" />
+            </div>
+          </div>
+
           <UFormField
             label="Employee"
             required
@@ -299,49 +449,100 @@ watch(open, (value) => {
             />
           </UFormField>
 
-          <UFormField
-            label="Monthly Template"
-            required
-          >
-            <USelect
-              v-model="form.monthTemplateId"
-              :items="monthTemplates"
-              :loading="loadingMonthTemplate"
-              label-key="label"
-              value-key="value"
-              placeholder="Pilih monthly template"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div class="grid gap-4 md:grid-cols-2">
+          <template v-if="!useMonthlyTemplate">
             <UFormField
-              label="Month"
+              label="Shift Template"
               required
             >
               <USelect
-                v-model="form.month"
-                :items="monthItems"
+                v-model="form.shiftTemplateId"
+                :items="shiftOptions"
+                :loading="loadingShift"
                 label-key="label"
                 value-key="value"
-                placeholder="Pilih bulan"
+                placeholder="Pilih shift template"
                 class="w-full"
               />
             </UFormField>
 
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField
+                label="Start Date"
+                required
+              >
+                <UInput
+                  v-model="form.startDate"
+                  type="date"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                label="End Date"
+                required
+              >
+                <UInput
+                  v-model="form.endDate"
+                  type="date"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+
+            <UAlert
+              v-if="form.startDate && form.endDate && form.startDate > form.endDate"
+              color="error"
+              variant="soft"
+              title="Tanggal tidak valid"
+              description="End Date tidak boleh lebih kecil dari Start Date."
+            />
+          </template>
+
+          <template v-else>
             <UFormField
-              label="Year"
+              label="Monthly Template"
               required
             >
-              <UInput
-                v-model="form.year"
-                type="number"
-                min="2025"
-                max="2050"
+              <USelect
+                v-model="form.monthTemplateId"
+                :items="monthTemplates"
+                :loading="loadingMonthTemplate"
+                label-key="label"
+                value-key="value"
+                placeholder="Pilih monthly template"
                 class="w-full"
               />
             </UFormField>
-          </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField
+                label="Month"
+                required
+              >
+                <USelect
+                  v-model="form.month"
+                  :items="monthItems"
+                  label-key="label"
+                  value-key="value"
+                  placeholder="Pilih bulan"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Year"
+                required
+              >
+                <UInput
+                  v-model="form.year"
+                  type="number"
+                  min="2025"
+                  max="2050"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+          </template>
         </div>
 
         <aside class="rounded-xl border border-default bg-elevated p-4">
@@ -357,80 +558,162 @@ watch(open, (value) => {
           </div>
 
           <div class="space-y-4">
-            <div
-              v-if="selectedMonthTemplate?.weeks?.length"
-              class="space-y-2"
-            >
-              <div class="flex items-center justify-between gap-3">
+            <template v-if="!useMonthlyTemplate">
+              <div>
                 <p class="text-xs font-semibold text-muted">
-                  Rotation Detail
+                  Shift Description
                 </p>
 
-                <UBadge
-                  color="info"
-                  variant="soft"
-                  size="xs"
+                <p
+                  v-if="selectedShift?.description"
+                  class="mt-1 text-sm font-medium text-highlighted"
                 >
-                  {{ selectedMonthTemplate.weeks.length }} Weeks
-                </UBadge>
+                  {{ selectedShift.description }}
+                </p>
               </div>
 
               <div
-                v-for="week in selectedMonthTemplate.weeks"
-                :key="week.id ?? week.week_number"
-                class="rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                v-if="selectedShift?.days?.length"
+                class="space-y-2"
               >
-                <div class="space-y-2">
-                  <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-xs font-semibold text-muted">
+                    Working Days
+                  </p>
+
+                  <UBadge
+                    color="primary"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ selectedShift.days.filter(day => day.is_working).length }} Days
+                  </UBadge>
+                </div>
+
+                <div
+                  v-for="day in selectedShift.days"
+                  :key="day.id"
+                  class="rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                >
+                  <div class="flex items-center justify-between gap-3">
                     <div>
                       <p class="font-medium text-highlighted">
-                        Minggu {{ week.week_number }}
+                        {{ getDayName(day.day_of_week) }}
                       </p>
 
                       <p class="mt-1 text-xs text-muted">
-                        {{
-                          getWeekDateRange(week.week_number)?.startDate
-                            ?? '-'
-                        }}
-                        s/d
-                        {{
-                          getWeekDateRange(week.week_number)?.endDate
-                            ?? '-'
-                        }}
+                        {{ day.is_working ? formatWorkingDay(day) : 'Libur' }}
                       </p>
                     </div>
 
                     <UBadge
-                      color="info"
+                      :color="day.is_working ? 'primary' : 'neutral'"
                       variant="soft"
                       size="xs"
                     >
-                      Rotation
+                      {{ day.is_working ? 'Working' : 'Off' }}
                     </UBadge>
-                  </div>
-
-                  <div class="rounded-md bg-muted/40 px-3 py-2">
-                    <p class="text-xs font-medium text-highlighted">
-                      {{ week.shiftTemplate?.name ?? `Shift #${week.shift_template_id}` }}
-                    </p>
-
-                    <p
-                      v-if="week.shiftTemplate?.description"
-                      class="mt-1 text-xs text-muted"
-                    >
-                      {{ week.shiftTemplate.description }}
-                    </p>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div
-              v-else
-              class="rounded-xl border border-dashed border-default p-4 text-center text-sm text-muted"
-            >
-              Pilih monthly template untuk melihat preview rotasi.
-            </div>
+              <div
+                v-else
+                class="rounded-xl border border-dashed border-default p-4 text-center text-sm text-muted"
+              >
+                Pilih shift template untuk melihat preview.
+              </div>
+            </template>
+
+            <template v-else>
+              <div>
+                <p class="text-xs font-semibold text-muted">
+                  Monthly Description
+                </p>
+
+                <p
+                  v-if="selectedMonthTemplate?.description"
+                  class="mt-1 text-sm font-medium text-highlighted"
+                >
+                  {{ selectedMonthTemplate.description }}
+                </p>
+              </div>
+
+              <div
+                v-if="selectedMonthTemplate?.weeks?.length"
+                class="space-y-2"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-xs font-semibold text-muted">
+                    Rotation Detail
+                  </p>
+
+                  <UBadge
+                    color="info"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ selectedMonthTemplate.weeks.length }} Weeks
+                  </UBadge>
+                </div>
+
+                <div
+                  v-for="week in selectedMonthTemplate.weeks"
+                  :key="week.id ?? week.week_number"
+                  class="rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                >
+                  <div class="space-y-2">
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <p class="font-medium text-highlighted">
+                          Minggu {{ week.week_number }}
+                        </p>
+
+                        <p class="mt-1 text-xs text-muted">
+                          {{
+                            getWeekDateRange(week.week_number)?.startDate
+                              ?? '-'
+                          }}
+                          s/d
+                          {{
+                            getWeekDateRange(week.week_number)?.endDate
+                              ?? '-'
+                          }}
+                        </p>
+                      </div>
+
+                      <UBadge
+                        color="info"
+                        variant="soft"
+                        size="xs"
+                      >
+                        Rotation
+                      </UBadge>
+                    </div>
+
+                    <div class="rounded-md bg-muted/40 px-3 py-2">
+                      <p class="text-xs font-medium text-highlighted">
+                        {{ week.shiftTemplate?.name ?? `Shift #${week.shift_template_id}` }}
+                      </p>
+
+                      <p
+                        v-if="week.shiftTemplate?.description"
+                        class="mt-1 text-xs text-muted"
+                      >
+                        {{ week.shiftTemplate.description }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-else
+                class="rounded-xl border border-dashed border-default p-4 text-center text-sm text-muted"
+              >
+                Pilih monthly template untuk melihat preview rotasi.
+              </div>
+            </template>
           </div>
         </aside>
       </div>
@@ -449,13 +732,13 @@ watch(open, (value) => {
         </UButton>
 
         <UButton
-          icon="i-lucide-calendar-check"
+          :icon="useMonthlyTemplate ? 'i-lucide-calendar-check' : 'i-lucide-save'"
           class="justify-center"
           :loading="loading"
           :disabled="!canSubmit"
           @click="submit"
         >
-          Generate Monthly Shift
+          {{ useMonthlyTemplate ? 'Generate Monthly Shift' : 'Assign Weekly Shift' }}
         </UButton>
       </div>
     </template>

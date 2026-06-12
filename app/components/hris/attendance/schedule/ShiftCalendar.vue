@@ -323,6 +323,13 @@ function getShiftTime(shift: FinalShiftItem) {
   return `${shift.start_time} - ${shift.end_time}`
 }
 
+const activeMonthLabel = computed(() => {
+  return props.selectedDate.toLocaleString('id-ID', {
+    month: 'long',
+    year: 'numeric'
+  })
+})
+
 function getTotalWorkingDays(employee: CalendarEmployee) {
   return days.value.filter((day) => {
     return getShifts(employee, day).some(shift => shift.status === 'active')
@@ -443,11 +450,30 @@ function onDrop(toEmployeeId: number, date: string) {
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-              <UBadge color="success" variant="soft" size="lg">
+              <UBadge
+                color="primary"
+                variant="soft"
+                size="lg"
+                icon="i-lucide-calendar"
+              >
+                {{ activeMonthLabel }}
+              </UBadge>
+
+              <UBadge
+                color="success"
+                variant="soft"
+                size="lg"
+                icon="i-lucide-briefcase"
+              >
                 {{ getTotalWorkingDays(employee) }} Hari Kerja
               </UBadge>
 
-              <UBadge color="neutral" variant="soft" size="lg">
+              <UBadge
+                color="neutral"
+                variant="soft"
+                size="lg"
+                icon="i-lucide-bed-single"
+              >
                 {{ getTotalOffDays(employee) }} Hari Libur
               </UBadge>
             </div>
