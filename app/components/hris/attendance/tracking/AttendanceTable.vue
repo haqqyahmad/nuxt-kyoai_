@@ -363,10 +363,10 @@ const rows = computed<TableRow[]>(() => {
             :key="row.no"
             class="hover:bg-muted/50"
             :class="{
-              'bg-success/10': row.rowType === 'holiday',
-              'bg-error/5': row.rowType === 'alpha',
-              'bg-primary/10': row.rowType === 'sick',
-              'bg-warning/10': row.rowType === 'late',
+              'bg-violet-500/10': row.rowType === 'holiday',
+              'bg-red-500/5': row.rowType === 'alpha',
+              'bg-cyan-500/10': row.rowType === 'sick',
+              'bg-amber-500/10': row.rowType === 'late',
               'bg-orange-500/10': row.rowType === 'early'
             }"
           >
@@ -381,10 +381,10 @@ const rows = computed<TableRow[]>(() => {
             </td>
 
             <template v-if="row.rowType === 'holiday'">
-              <td colspan="13" class="border border-default p-2 text-center font-bold text-success">
+              <td colspan="13" class="border border-default p-2 text-center font-bold text-violet-600">
                 {{ row.holiday }}
               </td>
-              <td class="border border-default p-2 text-center font-bold text-success">
+              <td class="border border-default p-2 text-center font-bold text-violet-600">
                 {{ row.status }}
               </td>
               <td class="border border-default p-2">
@@ -406,11 +406,11 @@ const rows = computed<TableRow[]>(() => {
                 {{ row.scanOut }}
               </td>
 
-              <td colspan="9" class="border border-default p-2 text-center font-semibold italic text-primary">
+              <td colspan="9" class="border border-default p-2 text-center font-semibold italic text-cyan-600">
                 {{ row.leaveInfo }}
               </td>
 
-              <td class="border border-default p-2 text-center font-bold text-primary">
+              <td class="border border-default p-2 text-center font-bold text-cyan-600">
                 {{ row.status }}
               </td>
 
@@ -430,7 +430,7 @@ const rows = computed<TableRow[]>(() => {
                 class="border border-default p-2 text-center"
                 :class="{
                   'font-bold text-error': row.scanIn === 'ALFA',
-                  'font-semibold text-warning': row.rowType === 'late'
+                  'font-semibold text-amber-600': row.rowType === 'late'
                 }"
               >
                 {{ row.scanIn }}
@@ -441,7 +441,7 @@ const rows = computed<TableRow[]>(() => {
               <td class="border border-default p-2 text-center">
                 {{ row.totalJam }}
               </td>
-              <td class="border border-default p-2 text-center text-error">
+              <td class="border border-default p-2 text-center text-amber-600 font-semibold">
                 {{ row.dt }}
               </td>
               <td
@@ -468,9 +468,9 @@ const rows = computed<TableRow[]>(() => {
               <td
                 class="border border-default p-2"
                 :class="{
-                  'text-error': row.rowType === 'alpha',
-                  'text-warning': row.rowType === 'late',
-                  'text-orange-500 font-semibold': row.rowType === 'early',
+                  'text-red-600': row.rowType === 'alpha',
+                  'text-amber-600': row.rowType === 'late',
+                  'text-orange-600 font-semibold': row.rowType === 'early',
                   'italic': row.rowType === 'normal'
                 }"
               >
@@ -479,8 +479,9 @@ const rows = computed<TableRow[]>(() => {
               <td
                 class="border border-default p-2 text-center font-bold"
                 :class="{
-                  'text-error': row.rowType === 'alpha',
-                  'text-warning': row.rowType === 'late'
+                  'text-red-600': row.rowType === 'alpha',
+                  'text-amber-600': row.rowType === 'late',
+                  'text-orange-600': row.rowType === 'early'
                 }"
               >
                 {{ row.status }}

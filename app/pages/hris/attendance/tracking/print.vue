@@ -106,14 +106,8 @@ function formatDay(value: string) {
 
 function formatTime(value: string | null) {
   if (!value) return '-'
-
-  if (value.includes('T')) {
-    return value.slice(11, 16)
-  }
-
-  if (value.includes(' ')) {
-    return value.split(' ')[1]?.slice(0, 5) || '-'
-  }
+  if (value.includes('T')) return value.slice(11, 16)
+  if (value.includes(' ')) return value.split(' ')[1]?.slice(0, 5) || '-'
 
   return value.slice(0, 5)
 }
@@ -295,66 +289,34 @@ const tableRows = computed<TableRow[]>(() => {
   })
 })
 
-const totalPresent = computed(() => {
-  return rows.value.filter(row => normalizeStatus(row.status) === 'PRESENT').length
-})
-
-const totalAbsent = computed(() => {
-  return rows.value.filter(row => normalizeStatus(row.status) === 'ABSENT').length
-})
-
-const totalOff = computed(() => {
-  return rows.value.filter(row => normalizeStatus(row.status) === 'OFF').length
-})
-
-const totalHoliday = computed(() => {
-  return rows.value.filter(row => normalizeStatus(row.status) === 'HOLIDAY').length
-})
-
-const totalLeave = computed(() => {
-  return rows.value.filter(row =>
-    ['LEAVE', 'SICK', 'PERMIT'].includes(normalizeStatus(row.status))
-  ).length
-})
+const totalPresent = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'PRESENT').length)
+const totalAbsent = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'ABSENT').length)
+const totalOff = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'OFF').length)
+const totalHoliday = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'HOLIDAY').length)
+const totalLeave = computed(() => rows.value.filter(row => ['LEAVE', 'SICK', 'PERMIT'].includes(normalizeStatus(row.status))).length)
 
 const totalLate = computed(() => {
-  return rows.value.reduce((total, row) => {
-    return total + Number(row.dt_minutes || 0)
-  }, 0)
+  return rows.value.reduce((total, row) => total + Number(row.dt_minutes || 0), 0)
 })
 
 const totalPc = computed(() => {
-  return rows.value.reduce((total, row) => {
-    return total + getPcMinutes(row)
-  }, 0)
+  return rows.value.reduce((total, row) => total + getPcMinutes(row), 0)
 })
 
 const totalOtMinutes = computed(() => {
-  return rows.value.reduce((total, row) => {
-    return total + Number(row.ot_minutes || 0)
-  }, 0)
+  return rows.value.reduce((total, row) => total + Number(row.ot_minutes || 0), 0)
 })
 
-const totalLateCount = computed(() => {
-  return rows.value.filter(row => Number(row.dt_minutes || 0) > 0).length
-})
-
-const totalPcCount = computed(() => {
-  return rows.value.filter(row => getPcMinutes(row) > 0).length
-})
-
-const totalOtCount = computed(() => {
-  return rows.value.filter(row => Number(row.ot_minutes || 0) > 0).length
-})
+const totalLateCount = computed(() => rows.value.filter(row => Number(row.dt_minutes || 0) > 0).length)
+const totalPcCount = computed(() => rows.value.filter(row => getPcMinutes(row) > 0).length)
+const totalOtCount = computed(() => rows.value.filter(row => Number(row.ot_minutes || 0) > 0).length)
 
 async function loadEmployee() {
   try {
     const res = await api.get('/hris/employees')
     const employees: Employee[] = res.data?.data ?? []
 
-    const employee = employees.find((item) => {
-      return String(item.id) === employeeId.value
-    })
+    const employee = employees.find(item => String(item.id) === employeeId.value)
 
     employeeName.value
       = employee?.nama
@@ -404,28 +366,38 @@ onMounted(async () => {
   <div class="min-h-screen bg-white p-6 text-black">
     <div class="mx-auto max-w-[1400px]">
       <div class="mb-3 border-b border-black pb-2">
-        <div class="text-center">
-          <h1 class="text-lg font-bold uppercase tracking-wide">
-            Attendance Report
-          </h1>
+        <div class="relative flex min-h-16 items-center justify-center">
+          <div class="absolute left-0 top-1/2 -translate-y-1/2">
+            <img
+              src="/logo.png"
+              alt="Company Logo"
+              class="h-12 w-auto"
+            >
+          </div>
 
-          <div class="mt-1 space-y-0.5 text-xs">
-            <p>
-              <strong>{{ employeeName }}</strong>
-              ({{ employeeId }})
-            </p>
+          <div class="text-center">
+            <h1 class="text-base font-bold uppercase tracking-wide">
+              Attendance Report
+            </h1>
 
-            <p>
-              Period :
-              <strong>{{ formatDate(start) }}</strong>
-              -
-              <strong>{{ formatDate(end) }}</strong>
-            </p>
+            <div class="mt-1 space-y-0.5 text-[11px]">
+              <p>
+                <strong>{{ employeeName }}</strong>
+                ({{ employeeId }})
+              </p>
 
-            <p class="text-[10px]">
-              Printed :
-              {{ new Date().toLocaleString('id-ID') }}
-            </p>
+              <p>
+                Period :
+                <strong>{{ formatDate(start) }}</strong>
+                -
+                <strong>{{ formatDate(end) }}</strong>
+              </p>
+
+              <p class="text-[10px]">
+                Printed :
+                {{ new Date().toLocaleString('id-ID') }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -532,33 +504,20 @@ onMounted(async () => {
               <td class="border border-black p-1 text-center">
                 {{ row.no }}
               </td>
-
-              <td
-                class="border border-black p-1"
-                :class="row.rowType === 'alpha' ? 'font-bold' : ''"
-              >
+              <td class="border border-black p-1" :class="row.rowType === 'alpha' ? 'font-bold' : ''">
                 {{ row.day }}
               </td>
-
-              <td
-                class="border border-black p-1"
-                :class="row.rowType === 'alpha' ? 'font-bold' : ''"
-              >
+              <td class="border border-black p-1" :class="row.rowType === 'alpha' ? 'font-bold' : ''">
                 {{ row.date }}
               </td>
 
               <template v-if="row.rowType === 'holiday'">
-                <td
-                  colspan="13"
-                  class="border border-black p-1 text-center font-bold"
-                >
+                <td colspan="13" class="border border-black p-1 text-center font-bold">
                   {{ row.holiday }}
                 </td>
-
                 <td class="border border-black p-1 text-center font-bold">
                   {{ row.status }}
                 </td>
-
                 <td class="border border-black p-1">
                   {{ row.type }}
                 </td>
@@ -568,30 +527,21 @@ onMounted(async () => {
                 <td class="border border-black p-1 text-center">
                   {{ row.shiftIn }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.shiftOut }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.scanIn }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.scanOut }}
                 </td>
-
-                <td
-                  colspan="9"
-                  class="border border-black p-1 text-center font-semibold italic"
-                >
+                <td colspan="9" class="border border-black p-1 text-center font-semibold italic">
                   {{ row.leaveInfo }}
                 </td>
-
                 <td class="border border-black p-1 text-center font-bold">
                   {{ row.status }}
                 </td>
-
                 <td class="border border-black p-1">
                   {{ row.type }}
                 </td>
@@ -601,57 +551,39 @@ onMounted(async () => {
                 <td class="border border-black p-1 text-center">
                   {{ row.shiftIn }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.shiftOut }}
                 </td>
-
-                <td
-                  class="border border-black p-1 text-center"
-                  :class="row.scanIn === 'ALFA' ? 'font-bold' : ''"
-                >
+                <td class="border border-black p-1 text-center" :class="row.scanIn === 'ALFA' ? 'font-bold' : ''">
                   {{ row.scanIn }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.scanOut }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.totalJam }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.dt }}
                 </td>
-
-                <td
-                  class="border border-black p-1 text-center"
-                  :class="row.pc && row.pc > 0 ? 'font-bold' : ''"
-                >
+                <td class="border border-black p-1 text-center" :class="row.pc && row.pc > 0 ? 'font-bold' : ''">
                   {{ row.pc }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.overtimeJam }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.ist }}
                 </td>
-
                 <td class="border border-black p-1 text-center font-bold">
                   {{ row.ot }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.cost }}
                 </td>
-
                 <td class="border border-black p-1 text-center">
                   {{ row.uml }}
                 </td>
-
                 <td
                   class="border border-black p-1"
                   :class="[
@@ -662,11 +594,9 @@ onMounted(async () => {
                 >
                   {{ row.reason }}
                 </td>
-
                 <td class="border border-black p-1 text-center font-bold">
                   {{ row.status }}
                 </td>
-
                 <td class="border border-black p-1">
                   {{ row.type }}
                 </td>

@@ -109,7 +109,7 @@ onMounted(() => {
         <div class="mx-auto w-full max-w-7xl space-y-6">
           <div class="space-y-1">
             <p class="text-sm text-muted">
-              HRIS / Master Data
+              HRIS / National Holidays
             </p>
 
             <h1 class="text-2xl font-semibold text-highlighted">

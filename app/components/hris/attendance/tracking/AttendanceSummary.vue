@@ -55,11 +55,14 @@ function getPcMinutes(row: AttendanceReportRow) {
 }
 
 const totalPresent = computed(() => {
-  return props.rows.filter(row => normalizeStatus(row.status) === 'PRESENT').length
+  return props.rows.filter(
+    row => normalizeStatus(row.status) === 'PRESENT'
+      || normalizeStatus(row.status) === 'LATE').length
 })
 
 const totalAbsent = computed(() => {
-  return props.rows.filter(row => normalizeStatus(row.status) === 'ABSENT').length
+  return props.rows.filter(
+    row => normalizeStatus(row.status) === 'ABSENT').length
 })
 
 const totalLate = computed(() => {
@@ -93,117 +96,101 @@ const totalLeave = computed(() => {
 
 <template>
   <UCard>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-      <div class="rounded-xl border border-default bg-primary/10 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Present
-        </p>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <div class="rounded-lg border border-default bg-blue-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Present
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-primary">
-          {{ totalPresent }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Hari
-        </p>
+          <span class="font-bold text-blue-600">
+            {{ totalPresent }} Hari
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-error/10 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Absent
-        </p>
+      <div class="rounded-lg border border-default bg-red-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Absent
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-error">
-          {{ totalAbsent }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Hari
-        </p>
+          <span class="font-bold text-red-600">
+            {{ totalAbsent }} Hari
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-warning/10 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Late (DT)
-        </p>
+      <div class="rounded-lg border border-default bg-amber-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Late
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-warning">
-          {{ totalLate }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Menit
-        </p>
+          <span class="font-bold text-amber-600">
+            {{ totalLate }} Menit
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-orange-500/10 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          LEAVE EARLY (PC)
-        </p>
+      <div class="rounded-lg border border-default bg-orange-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            PC
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-orange-500">
-          {{ totalEarlyCheckout }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Menit
-        </p>
+          <span class="font-bold text-orange-600">
+            {{ totalEarlyCheckout }} Menit
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-success/10 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Overtime (OT)
-        </p>
+      <div class="rounded-lg border border-default bg-green-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            OT
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-success">
-          {{ totalOvertime }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Menit
-        </p>
+          <span class="font-bold text-green-600">
+            {{ totalOvertime }} Menit
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-error/5 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Holiday
-        </p>
+      <div class="rounded-lg border border-default bg-violet-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Holiday
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-error">
-          {{ totalHoliday }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Hari
-        </p>
+          <span class="font-bold text-violet-600">
+            {{ totalHoliday }} Hari
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-muted/30 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Off
-        </p>
+      <div class="rounded-lg border border-default bg-slate-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Off
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-highlighted">
-          {{ totalOff }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Hari
-        </p>
+          <span class="font-bold text-slate-600">
+            {{ totalOff }} Hari
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-xl border border-default bg-primary/5 p-4">
-        <p class="text-xs font-semibold uppercase text-muted">
-          Leave
-        </p>
+      <div class="rounded-lg border border-default bg-cyan-500/10 px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-muted">
+            Leave
+          </span>
 
-        <p class="mt-1 text-xl font-bold text-primary">
-          {{ totalLeave }}
-        </p>
-
-        <p class="text-xs text-muted">
-          Hari
-        </p>
+          <span class="font-bold text-cyan-600">
+            {{ totalLeave }} Hari
+          </span>
+        </div>
       </div>
     </div>
   </UCard>
