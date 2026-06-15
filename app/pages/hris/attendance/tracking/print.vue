@@ -289,7 +289,7 @@ const tableRows = computed<TableRow[]>(() => {
   })
 })
 
-const totalPresent = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'PRESENT').length)
+const totalPresent = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'PRESENT' || normalizeStatus(row.status) === 'LATE').length)
 const totalAbsent = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'ABSENT').length)
 const totalOff = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'OFF').length)
 const totalHoliday = computed(() => rows.value.filter(row => normalizeStatus(row.status) === 'HOLIDAY').length)
@@ -370,7 +370,7 @@ onMounted(async () => {
           <div class="absolute left-0 top-1/2 -translate-y-1/2">
             <img
               src="/logo.png"
-              alt="Company Logo"
+              alt="Kyoai Medical Services"
               class="h-12 w-auto"
             >
           </div>
