@@ -371,7 +371,7 @@ onMounted(async () => {
             <img
               src="/logo.png"
               alt="Kyoai Medical Services"
-              class="h-12 w-auto"
+              class="h-35 w-auto"
             >
           </div>
 
