@@ -1,4 +1,4 @@
-<!-- app/components/hris/attendance/dashboard/UploadShiftModal.vue -->
+<!-- app/components/hris/attendance/tracking/UploadShiftModal.vue -->
 
 <script setup lang="ts">
 const open = defineModel<boolean>('open', {

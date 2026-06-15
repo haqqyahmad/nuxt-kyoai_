@@ -2,7 +2,7 @@
 
 <script setup lang="ts">
 type ViewMode = 'day' | 'week' | 'month'
-type FinalShiftStatus = 'active' | 'off'
+type FinalShiftStatus = 'active' | 'off' | 'holiday'
 
 type ShiftCode
   = | 'morning-shift'
@@ -15,13 +15,14 @@ type FinalShiftItem = {
   id?: number | string
   employee_id: number
   employee_name?: string
-  department?: string
+  department?: string | null
   date: string
   hari: string
   shift_code?: ShiftCode | null
   shift_name?: string | null
   start_time: string | null
   end_time: string | null
+  holiday_name?: string | null
   status: FinalShiftStatus
   source: string
   override_type: string | null
@@ -202,11 +203,24 @@ const weeks = computed(() => {
 })
 
 const holidayMap = computed(() => {
-  return props.holidays.reduce<Record<string, HolidayItem>>((result, item) => {
-    result[normalizeApiDate(item.date)] = item
+  const result: Record<string, HolidayItem> = {}
 
-    return result
-  }, {})
+  props.holidays.forEach((item) => {
+    result[normalizeApiDate(item.date)] = item
+  })
+
+  const shiftHolidays = props.finalShiftResponse?.data?.filter(
+    item => item.status === 'holiday' && item.holiday_name
+  ) ?? []
+
+  shiftHolidays.forEach((item) => {
+    result[normalizeApiDate(item.date)] = {
+      date: normalizeApiDate(item.date),
+      name: item.holiday_name || 'National Holiday'
+    }
+  })
+
+  return result
 })
 
 const selectedMonth = computed(() => props.selectedDate.getMonth())
@@ -301,7 +315,26 @@ function getTotalShifts(employee: CalendarEmployee) {
   return Object.values(employee.shiftsByDate).flat().length
 }
 
+function getTotalWorkingDays(employee: CalendarEmployee) {
+  return days.value.filter((day) => {
+    return getShifts(employee, day).some(shift => shift.status === 'active')
+  }).length
+}
+
+function getTotalOffDays(employee: CalendarEmployee) {
+  return days.value.filter((day) => {
+    return getShifts(employee, day).some(shift => shift.status === 'off')
+  }).length
+}
+
+function getTotalHolidayDays(employee: CalendarEmployee) {
+  return days.value.filter((day) => {
+    return getShifts(employee, day).some(shift => shift.status === 'holiday')
+  }).length
+}
+
 function getShiftBadgeColor(shift: FinalShiftItem) {
+  if (shift.status === 'holiday') return 'error'
   if (shift.status === 'off') return 'neutral'
   if (shift.override_type) return 'warning'
   if (shift.shift_code === 'night-shift') return 'primary'
@@ -311,6 +344,7 @@ function getShiftBadgeColor(shift: FinalShiftItem) {
 }
 
 function getShiftBadgeLabel(shift: FinalShiftItem) {
+  if (shift.status === 'holiday') return 'Holiday'
   if (shift.status === 'off') return 'OFF'
   if (shift.override_type) return 'Override'
 
@@ -330,19 +364,9 @@ const activeMonthLabel = computed(() => {
   })
 })
 
-function getTotalWorkingDays(employee: CalendarEmployee) {
-  return days.value.filter((day) => {
-    return getShifts(employee, day).some(shift => shift.status === 'active')
-  }).length
-}
-
-function getTotalOffDays(employee: CalendarEmployee) {
-  return days.value.filter((day) => {
-    return getShifts(employee, day).some(shift => shift.status === 'off')
-  }).length
-}
-
 function onDragStart(employeeId: number, date: string, shift: FinalShiftItem) {
+  if (shift.status === 'holiday') return
+
   draggedShift.value = {
     employeeId,
     date,
@@ -410,9 +434,7 @@ function onDrop(toEmployeeId: number, date: string) {
           :key="employee.id"
           class="overflow-hidden rounded-3xl border border-default bg-default shadow-sm transition-all duration-300 hover:shadow-lg"
         >
-          <div
-            class="flex flex-wrap items-center justify-between gap-4 border-b border-default bg-gradient-to-r from-primary/5 via-transparent to-transparent px-5 py-4"
-          >
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-default bg-gradient-to-r from-primary/5 via-transparent to-transparent px-5 py-4">
             <div class="flex min-w-0 items-center gap-3">
               <UAvatar
                 :text="employee.avatar"
@@ -474,7 +496,16 @@ function onDrop(toEmployeeId: number, date: string) {
                 size="lg"
                 icon="i-lucide-bed-single"
               >
-                {{ getTotalOffDays(employee) }} Hari Libur
+                {{ getTotalOffDays(employee) }} Hari Off
+              </UBadge>
+
+              <UBadge
+                color="error"
+                variant="soft"
+                size="lg"
+                icon="i-lucide-party-popper"
+              >
+                {{ getTotalHolidayDays(employee) }} Libur Nasional
               </UBadge>
             </div>
           </div>
@@ -537,12 +568,12 @@ function onDrop(toEmployeeId: number, date: string) {
                   </UBadge>
                 </div>
 
-                <p
+                <!-- <p
                   v-if="isHoliday(day)"
                   class="mb-2 line-clamp-1 rounded-lg bg-error/10 px-2 py-1 text-[11px] font-medium text-error"
                 >
                   {{ getHolidayName(day) }}
-                </p>
+                </p> -->
 
                 <div
                   v-if="getShifts(employee, day).length"
@@ -550,15 +581,17 @@ function onDrop(toEmployeeId: number, date: string) {
                 >
                   <div
                     v-for="shift in getShifts(employee, day)"
-                    :key="`${shift.id ?? shift.shift_code}-${shift.start_time}-${shift.end_time}`"
-                    draggable="true"
-                    class="cursor-move rounded-2xl border border-default bg-default p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                    :key="`${shift.id ?? shift.shift_code}-${shift.status}-${shift.start_time}-${shift.end_time}`"
+                    :draggable="shift.status !== 'holiday'"
+                    class="rounded-2xl border border-default bg-default p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                    :class="shift.status === 'holiday'
+                      ? 'cursor-default border-error/30 bg-error/5'
+                      : 'cursor-move'"
                     @dragstart="onDragStart(employee.id, day.ymd, shift)"
                     @dblclick="emit('editShift', shift)"
                   >
                     <div class="mb-2 flex items-center justify-between gap-2">
                       <UBadge
-                        v-if="shift.status !== 'off'"
                         :color="getShiftBadgeColor(shift)"
                         variant="soft"
                         size="xs"
@@ -567,13 +600,32 @@ function onDrop(toEmployeeId: number, date: string) {
                       </UBadge>
 
                       <UIcon
+                        v-if="shift.status !== 'holiday'"
                         name="i-lucide-grip-vertical"
                         class="size-4 text-muted"
                       />
+
+                      <UIcon
+                        v-else
+                        name="i-lucide-party-popper"
+                        class="size-4 text-error"
+                      />
                     </div>
 
-                    <template v-if="shift.status === 'off'">
-                      <div class="rounded-xl bg-error/10 py-2 text-center text-sm font-bold text-error">
+                    <template v-if="shift.status === 'holiday'">
+                      <div class="rounded-xl bg-error/10 px-2 py-3 text-center">
+                        <!-- <p class="text-xs font-bold text-error">
+                          HOLIDAY
+                        </p> -->
+
+                        <p class="line-clamp-2 text-[11px] font-bold text-error">
+                          {{ shift.holiday_name || getHolidayName(day) || 'National Holiday' }}
+                        </p>
+                      </div>
+                    </template>
+
+                    <template v-else-if="shift.status === 'off'">
+                      <div class="rounded-xl bg-muted py-2 text-center text-sm font-bold text-muted">
                         OFF
                       </div>
                     </template>

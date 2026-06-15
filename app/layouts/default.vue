@@ -235,7 +235,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
               to: '/hris/attendance/analytics'
             },
             {
-              label: 'Attendance Tracking',
+              label: 'Attendance Report',
               to: '/hris/attendance/tracking'
             },
             {
@@ -247,6 +247,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
               to: '/hris/attendance/shift-schedule'
             }
           ]
+        },
+        {
+          label: 'National Holidays',
+          to: '/hris/national-holidays'
         },
         {
           label: 'Leave Management',

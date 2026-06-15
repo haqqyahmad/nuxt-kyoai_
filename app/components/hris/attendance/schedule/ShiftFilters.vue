@@ -1,3 +1,5 @@
+<!-- app/components/hris/attendance/schedule/ShiftFilters.vue -->
+
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
 
