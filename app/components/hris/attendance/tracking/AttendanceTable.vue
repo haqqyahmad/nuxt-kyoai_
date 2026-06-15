@@ -300,7 +300,7 @@ const rows = computed<TableRow[]>(() => {
             <th colspan="2" class="border border-default p-2 text-center">
               FINGER SCAN
             </th>
-            <th colspan="3" class="border border-default p-2 text-center text-primary">
+            <th colspan="3" class="border border-default p-2 text-center text-blue-600">
               TOTAL (MENIT)
             </th>
             <th colspan="4" class="border border-default p-2 text-center text-primary">
