@@ -13,7 +13,7 @@ type EmployeeOnLeave = {
 
 // const toast = useToast()
 const requestTable = ref()
-const openManualAttendance = ref(false)
+// const openManualAttendance = ref(false)
 
 const employeesOnLeave = ref<EmployeeOnLeave[]>([
   {
@@ -46,15 +46,15 @@ const employeesOnLeave = ref<EmployeeOnLeave[]>([
   }
 ])
 
-const stats = computed(() => ({
-  present: 432,
-  presentPercent: 96,
-  late: 18,
-  latePercent: 4,
-  absent: 12,
-  absentPercent: 2.6,
-  onLeave: employeesOnLeave.value.length
-}))
+// const stats = computed(() => ({
+//   present: 432,
+//   presentPercent: 96,
+//   late: 18,
+//   latePercent: 4,
+//   absent: 12,
+//   absentPercent: 2.6,
+//   onLeave: employeesOnLeave.value.length
+// }))
 
 function bulkApproveLeave() {
   requestTable.value?.bulkApproveSelected()
@@ -81,7 +81,7 @@ function bulkApproveLeave() {
           <UDashboardSidebarCollapse />
         </template>
 
-        <template #right>
+        <!-- <template #right>
           <UButton
             icon="i-lucide-plus"
             class="whitespace-nowrap"
@@ -95,7 +95,7 @@ function bulkApproveLeave() {
               Input
             </span>
           </UButton>
-        </template>
+        </template> -->
       </UDashboardNavbar>
     </template>
 
@@ -107,7 +107,7 @@ function bulkApproveLeave() {
 
         <div class="grid gap-6 xl:grid-cols-12">
           <div class="min-w-0 space-y-6 xl:col-span-8">
-            <HrisLeavesAttendanceStats :stats="stats" />
+            <!-- <HrisLeavesAttendanceStats :stats="stats" /> -->
 
             <HrisLeavesRequestTable ref="requestTable" />
           </div>

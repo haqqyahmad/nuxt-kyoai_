@@ -12,98 +12,99 @@ const props = defineProps<{
     onLeave: number
   }
 }>()
+
+const cards = computed(() => [
+  {
+    title: 'Hadir',
+    value: props.stats.present,
+    percent: props.stats.presentPercent,
+    icon: 'i-lucide-user-check',
+    color: 'success' as const,
+    label: `${props.stats.presentPercent}%`
+  },
+  {
+    title: 'Terlambat',
+    value: props.stats.late,
+    percent: props.stats.latePercent,
+    icon: 'i-lucide-clock-alert',
+    color: 'warning' as const,
+    label: `${props.stats.latePercent}%`
+  },
+  {
+    title: 'Absen',
+    value: props.stats.absent,
+    percent: props.stats.absentPercent,
+    icon: 'i-lucide-user-x',
+    color: 'error' as const,
+    label: `${props.stats.absentPercent}%`
+  },
+  {
+    title: 'Sedang Cuti',
+    value: props.stats.onLeave,
+    percent: props.stats.onLeave,
+    icon: 'i-lucide-calendar-days',
+    color: 'primary' as const,
+    label: 'Hari ini'
+  }
+])
 </script>
 
 <template>
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <UCard>
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-medium text-muted">
-            Hadir
-          </p>
-
-          <UBadge color="success" variant="soft">
-            {{ props.stats.presentPercent }}%
-          </UBadge>
-        </div>
-
-        <p class="text-3xl font-bold text-highlighted">
-          {{ props.stats.present }}
-        </p>
-
-        <UProgress
-          :model-value="props.stats.presentPercent"
-          color="success"
+    <UCard
+      v-for="card in cards"
+      :key="card.title"
+      class="overflow-hidden"
+    >
+      <div class="relative space-y-4">
+        <UIcon
+          :name="card.icon"
+          class="absolute -right-4 -top-4 size-16 opacity-5"
         />
-      </div>
-    </UCard>
 
-    <UCard>
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-medium text-muted">
-            Terlambat
-          </p>
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div
+              class="flex size-10 items-center justify-center rounded-lg"
+              :class="{
+                'bg-success/10 text-success': card.color === 'success',
+                'bg-warning/10 text-warning': card.color === 'warning',
+                'bg-error/10 text-error': card.color === 'error',
+                'bg-primary/10 text-primary': card.color === 'primary'
+              }"
+            >
+              <UIcon
+                :name="card.icon"
+                class="size-5"
+              />
+            </div>
 
-          <UBadge color="warning" variant="soft">
-            {{ props.stats.latePercent }}%
+            <p class="text-sm font-medium text-muted">
+              {{ card.title }}
+            </p>
+          </div>
+
+          <UBadge
+            :color="card.color"
+            variant="soft"
+          >
+            {{ card.label }}
           </UBadge>
         </div>
 
-        <p class="text-3xl font-bold text-highlighted">
-          {{ props.stats.late }}
-        </p>
-
-        <UProgress
-          :model-value="props.stats.latePercent"
-          color="warning"
-        />
-      </div>
-    </UCard>
-
-    <UCard>
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-medium text-muted">
-            Absen
+        <div>
+          <p class="text-3xl font-bold tracking-tight text-highlighted">
+            {{ card.value }}
           </p>
 
-          <UBadge color="error" variant="soft">
-            {{ props.stats.absentPercent }}%
-          </UBadge>
-        </div>
-
-        <p class="text-3xl font-bold text-highlighted">
-          {{ props.stats.absent }}
-        </p>
-
-        <UProgress
-          :model-value="props.stats.absentPercent"
-          color="error"
-        />
-      </div>
-    </UCard>
-
-    <UCard>
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-medium text-muted">
-            Sedang Cuti
+          <p class="mt-1 text-xs text-muted">
+            Data ringkasan periode aktif
           </p>
-
-          <UBadge color="primary" variant="soft">
-            Hari ini
-          </UBadge>
         </div>
 
-        <p class="text-3xl font-bold text-highlighted">
-          {{ props.stats.onLeave }}
-        </p>
-
         <UProgress
-          :model-value="props.stats.onLeave"
-          color="primary"
+          :model-value="card.percent"
+          :color="card.color"
         />
       </div>
     </UCard>
