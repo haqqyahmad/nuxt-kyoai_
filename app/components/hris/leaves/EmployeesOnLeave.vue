@@ -1,9 +1,10 @@
 <!-- app/components/hris/leaves/EmployeesOnLeave.vue -->
 
 <script setup lang="ts">
-type ApiLeaveType = 'ANNUAL' | 'SICK' | 'SPECIAL' | 'MATERNITY'
+type ApiLeaveType = 'ANNUAL' | 'SICK' | 'SPECIAL' | 'MATERNITY' | 'HALF_DAY'
 type ApiLeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 type PeriodFilter = 'today' | 'week' | 'month'
+type LeaveStatusFilter = 'APPROVED' | 'REJECTED' | 'PENDING'
 
 type LeaveRequest = {
   id: number
@@ -39,6 +40,23 @@ const toast = useToast()
 const loading = ref(false)
 const items = ref<LeaveRequest[]>([])
 const periodFilter = ref<PeriodFilter>('today')
+
+const statusFilter = ref<LeaveStatusFilter>('APPROVED')
+
+const statusOptions = [
+  {
+    label: 'Approved',
+    value: 'APPROVED'
+  },
+  {
+    label: 'Rejected',
+    value: 'REJECTED'
+  },
+  {
+    label: 'Pending',
+    value: 'PENDING'
+  }
+]
 
 const filterOptions = [
   { label: 'Hari Ini', value: 'today' },
@@ -113,7 +131,9 @@ const filteredItems = computed(() => {
     const startDate = toDateOnly(item.start_date)
     const endDate = toDateOnly(item.end_date)
 
-    return startDate <= activeRange.value.end && endDate >= activeRange.value.start
+    return (
+      startDate <= activeRange.value.end && endDate >= activeRange.value.start
+    )
   })
 })
 
@@ -122,16 +142,19 @@ async function loadEmployeesOnLeave() {
 
   try {
     const params: Record<string, string | number> = {
-      status: 'APPROVED'
+      status: statusFilter.value
     }
 
     if (props.employeeId) {
       params.employee_id = props.employeeId
     }
 
-    const response = await api.get<LeaveRequestResponse>('/hris/leave/requests', {
-      params
-    })
+    const response = await api.get<LeaveRequestResponse>(
+      '/hris/leave/requests',
+      {
+        params
+      }
+    )
 
     items.value = response.data?.data || []
   } catch (error) {
@@ -154,6 +177,7 @@ function viewLeave(item: LeaveRequest) {
 
 function getLeaveTypeLabel(type: ApiLeaveType) {
   const labels: Record<ApiLeaveType, string> = {
+    HALF_DAY: 'Cuti 1/2 Hari',
     ANNUAL: 'Cuti Tahunan',
     SICK: 'Sakit',
     SPECIAL: 'Izin Khusus',
@@ -164,7 +188,11 @@ function getLeaveTypeLabel(type: ApiLeaveType) {
 }
 
 function getLeaveColor(type: ApiLeaveType) {
-  const colors: Record<ApiLeaveType, 'success' | 'error' | 'primary' | 'warning'> = {
+  const colors: Record<
+    ApiLeaveType,
+    'success' | 'error' | 'primary' | 'warning'
+  > = {
+    HALF_DAY: 'warning',
     ANNUAL: 'success',
     SICK: 'error',
     SPECIAL: 'primary',
@@ -176,6 +204,7 @@ function getLeaveColor(type: ApiLeaveType) {
 
 function getLeaveDotColor(type: ApiLeaveType) {
   const colors: Record<ApiLeaveType, string> = {
+    HALF_DAY: 'bg-warning',
     ANNUAL: 'bg-success',
     SICK: 'bg-error',
     SPECIAL: 'bg-primary',
@@ -235,12 +264,13 @@ function getInitial(name: string) {
     .toUpperCase()
 }
 
-watch(
-  () => props.employeeId,
-  () => {
-    loadEmployeesOnLeave()
-  }
-)
+function viewAll() {
+  // router.push('/hris/leaves')
+}
+
+watch([() => props.employeeId, statusFilter], () => {
+  loadEmployeesOnLeave()
+})
 
 onMounted(() => {
   loadEmployeesOnLeave()
@@ -257,38 +287,33 @@ defineExpose({
       <div class="space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div class="flex items-center gap-3">
-            <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-              <UIcon
-                name="i-lucide-users-round"
-                class="size-5 text-primary"
-              />
+            <div
+              class="flex size-10 items-center justify-center rounded-lg bg-primary/10"
+            >
+              <UIcon name="i-lucide-users-round" class="size-5 text-primary" />
             </div>
 
             <div>
               <h2 class="font-semibold text-highlighted">
-                Sedang Cuti
+                List Cuti
               </h2>
 
               <p class="text-sm text-muted">
-                Karyawan dengan cuti yang sudah disetujui.
+                Karyawan yang sudah diverifikasi.
               </p>
             </div>
           </div>
 
-          <UBadge
-            color="primary"
-            variant="soft"
-          >
+          <UBadge color="primary" variant="soft">
             {{ filteredItems.length }} Orang
           </UBadge>
         </div>
 
-        <USelect
-          v-model="periodFilter"
-          :items="filterOptions"
-          size="sm"
-          class="w-full"
-        />
+        <div class="grid grid-cols-2 gap-2">
+          <USelect v-model="periodFilter" :items="filterOptions" size="sm" />
+
+          <USelect v-model="statusFilter" :items="statusOptions" size="sm" />
+        </div>
       </div>
     </template>
 
@@ -353,7 +378,9 @@ defineExpose({
                   {{ getEmployeeName(item) }}
                 </p>
 
-                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                <div
+                  class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted"
+                >
                   <span class="flex items-center gap-1">
                     <UIcon name="i-lucide-badge" />
                     {{ getEmployeeNik(item) }}
@@ -393,16 +420,28 @@ defineExpose({
     </div>
 
     <template #footer>
-      <UButton
-        block
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="loading"
-        @click="loadEmployeesOnLeave"
-      >
-        Refresh Data
-      </UButton>
+      <div class="space-y-2">
+        <UButton
+          block
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="loading"
+          @click="loadEmployeesOnLeave"
+        >
+          Refresh Data
+        </UButton>
+
+        <UButton
+          block
+          color="primary"
+          variant="soft"
+          icon="i-lucide-list"
+          @click="viewAll"
+        >
+          View All
+        </UButton>
+      </div>
     </template>
   </UCard>
 </template>

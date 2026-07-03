@@ -4,7 +4,7 @@
 import type { TableColumn } from '@nuxt/ui'
 
 type ApiLeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
-type ApiLeaveType = 'ANNUAL' | 'SICK' | 'SPECIAL' | 'MATERNITY'
+type ApiLeaveType = 'ANNUAL' | 'SICK' | 'SPECIAL' | 'MATERNITY' | 'HALF_DAY'
 
 type LeaveRequest = {
   id: number
@@ -216,6 +216,7 @@ async function rejectLeaveRequest() {
 
 function getLeaveTypeLabel(type: ApiLeaveType) {
   const labels: Record<ApiLeaveType, string> = {
+    HALF_DAY: 'Cuti 1/2 Hari',
     ANNUAL: 'Cuti Tahunan',
     SICK: 'Sakit',
     SPECIAL: 'Izin Khusus',
@@ -227,6 +228,7 @@ function getLeaveTypeLabel(type: ApiLeaveType) {
 
 function getLeaveColor(type: ApiLeaveType) {
   const colors: Record<ApiLeaveType, 'primary' | 'success' | 'warning' | 'error'> = {
+    HALF_DAY: 'warning',
     ANNUAL: 'success',
     SICK: 'error',
     SPECIAL: 'primary',
@@ -476,7 +478,7 @@ defineExpose({
             @click="showRejectModal(row.original.id)"
           />
 
-          <UButton
+          <!-- <UButton
             icon="i-lucide-check-circle"
             color="success"
             variant="ghost"
@@ -484,7 +486,7 @@ defineExpose({
             :loading="approvingId === row.original.id"
             :disabled="rejectingId === row.original.id || bulkApproving"
             @click="approveLeaveRequest(row.original.id)"
-          />
+          /> -->
         </div>
       </template>
 

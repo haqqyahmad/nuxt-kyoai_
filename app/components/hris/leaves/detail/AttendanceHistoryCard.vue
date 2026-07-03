@@ -3,6 +3,8 @@
 <script setup lang="ts">
 import type { AttendanceHistoryItem } from '~/types/hris-leave'
 
+const router = useRouter()
+
 const props = defineProps<{
   items: AttendanceHistoryItem[]
 }>()
@@ -155,6 +157,7 @@ function getStatusLabel(status: string) {
         color="neutral"
         variant="outline"
         icon="i-lucide-file-text"
+        @click="router.push('/hris/attendance/tracking')"
       >
         Full Attendance Report
       </UButton>

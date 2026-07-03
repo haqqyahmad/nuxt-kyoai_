@@ -26,13 +26,13 @@ const actions: QuickAction[] = [
     // disabled: true
     to: '/hris/attendance/tracking'
   },
-  {
-    title: 'Verifikasi Massal',
-    description: 'Setujui cuti yang dipilih',
-    icon: 'i-lucide-badge-check',
-    color: 'success',
-    action: 'bulk-approve'
-  },
+  // {
+  //   title: 'Verifikasi Massal',
+  //   description: 'Setujui cuti yang dipilih',
+  //   icon: 'i-lucide-badge-check',
+  //   color: 'success',
+  //   action: 'bulk-approve'
+  // },
   {
     title: 'Hari Libur Nasional',
     description: 'Konfigurasi kalender libur',
