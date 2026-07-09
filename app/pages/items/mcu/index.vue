@@ -281,7 +281,7 @@ const currentPageSize = <any>computed({
 <template>
   <UDashboardPanel id="items">
     <template #header>
-      <UDashboardNavbar title="MCU">
+      <UDashboardNavbar title="List Items">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

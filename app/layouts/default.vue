@@ -161,7 +161,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
           onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
           children: [
             {
-              label: 'MCU',
+              label: 'List Items',
               to: '/items/mcu'
             },
             {

@@ -25,3 +25,9 @@ logs
 
 # VSC
 .history
+
+# Agent AI
+.agents
+
+# Docs
+docs
