@@ -16,26 +16,38 @@ const UBadge = resolveComponent('UBadge')
 const api = useApi()
 const toast = useToast()
 
-
-type Department =
-  | 'Laboratory'
-  | 'DoctorConsultation'
-  | 'MCU'
-  | 'Vaccine'
-  | 'Antigen'
-  | 'PCR'
-  | 'VitaminInjection'
-  | 'Pharmacy'
-  | 'Dental'
-  | 'Radiology'
+type Department = 'Laboratory' | 'DoctorConsultation' | 'MCU' | 'Vaccine' | 'Antigen' | 'PCR' | 'VitaminInjection' | 'Pharmacy' | 'Dental' | 'Radiology'
 
 type Item = {
   id: string
   name: string
   code: string
-  department: Department
+  department?: {
+    id: string,
+    name: string
+  } | null
+  group?: {
+    id: string,
+    name: string,
+    code?: string | null
+    parent?: {
+      id: string,
+      name: string,
+      code?: string | null
+    } | null
+  } | null
   isActive?: boolean
   createdAt: string
+}
+
+type ItemsApiResponse = {
+  data?: Item[] | { data?: Item[] }
+  meta?: {
+    page?: number
+    limit?: number
+    totalPages?: number
+    hasNextPage?: boolean
+  }
 }
 
 const SERVICE_TYPE_LABEL: Record<Department, string> = {
@@ -51,7 +63,7 @@ const SERVICE_TYPE_LABEL: Record<Department, string> = {
   Radiology: 'Radiologi'
 }
 
-const SERVICE_TYPE_COLOR: Record<Department, any> = {
+const SERVICE_TYPE_COLOR: Record<Department, string> = {
   Laboratorium: 'success',
   DoctorConsultation: 'info',
   MCU: 'warning',
@@ -69,8 +81,32 @@ const {
   refresh,
   pending
 } = await useAsyncData('items', async () => {
-  const res = await api.get('/mcu/items')
-  return res.data.data
+  const limit = 100
+  let page = 1
+  const result: Item[] = []
+
+  while (true) {
+    const res = await api.get('/mcu/items', {
+      params: { page, limit }
+    })
+
+    const payload = res.data as ItemsApiResponse
+    const rows = Array.isArray(payload.data)
+      ? payload.data
+      : Array.isArray(payload.data?.data)
+        ? payload.data.data
+        : []
+
+    result.push(...rows)
+
+    if (!payload.meta?.hasNextPage || !rows.length) {
+      break
+    }
+
+    page += 1
+  }
+
+  return result
 })
 
 const data = computed<Item[]>(() => items.value ?? [])
@@ -87,6 +123,25 @@ const isDeleteModalOpen = ref(false)
 // ─── Exam Template Modal ───────────────────────────────────────────────────────
 const isExamTemplateModalOpen = ref(false)
 const selectedTemplateItem = ref<{ id: string; name: string } | null>(null)
+
+function getGroupBreadcrumb(item: Item) {
+  const parts = []
+
+  if (item.group?.parent?.name) {
+    parts.push(item.group.parent.name)
+  }
+
+  if (item.group?.name) {
+    parts.push(item.group.name)
+  }
+
+  return parts.join(' > ')
+}
+
+type SortableColumn = {
+  getIsSorted: () => false | 'asc' | 'desc'
+  toggleSorting: (desc: boolean) => void
+}
 
 function openExamTemplate(row: Row<Item>) {
   selectedTemplateItem.value = { id: row.original.id, name: row.original.name }
@@ -125,7 +180,7 @@ async function deleteSelectedItems() {
   }
 }
 
-function sortableHeader(label: string, column: any) {
+function sortableHeader(label: string, column: SortableColumn) {
   const isSorted = column.getIsSorted()
   return h(UButton, {
     color: 'neutral',
@@ -205,11 +260,27 @@ const columns: TableColumn<Item>[] = [
       ])
   },
   {
+    id: 'group',
+    header: ({ column }) => sortableHeader('Group', column),
+    cell: ({ row }) => {
+      const breadcrumb = getGroupBreadcrumb(row.original)
+      const fallback = row.original.group?.name ?? '-'
+
+      return h('div', { class: 'flex flex-col' }, [
+        h('span', { class: 'text-sm font-medium text-highlighted' }, fallback),
+        h(
+          'span',
+          { class: 'text-xs text-muted' },
+          breadcrumb || row.original.group?.code || 'No group assigned'
+        )
+      ])
+    }
+  },
+  {
     accessorKey: 'department',
     header: ({ column }) => sortableHeader('Department', column),
     cell: ({ row }) => {
       const department = row.original.department?.name as Department
-      console.log('departmentss:', department)
       return h(UBadge, {
         label: SERVICE_TYPE_LABEL[department] ?? '-',
         color: SERVICE_TYPE_COLOR[department] ?? 'neutral',
@@ -262,7 +333,7 @@ const columns: TableColumn<Item>[] = [
   }
 ]
 
-const searchQuery = <any>computed({
+const searchQuery = computed<string>({
   get: () =>
     (table.value?.tableApi?.getColumn('name')?.getFilterValue() as string) || '',
   set: (value: string) => {
@@ -270,7 +341,7 @@ const searchQuery = <any>computed({
   }
 })
 
-const currentPageSize = <any>computed({
+const currentPageSize = computed<number>({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
     table.value?.tableApi?.setPageSize(value)
@@ -285,9 +356,18 @@ const currentPageSize = <any>computed({
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #trailing>
+          <UButton
+            to="/items/groups"
+            label="Manage Groups"
+            icon="i-lucide-folder-tree"
+            color="neutral"
+            variant="soft"
+          />
+        </template>
       </UDashboardNavbar>
     </template>
-    
+
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <UInput

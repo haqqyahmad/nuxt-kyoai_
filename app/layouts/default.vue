@@ -24,6 +24,7 @@ const menuGroups: Record<string, string[]> = {
   ],
   'Items': [
     '/items/mcu',
+    '/items/groups',
     '/items/sample-types'
   ],
   'Front Office': [
@@ -163,6 +164,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
             {
               label: 'List Items',
               to: '/items/mcu'
+            },
+            {
+              label: 'Master Group',
+              to: '/items/groups'
             },
             {
               label: 'Sample Types',

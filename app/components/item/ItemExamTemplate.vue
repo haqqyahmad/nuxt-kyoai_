@@ -51,6 +51,13 @@ type Inputan = {
   _key: number
 }
 
+const INPUT_TYPE_OPTIONS: Array<{ label: string; value: InputType }> = [
+  { label: 'Angka (number)', value: 'number' },
+  { label: 'Formula (calculated)', value: 'calculated' },
+  { label: 'Pilihan (selected)', value: 'selected' },
+  { label: 'Teks (string)', value: 'string' }
+]
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 const inputans              = ref<Inputan[]>([])
@@ -89,6 +96,51 @@ const opsiSelectItems = computed(() => {
     .map((o) => ({ label: `${o.label} (${o.value})`, value: o.id as string }))
 })
 
+function canPersistSelectedRules(inp: Inputan) {
+  return inp.inputType === 'selected'
+    && inp.opsis.length > 0
+    && inp.opsis.every((o) => !!o.id)
+    && inp.nilaiNormalSel.every((n) => !!n.opsiId)
+}
+
+function mapInputanFromApi(inp: any): Inputan {
+  return {
+    id: inp.id,
+    label: inp.label,
+    inputType: inp.inputType,
+    uom: inp.uom ?? '',
+    sortOrder: inp.sortOrder,
+    allowBlank: inp.allowBlank,
+    formula: inp.formula?.formula ?? null,
+    nilaiNormalNumber: inp.nilaiNormalNum ?? [],
+    opsis: inp.opsis ?? [],
+    nilaiNormalSel: (inp.nilaiNormalSel ?? []).map((n: any) => ({
+      id: n.id,
+      sex: n.sex ?? null,
+      ageMin: n.ageMin ?? 0,
+      opsiId: n.opsiId ?? n.opsi?.id ?? ''
+    })),
+    _key: keyCounter++
+  }
+}
+
+function syncSelectionAfterLoad(preferredId?: string | null) {
+  const preferred = preferredId
+    ? inputans.value.find((i) => i.id === preferredId) ?? null
+    : null
+
+  const fallback = preferred ?? inputans.value[0] ?? null
+
+  if (!fallback) {
+    selectedInputanKey.value = null
+    configTab.value = 'range'
+    return
+  }
+
+  selectedInputanKey.value = fallback._key
+  configTab.value = fallback.inputType === 'selected' ? 'selektif' : 'range'
+}
+
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 
 onMounted(() => window.addEventListener('keydown', handleShortcut))
@@ -115,38 +167,20 @@ function handleShortcut(e: KeyboardEvent) {
 async function loadInputans() {
   loading.value = true
   try {
+    if (!props.itemId) {
+      inputans.value = []
+      selectedInputanKey.value = null
+      configTab.value = 'range'
+      lastSavedSnapshot.value = ''
+      return
+    }
+
     const res = await api.get(`/mcu/items/${props.itemId}`)
     const raw: any[] = res.data.data?.inputans ?? []
 
-    inputans.value = raw.map((inp) => ({
-      id:                inp.id,
-      label:             inp.label,
-      inputType:         inp.inputType,
-      uom:               inp.uom ?? '',
-      sortOrder:         inp.sortOrder,
-      allowBlank:        inp.allowBlank,
-      formula:           inp.formula?.formula ?? null,
-      nilaiNormalNumber: inp.nilaiNormalNum ?? [],
-      opsis:             inp.opsis ?? [],
-      // BE mengembalikan nilaiNormalSel dengan nested { id, sex, ageMin, opsiId, opsi }
-      nilaiNormalSel: (inp.nilaiNormalSel ?? []).map((n: any) => ({
-        id:     n.id,
-        sex:    n.sex ?? null,
-        ageMin: n.ageMin ?? 0,
-        opsiId: n.opsiId ?? n.opsi?.id ?? ''
-      })),
-      _key: keyCounter++
-    }))
-
-    if (inputans.value.length > 0) {
-  const first = inputans.value[0]
-
-  selectedInputanKey.value = first._key
-  configTab.value =
-    first.inputType === 'selected'
-      ? 'selektif'
-      : 'range'
-}
+    const previousSelectedId = selectedInputan.value?.id ?? null
+    inputans.value = raw.map(mapInputanFromApi)
+    syncSelectionAfterLoad(previousSelectedId)
 
     lastSavedSnapshot.value = createSnapshot()
   } catch {
@@ -242,8 +276,9 @@ function removeNilaiNormalSel(inp: Inputan, idx: number) {
  * Simpan nilaiNormalSel via endpoint dedicated:
  * PUT /items/:itemId/inputan/:inputanId/nilai-normal/selected
  *
- * Dipisah dari "Simpan Template" karena endpoint ini butuh opsiId (FK)
- * yang baru tersedia setelah opsis tersimpan ke DB.
+ * Dipisah dari "Simpan Template" supaya rule pilihan bisa diubah
+ * tanpa menyusun ulang seluruh template. Saat template disimpan ulang,
+ * aturan ini tetap ikut bila opsi sudah punya ID.
  */
 async function saveNilaiNormalSel(inp: Inputan) {
   if (!inp.id) {
@@ -333,7 +368,13 @@ function createSnapshot() {
         inp.inputType === 'number' || inp.inputType === 'calculated'
           ? inp.nilaiNormalNumber : [],
       opsis:               inp.inputType === 'selected' ? inp.opsis : [],
-      nilaiNormalSelected: []  // tidak ikut batch — disimpan terpisah
+      nilaiNormalSelected: canPersistSelectedRules(inp)
+        ? inp.nilaiNormalSel.map((n) => ({
+            sex: n.sex,
+            ageMin: n.ageMin,
+            opsiId: n.opsiId
+          }))
+        : []
     }))
   )
 }
@@ -369,10 +410,16 @@ async function save() {
 // ─── Badge helpers ────────────────────────────────────────────────────────────
 
 const TYPE_COLOR: Record<InputType, string> = {
-  number: 'info', calculated: 'warning', selected: 'secondary', string: 'neutral'
+  number: 'info',
+  calculated: 'warning',
+  selected: 'secondary',
+  string: 'neutral'
 }
 const TYPE_LABEL: Record<InputType, string> = {
-  number: 'Angka', calculated: 'Formula', selected: 'Pilihan', string: 'Teks'
+  number: 'Angka',
+  calculated: 'Formula',
+  selected: 'Pilihan',
+  string: 'Teks'
 }
 </script>
 
@@ -460,12 +507,7 @@ const TYPE_LABEL: Record<InputType, string> = {
               <UFormField label="Tipe Input">
                 <USelect
                   v-model="selectedInputan.inputType"
-                  :items="[
-                    { label: 'Angka (number)',       value: 'number'     },
-                    { label: 'Formula (calculated)',  value: 'calculated' },
-                    { label: 'Pilihan (selected)',    value: 'selected'   },
-                    { label: 'Teks (string)',          value: 'string'     }
-                  ]"
+                  :items="INPUT_TYPE_OPTIONS"
                   size="sm" class="w-full"
                   @change="onTypeChange(selectedInputan)"
                 />

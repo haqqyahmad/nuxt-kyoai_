@@ -17,6 +17,13 @@ const loading = ref(false)
 const activeTab = ref('info') // 'info' | 'template'
 const createdItemId = ref<string | null>(null)
 
+type ItemGroup = {
+  id: string
+  name: string
+  parentId: string | null
+  sortOrder?: number
+}
+
 /**
  * fetch departments
  */
@@ -28,16 +35,55 @@ const { data: departments } = await useAsyncData('departments', async () => {
 /**
  * groups
  */
-const groups = ref<any[]>([])
+const groups = ref<ItemGroup[]>([])
 
 const form = reactive({
   code: '',
   name: '',
   departmentId: '',
   groupId: '',
+  subgroupId: '',
   price: 0,
   description: '',
   isActive: true
+})
+
+const rootGroups = computed(() =>
+  groups.value.filter((group) => !group.parentId)
+)
+
+const selectedRootGroup = computed(() =>
+  groups.value.find((group) => group.id === form.groupId) ?? null
+)
+
+const selectedSubgroup = computed(() =>
+  groups.value.find((group) => group.id === form.subgroupId) ?? null
+)
+
+const subgroupOptions = computed(() => {
+  if (!selectedRootGroup.value) return []
+  return groups.value.filter((group) => group.parentId === selectedRootGroup.value.id)
+})
+
+const hierarchySelectionError = computed(() => {
+  if (!form.departmentId) return ''
+  if (form.subgroupId && !form.groupId) {
+    return 'Pilih group utama dulu sebelum memilih subgroup.'
+  }
+  if (form.groupId && !selectedRootGroup.value) {
+    return 'Group utama tidak valid untuk department ini.'
+  }
+  if (form.subgroupId && !selectedSubgroup.value) {
+    return 'Subgroup yang dipilih tidak ditemukan.'
+  }
+  if (
+    form.subgroupId &&
+    selectedSubgroup.value &&
+    selectedSubgroup.value.parentId !== form.groupId
+  ) {
+    return 'Subgroup harus berada di bawah group yang dipilih.'
+  }
+  return ''
 })
 
 /**
@@ -47,16 +93,25 @@ watch(
   () => form.departmentId,
   async (departmentId) => {
     form.groupId = ''
+    form.subgroupId = ''
     if (!departmentId) {
       groups.value = []
       return
     }
     try {
-      const res = await api.get(`/medical/group/${departmentId }` )
-      groups.value = res.data.data
+      const res = await api.get(`/medical/group/${departmentId}`)
+      const payload = res.data.data
+      groups.value = Array.isArray(payload) ? payload : []
     } catch {
       groups.value = []
     }
+  }
+)
+
+watch(
+  () => form.groupId,
+  () => {
+    form.subgroupId = ''
   }
 )
 
@@ -81,6 +136,7 @@ function resetAll() {
   form.name = ''
   form.departmentId = ''
   form.groupId = ''
+  form.subgroupId = ''
   form.price = 0
   form.description = ''
   form.isActive = true
@@ -95,13 +151,22 @@ watch(open, (val) => {
 
 async function submit() {
   if (!isValid.value || loading.value) return
+  if (hierarchySelectionError.value) {
+    toast.add({
+      title: 'Validasi gagal',
+      description: hierarchySelectionError.value,
+      color: 'error'
+    })
+    return
+  }
+
   loading.value = true
   try {
     const res = await api.post('/mcu/items', {
       code: form.code,
       name: form.name,
       departmentId: form.departmentId || null,
-      groupId: form.groupId || null,
+      groupId: form.subgroupId || form.groupId || null,
       price: form.price,
       description: form.description,
       isActive: form.isActive
@@ -226,12 +291,35 @@ function handleDone() {
                 <USelectMenu
                   v-model="form.groupId"
                   :disabled="!form.departmentId"
-                  :items="groups.map((g: any) => ({ label: g.name, value: g.id }))"
+                  :items="rootGroups.map((g: any) => ({ label: g.name, value: g.id }))"
                   value-key="value"
                   label-key="label"
                   placeholder="Select group"
                   class="w-full"
                 />
+              </UFormField>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <UFormField label="Sub Group">
+                <USelectMenu
+                  v-model="form.subgroupId"
+                  :disabled="!form.groupId"
+                  :items="subgroupOptions.map((g: any) => ({ label: g.name, value: g.id }))"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Select subgroup"
+                  class="w-full"
+                />
+                <p v-if="hierarchySelectionError" class="mt-2 text-xs text-error">
+                  {{ hierarchySelectionError }}
+                </p>
+              </UFormField>
+
+              <UFormField label="Info">
+                <div class="flex h-10 items-center text-sm text-muted">
+                  Item akan disimpan ke subgroup jika dipilih, atau ke group utama jika tidak ada subgroup.
+                </div>
               </UFormField>
             </div>
 

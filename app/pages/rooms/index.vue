@@ -158,6 +158,14 @@ onBeforeUnmount(() => {
         </template>
 
         <template #right>
+          <UButton
+            to="/rooms/queue"
+            label="Room Queue"
+            icon="i-lucide-clipboard-list"
+            color="neutral"
+            variant="soft"
+          />
+
           <USwitch
             v-model="polling"
             label="Realtime"
