@@ -3,6 +3,7 @@
 const api = useApi()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
 type InputanOpsi = {
   id: string
@@ -33,6 +34,13 @@ type MstItemGroup = {
   id: string
   code?: string | null
   name: string
+  sortOrder?: number | null
+  parent?: {
+    id: string
+    name: string
+    code?: string | null
+    sortOrder?: number | null
+  } | null
 }
 
 type ItemInputan = {
@@ -55,6 +63,17 @@ type MstItem = {
   department?: MstDepartment | null
   group?: MstItemGroup | null
   inputans: ItemInputan[]
+}
+
+type PaketDetail = {
+  id: string
+  name: string
+  isActive: boolean
+  paketItems: {
+    id: string
+    sortOrder: number
+    item: MstItem
+  }[]
 }
 
 const INPUT_TYPE_LABEL: Record<string, string> = {
@@ -80,6 +99,18 @@ const displayPaketName = computed(() =>
 )
 
 const paketName = ref('')
+const paketIsActive = ref(true)
+const formPending = ref(false)
+const paketId = computed(() => {
+  const value = route.query.paketId
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+})
+const isEditMode = computed(() => !!paketId.value)
+const pageTitle = computed(() =>
+  isEditMode.value
+    ? `Edit ${displayPaketName.value} Package`
+    : `New ${displayPaketName.value} Package`
+)
 
 // ────────────────────────────────────────────
 // Department
@@ -93,8 +124,6 @@ async function fetchDepartments() {
   try {
     const res = await api.get('/medical/departments')
 
-    console.log('departments full response:', res.data?.data)
-
     const payload = res.data?.data
 
     departments.value = Array.isArray(payload)
@@ -102,10 +131,6 @@ async function fetchDepartments() {
       : Array.isArray(payload?.data)
         ? payload.data
         : []
-
-    console.log('departments parsed:', departments.value)
-    console.log('department id:', departments.value[0]?.id)
-    console.log('department name:', departments.value[0]?.name)
   } catch (err) {
     console.error('fetch departments error:', err)
     departments.value = []
@@ -159,6 +184,7 @@ const additionalSearch = ref('')
 const additionalPending = ref(false)
 const additionalResults = ref<MstItem[]>([])
 const expandedAdditional = ref<Set<string>>(new Set())
+const selectedAdditionalItemIds = computed(() => new Set(additionalItems.value.map(item => item.id)))
 
 const ALL_VALUE = 'ALL'
 
@@ -202,10 +228,22 @@ const groupOptions = computed(() => {
       label: 'Semua Item Group',
       value: ALL_VALUE
     },
-    ...Array.from(map.values()).map(group => ({
+    ...Array.from(map.values())
+      .sort((a, b) => {
+        const aParentOrder = a.parent?.sortOrder ?? 0
+        const bParentOrder = b.parent?.sortOrder ?? 0
+        if (aParentOrder !== bParentOrder) return aParentOrder - bParentOrder
+
+        const aGroupOrder = a.sortOrder ?? 0
+        const bGroupOrder = b.sortOrder ?? 0
+        if (aGroupOrder !== bGroupOrder) return aGroupOrder - bGroupOrder
+
+        return a.name.localeCompare(b.name)
+      })
+      .map(group => ({
       label: group.name,
       value: group.id
-    }))
+      }))
   ]
 })
 
@@ -289,11 +327,51 @@ async function openAdditionalModal() {
   fetchAdditionalItems()
 }
 
+async function loadPaketForEdit() {
+  if (!paketId.value) return
+
+  formPending.value = true
+
+  try {
+    const res = await api.get(`/mcu/pakets/${paketId.value}`)
+    const payload = res.data?.data as PaketDetail | null
+
+    if (!payload) {
+      toast.add({
+        title: 'Gagal',
+        description: 'Data paket tidak ditemukan',
+        color: 'error'
+      })
+      router.push('/services/packages')
+      return
+    }
+
+    paketName.value = payload.name ?? ''
+    paketIsActive.value = payload.isActive ?? true
+    additionalItems.value = payload.paketItems
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(paketItem => paketItem.item)
+      .filter((item, index, array) => array.findIndex(current => current.id === item.id) === index)
+  } catch (err: any) {
+    toast.add({
+      title: 'Gagal',
+      description: err?.response?.data?.message ?? 'Gagal memuat paket',
+      color: 'error'
+    })
+    router.push('/services/packages')
+  } finally {
+    formPending.value = false
+  }
+}
+
 function addAdditionalItem(item: MstItem) {
-  if (!additionalItems.value.find(i => i.id === item.id)) {
-    additionalItems.value.push(item)
+  if (selectedAdditionalItemIds.value.has(item.id)) {
+    additionalResults.value = additionalResults.value.filter(i => i.id !== item.id)
+    return
   }
 
+  additionalItems.value = [...additionalItems.value, item]
   additionalResults.value = additionalResults.value.filter(i => i.id !== item.id)
 }
 
@@ -330,6 +408,20 @@ const groupedAdditionalResults = computed(() => {
   }
 
   return Object.entries(groups)
+    .sort(([, itemsA], [, itemsB]) => {
+      const firstA = itemsA[0]
+      const firstB = itemsB[0]
+
+      const aParentOrder = firstA?.group?.parent?.sortOrder ?? 0
+      const bParentOrder = firstB?.group?.parent?.sortOrder ?? 0
+      if (aParentOrder !== bParentOrder) return aParentOrder - bParentOrder
+
+      const aGroupOrder = firstA?.group?.sortOrder ?? 0
+      const bGroupOrder = firstB?.group?.sortOrder ?? 0
+      if (aGroupOrder !== bGroupOrder) return aGroupOrder - bGroupOrder
+
+      return (firstA?.group?.name ?? '').localeCompare(firstB?.group?.name ?? '')
+    })
 })
 
 // ─────────────────────────────────────────────
@@ -347,18 +439,32 @@ async function submit() {
   submitting.value = true
 
   try {
-    await api.post('/mcu/pakets', {
+    const itemIds = [...new Set(additionalItems.value.map(item => item.id))]
+    const payload = {
       name: paketName.value.trim(),
-      itemIds: additionalItems.value.map(item => item.id)
-    })
+      isActive: paketIsActive.value,
+      itemIds
+    }
+
+    if (isEditMode.value && paketId.value) {
+      await api.put(`/mcu/pakets/${paketId.value}`, payload)
+    } else {
+      await api.post('/mcu/pakets', payload)
+    }
 
     toast.add({
       title: 'Berhasil',
-      description: 'Paket MCU berhasil dibuat',
+      description: isEditMode.value
+        ? 'Paket MCU berhasil diperbarui'
+        : 'Paket MCU berhasil dibuat',
       color: 'success'
     })
 
-    router.push('/packages')
+    router.push(
+      isEditMode.value && paketId.value
+        ? `/services/packages/${paketId.value}`
+        : '/services/packages'
+    )
   } catch (err: any) {
     toast.add({
       title: 'Gagal',
@@ -369,25 +475,37 @@ async function submit() {
     submitting.value = false
   }
 }
+
+await loadPaketForEdit()
 </script>
 
 <template>
   <UDashboardPanel id="paket-mcu-create">
     <template #header>
-      <UDashboardNavbar :title="`New ${displayPaketName} Package`">
+      <UDashboardNavbar :title="pageTitle">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/services/packages"
+            :to="isEditMode && paketId ? `/services/packages/${paketId}` : '/services/packages'"
           />
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <div class="max-w-5xl mx-auto py-6 px-4 space-y-5">
+      <div
+        v-if="formPending"
+        class="flex items-center justify-center py-20"
+      >
+        <UIcon
+          name="i-lucide-loader-circle"
+          class="animate-spin text-2xl text-muted"
+        />
+      </div>
+
+      <div v-else class="max-w-5xl mx-auto py-6 px-4 space-y-5">
         <div
           class="grid gap-5 items-start"
           style="grid-template-columns: repeat(2, minmax(0, 1fr))"
@@ -766,7 +884,7 @@ async function submit() {
             <UButton
               color="neutral"
               variant="outline"
-              to="/items"
+              :to="isEditMode && paketId ? `/services/packages/${paketId}` : '/services/packages'"
             >
               Batal
             </UButton>
@@ -979,6 +1097,7 @@ async function submit() {
                         v-for="item in items"
                         :key="item.id"
                         class="group w-full flex items-start gap-4 px-4 py-3 text-left hover:bg-primary/[0.08] transition-all"
+                        :disabled="selectedAdditionalItemIds.has(item.id)"
                         @click="addAdditionalItem(item)"
                       >
                         <!-- ICON -->

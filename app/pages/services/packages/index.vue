@@ -15,36 +15,39 @@ const toast = useToast()
 
 type PaketRow = {
   id: string
-  paketId: string
   paketName: string
-  itemId: string
-  itemCode: string
-  itemName: string
+  itemCount: number
   inputanCount: number
+  firstItems: string[]
   isActive: boolean
   createdAt: string
 }
 
-function mapPaket(paket: any): PaketRow[] {
-  return paket.paketItems.map((paketItem: any) => ({
-    id: paketItem.id,
-    paketId: paket.id,
+function mapPaket(paket: any): PaketRow {
+  const paketItems = Array.isArray(paket?.paketItems) ? paket.paketItems : []
+
+  return {
+    id: paket.id,
     paketName: paket.name,
-    itemId: paketItem.item?.id,
-    itemCode: paketItem.item?.code,
-    itemName: paketItem.item?.name,
-    inputanCount: paketItem.item?.inputans?.length ?? 0,
+    itemCount: paketItems.length,
+    inputanCount: paketItems.reduce(
+      (sum: number, paketItem: any) => sum + (paketItem.item?.inputans?.length ?? 0),
+      0
+    ),
+    firstItems: paketItems
+      .slice(0, 3)
+      .map((paketItem: any) => paketItem.item?.name)
+      .filter(Boolean),
     isActive: paket.isActive,
     createdAt: paket.createdAt
-  }))
+  }
 }
 
 const { data: paketData, refresh } = await useAsyncData('paket-mcu', () =>
-  api.get('/mcu/pakets').then(res => res.data.data.flatMap(mapPaket))
+  api.get('/mcu/pakets').then(res => (res.data.data ?? []).map(mapPaket))
 )
 
 const data = computed(() => paketData.value ?? [])
-console.log('Data Paket', data)
 
 const columnFilters = ref([
   {
@@ -58,13 +61,13 @@ const rowSelection = ref({})
 const isDeleteModalOpen = ref(false)
 const selectedDeleteId = ref<string | null>(null)
 
-async function deletePaketItem(id: string) {
+async function deletePaket(id: string) {
   try {
-    await api.delete(`/paket-item/${id}`)
+    await api.delete(`/mcu/pakets/${id}`)
 
     toast.add({
       title: 'Berhasil',
-      description: 'Item paket berhasil dihapus',
+      description: 'Paket berhasil dihapus',
       color: 'success'
     })
 
@@ -72,7 +75,7 @@ async function deletePaketItem(id: string) {
   } catch (err) {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus item paket',
+      description: 'Gagal menghapus paket',
       color: 'error'
     })
   }
@@ -81,7 +84,7 @@ async function deletePaketItem(id: string) {
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
 
-  await deletePaketItem(selectedDeleteId.value)
+  await deletePaket(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
@@ -93,12 +96,12 @@ async function deleteSelectedRows() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/paket-item/${row.original.id}`))
+      selectedRows.map((row: any) => api.delete(`/mcu/pakets/${row.original.id}`))
     )
 
     toast.add({
       title: 'Berhasil',
-      description: 'Data item paket berhasil dihapus',
+      description: 'Data paket berhasil dihapus',
       color: 'success'
     })
 
@@ -107,7 +110,7 @@ async function deleteSelectedRows() {
   } catch (err) {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus data',
+      description: 'Gagal menghapus paket',
       color: 'error'
     })
   }
@@ -120,15 +123,15 @@ function getRowItems(row: Row<PaketRow>) {
       label: 'Actions'
     },
     {
-      label: 'View detail',
+      label: 'View paket detail',
       icon: 'i-lucide-eye',
-      to: `/items/${row.original.itemId}`
+      to: `/services/packages/${row.original.id}`
     },
     {
       type: 'separator'
     },
     {
-      label: 'Delete item paket',
+      label: 'Delete paket',
       icon: 'i-lucide-trash',
       color: 'error',
       onSelect() {
@@ -179,36 +182,27 @@ const columns: TableColumn<PaketRow>[] = [
     },
     cell: ({ row }) => {
       return h('div', { class: 'flex flex-col' }, [
-        h('p', { class: 'font-medium text-highlighted' }, row.original.paketName)
-        // h('p', { class: 'text-xs text-muted' }, row.original.paketId)
+        h('p', { class: 'font-medium text-highlighted' }, row.original.paketName),
+        h('p', { class: 'text-xs text-muted' }, `${row.original.itemCount} item • ${row.original.inputanCount} inputan`)
       ])
     }
   },
-  // {
-  //   accessorKey: 'itemCode',
-  //   header: 'Item Code',
-  //   cell: ({ row }) => row.getValue('itemCode') || '-'
-  // },
-  // {
-  //   accessorKey: 'itemName',
-  //   header: 'Item Name',
-  //   cell: ({ row }) => {
-  //     return h('div', { class: 'flex flex-col' }, [
-  //       h('p', { class: 'font-medium text-highlighted' }, row.original.itemName),
-  //       h('p', { class: 'text-xs text-muted' }, row.original.itemId)
-  //     ])
-  //   }
-  // },
-  // {
-  //   accessorKey: 'inputanCount',
-  //   header: 'Total Input',
-  //   cell: ({ row }) =>
-  //     h(UBadge, {
-  //       label: `${row.getValue('inputanCount')} input`,
-  //       color: 'info',
-  //       variant: 'subtle'
-  //     })
-  // },
+  {
+    accessorKey: 'firstItems',
+    header: 'Preview Item',
+    cell: ({ row }) => {
+      const firstItems = row.original.firstItems
+
+      if (!firstItems.length) return '-'
+
+      return h('div', { class: 'flex flex-col gap-1' }, [
+        h('p', { class: 'text-sm text-highlighted truncate' }, firstItems.join(', ')),
+        row.original.itemCount > firstItems.length
+          ? h('p', { class: 'text-xs text-muted' }, `+${row.original.itemCount - firstItems.length} item lainnya`)
+          : null
+      ])
+    }
+  },
   {
     accessorKey: 'isActive',
     header: 'Status',
@@ -422,7 +416,7 @@ const currentPageSize = computed({
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
-        entity="item paket"
+        entity="paket"
         @confirm="handleDeleteById"
       />
     </template>
