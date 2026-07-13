@@ -31,6 +31,14 @@ type PermissionGroup = {
   permissions: Permission[]
 }
 
+type DocumentType = {
+  id: number
+  key: string
+  label: string
+  sortOrder?: number
+  isActive?: boolean
+}
+
 type PermissionAction = {
   key: string
   label: string
@@ -61,6 +69,19 @@ const { data: permissionsData, refresh: refreshPermissions } = await useAsyncDat
   { default: () => [] }
 )
 
+const { data: documentTypesData, refresh: refreshDocumentTypes } = await useAsyncData<DocumentType[]>(
+  'settings-document-types',
+  async () => {
+    try {
+      const res = await api.get('/settings/document-types')
+      return res.data.data ?? res.data ?? []
+    } catch {
+      return []
+    }
+  },
+  { default: () => [] }
+)
+
 const { data: rolesData, refresh: refreshRoles } = await useAsyncData<Role[]>(
   'settings-roles',
   async () => {
@@ -72,14 +93,13 @@ const { data: rolesData, refresh: refreshRoles } = await useAsyncData<Role[]>(
 
 const selectedRoleId = ref(typeof route.query.roleId === 'string' ? route.query.roleId : '')
 const selectedDocumentType = ref('all')
-const modalOpen = ref(false)
+const documentTypeModalOpen = ref(false)
 const actionManagerOpen = ref(false)
 const saving = ref(false)
 
-const form = reactive({
-  documentType: '',
-  action: 'read',
-  roleId: ''
+const documentTypeForm = reactive({
+  key: '',
+  label: ''
 })
 const actionForm = reactive({
   key: '',
@@ -89,6 +109,11 @@ const editingActionKey = ref('')
 const actionCatalog = ref<PermissionAction[]>([...DEFAULT_ACTIONS])
 
 const data = computed(() => [...permissionsData.value].sort((a, b) => a.id - b.id))
+const documentTypes = computed(() =>
+  [...documentTypesData.value]
+    .filter(item => item.isActive !== false)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label))
+)
 const roles = computed(() => [...rolesData.value].sort((a, b) => a.id - b.id))
 const actions = computed(() => [...actionCatalog.value])
 
@@ -158,9 +183,6 @@ watch(
     if (selectedRoleId.value && !list.some(role => String(role.id) === selectedRoleId.value)) {
       selectedRoleId.value = String(list[0]?.id ?? '')
     }
-    if (!form.roleId && list.length) {
-      form.roleId = String(list[0].id)
-    }
   },
   { immediate: true }
 )
@@ -185,7 +207,7 @@ function normalizeAction(value: string) {
 }
 
 function normalizeDocumentType(value: string) {
-  return value.trim().toLowerCase().replaceAll(/\s+/g, '-')
+  return value.trim().replaceAll(/\s+/g, '-')
 }
 
 function parsePermissionName(name: string) {
@@ -199,6 +221,17 @@ function parsePermissionName(name: string) {
 
 const permissionGroups = computed<PermissionGroup[]>(() => {
   const map = new Map<string, PermissionGroup>()
+
+  for (const documentType of documentTypes.value) {
+    const key = documentType.key.trim()
+    if (!key) continue
+
+    map.set(key, {
+      key,
+      label: documentType.label,
+      permissions: []
+    })
+  }
 
   for (const permission of data.value) {
     const parsed = parsePermissionName(permission.name)
@@ -252,6 +285,53 @@ function getPermissionForAction(group: PermissionGroup, actionKey: string) {
 
 function buildPermissionName(documentType: string, action: string) {
   return `${normalizeDocumentType(documentType)}:${normalizeAction(action)}`
+}
+
+function openDocumentTypeModal() {
+  documentTypeForm.key = ''
+  documentTypeForm.label = ''
+  documentTypeModalOpen.value = true
+}
+
+function syncDocumentTypeLabel() {
+  if (documentTypeForm.label.trim()) return
+  documentTypeForm.label = formatRuleName(documentTypeForm.key)
+}
+
+async function submitDocumentType() {
+  const key = normalizeDocumentType(documentTypeForm.key)
+  const label = documentTypeForm.label.trim() || formatRuleName(key)
+
+  if (!key || !label) return
+
+  saving.value = true
+
+  try {
+    await api.post('/settings/document-types', {
+      key,
+      label,
+      sortOrder: documentTypes.value.length,
+      isActive: true
+    })
+    await refreshDocumentTypes()
+    selectedDocumentType.value = key
+    documentTypeModalOpen.value = false
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Document type berhasil ditambahkan',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menambahkan document type'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
 }
 
 function resetActionForm() {
@@ -419,52 +499,6 @@ async function clearGroupPermissions(group: PermissionGroup) {
   }
 }
 
-function openRuleModal() {
-  form.documentType = selectedDocumentType.value === 'all'
-    ? permissionGroups.value[0]?.key ?? ''
-    : selectedDocumentType.value
-  form.action = 'read'
-  form.roleId = String(selectedRole.value?.id ?? roles.value[0]?.id ?? '')
-  modalOpen.value = true
-}
-
-async function submitRule() {
-  if (!form.documentType || !form.action || !form.roleId) return
-  saving.value = true
-
-  try {
-    const permissionName = buildPermissionName(form.documentType, form.action)
-    const permission = await ensurePermission(permissionName)
-    const role = roles.value.find(item => item.id === Number(form.roleId))
-    const targetRole = role ?? selectedRole.value
-    if (!targetRole) throw new Error('Role tidak ditemukan')
-
-    const currentIds = new Set(getPermissionSet(targetRole))
-    currentIds.add(permission.id)
-    await api.post(`/settings/roles/${targetRole.id}/permissions`, {
-      permissionIds: [...currentIds]
-    })
-    await refreshRoles()
-
-    toast.add({
-      title: 'Berhasil',
-      description: 'Rule baru berhasil ditambahkan',
-      color: 'success'
-    })
-
-    modalOpen.value = false
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Gagal menambahkan rule'
-    toast.add({
-      title: 'Gagal',
-      description: message,
-      color: 'error'
-    })
-  } finally {
-    saving.value = false
-  }
-}
-
 function ruleActions(group: PermissionGroup) {
   const rolePermissionIds = getPermissionSet(selectedRole.value)
   return actions.value.map((action) => {
@@ -475,10 +509,6 @@ function ruleActions(group: PermissionGroup) {
       checked: permission ? rolePermissionIds.has(permission.id) : false
     }
   })
-}
-
-function rowLevel(index: number) {
-  return index
 }
 </script>
 
@@ -507,6 +537,15 @@ function rowLevel(index: number) {
           <div class="flex items-center gap-2">
             <UButton
               color="neutral"
+              variant="solid"
+              icon="i-lucide-file-plus-2"
+              class="bg-white text-black hover:bg-neutral-200 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+              @click="openDocumentTypeModal"
+            >
+              Add DocType
+            </UButton>
+            <UButton
+              color="neutral"
               variant="soft"
               icon="i-lucide-sliders-horizontal"
               @click="openActionManager"
@@ -517,18 +556,9 @@ function rowLevel(index: number) {
               color="neutral"
               variant="soft"
               icon="i-lucide-user-check"
-              to="/settings/roles"
+              to="/users"
             >
               Set User Role
-            </UButton>
-            <UButton
-              color="neutral"
-              variant="solid"
-              icon="i-lucide-plus"
-              class="bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-              @click="openRuleModal"
-            >
-              Add A New Rule
             </UButton>
           </div>
         </div>
@@ -580,7 +610,7 @@ function rowLevel(index: number) {
               </div>
 
               <div
-                v-for="(group, index) in visibleGroups"
+                v-for="group in visibleGroups"
                 :key="group.key"
                 class="grid grid-cols-[1.4fr_1fr_0.35fr_3fr_0.12fr] gap-4 border-b border-default px-4 py-5 last:border-b-0"
               >
@@ -604,7 +634,7 @@ function rowLevel(index: number) {
                 </div>
 
                 <div class="pt-0.5 font-semibold text-highlighted">
-                  {{ rowLevel(index) }}
+                  {{ selectedRole?.id ?? '-' }}
                 </div>
 
                 <div>
@@ -640,71 +670,53 @@ function rowLevel(index: number) {
         </div>
       </div>
 
-      <UModal v-model:open="modalOpen" :ui="{ content: 'sm:max-w-lg max-h-[85vh] overflow-y-auto' }">
+      <UModal v-model:open="documentTypeModalOpen" :ui="{ content: 'sm:max-w-lg' }">
         <template #content>
           <UCard :ui="{ body: 'p-0' }">
             <template #header>
               <div class="flex items-center justify-between gap-4">
                 <div>
                   <h2 class="text-lg font-semibold">
-                    Add A New Rule
+                    Add DocType
                   </h2>
                   <p class="text-sm text-muted">
-                    Tambahkan permission baru ke role terpilih.
+                    Tambahkan document type yang belum memiliki permission.
                   </p>
                 </div>
                 <UButton
                   color="neutral"
                   variant="ghost"
                   icon="i-lucide-x"
-                  @click="modalOpen = false"
+                  @click="documentTypeModalOpen = false"
                 />
               </div>
             </template>
 
-            <form class="space-y-4 p-6" @submit.prevent="submitRule">
-              <div class="grid grid-cols-1 gap-4">
-                <UFormField label="Document Type" required>
-                  <USelectMenu
-                    v-model="form.documentType"
-                    :items="permissionGroups.map(group => ({ label: group.label, value: group.key }))"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Pilih document type"
-                    class="w-full"
-                  />
-                </UFormField>
+            <form class="space-y-4 p-6" @submit.prevent="submitDocumentType">
+              <UFormField label="Key" required>
+                <UInput
+                  v-model="documentTypeForm.key"
+                  placeholder="invoice"
+                  class="w-full"
+                  @blur="syncDocumentTypeLabel"
+                />
+              </UFormField>
 
-                <UFormField label="Action" required>
-                  <USelectMenu
-                    v-model="form.action"
-                    :items="actions.map(action => ({ label: action.label, value: action.key }))"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Pilih action"
-                    class="w-full"
-                  />
-                </UFormField>
+              <UFormField label="Label" required>
+                <UInput
+                  v-model="documentTypeForm.label"
+                  placeholder="Invoice"
+                  class="w-full"
+                />
+              </UFormField>
 
-                <UFormField label="Role" required>
-                  <USelectMenu
-                    v-model="form.roleId"
-                    :items="roleOptions"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Pilih role"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <div class="rounded-xl border border-default bg-elevated/40 p-4 text-sm">
-                  <p class="text-xs uppercase tracking-wide text-muted">
-                    Rule Preview
-                  </p>
-                  <p class="mt-1 font-medium text-highlighted">
-                    {{ buildPermissionName(form.documentType, form.action) || '-' }}
-                  </p>
-                </div>
+              <div class="rounded-xl border border-default bg-elevated/40 p-4 text-sm">
+                <p class="text-xs uppercase tracking-wide text-muted">
+                  Preview
+                </p>
+                <p class="mt-1 font-medium text-highlighted">
+                  {{ normalizeDocumentType(documentTypeForm.key) || '-' }}
+                </p>
               </div>
 
               <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
@@ -712,13 +724,14 @@ function rowLevel(index: number) {
                   color="neutral"
                   variant="soft"
                   type="button"
-                  @click="modalOpen = false"
+                  @click="documentTypeModalOpen = false"
                 >
                   Cancel
                 </UButton>
                 <UButton
                   color="primary"
                   type="submit"
+                  icon="i-lucide-save"
                   :loading="saving"
                 >
                   Save
