@@ -79,6 +79,7 @@ export async function useRoomAssignments() {
   async function selfAssign(payload: RoomAssignmentSelfForm) {
     const res = await api.post('/room-assignments/self', payload)
     await refresh()
+    clearNuxtData('room-session-me')
     return res
   }
 

@@ -12,6 +12,7 @@ const {
   isPic,
   canSelfAssign,
   allowedSelfRoomIds,
+  allowedSelfRooms,
   allowedSelfRoomTypeCodes
 } = await useCurrentUser()
 
@@ -95,6 +96,16 @@ const activeRoomOptions = computed(() =>
 const selfRoomOptions = computed(() => {
   const allowedRoomIds = allowedSelfRoomIds.value
   const allowedCodes = allowedSelfRoomTypeCodes.value
+  const directRooms = allowedSelfRooms.value
+
+  if (!isPic.value && directRooms.length > 0) {
+    return directRooms
+      .filter(room => room.isActive !== false)
+      .map(room => ({
+        label: `${room.code} - ${room.name}${room.roomType?.name ? ` (${room.roomType.name})` : ''}`,
+        value: room.id
+      }))
+  }
 
   return rooms.value
     .filter((room) => {
@@ -172,11 +183,19 @@ const selectedRoomTypeName = computed(() => {
 })
 
 const selectedSelfRoomTypeName = computed(() => {
-  const room = rooms.value.find(item => item.id === selfForm.roomId)
+  const room = [
+    ...rooms.value,
+    ...allowedSelfRooms.value
+  ].find(item => item.id === selfForm.roomId)
   return room?.roomType?.name || '-'
 })
 
 const canManageAssignments = computed(() => isPic.value)
+const assignmentModeLabel = computed(() => {
+  if (isPic.value) return 'PIC'
+  if (canSelfAssign.value) return 'Self Assignment'
+  return 'No Access'
+})
 
 function createBatchRow(): RoomAssignmentBatchRow {
   return {
@@ -518,6 +537,19 @@ onMounted(async () => {
           :active="stats.active"
           :inactive="stats.inactive"
           :unique-users="stats.uniqueUsers"
+        />
+
+        <UAlert
+          color="neutral"
+          variant="soft"
+          :title="`Mode akses: ${assignmentModeLabel}`"
+          :description="
+            isPic
+              ? 'Akun ini dapat mengelola single assignment, batch assignment, transfer, dan room access.'
+              : canSelfAssign
+                ? 'Akun ini hanya bisa self assignment ke room yang diizinkan.'
+                : 'Akun ini belum memiliki akses room assignment.'
+          "
         />
 
         <div

@@ -24,6 +24,7 @@ type RoomAssignment = {
   assignedDate: string
   roomId: string | null
   roomTypeId: string | null
+  assignmentSource?: 'PIC' | 'SELF'
   notes?: string | null
   room?: {
     id: string
@@ -126,16 +127,23 @@ const {
   async () => {
     try {
       const res = await api.get('/room-assignments/me', {
-        params: { assignedDate: today }
+        params: {
+          assignedDate: today,
+          _: Date.now()
+        }
       })
 
-      return (res.data?.data ?? res.data ?? null) as RoomAssignment | null
+      const payload = res.data
+      return (payload && Object.prototype.hasOwnProperty.call(payload, 'data')
+        ? payload.data
+        : payload) as RoomAssignment | null
     } catch {
       return null
     }
   },
   {
-    default: () => null
+    default: () => null,
+    server: false
   }
 )
 
@@ -159,11 +167,12 @@ const {
   async () => {
     if (!roomTypeId.value) return []
 
-    const res = await api.get(`/medical/queue/room/${roomTypeId.value}`, {
+    const res = await api.get(`/medical/exams/queue/room/${roomTypeId.value}`, {
       params: {
         queueDate: today,
         limit: 100,
-        page: 1
+        page: 1,
+        _: Date.now()
       }
     })
 
@@ -172,12 +181,16 @@ const {
   },
   {
     default: () => [],
-    watch: [roomTypeId]
+    watch: [roomTypeId],
+    server: false
   }
 )
 
 const queueItems = computed(() => queueData.value ?? [])
-const activeSession = computed(() => roomSession.value as RoomSession | null)
+const activeSession = computed(() => {
+  if (!roomSession.value?.id || roomSession.value.endedAt) return null
+  return roomSession.value as RoomSession
+})
 const activeSessionRoomLabel = computed(() => {
   if (!activeSession.value?.room) return '-'
   return `${activeSession.value.room.code} - ${activeSession.value.room.name}`
@@ -190,7 +203,31 @@ const activeSessionStartedAt = computed(() => {
   }).format(new Date(activeSession.value.startedAt))
 })
 const roomStaffCapacity = computed(() => assignment.value?.room?.staffCapacity ?? activeSession.value?.room?.staffCapacity ?? null)
-const hasActiveSession = computed(() => !!activeSession.value)
+const hasActiveSession = computed(() => activeSession.value !== null)
+const assignmentSourceLabel = computed(() => {
+  if (assignment.value?.assignmentSource === 'SELF') return 'Self Assignment'
+  if (assignment.value?.assignmentSource === 'PIC') return 'PIC Assignment'
+  return '-'
+})
+const roomDisplayLabel = computed(() => {
+  if (!assignment.value?.room) return 'Belum ada room'
+  return `${assignment.value.room.code} - ${assignment.value.room.name}`
+})
+const canShowEnterRoom = computed(() =>
+  Boolean(assignment.value?.roomId)
+  && !hasActiveSession.value
+  && assignment.value?.assignmentSource !== 'SELF'
+)
+const needsSessionSync = computed(() =>
+  Boolean(assignment.value?.roomId)
+  && !hasActiveSession.value
+  && assignment.value?.assignmentSource === 'SELF'
+)
+const sessionStatusLabel = computed(() => {
+  if (hasActiveSession.value) return 'Sesi aktif'
+  if (needsSessionSync.value) return 'Perlu sinkronisasi'
+  return 'Belum aktif'
+})
 
 const activeStats = computed(() => {
   const total = queueItems.value.length
@@ -211,7 +248,9 @@ function getRoomSessionColor() {
 }
 
 function getRoomSessionLabel() {
-  return hasActiveSession.value ? 'Aktif' : 'Belum masuk room'
+  if (hasActiveSession.value) return 'Aktif'
+  if (needsSessionSync.value) return 'Perlu sinkronisasi'
+  return 'Belum aktif'
 }
 
 function formatPatientName(patient?: PatientName | null) {
@@ -277,6 +316,48 @@ async function handleEnterRoom() {
   }
 }
 
+async function handleSyncRoom() {
+  if (roomActionLoading.value) return
+
+  if (!assignment.value?.roomId) {
+    toast.add({
+      title: 'Belum bisa sinkronisasi',
+      description: 'Assignment room hari ini belum memiliki room yang dituju.',
+      color: 'warning'
+    })
+    return
+  }
+
+  roomActionLoading.value = true
+  try {
+    await refreshSession({ throwOnError: true })
+
+    if (!roomSession.value?.id) {
+      await enterRoomSession({ roomId: assignment.value.roomId })
+    }
+
+    await Promise.all([
+      refreshAssignment(),
+      refreshQueue(),
+      refreshSession({ throwOnError: true })
+    ])
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Sesi room berhasil dipulihkan dan status diperbarui.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status room.'),
+      color: 'error'
+    })
+  } finally {
+    roomActionLoading.value = false
+  }
+}
+
 function openExitRoomModal() {
   exitReason.value = ''
   isExitOpen.value = true
@@ -286,14 +367,18 @@ async function handleExitRoom() {
   if (roomActionLoading.value || !activeSession.value) return
 
   roomActionLoading.value = true
+  const previousSession = roomSession.value
+  const previousModalState = isExitOpen.value
+  const previousReason = exitReason.value
 
   try {
+    roomSession.value = null
+    isExitOpen.value = false
     await exitRoomSession({
       exitReason: exitReason.value.trim() || undefined
     })
     await refreshAll()
 
-    isExitOpen.value = false
     exitReason.value = ''
 
     toast.add({
@@ -302,6 +387,9 @@ async function handleExitRoom() {
       color: 'success'
     })
   } catch (error: unknown) {
+    roomSession.value = previousSession ?? null
+    isExitOpen.value = previousModalState
+    exitReason.value = previousReason
     toast.add({
       title: 'Gagal keluar room',
       description: getErrorMessage(error, 'Terjadi kesalahan saat keluar room.'),
@@ -350,7 +438,7 @@ onBeforeUnmount(stopPolling)
     <template #header>
       <UDashboardNavbar
         title="Room Queue"
-        subtitle="Visibility operasional mengikuti assignment aktif user"
+        subtitle="Queue operasional mengikuti assignment dan session room aktif"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -383,7 +471,7 @@ onBeforeUnmount(stopPolling)
 
     <template #body>
       <div class="space-y-4">
-        <UCard>
+        <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p class="text-sm font-medium text-muted">
@@ -403,7 +491,7 @@ onBeforeUnmount(stopPolling)
                 <UBadge
                   :color="getRoomSessionColor()"
                   variant="subtle"
-                  :label="getRoomSessionLabel()"
+                  :label="sessionStatusLabel"
                 />
 
                 <UBadge
@@ -413,32 +501,56 @@ onBeforeUnmount(stopPolling)
                   :label="`Kapasitas petugas: ${roomStaffCapacity}`"
                 />
 
-                <p class="text-xs text-muted">
-                  <span v-if="hasActiveSession">
-                    Room aktif:
-                    <strong class="text-highlighted">{{ activeSessionRoomLabel }}</strong>
-                    · Masuk sejak {{ activeSessionStartedAt }}
-                  </span>
-
-                  <span v-else>
-                    Petugas harus masuk room sebelum melakukan stage operasional.
-                  </span>
-                </p>
+                <UBadge
+                  color="neutral"
+                  variant="soft"
+                  :label="assignmentSourceLabel"
+                />
               </div>
+
+              <p class="text-sm text-muted">
+                {{ roomDisplayLabel }}
+              </p>
+
+              <p class="text-xs text-muted">
+                <span v-if="hasActiveSession">
+                  Room aktif:
+                  <strong class="text-highlighted">{{ activeSessionRoomLabel }}</strong>
+                  - Masuk sejak {{ activeSessionStartedAt }}
+                </span>
+
+                <span v-else-if="needsSessionSync">
+                  Self assignment sudah dibuat, tetapi sesi room belum aktif. Tekan pulihkan sesi room.
+                </span>
+
+                <span v-else>
+                  Assignment aktif sudah siap. Queue operasional akan mengikuti room yang dipilih.
+                </span>
+              </p>
 
               <div class="mt-4 flex flex-wrap gap-2">
                 <UButton
-                  v-if="!hasActiveSession"
+                  v-if="canShowEnterRoom"
                   icon="i-lucide-log-in"
                   :loading="roomActionLoading || sessionPending"
-                  :disabled="!assignment?.roomId"
                   @click="handleEnterRoom"
                 >
                   Masuk Room
                 </UButton>
 
                 <UButton
-                  v-else
+                  v-else-if="needsSessionSync"
+                  color="warning"
+                  variant="soft"
+                  icon="i-lucide-refresh-ccw"
+                  :loading="roomActionLoading || sessionPending"
+                  @click="handleSyncRoom"
+                >
+                  Pulihkan Sesi Room
+                </UButton>
+
+                <UButton
+                  v-else-if="hasActiveSession"
                   color="error"
                   variant="soft"
                   icon="i-lucide-log-out"
@@ -510,7 +622,7 @@ onBeforeUnmount(stopPolling)
 
         <div
           v-else-if="!assignment || !queueItems.length"
-          class="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-default p-8 text-center"
+          class="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
         >
           <UIcon
             name="i-lucide-clipboard-list"
@@ -528,12 +640,12 @@ onBeforeUnmount(stopPolling)
 
         <div
           v-else
-          class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
+          class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
         >
           <UCard
             v-for="item in queueItems"
             :key="item.id"
-            class="overflow-hidden"
+            class="overflow-hidden border border-default/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <template #header>
               <div class="flex items-start justify-between gap-3">
@@ -557,7 +669,7 @@ onBeforeUnmount(stopPolling)
 
             <div class="space-y-4">
               <div class="grid grid-cols-2 gap-3 text-sm">
-                <div class="rounded-lg bg-muted/40 p-3">
+                <div class="rounded-xl bg-muted/40 p-3">
                   <p class="text-xs text-muted">
                     No RM
                   </p>
@@ -566,7 +678,7 @@ onBeforeUnmount(stopPolling)
                   </p>
                 </div>
 
-                <div class="rounded-lg bg-muted/40 p-3">
+                <div class="rounded-xl bg-muted/40 p-3">
                   <p class="text-xs text-muted">
                     Jenis antrian
                   </p>

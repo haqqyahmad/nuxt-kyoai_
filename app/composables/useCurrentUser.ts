@@ -1,7 +1,10 @@
 import { PIC_PERMISSION, collectSelfAssignableRoomTypeCodes } from '~/constants/room-assignment-rules'
 
 type AuthPermission = {
+  permissionId?: number
+  name?: string
   permission?: {
+    id?: number
     name?: string
   }
 }
@@ -19,6 +22,7 @@ type AuthRoomAccess = {
     id: string
     code?: string
     name?: string
+    isActive?: boolean
     roomType?: {
       id: string
       code?: string
@@ -54,7 +58,8 @@ export async function useCurrentUser() {
       }
     },
     {
-      default: () => null
+      default: () => null,
+      server: false
     }
   )
 
@@ -71,8 +76,11 @@ export async function useCurrentUser() {
 
     for (const role of user.value?.roles ?? []) {
       for (const item of role.role?.permissions ?? []) {
-        if (item.permission?.name) {
-          allowed.add(item.permission.name)
+        const permissionName
+          = item.permission?.name
+            || item.name
+        if (permissionName) {
+          allowed.add(permissionName)
         }
       }
     }
@@ -80,8 +88,9 @@ export async function useCurrentUser() {
     return [...allowed]
   })
 
-  const isPic = computed(() => permissions.value.includes(PIC_PERMISSION))
-
+  const isPic = computed(() =>
+    permissions.value.includes(PIC_PERMISSION)
+  )
   const allowedSelfRoomIds = computed(() => {
     if (isPic.value) return []
     return (user.value?.roomAccesses ?? [])
@@ -89,12 +98,19 @@ export async function useCurrentUser() {
       .filter((value): value is string => Boolean(value))
   })
 
+  const allowedSelfRooms = computed(() => {
+    if (isPic.value) return []
+    return (user.value?.roomAccesses ?? [])
+      .map(item => item.room)
+      .filter((value): value is NonNullable<AuthRoomAccess['room']> => Boolean(value))
+  })
+
   const allowedSelfRoomTypeCodes = computed(() => {
     if (isPic.value) return []
-    if (allowedSelfRoomIds.value.length > 0) {
+    if (allowedSelfRooms.value.length > 0) {
       return [...new Set(
-        (user.value?.roomAccesses ?? [])
-          .map(item => item.room?.roomType?.code)
+        allowedSelfRooms.value
+          .map(room => room.roomType?.code)
           .filter((value): value is string => Boolean(value))
       )]
     }
@@ -114,6 +130,7 @@ export async function useCurrentUser() {
     isPic,
     canSelfAssign,
     allowedSelfRoomIds,
+    allowedSelfRooms,
     allowedSelfRoomTypeCodes,
     pending,
     refresh
