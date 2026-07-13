@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 type RoomSession = {
   id: string
   roomId: string
@@ -37,6 +37,44 @@ type RoomAssignment = {
     name: string
     tierOrder: number
   } | null
+}
+
+type SampleCollectionItem = {
+  id: string
+  isPrimary?: boolean
+  item?: {
+    id: string
+    code?: string | null
+    name?: string | null
+  } | null
+}
+
+type SampleCollection = {
+  id: string
+  status: string
+  sampleTypeId: string
+  tubeCount?: number | null
+  barcode?: string | null
+  sampleType?: {
+    id: string
+    code?: string | null
+    name?: string | null
+  } | null
+  queueEntry?: {
+    id: string
+    queueCode?: string | null
+    registration?: {
+      id_reg?: string | null
+      patient?: {
+        id: string | number
+        PatientId?: string | null
+        firstName?: string | null
+        middleName?: string | null
+        lastName?: string | null
+      } | null
+    } | null
+  } | null
+  items?: SampleCollectionItem[]
 }
 
 type PatientName = {
@@ -100,12 +138,14 @@ type RoomQueueItem = {
 }
 
 const api = useApi()
+const router = useRouter()
 const toast = useToast()
 
 const today = new Date().toISOString().slice(0, 10)
 const polling = ref(true)
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 const roomActionLoading = ref(false)
+const queueOperationLoading = ref<Record<string, boolean>>({})
 const isExitOpen = ref(false)
 const exitReason = ref('')
 
@@ -149,6 +189,11 @@ const {
 
 const assignment = computed(() => assignmentData.value ?? null)
 const roomTypeId = computed(() => assignment.value?.roomTypeId ?? null)
+const isLabRoom = computed(() => assignment.value?.roomType?.code === 'LAB')
+const isSampleCollectionRoom = computed(() => {
+  const roomName = (activeSession.value?.room?.name || assignment.value?.room?.name || '').toLowerCase()
+  return roomName.includes('collect')
+})
 
 const {
   session: roomSession,
@@ -187,6 +232,44 @@ const {
 )
 
 const queueItems = computed(() => queueData.value ?? [])
+const {
+  data: sampleCollectionData,
+  pending: sampleCollectionPending,
+  refresh: refreshSampleCollections
+} = await useAsyncData<SampleCollection[]>(
+  'room-sample-collections-operational',
+  async () => {
+    if (!roomTypeId.value || !isLabRoom.value) return []
+
+    const res = await api.get('/medical/exams/queue/samples', {
+      params: {
+        queueDate: today,
+        limit: 100,
+        page: 1,
+        _: Date.now()
+      }
+    })
+
+    const payload = res.data?.data ?? res.data
+    return Array.isArray(payload) ? payload : payload?.data ?? []
+  },
+  {
+    default: () => [],
+    watch: [roomTypeId, isLabRoom],
+    server: false
+  }
+)
+
+const sampleCollections = computed(() => sampleCollectionData.value ?? [])
+const visibleSampleCollections = computed(() => {
+  if (!isLabRoom.value) return []
+
+  if (isSampleCollectionRoom.value) {
+    return sampleCollections.value.filter(item => item.status === 'PENDING')
+  }
+
+  return sampleCollections.value.filter(item => item.status === 'COLLECTED')
+})
 const activeSession = computed(() => {
   if (!roomSession.value?.id || roomSession.value.endedAt) return null
   return roomSession.value as RoomSession
@@ -243,6 +326,13 @@ const activeStats = computed(() => {
   }
 })
 
+const sampleStats = computed(() => ({
+  total: visibleSampleCollections.value.length,
+  pending: visibleSampleCollections.value.filter(item => item.status === 'PENDING').length,
+  collected: visibleSampleCollections.value.filter(item => item.status === 'COLLECTED').length,
+  received: visibleSampleCollections.value.filter(item => item.status === 'RECEIVED').length
+}))
+
 function getRoomSessionColor() {
   return hasActiveSession.value ? 'success' : 'warning'
 }
@@ -278,8 +368,85 @@ function getItemStatusLabel(status: string) {
   return 'Menunggu'
 }
 
+function getSampleStatusColor(status: string) {
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'neutral'
+  return 'warning'
+}
+
+function getSampleStatusLabel(status: string) {
+  if (status === 'RECEIVED') return 'Diterima Lab'
+  if (status === 'COLLECTED') return 'Sudah Diambil'
+  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  return 'Menunggu Ambil'
+}
+
+function getOperationalStage(item: RoomQueueItem) {
+  return (item.stageItems ?? []).find(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status)) ?? null
+}
+
+function canCallPatient(item: RoomQueueItem) {
+  return hasActiveSession.value && getOperationalStage(item)?.status === 'WAITING'
+}
+
+function isQueueActionLoading(itemId: string) {
+  return Boolean(queueOperationLoading.value[itemId])
+}
+
+function openQueueWork(itemId: string) {
+  return router.push(`/rooms/queue-work/${itemId}`)
+}
+
+async function runQueueAction(item: RoomQueueItem, action: 'call') {
+  const stage = getOperationalStage(item)
+  if (!stage) return
+
+  if (!hasActiveSession.value) {
+    toast.add({
+      title: 'Room belum aktif',
+      description: 'Masuk ke room aktif terlebih dahulu sebelum mengambil pasien.',
+      color: 'warning'
+    })
+    return
+  }
+
+  queueOperationLoading.value = {
+    ...queueOperationLoading.value,
+    [item.id]: true
+  }
+
+  try {
+    await api.patch(`/medical/exams/queue/stage/${stage.id}/call`, {
+      roomId: activeSession.value?.roomId ?? null
+    })
+
+    await refreshQueue()
+    await openQueueWork(item.id)
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien berhasil diambil dari queue umum dan dibuka ke halaman kerja room.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal memproses pasien',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses pasien di room queue.'),
+      color: 'error'
+    })
+  } finally {
+    queueOperationLoading.value = {
+      ...queueOperationLoading.value,
+      [item.id]: false
+    }
+  }
+}
+
 function refreshAll() {
-  return Promise.all([refreshAssignment(), refreshQueue(), refreshSession()])
+  return Promise.all([refreshAssignment(), refreshQueue(), refreshSession(), refreshSampleCollections()])
 }
 
 async function handleEnterRoom() {
@@ -431,6 +598,48 @@ watch(
 )
 
 onBeforeUnmount(stopPolling)
+
+async function runSampleCollectionAction(collection: SampleCollection, action: 'collect' | 'receive') {
+  if (!hasActiveSession.value) {
+    toast.add({
+      title: 'Room belum aktif',
+      description: 'Aktifkan sesi room terlebih dahulu sebelum memproses sample.',
+      color: 'warning'
+    })
+    return
+  }
+
+  queueOperationLoading.value = {
+    ...queueOperationLoading.value,
+    [collection.id]: true
+  }
+
+  try {
+    const payload = action === 'collect'
+      ? {}
+      : {}
+
+    await api.patch(`/medical/exams/queue/samples/${collection.id}/${action}`, payload)
+    await refreshAll()
+
+    toast.add({
+      title: 'Berhasil',
+      description: action === 'collect' ? 'Sample berhasil ditandai sudah diambil.' : 'Sample berhasil diterima oleh lab.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal memproses sample',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses sample.'),
+      color: 'error'
+    })
+  } finally {
+    queueOperationLoading.value = {
+      ...queueOperationLoading.value,
+      [collection.id]: false
+    }
+  }
+}
 </script>
 
 <template>
@@ -562,13 +771,13 @@ onBeforeUnmount(stopPolling)
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-4">
+              <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-4">
               <div class="rounded-lg border border-default bg-muted/30 p-3">
                 <p class="text-xs text-muted">
                   Total
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ activeStats.total }}
+                  {{ isLabRoom ? sampleStats.total : activeStats.total }}
                 </p>
               </div>
 
@@ -577,7 +786,7 @@ onBeforeUnmount(stopPolling)
                   Waiting
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ activeStats.waiting }}
+                  {{ isLabRoom ? sampleStats.pending : activeStats.waiting }}
                 </p>
               </div>
 
@@ -586,7 +795,7 @@ onBeforeUnmount(stopPolling)
                   Called
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ activeStats.called }}
+                  {{ isLabRoom ? sampleStats.collected : activeStats.called }}
                 </p>
               </div>
 
@@ -595,7 +804,7 @@ onBeforeUnmount(stopPolling)
                   In Progress
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ activeStats.inProgress }}
+                  {{ isLabRoom ? sampleStats.received : activeStats.inProgress }}
                 </p>
               </div>
             </div>
@@ -610,7 +819,146 @@ onBeforeUnmount(stopPolling)
         />
 
         <div
-          v-if="queuePending"
+          v-if="isLabRoom"
+          class="space-y-4"
+        >
+          <div
+            v-if="sampleCollectionPending"
+            class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]"
+          >
+            <USkeleton
+              v-for="item in 4"
+              :key="item"
+              class="h-56 rounded-xl"
+            />
+          </div>
+
+          <div
+            v-else-if="!visibleSampleCollections.length"
+            class="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
+          >
+            <UIcon
+              name="i-lucide-test-tube-diagonal"
+              class="mb-3 size-10 text-muted"
+            />
+
+            <h3 class="text-base font-semibold text-highlighted">
+              {{ isSampleCollectionRoom ? 'Tidak ada sample collection aktif' : 'Tidak ada sample reception aktif' }}
+            </h3>
+
+            <p class="mt-1 max-w-lg text-sm text-muted">
+              {{ isSampleCollectionRoom
+                ? 'Data sample akan muncul di sini setelah pasien check-in dan item sample-based masuk ke tahap pengambilan sample.'
+                : 'Data sample yang sudah diambil akan muncul di sini untuk diterima oleh lab.' }}
+            </p>
+          </div>
+
+          <div
+            v-else
+            class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
+          >
+            <UCard
+              v-for="collection in visibleSampleCollections"
+              :key="collection.id"
+              class="overflow-hidden border border-default/80 shadow-sm"
+            >
+              <template #header>
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-xs text-muted">
+                      {{ collection.queueEntry?.queueCode || '-' }} · {{ collection.sampleType?.name || 'Sample' }}
+                    </p>
+                    <h3 class="mt-1 text-base font-semibold text-highlighted">
+                      {{ formatPatientName(collection.queueEntry?.registration?.patient) }}
+                    </h3>
+                  </div>
+
+                  <UBadge
+                    :label="getSampleStatusLabel(collection.status)"
+                    :color="getSampleStatusColor(collection.status)"
+                    variant="subtle"
+                  />
+                </div>
+              </template>
+
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="rounded-xl bg-muted/40 p-3">
+                    <p class="text-xs text-muted">
+                      No RM
+                    </p>
+                    <p class="mt-1 font-medium text-highlighted">
+                      {{ collection.queueEntry?.registration?.patient?.PatientId || '-' }}
+                    </p>
+                  </div>
+
+                  <div class="rounded-xl bg-muted/40 p-3">
+                    <p class="text-xs text-muted">
+                      Tube
+                    </p>
+                    <p class="mt-1 font-medium text-highlighted">
+                      {{ collection.tubeCount || 1 }}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Item sample
+                  </p>
+                  <div class="space-y-2">
+                    <div
+                      v-for="sampleItem in collection.items || []"
+                      :key="sampleItem.id"
+                      class="flex items-center justify-between gap-3 rounded-lg border border-default px-3 py-2"
+                    >
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-medium text-highlighted">
+                          {{ sampleItem.item?.name || '-' }}
+                        </p>
+                        <p class="truncate text-xs text-muted">
+                          {{ sampleItem.item?.code || '-' }}
+                        </p>
+                      </div>
+
+                      <UBadge
+                        :label="sampleItem.isPrimary ? 'Primary' : 'Linked'"
+                        :color="sampleItem.isPrimary ? 'primary' : 'neutral'"
+                        variant="soft"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
+                  <UButton
+                    v-if="collection.status === 'PENDING' && isSampleCollectionRoom"
+                    color="warning"
+                    icon="i-lucide-test-tube"
+                    :loading="isQueueActionLoading(collection.id)"
+                    @click="runSampleCollectionAction(collection, 'collect')"
+                  >
+                    Ambil Sample
+                  </UButton>
+
+                  <UButton
+                    v-if="collection.status === 'COLLECTED' && !isSampleCollectionRoom"
+                    color="success"
+                    variant="soft"
+                    icon="i-lucide-badge-check"
+                    :loading="isQueueActionLoading(collection.id)"
+                    @click="runSampleCollectionAction(collection, 'receive')"
+                  >
+                    Terima Sample
+                  </UButton>
+                </div>
+              </div>
+            </UCard>
+          </div>
+        </div>
+
+        <div
+          v-if="queuePending && (!isLabRoom || !isSampleCollectionRoom)"
           class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]"
         >
           <USkeleton
@@ -621,7 +969,7 @@ onBeforeUnmount(stopPolling)
         </div>
 
         <div
-          v-else-if="!assignment || !queueItems.length"
+          v-else-if="(!assignment || !queueItems.length) && (!isLabRoom || !isSampleCollectionRoom)"
           class="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
         >
           <UIcon
@@ -634,12 +982,12 @@ onBeforeUnmount(stopPolling)
           </h3>
 
           <p class="mt-1 max-w-lg text-sm text-muted">
-            Pastikan user sudah memiliki assignment aktif dan pasien sudah check-in ke roomType yang sama.
+            Queue general akan muncul di sini setelah FO check-in dan roomType pasien cocok dengan assignment petugas.
           </p>
         </div>
 
         <div
-          v-else
+          v-else-if="!isLabRoom || !isSampleCollectionRoom"
           class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
         >
           <UCard
@@ -729,6 +1077,35 @@ onBeforeUnmount(stopPolling)
                   :color="getStageBadgeColor(stage.status)"
                   variant="outline"
                 />
+              </div>
+
+              <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
+                <UButton
+                  v-if="canCallPatient(item)"
+                  color="primary"
+                  icon="i-lucide-bell-ring"
+                  :loading="isQueueActionLoading(item.id)"
+                  @click="runQueueAction(item, 'call')"
+                >
+                  Ambil Pasien
+                </UButton>
+
+                <UButton
+                  v-if="hasActiveSession && getOperationalStage(item)"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-stethoscope"
+                  @click="openQueueWork(item.id)"
+                >
+                  Buka Pemeriksaan
+                </UButton>
+
+                <p
+                  v-if="!hasActiveSession"
+                  class="text-xs text-muted"
+                >
+                  Aktifkan sesi room dulu agar pasien dari queue general bisa diproses.
+                </p>
               </div>
             </div>
           </UCard>

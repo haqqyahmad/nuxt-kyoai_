@@ -3,6 +3,19 @@ const route = useRoute()
 const api = useApi()
 const toast = useToast()
 
+type ExamItem = {
+  id: string
+  source: 'paket' | 'additional'
+  sortOrder: number
+  item: {
+    id: string
+    code: string
+    name: string
+    department?: { id: string, name: string } | null
+    group?: { id: string, name: string } | null
+  }
+}
+
 type Registration = {
   id: number
   id_reg: string
@@ -39,16 +52,53 @@ type Registration = {
   } | null
 }
 
-type ExamItem = {
-  id: string
-  source: 'paket' | 'additional'
-  sortOrder: number
-  item: {
-    id: string
-    code: string
-    name: string
-    department?: { id: string, name: string } | null
-    group?: { id: string, name: string } | null
+type CheckinPreview = {
+  registration: {
+    id: number
+    id_reg: string
+    examDate: string
+    scheduleDateExam: string
+    serviceType: string
+    serviceNumber: string
+    priorityRegist: string
+    paymentType: string
+    statusRegistration: string
+    createdAt: string
+  }
+  patient: Registration['patient']
+  branch: Registration['branch']
+  company: Registration['company']
+  queueStatus: {
+    hasQueueEntry: boolean
+    queueEntry: {
+      id: string
+      queueCode: string
+      queueDate: string
+      queueNumber: number
+      status: string
+      type: string
+      checkinAt?: string
+      createdAt?: string
+    } | null
+    suggestedQueueDate: string
+    canUndoCheckin: boolean
+    undoReasons: string[]
+  }
+  examVerification: {
+    examId: string | null
+    examStatus: string | null
+    paket: { id: string, name: string } | null
+    totalItems: number
+    paketItems: ExamItem[]
+    additionalItems: ExamItem[]
+  }
+  checkinEligibility: {
+    canCheckin: boolean
+    reasons: string[]
+  }
+  undoCheckinEligibility: {
+    canUndoCheckin: boolean
+    reasons: string[]
   }
 }
 
@@ -57,9 +107,6 @@ const { data: reg, refresh } = await useAsyncData(
   () => api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
 )
 
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
 const SERVICE_LABEL: Record<string, string> = {
   Laboratorium: 'Laboratorium',
   DoctorConsultation: 'Konsultasi Dokter',
@@ -108,9 +155,6 @@ function formatDateTime(d?: string) {
   })
 }
 
-// ─────────────────────────────────────────────
-// MCU Breakdown
-// ─────────────────────────────────────────────
 const mcuCategories = computed(() => {
   const items = reg.value?.exam?.examItems ?? []
   const paketItems = items.filter(ei => ei.source === 'paket')
@@ -119,22 +163,24 @@ const mcuCategories = computed(() => {
     icon: string
     items: { id: string, name: string, done: boolean }[]
   }>()
-  const DEPT_ICON: Record<string, string> = {
-    'Laboratorium': 'i-lucide-flask-conical',
-    'Radiologi': 'i-lucide-scan',
-    'default': 'i-lucide-stethoscope',
+  const deptIcon: Record<string, string> = {
+    Laboratorium: 'i-lucide-flask-conical',
+    Radiologi: 'i-lucide-scan',
+    default: 'i-lucide-stethoscope'
   }
+
   for (const ei of paketItems) {
     const deptName = ei.item.department?.name ?? 'Lainnya'
     if (!grouped.has(deptName)) {
       grouped.set(deptName, {
         label: deptName,
-        icon: DEPT_ICON[deptName] ?? DEPT_ICON['default'],
+        icon: deptIcon[deptName] ?? deptIcon.default,
         items: []
       })
     }
-    grouped.get(deptName)!.items.push({ id: ei.id, name: ei.item.name, done: false })
+    grouped.get(deptName)?.items.push({ id: ei.id, name: ei.item.name, done: false })
   }
+
   return [...grouped.values()]
 })
 
@@ -142,23 +188,19 @@ const additionalItems = computed(() =>
   (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
 )
 
-// ─────────────────────────────────────────────
-// Questionnaires (mock)
-// ─────────────────────────────────────────────
 const questionnaires = [
   { name: 'MCU Questionnaire', completionDate: 'May 06, 2026', status: 'Completed' },
   { name: 'SRQ-20 Mental Health', completionDate: 'May 06, 2026', status: 'Completed' },
   { name: 'Physical Assessment Questionnaire', completionDate: null, status: 'Pending' }
 ]
 
-// Modal questionnaire
 const modalOpen = ref(false)
 const modalTitle = ref('')
-function openModal(name: string) { modalTitle.value = name; modalOpen.value = true }
+function openModal(name: string) {
+  modalTitle.value = name
+  modalOpen.value = true
+}
 
-// ─────────────────────────────────────────────
-// Status history
-// ─────────────────────────────────────────────
 const statusHistory = computed(() => {
   if (!reg.value) return []
   return [
@@ -177,24 +219,36 @@ const statusHistory = computed(() => {
   ]
 })
 
-// ─────────────────────────────────────────────
-// Computed flags
-// ─────────────────────────────────────────────
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
 const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
 const isMCU = computed(() => reg.value?.serviceType === 'MCU')
 
-// ─────────────────────────────────────────────
-// CHECKIN — modal konfirmasi
-// ─────────────────────────────────────────────
 const checkinModalOpen = ref(false)
 const checkinLoading = ref(false)
-
-// Nomor antrian hasil check-in (ditampilkan di modal sukses)
+const checkinPreviewLoading = ref(false)
+const checkinPreview = ref<CheckinPreview | null>(null)
 const checkinResult = ref<{ queueCode: string, queueNumber: number } | null>(null)
 const checkinSuccessOpen = ref(false)
 
-function openCheckinModal() {
+async function loadCheckinPreview() {
+  if (!reg.value) return
+
+  checkinPreviewLoading.value = true
+  try {
+    const res = await api.get(`/registration/${reg.value.id}/checkin-preview`)
+    checkinPreview.value = res.data.data as CheckinPreview
+  } catch (err: any) {
+    checkinPreview.value = null
+    const msg = err?.response?.data?.message ?? 'Gagal memuat preview check-in'
+    toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
+    throw err
+  } finally {
+    checkinPreviewLoading.value = false
+  }
+}
+
+async function openCheckinModal() {
+  await loadCheckinPreview()
   checkinModalOpen.value = true
 }
 
@@ -203,28 +257,19 @@ async function confirmCheckin() {
   checkinLoading.value = true
 
   try {
-    // Ambil tanggal hari ini format YYYY-MM-DD
-    const today = new Date().toISOString().split('T')[0]
-
-    // Satu call ke /queue/checkin — generate QueueEntry + RoomQueueItem
-    // + StageQueueItem + SampleCollection sekaligus
-    const res = await api.post('medical/exams/queue/checkin', {
-      registrationId: reg.value.id,
-      branchId: reg.value.branch?.branchId,
-      queueDate: today,
+    const res = await api.post(`/registration/${reg.value.id}/checkin`, {
+      queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate
     })
 
     const entry = res.data.data
     checkinResult.value = {
       queueCode: entry.queueCode,
-      queueNumber: entry.queueNumber,
+      queueNumber: entry.queueNumber
     }
 
     checkinModalOpen.value = false
     checkinSuccessOpen.value = true
-
-    // Refresh data registrasi — status sudah jadi Checkin di BE
-    await refresh()
+    await Promise.all([refresh(), loadCheckinPreview()])
 
     toast.add({
       title: 'Check-in berhasil',
@@ -239,11 +284,31 @@ async function confirmCheckin() {
   }
 }
 
-// ─────────────────────────────────────────────
-// Cancel
-// ─────────────────────────────────────────────
-const cancelLoading = ref(false)
+const checkinPaketItems = computed(() => checkinPreview.value?.examVerification.paketItems ?? [])
+const checkinAdditionalItems = computed(() => checkinPreview.value?.examVerification.additionalItems ?? [])
 
+const uncheckLoading = ref(false)
+async function undoCheckin() {
+  if (!reg.value) return
+  uncheckLoading.value = true
+
+  try {
+    await api.post(`/registration/${reg.value.id}/uncheck`)
+    toast.add({
+      title: 'Berhasil',
+      description: 'Check-in pasien berhasil dibatalkan',
+      color: 'success'
+    })
+    await refresh()
+  } catch (err: any) {
+    const msg = err?.response?.data?.message ?? 'Gagal membatalkan check-in'
+    toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
+  } finally {
+    uncheckLoading.value = false
+  }
+}
+
+const cancelLoading = ref(false)
 async function cancelRegistration() {
   cancelLoading.value = true
   try {
@@ -288,6 +353,15 @@ async function cancelRegistration() {
               @click="cancelRegistration"
             />
             <UButton
+              v-if="!isCancelled && isCheckedIn"
+              icon="i-lucide-rotate-ccw"
+              color="warning"
+              variant="outline"
+              label="Batalkan Check-in"
+              :loading="uncheckLoading"
+              @click="undoCheckin"
+            />
+            <UButton
               v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-user-check"
               color="primary"
@@ -305,7 +379,6 @@ async function cancelRegistration() {
       </div>
 
       <div v-else class="w-full max-w-7xl mx-auto py-6 px-4 space-y-6">
-        <!-- Page title -->
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p class="text-xs text-muted mb-1">Kembali ke Daftar Registrasi</p>
@@ -324,9 +397,7 @@ async function cancelRegistration() {
           </div>
         </div>
 
-        <!-- Grid layout -->
         <div class="grid grid-cols-12 gap-5">
-          <!-- Patient Info -->
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -376,7 +447,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- Registration Details -->
           <div class="col-span-12 lg:col-span-4 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default">
               <h3 class="font-semibold flex items-center gap-2">
@@ -408,7 +478,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- Payment & Priority + Status History -->
           <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
             <div class="rounded-xl border border-default bg-background overflow-hidden shadow-sm">
               <div class="px-5 py-4 border-b border-default">
@@ -466,7 +535,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- Questionnaires -->
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -507,7 +575,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- MCU Breakdown -->
           <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -535,7 +602,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- Additional Items -->
           <div v-if="isMCU && additionalItems.length" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
@@ -549,7 +615,7 @@ async function cancelRegistration() {
                 <div v-for="ei in additionalItems" :key="ei.id" class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3">
                   <div>
                     <p class="text-sm font-semibold">{{ ei.item.name }}</p>
-                    <p class="text-xs text-muted mt-0.5">{{ ei.item.department?.name ?? '-' }} · {{ ei.item.group?.name ?? '-' }}</p>
+                    <p class="text-xs text-muted mt-0.5">{{ ei.item.department?.name ?? '-' }} | {{ ei.item.group?.name ?? '-' }}</p>
                   </div>
                   <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
                 </div>
@@ -557,7 +623,6 @@ async function cancelRegistration() {
             </div>
           </div>
 
-          <!-- Map -->
           <div class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm">
             <iframe class="absolute inset-0 w-full h-full" :src="BRANCH_MAP[reg.branch?.branchId ?? '-']" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
             <div class="absolute inset-0 bg-gradient-to-t from-elevated/80 to-transparent pointer-events-none" />
@@ -574,44 +639,98 @@ async function cancelRegistration() {
         </div>
       </div>
 
-      <!-- ════ Modal: Konfirmasi Check-in ════ -->
-      <UModal v-model:open="checkinModalOpen" title="Konfirmasi Check-in Pasien">
+      <UModal v-model:open="checkinModalOpen" title="Verifikasi Check-in Pasien">
         <template #body>
-          <div class="space-y-4">
-            <!-- Info pasien -->
+          <div v-if="checkinPreviewLoading" class="flex items-center justify-center py-10">
+            <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
+          </div>
+
+          <div v-else class="space-y-4">
             <div class="flex items-center gap-3 p-4 rounded-xl bg-elevated border border-default">
               <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-user-circle" class="text-primary text-2xl" />
               </div>
               <div>
-                <p class="font-bold text-base">{{ reg?.patient?.patientName ?? '-' }}</p>
-                <p class="text-xs text-muted mt-0.5">{{ reg?.patient?.idType }}: {{ reg?.patient?.idNumber }}</p>
+                <p class="font-bold text-base">{{ checkinPreview?.patient?.patientName ?? reg?.patient?.patientName ?? '-' }}</p>
+                <p class="text-xs text-muted mt-0.5">{{ checkinPreview?.patient?.idType ?? reg?.patient?.idType }}: {{ checkinPreview?.patient?.idNumber ?? reg?.patient?.idNumber }}</p>
               </div>
             </div>
 
-            <!-- Detail registrasi -->
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">No. Registrasi</p>
-                <code class="text-sm font-bold text-primary">{{ reg?.id_reg }}</code>
+                <code class="text-sm font-bold text-primary">{{ checkinPreview?.registration.id_reg ?? reg?.id_reg }}</code>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">Layanan</p>
-                <p class="text-sm font-semibold">{{ SERVICE_LABEL[reg?.serviceType ?? ''] ?? reg?.serviceType }}</p>
+                <p class="text-sm font-semibold">{{ SERVICE_LABEL[checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''] ?? checkinPreview?.registration.serviceType ?? reg?.serviceType }}</p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">Tanggal Periksa</p>
-                <p class="text-sm font-semibold">{{ reg?.examDate }}</p>
+                <p class="text-sm font-semibold">{{ checkinPreview?.registration.examDate ?? reg?.examDate }}</p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">Branch</p>
-                <p class="text-sm font-semibold">{{ reg?.branch?.nameBranch ?? '-' }}</p>
+                <p class="text-sm font-semibold">{{ checkinPreview?.branch?.nameBranch ?? reg?.branch?.nameBranch ?? '-' }}</p>
               </div>
             </div>
 
-            <p class="text-sm text-muted">
-              Sistem akan membuat nomor antrian dan memasukkan pasien ke ruang tunggu. Pastikan data sudah benar sebelum melanjutkan.
-            </p>
+            <div class="rounded-xl border border-default bg-elevated/60 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs text-muted">Paket MCU</p>
+                  <p class="text-sm font-semibold">{{ checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-' }}</p>
+                </div>
+                <UBadge :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`" color="neutral" variant="subtle" />
+              </div>
+
+              <div class="mt-4 space-y-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Item Paket</p>
+                  <div v-if="checkinPaketItems.length" class="space-y-2">
+                    <div v-for="item in checkinPaketItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
+                      <div>
+                        <p class="text-sm font-medium">{{ item.item.name }}</p>
+                        <p class="text-xs text-muted">{{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}</p>
+                      </div>
+                      <span class="text-[11px] font-medium text-muted">{{ item.source }}</span>
+                    </div>
+                  </div>
+                  <p v-else class="text-sm text-muted">Belum ada item paket.</p>
+                </div>
+
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Item Additional</p>
+                  <div v-if="checkinAdditionalItems.length" class="space-y-2">
+                    <div v-for="item in checkinAdditionalItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
+                      <div>
+                        <p class="text-sm font-medium">{{ item.item.name }}</p>
+                        <p class="text-xs text-muted">{{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}</p>
+                      </div>
+                      <span class="text-[11px] font-medium text-primary">additional</span>
+                    </div>
+                  </div>
+                  <p v-else class="text-sm text-muted">Tidak ada item tambahan.</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="rounded-xl border p-4"
+              :class="checkinPreview?.checkinEligibility.canCheckin ? 'border-green-200 bg-green-50/80' : 'border-amber-200 bg-amber-50/80'"
+            >
+              <p class="text-sm font-semibold">
+                {{ checkinPreview?.checkinEligibility.canCheckin ? 'Data siap di-check-in ke queue umum' : 'Data belum siap di-check-in' }}
+              </p>
+              <ul v-if="checkinPreview && checkinPreview.checkinEligibility.reasons.length" class="mt-2 space-y-1 text-sm text-muted">
+                <li v-for="reason in checkinPreview.checkinEligibility.reasons" :key="reason">
+                  - {{ reason }}
+                </li>
+              </ul>
+              <p v-else class="mt-2 text-sm text-muted">
+                Sistem akan membuat nomor antrian dan memasukkan pasien ke ruang tunggu umum.
+              </p>
+            </div>
           </div>
         </template>
         <template #footer>
@@ -620,15 +739,15 @@ async function cancelRegistration() {
             <UButton
               color="primary"
               icon="i-lucide-user-check"
-              label="Ya, Check-in Sekarang"
+              label="Check-in ke Queue Umum"
               :loading="checkinLoading"
+              :disabled="checkinPreviewLoading || !checkinPreview?.checkinEligibility.canCheckin"
               @click="confirmCheckin"
             />
           </div>
         </template>
       </UModal>
 
-      <!-- ════ Modal: Check-in Sukses ════ -->
       <UModal v-model:open="checkinSuccessOpen" title="Check-in Berhasil">
         <template #body>
           <div class="flex flex-col items-center gap-4 py-4 text-center">
@@ -654,7 +773,6 @@ async function cancelRegistration() {
         </template>
       </UModal>
 
-      <!-- ════ Modal: Questionnaire Detail ════ -->
       <UModal v-model:open="modalOpen" :title="modalTitle">
         <template #body>
           <div class="space-y-3">
