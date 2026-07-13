@@ -59,6 +59,7 @@ type ItemDetail = {
   id: string
   code: string
   name: string
+  resultTiming?: 'inline' | 'deferred'
   isActive: boolean
   description?: string | null
   createdAt?: string
@@ -117,6 +118,16 @@ const inputTypeColor: Record<string, string> = {
   string: 'neutral',
   selected: 'secondary',
   calculated: 'warning'
+}
+
+const resultTimingLabel: Record<string, string> = {
+  inline: 'Inline',
+  deferred: 'Deferred'
+}
+
+const resultTimingColor: Record<string, string> = {
+  inline: 'success',
+  deferred: 'warning'
 }
 
 function formatSex(sex?: 'MALE' | 'FEMALE' | null) {
@@ -185,6 +196,10 @@ const summaryCards = computed(() => [
   {
     label: 'Inputan',
     value: String(item.value?.inputans?.length ?? 0)
+  },
+  {
+    label: 'Result Timing',
+    value: resultTimingLabel[item.value?.resultTiming ?? 'inline']
   },
   {
     label: 'Sample',
@@ -340,6 +355,15 @@ async function handleReload() {
               <p class="mt-1 text-sm font-medium">
                 {{ formatDate(item.updatedAt) }}
               </p>
+            </div>
+            <div class="rounded-xl border border-default bg-background px-4 py-3">
+              <p class="text-xs text-muted">Result Timing</p>
+              <UBadge
+                class="mt-1"
+                :label="resultTimingLabel[item.resultTiming ?? 'inline']"
+                :color="resultTimingColor[item.resultTiming ?? 'inline']"
+                variant="subtle"
+              />
             </div>
           </div>
 

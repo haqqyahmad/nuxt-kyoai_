@@ -49,6 +49,7 @@ const groups = ref<ItemGroup[]>([])
 const form = reactive({
   code: '',
   name: '',
+  resultTiming: 'inline',
   departmentId: '',
   groupId: '',
   subgroupId: '',
@@ -58,7 +59,10 @@ const form = reactive({
 })
 
 const rootGroups = computed(() =>
-  groups.value.filter((group) => !group.parentId)
+  groups.value
+    .filter((group) => !group.parentId)
+    .slice()
+    .sort(sortBySequence)
 )
 
 const selectedRootGroup = computed(() =>
@@ -71,8 +75,15 @@ const selectedSubgroup = computed(() =>
 
 const subgroupOptions = computed(() => {
   if (!selectedRootGroup.value) return []
-  return groups.value.filter((group) => group.parentId === selectedRootGroup.value.id)
+  return groups.value
+    .filter((group) => group.parentId === selectedRootGroup.value.id)
+    .slice()
+    .sort(sortBySequence)
 })
+
+function sortBySequence(a: ItemGroup, b: ItemGroup) {
+  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)
+}
 
 const hierarchySelectionError = computed(() => {
   if (!form.departmentId) return ''
@@ -126,6 +137,11 @@ watch(
 
 const isValid = computed(() => form.code.trim() && form.name.trim() && form.departmentId)
 
+const resultTimingOptions = [
+  { label: 'Inline', value: 'inline' },
+  { label: 'Deferred', value: 'deferred' }
+]
+
 const tabs = computed(() => [
   {
     key: 'info',
@@ -143,6 +159,7 @@ const tabs = computed(() => [
 function resetAll() {
   form.code = ''
   form.name = ''
+  form.resultTiming = 'inline'
   form.departmentId = ''
   form.groupId = ''
   form.subgroupId = ''
@@ -174,6 +191,7 @@ async function submit() {
     const res = await api.post('/mcu/items', {
       code: form.code,
       name: form.name,
+      resultTiming: form.resultTiming,
       departmentId: form.departmentId || null,
       groupId: form.subgroupId || form.groupId || null,
       price: form.price,
@@ -306,6 +324,25 @@ function handleDone() {
                   placeholder="Select group"
                   class="w-full"
                 />
+              </UFormField>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <UFormField label="Result Timing" required>
+                <USelectMenu
+                  v-model="form.resultTiming"
+                  :items="resultTimingOptions"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Select timing"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Info">
+                <div class="flex h-10 items-center text-sm text-muted">
+                  `inline` untuk hasil yang diisi saat pemeriksaan, `deferred` untuk hasil setelah room selesai.
+                </div>
               </UFormField>
             </div>
 

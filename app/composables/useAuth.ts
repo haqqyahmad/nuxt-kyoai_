@@ -18,6 +18,10 @@ export const useAuth = () => {
     } else {
       sessionStorage.setItem('token', token)
     }
+
+    clearNuxtData('current-user')
+    clearNuxtData('permission-catalog')
+    clearNuxtData('room-session-me')
   }
 
   const removeToken = () => {
@@ -25,6 +29,10 @@ export const useAuth = () => {
 
     localStorage.removeItem('token')
     sessionStorage.removeItem('token')
+
+    clearNuxtData('current-user')
+    clearNuxtData('permission-catalog')
+    clearNuxtData('room-session-me')
   }
 
   return {

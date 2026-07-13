@@ -90,6 +90,8 @@ const INPUT_TYPE_COLOR: Record<string, string> = {
   calculated: 'rose'
 }
 
+
+
 // ─────────────────────────────────────────────
 // Paket Form
 // ─────────────────────────────────────────────
@@ -784,6 +786,7 @@ await loadPaketForEdit()
                               variant="subtle"
                               size="xs"
                             />
+
                           </div>
 
                           <p class="text-xs text-muted truncate">

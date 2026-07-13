@@ -159,9 +159,25 @@ onBeforeUnmount(() => {
 
         <template #right>
           <UButton
+            to="/rooms/assignments"
+            label="Room Assignment"
+            icon="i-lucide-users-round"
+            color="neutral"
+            variant="soft"
+          />
+
+          <UButton
             to="/rooms/queue"
             label="Room Queue"
             icon="i-lucide-clipboard-list"
+            color="neutral"
+            variant="soft"
+          />
+
+          <UButton
+            to="/rooms/types"
+            label="Room Types"
+            icon="i-lucide-folder-cog"
             color="neutral"
             variant="soft"
           />
@@ -184,8 +200,7 @@ onBeforeUnmount(() => {
       <div class="space-y-4">
         <RoomsRoomStats
           :total="stats.total"
-          :available="stats.available"
-          :occupied="stats.occupied"
+          :active="stats.active"
           :inactive="stats.inactive"
         />
 

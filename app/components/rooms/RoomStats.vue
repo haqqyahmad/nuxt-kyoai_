@@ -2,8 +2,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   total: number
-  available: number
-  occupied: number
+  active: number
   inactive: number
 }>()
 
@@ -15,16 +14,10 @@ const stats = computed(() => [
     color: 'text-highlighted'
   },
   {
-    label: 'Tersedia',
-    value: props.available,
+    label: 'Aktif',
+    value: props.active,
     icon: 'i-lucide-check-circle',
     color: 'text-success'
-  },
-  {
-    label: 'Sedang Digunakan',
-    value: props.occupied,
-    icon: 'i-lucide-clock',
-    color: 'text-warning'
   },
   {
     label: 'Tidak Aktif',
@@ -36,7 +29,7 @@ const stats = computed(() => [
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
     <UCard
       v-for="item in stats"
       :key="item.label"

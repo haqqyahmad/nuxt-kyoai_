@@ -1,5 +1,7 @@
 // app/constants/rooms.ts
-import type { RoomStatus, RoomType } from '~/types/room'
+import type { RoomStatus } from '~/types/room'
+
+type RoomType = 'POLI' | 'TINDAKAN' | 'LABORATORIUM' | 'FARMASI' | 'ADMINISTRASI' | 'LAINNYA'
 
 export const roomTypeOptions: {
   label: string

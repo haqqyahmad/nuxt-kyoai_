@@ -20,6 +20,8 @@ const menuGroups: Record<string, string[]> = {
   'Medical': [
     '/questionnaire',
     '/rooms',
+    '/rooms/assignments',
+    '/rooms/types',
     '/services'
   ],
   'Items': [
@@ -182,6 +184,14 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Rooms',
           to: '/rooms'
+        },
+        {
+          label: 'Room Assignment',
+          to: '/rooms/assignments'
+        },
+        {
+          label: 'Room Types',
+          to: '/rooms/types'
         },
         {
           label: 'Services',

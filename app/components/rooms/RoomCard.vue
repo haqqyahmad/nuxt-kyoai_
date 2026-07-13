@@ -1,7 +1,6 @@
 <!-- app/components/rooms/RoomCard.vue -->
 <script setup lang="ts">
 import type { Room, RoomState } from '~/types/room'
-import { roomTypeConfig } from '~/constants/rooms'
 
 const props = defineProps<{
   room: Room
@@ -13,12 +12,6 @@ const emit = defineEmits<{
   delete: [id: string]
 }>()
 
-const activePatients = computed(() =>
-  props.room.patients.filter(patient =>
-    ['WAITING', 'IN_PROGRESS'].includes(patient.status)
-  )
-)
-
 const stateConfig = computed(() => {
   if (props.state === 'INACTIVE') {
     return {
@@ -28,40 +21,24 @@ const stateConfig = computed(() => {
     }
   }
 
-  if (props.state === 'OCCUPIED') {
-    return {
-      label: 'Digunakan',
-      color: 'warning' as const,
-      icon: 'i-lucide-clock'
-    }
-  }
-
   return {
-    label: 'Tersedia',
+    label: 'Aktif',
     color: 'success' as const,
     icon: 'i-lucide-check-circle'
   }
 })
 
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase()
-}
+function getRoomTypeColor(serviceType?: string | null) {
+  if (!serviceType) return 'neutral'
 
-function getPatientStatusColor(status: string) {
-  if (status === 'IN_PROGRESS') return 'bg-success'
-  if (status === 'WAITING') return 'bg-warning'
-  return 'bg-muted'
-}
-
-function getPatientStatusLabel(status: string) {
-  if (status === 'IN_PROGRESS') return 'Sedang dilayani'
-  if (status === 'WAITING') return 'Menunggu'
-  return 'Selesai'
+  const normalized = serviceType.toLowerCase()
+  if (normalized.includes('lab')) return 'error'
+  if (normalized.includes('doctor')) return 'primary'
+  if (normalized.includes('dental')) return 'warning'
+  if (normalized.includes('pharmacy')) return 'success'
+  if (normalized.includes('mcu')) return 'info'
+  if (normalized.includes('radiology')) return 'info'
+  return 'neutral'
 }
 </script>
 
@@ -71,7 +48,6 @@ function getPatientStatusLabel(status: string) {
       root: [
         'overflow-hidden transition-all duration-200',
         'shadow-md hover:shadow-xl ring-1 ring-default',
-        'ring-1 ring-default',
         'hover:-translate-y-0.5',
         state === 'INACTIVE'
           ? 'opacity-60'
@@ -93,23 +69,21 @@ function getPatientStatusLabel(status: string) {
             {{ room.name }}
           </h3>
 
-          <div class="mt-1 flex items-center gap-1 text-xs text-muted">
-            <UIcon
-              name="i-lucide-map-pin"
-              class="size-3.5"
+          <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span v-if="room.roomType">
+              {{ room.roomType.code }} - {{ room.roomType.name }}
+            </span>
+
+            <UBadge
+              v-if="room.roomType"
+              :label="room.roomType.serviceType"
+              :color="getRoomTypeColor(room.roomType.serviceType)"
+              variant="soft"
             />
-            <span>{{ room.floor || '-' }}</span>
           </div>
         </div>
 
         <div class="flex shrink-0 flex-col items-end gap-1.5">
-          <UBadge
-            :label="roomTypeConfig[room.type].label"
-            :icon="roomTypeConfig[room.type].icon"
-            variant="outline"
-            :class="roomTypeConfig[room.type].class"
-          />
-
           <UBadge
             :label="stateConfig.label"
             :color="stateConfig.color"
@@ -122,89 +96,38 @@ function getPatientStatusLabel(status: string) {
 
     <div class="min-h-40 p-4">
       <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-        Pasien saat ini
+        Ringkasan room
       </p>
 
-      <div
-        v-if="room.status === 'INACTIVE'"
-        class="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted"
-      >
-        <UIcon
-          name="i-lucide-ban"
-          class="size-6"
-        />
-        <span>Ruangan tidak aktif</span>
-      </div>
-
-      <div
-        v-else-if="!room.patients.length"
-        class="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted"
-      >
-        <UIcon
-          name="i-lucide-user-x"
-          class="size-6"
-        />
-        <span>Tidak ada pasien</span>
-      </div>
-
-      <div
-        v-else
-        class="divide-y divide-default"
-      >
-        <div
-          v-for="patient in room.patients"
-          :key="patient.id"
-          class="flex items-center gap-3 py-2.5"
-        >
-          <UAvatar
-            :alt="patient.name"
-            :text="getInitials(patient.name)"
-            size="sm"
-          />
-
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-highlighted">
-              {{ patient.name }}
-            </p>
-
-            <p class="truncate text-xs text-muted">
-              {{ patient.queueNo }} · {{ patient.complaint }}
-            </p>
-
-            <p class="truncate text-xs text-muted">
-              {{ patient.guarantor }} · Masuk {{ patient.enteredAt }}
-            </p>
-          </div>
-
-          <span
-            class="size-2 rounded-full"
-            :class="getPatientStatusColor(patient.status)"
-            :title="getPatientStatusLabel(patient.status)"
-          />
-        </div>
-      </div>
-    </div>
-
-    <div class="border-t border-default bg-muted/30 px-4 py-3">
-      <div class="flex items-center justify-between gap-3 text-xs text-muted">
-        <div class="flex items-center gap-1.5">
-          <UIcon
-            name="i-lucide-users"
-            class="size-3.5"
-          />
-          <span>
-            {{ activePatients.length }}/{{ room.capacity || 0 }} orang
-          </span>
+      <div class="grid grid-cols-1 gap-3 text-sm">
+        <div class="rounded-lg bg-muted/40 p-3">
+          <p class="text-xs text-muted">
+            Room Type
+          </p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ room.roomType?.code || '-' }} - {{ room.roomType?.name || '-' }}
+          </p>
+          <p class="mt-1 text-xs text-muted">
+            Service: {{ room.roomType?.serviceType || '-' }} · Tier {{ room.roomType?.tierOrder ?? '-' }}
+          </p>
         </div>
 
-        <div class="flex min-w-0 items-center gap-1.5">
-          <UIcon
-            name="i-lucide-user-round"
-            class="size-3.5"
-          />
-          <span class="truncate">
-            {{ room.pic || '-' }}
-          </span>
+        <div class="rounded-lg bg-muted/40 p-3">
+          <p class="text-xs text-muted">
+            Kapasitas Petugas
+          </p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ room.staffCapacity }} orang
+          </p>
+        </div>
+
+        <div class="rounded-lg bg-muted/40 p-3">
+          <p class="text-xs text-muted">
+            Status
+          </p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ room.isActive ? 'Aktif' : 'Tidak aktif' }}
+          </p>
         </div>
       </div>
     </div>

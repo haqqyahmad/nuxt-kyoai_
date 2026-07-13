@@ -12,7 +12,6 @@ const lastSavedSnapshot = ref('')
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type InputType = 'number' | 'calculated' | 'selected' | 'string'
-
 type NilaiNormalNum = {
   id?: string
   sex: 'MALE' | 'FEMALE' | null
@@ -421,6 +420,7 @@ const TYPE_LABEL: Record<InputType, string> = {
   selected: 'Pilihan',
   string: 'Teks'
 }
+
 </script>
 
 <template>

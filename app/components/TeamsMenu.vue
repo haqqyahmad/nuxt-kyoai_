@@ -6,6 +6,7 @@ defineProps<{
 }>()
 
 const { user, fetchUser } = useUser()
+const { isPic } = await useCurrentUser()
 
 onMounted(async () => {
   const { getToken } = useAuth()
@@ -44,9 +45,9 @@ const userDisplay = computed(() => {
   }
 })
 
-const userRoles = computed(() => {
-  return user.value?.data?.data?.roles?.map((item: any) => item.role.name) || []
-})
+const userRoles = computed(() =>
+  user.value?.data?.data?.roles?.map((item: { role?: { name?: string } }) => item.role?.name) || []
+)
 
 console.log('User Display', user.value?.data?.data?.name)
 console.log('User Roles', userRoles.value)
@@ -54,17 +55,8 @@ console.log('User Roles', userRoles.value)
 function formatRoleName(role?: string) {
   if (!role) return '-'
 
-  const specialRoles: Record<string, string> = {
-    superadmin: 'Super Admin'
-  }
-
-  const normalized = role.toLowerCase()
-
-  if (specialRoles[normalized]) {
-    return specialRoles[normalized]
-  }
-
-  return normalized
+  return role
+    .toLowerCase()
     .replace(/_/g, ' ')
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -74,13 +66,22 @@ function formatRoleName(role?: string) {
 const teams = computed(() => {
   const roles = user.value?.data?.data?.roles || []
 
-  return roles.map((item: any) => ({
-    label: formatRoleName(item.role.name),
+  if (isPic.value) {
+    return [
+      {
+        label: 'PIC',
+        avatar: userDisplay.value.avatar
+      }
+    ]
+  }
+
+  return roles.map((item: { role?: { name?: string } }) => ({
+    label: formatRoleName(item.role?.name),
     avatar: userDisplay.value.avatar
   }))
 })
 
-const selectedTeam = ref<any>(null)
+const selectedTeam = ref<{ label: string, avatar: { src?: string, alt?: string } } | null>(null)
 
 watchEffect(() => {
   if (!selectedTeam.value && teams.value.length) {

@@ -44,8 +44,9 @@ const rowSelection = ref({})
 //   pageSize: 10,
 // });
 
-const selectedUser = ref<any | null>(null)
+const selectedUser = ref<User | null>(null)
 const isUserRoleModalOpen = ref(false)
+const isUserRoomAccessModalOpen = ref(false)
 
 // async function userRolePatient(id: string) {
 //   try {
@@ -82,7 +83,7 @@ async function deleteSelectedUsers() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/user/${row.original.id}`))
+      selectedRows.map((row: Row<User>) => api.delete(`/user/${row.original.id}`))
     )
 
     toast.add({
@@ -93,7 +94,7 @@ async function deleteSelectedUsers() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus data',
@@ -115,6 +116,14 @@ function getRowItems(row: Row<User>) {
       onSelect() {
         selectedUser.value = row.original
         isUserRoleModalOpen.value = true
+      }
+    },
+    {
+      label: 'Room access',
+      icon: 'i-lucide-door-open',
+      onSelect() {
+        selectedUser.value = row.original
+        isUserRoomAccessModalOpen.value = true
       }
     },
     {
@@ -424,6 +433,12 @@ const currentPageSize = computed({
       </div>
       <UsersUserRoleModal
         v-model:open="isUserRoleModalOpen"
+        :user="selectedUser"
+        @updated="refresh"
+      />
+
+      <UsersUserRoomAccessModal
+        v-model:open="isUserRoomAccessModalOpen"
         :user="selectedUser"
         @updated="refresh"
       />
