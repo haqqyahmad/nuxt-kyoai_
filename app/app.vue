@@ -52,22 +52,17 @@ onMounted(() => {
 
 <template>
   <UApp>
-    <NuxtLoadingIndicator />
+    <NuxtLoadingIndicator
+      color="#10b981"
+      :height="3"
+    />
 
-    <!-- Loading screen sebelum app siap -->
     <Transition name="fade">
-      <div
+      <AppLoadingScreen
         v-if="!isAppReady"
-        class="fixed inset-0 z-[9999] flex items-center justify-center bg-white dark:bg-[#1b1718]"
-      >
-        <div class="flex flex-col items-center gap-4">
-          <!-- Spinner -->
-          <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            Loading...
-          </p>
-        </div>
-      </div>
+        title="Menyiapkan dashboard"
+        description="Membaca aset aplikasi, memuat data awal, dan menyiapkan navigasi."
+      />
     </Transition>
 
     <NuxtLayout>

@@ -1,6 +1,8 @@
 <!-- app/components/rooms/RoomToolbar.vue -->
 <script setup lang="ts">
-import { roomTypeOptions } from '~/constants/rooms'
+const {
+  roomTypeOptions
+} = await useRoomTypes()
 
 const search = defineModel<string>('search', {
   default: ''
@@ -20,12 +22,8 @@ const roomStateOptions = [
     value: 'ALL'
   },
   {
-    label: 'Tersedia',
-    value: 'AVAILABLE'
-  },
-  {
-    label: 'Digunakan',
-    value: 'OCCUPIED'
+    label: 'Aktif',
+    value: 'ACTIVE'
   },
   {
     label: 'Tidak Aktif',
@@ -38,7 +36,7 @@ const typeOptions = computed(() => [
     label: 'Semua tipe',
     value: 'ALL'
   },
-  ...roomTypeOptions
+  ...roomTypeOptions.value
 ])
 </script>
 

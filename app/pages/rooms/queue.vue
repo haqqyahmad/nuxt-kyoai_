@@ -1,4 +1,24 @@
 <script setup lang="ts">
+type RoomSession = {
+  id: string
+  roomId: string
+  roomTypeId: string
+  startedAt: string
+  endedAt?: string | null
+  exitReason?: string | null
+  room?: {
+    id: string
+    code: string
+    name: string
+    staffCapacity?: number | null
+  } | null
+  roomType?: {
+    id: string
+    code: string
+    name: string
+  } | null
+}
+
 type RoomAssignment = {
   id: string
   assignedDate: string
@@ -79,10 +99,23 @@ type RoomQueueItem = {
 }
 
 const api = useApi()
+const toast = useToast()
 
 const today = new Date().toISOString().slice(0, 10)
 const polling = ref(true)
 let pollingInterval: ReturnType<typeof setInterval> | null = null
+const roomActionLoading = ref(false)
+const isExitOpen = ref(false)
+const exitReason = ref('')
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    return response?.data?.message || fallback
+  }
+
+  return fallback
+}
 
 const {
   data: assignmentData,
@@ -92,7 +125,7 @@ const {
   'room-assignment-me',
   async () => {
     try {
-      const res = await api.get('/medical/room-assignments/me', {
+      const res = await api.get('/room-assignments/me', {
         params: { assignedDate: today }
       })
 
@@ -108,6 +141,14 @@ const {
 
 const assignment = computed(() => assignmentData.value ?? null)
 const roomTypeId = computed(() => assignment.value?.roomTypeId ?? null)
+
+const {
+  session: roomSession,
+  pending: sessionPending,
+  refresh: refreshSession,
+  enterRoomSession,
+  exitRoomSession
+} = await useRoomSession()
 
 const {
   data: queueData,
@@ -136,6 +177,20 @@ const {
 )
 
 const queueItems = computed(() => queueData.value ?? [])
+const activeSession = computed(() => roomSession.value as RoomSession | null)
+const activeSessionRoomLabel = computed(() => {
+  if (!activeSession.value?.room) return '-'
+  return `${activeSession.value.room.code} - ${activeSession.value.room.name}`
+})
+const activeSessionStartedAt = computed(() => {
+  if (!activeSession.value?.startedAt) return '-'
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(activeSession.value.startedAt))
+})
+const roomStaffCapacity = computed(() => assignment.value?.room?.staffCapacity ?? activeSession.value?.room?.staffCapacity ?? null)
+const hasActiveSession = computed(() => !!activeSession.value)
 
 const activeStats = computed(() => {
   const total = queueItems.value.length
@@ -150,6 +205,14 @@ const activeStats = computed(() => {
     inProgress
   }
 })
+
+function getRoomSessionColor() {
+  return hasActiveSession.value ? 'success' : 'warning'
+}
+
+function getRoomSessionLabel() {
+  return hasActiveSession.value ? 'Aktif' : 'Belum masuk room'
+}
 
 function formatPatientName(patient?: PatientName | null) {
   if (!patient) return '-'
@@ -177,7 +240,76 @@ function getItemStatusLabel(status: string) {
 }
 
 function refreshAll() {
-  return Promise.all([refreshAssignment(), refreshQueue()])
+  return Promise.all([refreshAssignment(), refreshQueue(), refreshSession()])
+}
+
+async function handleEnterRoom() {
+  if (roomActionLoading.value) return
+
+  if (!assignment.value?.roomId) {
+    toast.add({
+      title: 'Belum bisa masuk room',
+      description: 'Assignment room hari ini belum memiliki room yang dituju.',
+      color: 'warning'
+    })
+    return
+  }
+
+  roomActionLoading.value = true
+
+  try {
+    await enterRoomSession({ roomId: assignment.value.roomId })
+    await refreshAll()
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'User berhasil masuk room aktif.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal masuk room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk room.'),
+      color: 'error'
+    })
+  } finally {
+    roomActionLoading.value = false
+  }
+}
+
+function openExitRoomModal() {
+  exitReason.value = ''
+  isExitOpen.value = true
+}
+
+async function handleExitRoom() {
+  if (roomActionLoading.value || !activeSession.value) return
+
+  roomActionLoading.value = true
+
+  try {
+    await exitRoomSession({
+      exitReason: exitReason.value.trim() || undefined
+    })
+    await refreshAll()
+
+    isExitOpen.value = false
+    exitReason.value = ''
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'User berhasil keluar dari room aktif.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal keluar room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar room.'),
+      color: 'error'
+    })
+  } finally {
+    roomActionLoading.value = false
+  }
 }
 
 function stopPolling() {
@@ -225,6 +357,12 @@ onBeforeUnmount(stopPolling)
         </template>
 
         <template #right>
+          <UBadge
+            :color="getRoomSessionColor()"
+            variant="subtle"
+            :label="getRoomSessionLabel()"
+          />
+
           <USwitch
             v-model="polling"
             label="Realtime"
@@ -260,32 +398,90 @@ onBeforeUnmount(stopPolling)
                 {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
                 {{ assignment?.room?.name || 'System akan menampilkan queue sesuai roomType assignment.' }}
               </p>
+
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <UBadge
+                  :color="getRoomSessionColor()"
+                  variant="subtle"
+                  :label="getRoomSessionLabel()"
+                />
+
+                <UBadge
+                  v-if="roomStaffCapacity !== null"
+                  color="neutral"
+                  variant="outline"
+                  :label="`Kapasitas petugas: ${roomStaffCapacity}`"
+                />
+
+                <p class="text-xs text-muted">
+                  <span v-if="hasActiveSession">
+                    Room aktif:
+                    <strong class="text-highlighted">{{ activeSessionRoomLabel }}</strong>
+                    · Masuk sejak {{ activeSessionStartedAt }}
+                  </span>
+
+                  <span v-else>
+                    Petugas harus masuk room sebelum melakukan stage operasional.
+                  </span>
+                </p>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <UButton
+                  v-if="!hasActiveSession"
+                  icon="i-lucide-log-in"
+                  :loading="roomActionLoading || sessionPending"
+                  :disabled="!assignment?.roomId"
+                  @click="handleEnterRoom"
+                >
+                  Masuk Room
+                </UButton>
+
+                <UButton
+                  v-else
+                  color="error"
+                  variant="soft"
+                  icon="i-lucide-log-out"
+                  :loading="roomActionLoading || sessionPending"
+                  @click="openExitRoomModal"
+                >
+                  Keluar Room
+                </UButton>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-4">
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Total</p>
+                <p class="text-xs text-muted">
+                  Total
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.total }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Waiting</p>
+                <p class="text-xs text-muted">
+                  Waiting
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.waiting }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Called</p>
+                <p class="text-xs text-muted">
+                  Called
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.called }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">In Progress</p>
+                <p class="text-xs text-muted">
+                  In Progress
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.inProgress }}
                 </p>
@@ -362,14 +558,18 @@ onBeforeUnmount(stopPolling)
             <div class="space-y-4">
               <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="rounded-lg bg-muted/40 p-3">
-                  <p class="text-xs text-muted">No RM</p>
+                  <p class="text-xs text-muted">
+                    No RM
+                  </p>
                   <p class="mt-1 font-medium text-highlighted">
                     {{ item.queueEntry?.registration?.patient?.PatientId || '-' }}
                   </p>
                 </div>
 
                 <div class="rounded-lg bg-muted/40 p-3">
-                  <p class="text-xs text-muted">Jenis antrian</p>
+                  <p class="text-xs text-muted">
+                    Jenis antrian
+                  </p>
                   <p class="mt-1 font-medium text-highlighted">
                     {{ item.queueEntry?.type || '-' }}
                   </p>
@@ -422,6 +622,69 @@ onBeforeUnmount(stopPolling)
           </UCard>
         </div>
       </div>
+
+      <UModal v-model:open="isExitOpen">
+        <template #content>
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-lg font-semibold">
+                    Keluar Room
+                  </h3>
+                  <p class="text-sm text-muted">
+                    Tambahkan alasan jika diperlukan sebelum sesi ditutup.
+                  </p>
+                </div>
+
+                <UButton
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  @click="isExitOpen = false"
+                />
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <UAlert
+                color="warning"
+                title="Pastikan room sudah selesai digunakan"
+                description="Setelah keluar room, user tidak bisa melakukan action stage sampai masuk room lagi."
+              />
+
+              <UFormField
+                label="Alasan keluar"
+                help="Opsional, misalnya pindah room atau selesai shift."
+              >
+                <UTextarea
+                  v-model="exitReason"
+                  :rows="3"
+                  placeholder="Tuliskan alasan keluar room..."
+                />
+              </UFormField>
+
+              <div class="flex justify-end gap-2">
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  @click="isExitOpen = false"
+                >
+                  Batal
+                </UButton>
+
+                <UButton
+                  color="error"
+                  :loading="roomActionLoading"
+                  @click="handleExitRoom"
+                >
+                  Simpan & Keluar
+                </UButton>
+              </div>
+            </div>
+          </UCard>
+        </template>
+      </UModal>
     </template>
   </UDashboardPanel>
 </template>

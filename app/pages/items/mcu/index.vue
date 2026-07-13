@@ -24,16 +24,19 @@ type Item = {
   code: string
   department?: {
     id: string,
+    code?: string | null
     name: string
   } | null
   group?: {
     id: string,
     name: string,
     code?: string | null
+    sortOrder?: number | null
     parent?: {
       id: string,
       name: string,
       code?: string | null
+      sortOrder?: number | null
     } | null
   } | null
   isActive?: boolean
@@ -50,30 +53,70 @@ type ItemsApiResponse = {
   }
 }
 
-const SERVICE_TYPE_LABEL: Record<Department, string> = {
-  Laboratory: 'Lab',
-  DoctorConsultation: 'Consultation',
+const SERVICE_TYPE_LABEL: Record<string, string> = {
+  LAB: 'Lab',
+  LABORATORY: 'Lab',
+  LABORATORIUM: 'Lab',
+  DOKTER: 'Consultation',
+  DOC: 'Consultation',
+  DOCTORCONSULTATION: 'Consultation',
   MCU: 'MCU',
-  Vaccine: 'Vaksin',
-  Antigen: 'Antigen',
+  VACCINE: 'Vaksin',
+  ANTIGEN: 'Antigen',
   PCR: 'PCR',
-  VitaminInjection: 'Vitamin',
-  Pharmacy: 'Farmasi',
-  Dental: 'Gigi',
-  Radiology: 'Radiologi'
+  VITAMININJECTION: 'Vitamin',
+  VITAMIN: 'Vitamin',
+  PHARMACY: 'Farmasi',
+  DENTAL: 'Gigi',
+  RADIOLOGY: 'Radiologi'
 }
 
-const SERVICE_TYPE_COLOR: Record<Department, string> = {
-  Laboratorium: 'success',
-  DoctorConsultation: 'info',
+const SERVICE_TYPE_COLOR: Record<string, string> = {
+  LAB: 'success',
+  LABORATORY: 'success',
+  LABORATORIUM: 'success',
+  DOKTER: 'info',
+  DOC: 'info',
+  DOCTORCONSULTATION: 'info',
   MCU: 'warning',
-  Vaccine: 'success',
-  Antigen: 'success',
+  VACCINE: 'success',
+  ANTIGEN: 'success',
   PCR: 'primary',
-  VitaminInjection: 'secondary',
-  Pharmacy: 'neutral',
-  Dental: 'warning',
-  Radiologi: 'warning'
+  VITAMININJECTION: 'secondary',
+  VITAMIN: 'secondary',
+  PHARMACY: 'neutral',
+  DENTAL: 'warning',
+  RADIOLOGY: 'warning'
+}
+
+function compareItemSequence(a: Item, b: Item) {
+  const aParentOrder = a.group?.parent?.sortOrder ?? 0
+  const bParentOrder = b.group?.parent?.sortOrder ?? 0
+  if (aParentOrder !== bParentOrder) return aParentOrder - bParentOrder
+
+  const aGroupOrder = a.group?.sortOrder ?? 0
+  const bGroupOrder = b.group?.sortOrder ?? 0
+  if (aGroupOrder !== bGroupOrder) return aGroupOrder - bGroupOrder
+
+  const aGroupName = a.group?.name ?? ''
+  const bGroupName = b.group?.name ?? ''
+  if (aGroupName !== bGroupName) return aGroupName.localeCompare(bGroupName)
+
+  return a.name.localeCompare(b.name)
+}
+
+function getDepartmentKey(item: Item) {
+  return (item.department?.code || item.department?.name || '').toString().toUpperCase()
+}
+
+function getDepartmentLabel(item: Item) {
+  const key = getDepartmentKey(item)
+  return SERVICE_TYPE_LABEL[key] || item.department?.name || '-'
+}
+
+function getDepartmentColor(item: Item) {
+  const key = getDepartmentKey(item)
+  return SERVICE_TYPE_COLOR[key] || 'neutral'
 }
 
 const {
@@ -109,7 +152,7 @@ const {
   return result
 })
 
-const data = computed<Item[]>(() => items.value ?? [])
+const data = computed<Item[]>(() => [...(items.value ?? [])].sort(compareItemSequence))
 const isAddModalOpen = ref(false)
 const columnFilters = ref([{ id: 'name', value: '' }])
 const columnVisibility = ref({})
@@ -280,10 +323,9 @@ const columns: TableColumn<Item>[] = [
     accessorKey: 'department',
     header: ({ column }) => sortableHeader('Department', column),
     cell: ({ row }) => {
-      const department = row.original.department?.name as Department
       return h(UBadge, {
-        label: SERVICE_TYPE_LABEL[department] ?? '-',
-        color: SERVICE_TYPE_COLOR[department] ?? 'neutral',
+        label: getDepartmentLabel(row.original),
+        color: getDepartmentColor(row.original),
         variant: 'subtle'
       })
     }

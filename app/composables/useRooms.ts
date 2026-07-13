@@ -1,5 +1,3 @@
-// app/composables/useRooms.ts
-import { mockRooms } from '~/constants/rooms.mock'
 import type { Room, RoomForm, RoomState } from '~/types/room'
 
 export function useRooms() {
@@ -9,8 +7,6 @@ export function useRooms() {
   const typeFilter = ref<string>('ALL')
   const stateFilter = ref<string>('ALL')
 
-  const useMock = true
-
   const {
     data: roomsData,
     pending,
@@ -18,13 +14,18 @@ export function useRooms() {
   } = useAsyncData<Room[]>(
     'rooms',
     async () => {
-      if (useMock) return mockRooms
-
       try {
-        const res = await api.get('/medical/rooms')
-        return res.data.data
+        const res = await api.get('/medical/rooms/rooms', {
+          params: {
+            page: 1,
+            limit: 1000
+          }
+        })
+
+        const payload = res.data?.data ?? res.data
+        return Array.isArray(payload) ? payload : payload?.data ?? []
       } catch {
-        return mockRooms
+        return []
       }
     },
     {
@@ -35,13 +36,7 @@ export function useRooms() {
   const rooms = computed(() => roomsData.value ?? [])
 
   function getRoomState(room: Room): RoomState {
-    if (room.status === 'INACTIVE') return 'INACTIVE'
-
-    const hasActivePatient = room.patients.some(patient =>
-      ['WAITING', 'IN_PROGRESS'].includes(patient.status)
-    )
-
-    return hasActivePatient ? 'OCCUPIED' : 'AVAILABLE'
+    return room.isActive ? 'ACTIVE' : 'INACTIVE'
   }
 
   const filteredRooms = computed(() => {
@@ -55,7 +50,7 @@ export function useRooms() {
           || room.code.toLowerCase().includes(q)
 
       const matchType
-        = typeFilter.value === 'ALL' || room.type === typeFilter.value
+        = typeFilter.value === 'ALL' || room.roomTypeId === typeFilter.value
 
       const matchState
         = stateFilter.value === 'ALL' || state === stateFilter.value
@@ -66,26 +61,22 @@ export function useRooms() {
 
   const stats = computed(() => ({
     total: rooms.value.length,
-    available: rooms.value.filter(room => getRoomState(room) === 'AVAILABLE').length,
-    occupied: rooms.value.filter(room => getRoomState(room) === 'OCCUPIED').length,
+    active: rooms.value.filter(room => getRoomState(room) === 'ACTIVE').length,
     inactive: rooms.value.filter(room => getRoomState(room) === 'INACTIVE').length
   }))
 
   async function createRoom(payload: RoomForm) {
-    if (useMock) return
-    await api.post('/medical/rooms', payload)
+    await api.post('/medical/rooms/rooms', payload)
     await refresh()
   }
 
   async function updateRoom(id: string, payload: RoomForm) {
-    if (useMock) return
-    await api.put(`/medical/rooms/${id}`, payload)
+    await api.put(`/medical/rooms/rooms/${id}`, payload)
     await refresh()
   }
 
   async function deleteRoom(id: string) {
-    if (useMock) return
-    await api.delete(`/medical/rooms/${id}`)
+    await api.delete(`/medical/rooms/rooms/${id}`)
     await refresh()
   }
 

@@ -1,73 +1,71 @@
-<!-- app/components/rooms/RoomFormModal.vue -->
+<!-- app/components/rooms/RoomTypeModal.vue -->
 <script setup lang="ts">
-import type { Room, RoomForm } from '~/types/room'
-
-const {
-  roomTypeOptions
-} = await useRoomTypes()
+import { serviceTypeOptions } from '~/constants/room-types'
+import type { RoomTypeForm, RoomTypeRecord } from '~/types/room'
 
 const props = withDefaults(defineProps<{
-  room?: Room | null
+  roomType?: RoomTypeRecord | null
   loading?: boolean
 }>(), {
-  room: null,
+  roomType: null,
   loading: false
 })
 
 const emit = defineEmits<{
-  submit: [payload: RoomForm]
+  submit: [payload: RoomTypeForm]
 }>()
 
 const open = defineModel<boolean>('open', {
   default: false
 })
 
-const form = reactive<RoomForm>({
+const form = reactive<RoomTypeForm>({
   code: '',
   name: '',
-  roomTypeId: null,
-  staffCapacity: null,
+  serviceType: null,
+  tierOrder: 1,
   isActive: true
 })
 
-const isEdit = computed(() => !!props.room?.id)
+const isEdit = computed(() => !!props.roomType?.id)
 
 const title = computed(() =>
-  isEdit.value ? 'Edit Room' : 'Add New Room'
+  isEdit.value ? 'Edit Room Type' : 'Add Room Type'
 )
 
 const description = computed(() =>
   isEdit.value
-    ? 'Perbarui data ruangan'
-    : 'Tambahkan ruangan baru'
+    ? 'Perbarui data room type'
+    : 'Tambahkan room type baru'
 )
 
 const isValid = computed(() =>
   form.code.trim()
   && form.name.trim()
-  && form.roomTypeId !== null
+  && form.serviceType !== null
+  && Number(form.tierOrder || 0) >= 1
 )
 
 function resetForm() {
   form.code = ''
   form.name = ''
-  form.roomTypeId = null
-  form.staffCapacity = null
+  form.serviceType = null
+  form.tierOrder = 1
   form.isActive = true
 }
 
-function fillForm(room: Room) {
-  form.code = room.code
-  form.name = room.name
-  form.roomTypeId = room.roomTypeId
-  form.staffCapacity = room.staffCapacity || null
-  form.isActive = room.isActive
+function fillForm(roomType: RoomTypeRecord) {
+  form.code = roomType.code
+  form.name = roomType.name
+  form.serviceType = roomType.serviceType
+  form.tierOrder = roomType.tierOrder
+  form.isActive = roomType.isActive
 }
 
 watch(
-  () => props.room,
-  (room) => {
-    if (room) fillForm(room)
+  () => props.roomType,
+  (roomType) => {
+    if (roomType) fillForm(roomType)
     else resetForm()
   },
   { immediate: true }
@@ -83,8 +81,8 @@ function submit() {
   emit('submit', {
     code: form.code.trim(),
     name: form.name.trim(),
-    roomTypeId: form.roomTypeId,
-    staffCapacity: Number(form.staffCapacity || 1),
+    serviceType: form.serviceType,
+    tierOrder: Number(form.tierOrder || 1),
     isActive: form.isActive
   })
 }
@@ -93,12 +91,12 @@ function submit() {
 <template>
   <UModal
     v-model:open="open"
-    :ui="{ content: 'sm:max-w-3xl' }"
+    :ui="{ content: 'sm:max-w-2xl' }"
   >
     <template #content>
       <UCard :ui="{ body: 'p-0' }">
         <template #header>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold">
                 {{ title }}
@@ -129,55 +127,51 @@ function submit() {
               >
                 <UInput
                   v-model="form.code"
-                  placeholder="R-001"
+                  placeholder="RT-001"
                   class="w-full"
                   autofocus
                 />
               </UFormField>
 
               <UFormField
-                label="Nama Ruangan"
+                label="Nama"
                 required
               >
                 <UInput
                   v-model="form.name"
-                  placeholder="Poli Umum 1"
+                  placeholder="Laboratorium MCU"
                   class="w-full"
                 />
               </UFormField>
 
               <UFormField
-                label="Tipe"
+                label="Service Type"
                 required
               >
                 <USelect
-                  v-model="form.roomTypeId"
-                  :items="roomTypeOptions"
-                  placeholder="Pilih room type"
+                  v-model="form.serviceType"
+                  :items="serviceTypeOptions"
+                  placeholder="Pilih service type"
                   class="w-full"
                 />
               </UFormField>
 
-              <UFormField label="Kapasitas Petugas">
+              <UFormField label="Tier Order">
                 <UInput
-                  v-model.number="form.staffCapacity"
+                  v-model.number="form.tierOrder"
                   type="number"
                   min="1"
-                  placeholder="1"
                   class="w-full"
+                  placeholder="1"
                 />
-                <p class="mt-1 text-xs text-muted">
-                  Jumlah petugas aktif yang boleh masuk room secara bersamaan.
-                </p>
               </UFormField>
 
-              <UFormField label="Aktif">
+              <UFormField label="Status">
                 <USwitch
                   v-model="form.isActive"
-                  label="Ruangan aktif"
+                  label="Aktif"
                 />
               </UFormField>
-
             </div>
 
             <div class="flex justify-end gap-2 border-t border-default pt-4">
@@ -187,13 +181,13 @@ function submit() {
                 variant="soft"
                 @click="open = false"
               >
-                Cancel
+                Batal
               </UButton>
 
               <UButton
                 type="submit"
-                :loading="props.loading"
-                :disabled="!isValid || props.loading"
+                :loading="loading"
+                :disabled="!isValid || loading"
                 :icon="isEdit ? 'i-lucide-save' : 'i-lucide-plus'"
               >
                 {{ isEdit ? 'Update' : 'Simpan' }}
