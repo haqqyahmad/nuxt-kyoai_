@@ -204,6 +204,20 @@ const pagination = ref({
   pageIndex: 0,
   pageSize: 10
 })
+
+const currentPage = ref(1)
+
+watch(
+  () => table.value?.tableApi?.getState().pagination.pageIndex,
+  (idx) => {
+    currentPage.value = (idx ?? 0) + 1
+  },
+  { immediate: true }
+)
+
+watch(currentPage, (page) => {
+  table.value?.tableApi?.setPageIndex(page - 1)
+})
 </script>
 
 <template>
@@ -318,10 +332,9 @@ const pagination = ref({
 
         <div class="flex items-center gap-1.5">
           <UPagination
-            :default-page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length"
-            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
+            v-model:page="currentPage"
+            :items-per-page="pagination.pageSize"
+            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
           />
         </div>
       </div>

@@ -17,6 +17,8 @@ const props = defineProps<{
 }>()
 
 const openEdit = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(8)
 
 const filteredEmployees = computed(() => {
   return props.employees.filter((employee) => {
@@ -28,6 +30,16 @@ const filteredEmployees = computed(() => {
     return matchStatus
   })
 })
+
+const paginatedEmployees = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredEmployees.value.slice(start, end)
+})
+
+const totalPages = computed(() =>
+  Math.ceil(filteredEmployees.value.length / pageSize.value)
+)
 
 function getInitial(name?: string) {
   if (!name) return '-'
@@ -92,7 +104,7 @@ function getStatusColor(status?: string) {
           </tr>
 
           <tr
-            v-for="employee in filteredEmployees"
+            v-for="employee in paginatedEmployees"
             v-else
             :key="employee.id"
             class="hover:bg-muted/50"
@@ -146,13 +158,13 @@ function getStatusColor(status?: string) {
     <template #footer>
       <div class="flex items-center justify-between">
         <p class="text-sm text-muted">
-          Menampilkan {{ filteredEmployees.length }} dari {{ employees.length }} Karyawan
+          Menampilkan {{ paginatedEmployees.length }} dari {{ filteredEmployees.length }} Karyawan
         </p>
 
         <UPagination
-          :page="1"
-          :total="employees.length"
-          :items-per-page="8"
+          v-model:page="currentPage"
+          :total="filteredEmployees.length"
+          :items-per-page="pageSize"
         />
       </div>
     </template>

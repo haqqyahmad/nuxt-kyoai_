@@ -17,7 +17,6 @@ type Branch = {
   branchId: string
   nameBranch: string
   addressBranch: string
-  createdAt: string
 }
 
 const { data: branches, refresh } = await useAsyncData('branches', () =>
@@ -38,6 +37,9 @@ const rowSelection = ref({})
 
 const selectedDeleteId = ref<string | null>(null)
 const isDeleteModalOpen = ref(false)
+const isBulkDeleteModalOpen = ref(false)
+const selectedEditBranch = ref<Branch | null>(null)
+const isEditModalOpen = ref(false)
 
 async function deleteBranch(id: string) {
   try {
@@ -64,6 +66,7 @@ async function handleDeleteById() {
 
   await deleteBranch(selectedDeleteId.value)
   selectedDeleteId.value = null
+  isDeleteModalOpen.value = false
 }
 
 async function deleteSelectedBranches() {
@@ -74,7 +77,7 @@ async function deleteSelectedBranches() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) =>
+      selectedRows.map((row: Row<Branch>) =>
         api.delete(`/branch/${row.original.id}`)
       )
     )
@@ -86,6 +89,7 @@ async function deleteSelectedBranches() {
     })
 
     table.value?.tableApi?.resetRowSelection()
+    isBulkDeleteModalOpen.value = false
     await refresh()
   } catch {
     toast.add({
@@ -105,7 +109,10 @@ function getRowItems(row: Row<Branch>) {
     {
       label: 'Edit Branch',
       icon: 'i-lucide-pencil',
-      to: `/branches/${row.original.id}`
+      onSelect() {
+        selectedEditBranch.value = row.original
+        isEditModalOpen.value = true
+      }
     },
     {
       type: 'separator'
@@ -198,34 +205,6 @@ const columns: TableColumn<Branch>[] = [
     cell: ({ row }) => row.getValue('addressBranch') || '-'
   },
   {
-    accessorKey: 'createdAt',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Created',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    },
-    cell: ({ row }) => {
-      return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-  },
-  {
     id: 'actions',
     cell: ({ row }) => {
       return h(
@@ -269,11 +248,26 @@ const searchQuery = computed({
   }
 })
 
+const currentPage = ref(1)
+
 const currentPageSize = computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
     table.value?.tableApi?.setPageSize(value)
+    currentPage.value = 1
   }
+})
+
+watch(
+  () => table.value?.tableApi?.getState().pagination.pageIndex,
+  (idx) => {
+    currentPage.value = (idx ?? 0) + 1
+  },
+  { immediate: true }
+)
+
+watch(currentPage, (page) => {
+  table.value?.tableApi?.setPageIndex(page - 1)
 })
 </script>
 
@@ -301,27 +295,29 @@ const currentPageSize = computed({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <UButton
+            v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            label="Delete"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-trash"
+            @click="isBulkDeleteModalOpen = true"
+          >
+            <template #trailing>
+              <UKbd>
+                {{
+                  table?.tableApi?.getFilteredSelectedRowModel().rows.length
+                }}
+              </UKbd>
+            </template>
+          </UButton>
+
           <BaseDeleteModal
+            v-model:open="isBulkDeleteModalOpen"
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="branch"
             @confirm="deleteSelectedBranches"
-          >
-            <UButton
-              v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-              label="Delete"
-              color="error"
-              variant="subtle"
-              icon="i-lucide-trash"
-            >
-              <template #trailing>
-                <UKbd>
-                  {{
-                    table?.tableApi?.getFilteredSelectedRowModel().rows.length
-                  }}
-                </UKbd>
-              </template>
-            </UButton>
-          </BaseDeleteModal>
+          />
 
           <UDropdownMenu
             :items="
@@ -399,12 +395,9 @@ const currentPageSize = computed({
           />
 
           <UPagination
-            :default-page="
-              (table?.tableApi?.getState().pagination.pageIndex || 0) + 1
-            "
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length"
-            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
+            v-model:page="currentPage"
+            :items-per-page="currentPageSize"
+            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
           />
         </div>
       </div>
@@ -414,6 +407,12 @@ const currentPageSize = computed({
         :count="1"
         entity="branch"
         @confirm="handleDeleteById"
+      />
+
+      <BranchesEditModal
+        v-model:open="isEditModalOpen"
+        :branch="selectedEditBranch"
+        @success="refresh"
       />
     </template>
   </UDashboardPanel>

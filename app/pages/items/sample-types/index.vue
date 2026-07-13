@@ -254,12 +254,27 @@ const searchQuery = computed<string>({
   },
 });
 
+const currentPage = ref(1)
+
 const currentPageSize = computed<number>({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
     table.value?.tableApi?.setPageSize(value);
+    currentPage.value = 1
   },
-});
+})
+
+watch(
+  () => table.value?.tableApi?.getState().pagination.pageIndex,
+  (idx) => {
+    currentPage.value = (idx ?? 0) + 1
+  },
+  { immediate: true }
+)
+
+watch(currentPage, (page) => {
+  table.value?.tableApi?.setPageIndex(page - 1)
+})
 </script>
 
 <template>
@@ -383,12 +398,9 @@ const currentPageSize = computed<number>({
           />
 
           <UPagination
-            :default-page="
-              (table?.tableApi?.getState().pagination.pageIndex || 0) + 1
-            "
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length"
-            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
+            v-model:page="currentPage"
+            :items-per-page="currentPageSize"
+            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
           />
         </div>
       </div>

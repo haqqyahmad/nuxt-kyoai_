@@ -24,16 +24,11 @@ const state = reactive({
 
 async function submit(data: typeof state) {
   try {
-    data.message = 'Branch'
-    data.name = data.nameBranch
-
     await api.post('/branch', {
       branchId: data.branchId,
       nameBranch: data.nameBranch,
       addressBranch: data.addressBranch
     })
-
-    // console.log('Branch created')
     emit('created')
   } catch (err: any) {
     handleError(toast, err)
