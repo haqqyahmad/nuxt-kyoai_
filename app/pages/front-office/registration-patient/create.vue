@@ -148,7 +148,7 @@ const PAYMENT_TYPES = [
 const PRIORITY_TYPES = [
   { value: 'Normal', label: 'Normal' },
   { value: 'VIP', label: 'VIP' },
-  { value: 'Emergency', label: 'Emergency' }
+  { value: 'Emegency', label: 'Emergency' }
 ] as const
 
 const INPUT_TYPE_LABEL: Record<string, string> = {
@@ -204,6 +204,7 @@ const patientResults = ref<Patient[]>([])
 const patientPending = ref(false)
 const selectedPatient = ref<Patient | null>(null)
 const isNewPatient = ref(false)
+const newPatientSaving = ref(false)
 const patientDropOpen = ref(false)
 
 const { data: initialPatients } = await useAsyncData('patients-initial', () =>
@@ -229,6 +230,15 @@ const newPatient = ref({
   email: '',
   dob: ''
 })
+
+const canSaveNewPatient = computed(
+  () =>
+    !!selectedBranch.value
+    && !!newPatient.value.firstName.trim()
+    && !!newPatient.value.lastName.trim()
+    && !!newPatient.value.idNumber.trim()
+    && !!newPatient.value.dob
+)
 
 let debounce: ReturnType<typeof setTimeout>
 let requestId = 0
@@ -278,6 +288,56 @@ function useNewPatient() {
   selectedPatient.value = null
   patientResults.value = []
   patientDropOpen.value = false
+}
+
+function buildNewPatientPayload() {
+  return {
+    branchId: Number(selectedBranch.value?.branchId),
+    firstName: newPatient.value.firstName.trim(),
+    middleName: newPatient.value.middleName.trim() || undefined,
+    lastName: newPatient.value.lastName.trim(),
+    gender: newPatient.value.gender,
+    idType: newPatient.value.idType,
+    idNumber: newPatient.value.idNumber.trim(),
+    phone: newPatient.value.phone.trim() || undefined,
+    email: newPatient.value.email.trim() || undefined,
+    dob: newPatient.value.dob
+  }
+}
+
+async function saveNewPatient() {
+  if (!canSaveNewPatient.value || newPatientSaving.value) return null
+
+  newPatientSaving.value = true
+
+  try {
+    const res = await api.post('/patient', buildNewPatientPayload())
+    const patient = res.data.data as Patient
+
+    selectPatient(patient)
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien baru berhasil disimpan',
+      color: 'success'
+    })
+
+    return patient
+  } catch (err: unknown) {
+    const error = err as {
+      response?: { data?: { message?: string } }
+    }
+
+    toast.add({
+      title: 'Gagal',
+      description: error.response?.data?.message ?? 'Gagal menyimpan pasien',
+      color: 'error'
+    })
+
+    return null
+  } finally {
+    newPatientSaving.value = false
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -596,55 +656,58 @@ async function submit() {
   submitting.value = true
 
   try {
-    // 1. Buat pasien baru jika perlu
     let patientId = selectedPatient.value?.id
     if (isNewPatient.value) {
-      const res = await api.post('/patient', { ...newPatient.value })
-      patientId = res.data.data.id
+      const patient = await saveNewPatient()
+      if (!patient) return
+      patientId = patient.id
     }
 
-    // 2. Buat registrasi
-    const regRes = await api.post('/registration', {
+    const regPayload = {
       patientId,
-      branchId:        selectedBranch.value!.branchId,
-      companyId:       String(regForm.value.companyId),
-      serviceType:     selectedService.value,
-      paymentType:     regForm.value.paymentType,
-      priorityRegist:  regForm.value.priorityRegist,
-      examDate:        regForm.value.examDate,
+      branchId: selectedBranch.value!.branchId,
+      companyId: String(regForm.value.companyId),
+      serviceType: selectedService.value,
+      paymentType: regForm.value.paymentType,
+      priorityRegist: regForm.value.priorityRegist,
+      examDate: regForm.value.examDate,
       scheduleDateExam: regForm.value.scheduleDateExam
-    })
+    }
+    const regRes = await api.post('/registration', regPayload)
 
-    console.log('Registration RESPONSE:', regRes.data.data)
-
-    // 3. Jika MCU — buat exam
     if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
       const examRes = await api.post('/mcu/exams', {
-        paketId:        selectedPaket.value.id,
+        paketId: selectedPaket.value.id,
         patientId,
-        examDate:       regForm.value.examDate,
-        registrationId: regRes.data.data.id   // ← link ke registrasi
+        examDate: regForm.value.examDate,
+        registrationId: regRes.data.data.id
       })
 
       const examId = examRes.data.data.id
 
-      // 4. Tambah additional items jika ada
       if (additionalItems.value.length > 0) {
         await api.post(`/mcu/exams/${examId}/items`, {
           items: additionalItems.value.map((item, index) => ({
-            itemId:    item.id,
+            itemId: item.id,
             sortOrder: selectedPaket.value!.paketItems.length + index
           }))
         })
       }
     }
 
-    toast.add({ title: 'Berhasil', description: 'Registrasi berhasil dibuat', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Registrasi berhasil dibuat',
+      color: 'success'
+    })
     router.push('/front-office/registration-patient')
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as {
+      response?: { data?: { message?: string } }
+    }
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: error.response?.data?.message ?? 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {
@@ -1087,7 +1150,7 @@ async function submit() {
                         v-model="newPatient.idType"
                         size="sm"
                         :items="
-                          ['KTP', 'PASSPORT', 'SIM', 'KITAS'].map((v) => ({
+                          ['KTP', 'PASSPORT', 'SIM'].map((v) => ({
                             label: v,
                             value: v
                           }))
@@ -1120,6 +1183,32 @@ async function submit() {
                         class="w-full"
                       />
                     </UFormField>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 pt-1">
+                    <p
+                      class="text-[11px]"
+                      :class="
+                        selectedBranch
+                          ? 'text-muted'
+                          : 'text-warning'
+                      "
+                    >
+                      {{
+                        selectedBranch
+                          ? 'Simpan pasien terlebih dahulu untuk melanjutkan registrasi.'
+                          : 'Pilih cabang terlebih dahulu sebelum menyimpan pasien.'
+                      }}
+                    </p>
+                    <UButton
+                      size="sm"
+                      color="primary"
+                      icon="i-lucide-save"
+                      :loading="newPatientSaving"
+                      :disabled="!canSaveNewPatient || newPatientSaving"
+                      @click="saveNewPatient"
+                    >
+                      Simpan Pasien
+                    </UButton>
                   </div>
                 </div>
 
@@ -1163,7 +1252,7 @@ async function submit() {
                     :items="
                       (companies ?? []).map((c) => ({
                         label: `${c.codeCostumer} – ${c.customerName}`,
-                        value: String(c.codeCostumer)
+                        value: c.codeCostumer
                       }))
                     "
                     placeholder="Pilih perusahaan..."

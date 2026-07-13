@@ -176,14 +176,14 @@ const saveChanges = async () => {
     cancelEditing();
 
     // Tampilkan notifikasi sukses
-    add({
+    toast.add({
       title: "Berhasil",
       description: "Data pasien berhasil diperbarui",
       color: "success",
     });
   } catch (error) {
     console.error("Error saving patient data:", error);
-    add({
+    toast.add({
       title: "Gagal",
       description: "Gagal memperbarui data pasien",
       color: "error",
@@ -297,14 +297,14 @@ const deleteAddress = async (addressId: string) => {
     await api.delete(`/patient/${patient.value.id}/address/${addressId}`);
     await refresh();
 
-    add({
+    toast.add({
       title: "Berhasil",
       description: "Alamat berhasil dihapus",
       color: "success",
     });
   } catch (error) {
     console.error("Error deleting address:", error);
-    add({
+    toast.add({
       title: "Gagal",
       description: "Gagal menghapus alamat",
       color: "error",

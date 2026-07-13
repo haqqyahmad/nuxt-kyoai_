@@ -24,12 +24,21 @@ type ItemGroup = {
   sortOrder?: number
 }
 
+type Department = {
+  id: string
+  name: string
+  type?: 'office' | 'medical' | null
+}
+
 /**
  * fetch departments
  */
 const { data: departments } = await useAsyncData('departments', async () => {
   const res = await api.get('/medical/departments')
-  return res.data.data
+  const payload = res.data.data as Department[] | undefined
+  return Array.isArray(payload)
+    ? payload.filter(department => department.type === 'medical')
+    : []
 })
 
 /**

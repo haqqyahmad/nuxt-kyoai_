@@ -8,6 +8,7 @@ import type { Row } from '@tanstack/table-core'
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UBadge = resolveComponent('UBadge')
 
 const api = useApi()
 const toast = useToast()
@@ -15,6 +16,7 @@ const toast = useToast()
 type Department = {
   id: string
   code: string
+  type: 'office' | 'medical'
   name: string
   createdAt: string
   updatedAt: string
@@ -25,19 +27,29 @@ const { data: departments, refresh } = await useAsyncData('departments', () =>
 )
 
 const data = computed(() => departments.value?.data ?? departments.value ?? [])
+const searchQuery = ref('')
 
-const columnFilters = ref([
-  {
-    id: 'name',
-    value: ''
+const displayedData = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+
+  if (!keyword) {
+    return data.value
   }
-])
+
+  return data.value.filter((department: Department) => {
+    return [department.code, department.type, department.name]
+      .filter(Boolean)
+      .some(value => value?.toLowerCase().includes(keyword))
+  })
+})
 
 const columnVisibility = ref()
 const rowSelection = ref({})
 
 const selectedDeleteId = ref<string | null>(null)
 const isDeleteModalOpen = ref(false)
+const selectedEditDepartment = ref<Department | null>(null)
+const isEditModalOpen = ref(false)
 
 async function deleteDepartment(id: string) {
   try {
@@ -68,13 +80,13 @@ async function handleDeleteById() {
 
 async function deleteSelectedDepartments() {
   const selectedRows
-    = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
+    = (table.value?.tableApi?.getFilteredSelectedRowModel().rows || []) as Row<Department>[]
 
   if (!selectedRows.length) return
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) =>
+      selectedRows.map(row =>
         api.delete(`/medical/departments/${row.original.id}`)
       )
     )
@@ -105,7 +117,10 @@ function getRowItems(row: Row<Department>) {
     {
       label: 'Edit department',
       icon: 'i-lucide-pencil',
-      to: `/departments/${row.original.id}`
+      onSelect() {
+        selectedEditDepartment.value = row.original
+        isEditModalOpen.value = true
+      }
     },
     {
       type: 'separator'
@@ -185,6 +200,37 @@ const columns: TableColumn<Department>[] = [
     cell: ({ row }) => row.getValue('name')
   },
   {
+    accessorKey: 'type',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Type',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => {
+      const value = row.getValue('type') as Department['type']
+
+      return h(
+        UBadge,
+        {
+          color: value === 'medical' ? 'primary' : 'neutral',
+          variant: 'subtle'
+        },
+        () => value === 'medical' ? 'Medical' : 'Office'
+      )
+    }
+  },
+  {
     accessorKey: 'createdAt',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
@@ -241,21 +287,6 @@ const columns: TableColumn<Department>[] = [
 
 const table = useTemplateRef('table')
 
-const searchQuery = computed({
-  get: (): string => {
-    return (
-      (table.value?.tableApi
-        ?.getColumn('name')
-        ?.getFilterValue() as string) || ''
-    )
-  },
-  set: (value: string) => {
-    table.value?.tableApi
-      ?.getColumn('name')
-      ?.setFilterValue(value || undefined)
-  }
-})
-
 const currentPageSize = computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
@@ -284,7 +315,7 @@ const currentPageSize = computed({
           v-model="searchQuery"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Search by department name..."
+          placeholder="Search by code, type, or name..."
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
@@ -343,7 +374,6 @@ const currentPageSize = computed({
 
       <UTable
         ref="table"
-        v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
         :pagination-options="{
@@ -351,7 +381,7 @@ const currentPageSize = computed({
         }"
         sticky
         class="w-full"
-        :data="data"
+        :data="displayedData"
         :columns="columns"
         :ui="{
           base: 'table-fixed border-separate border-spacing-0',
@@ -401,6 +431,12 @@ const currentPageSize = computed({
         :count="1"
         entity="department"
         @confirm="handleDeleteById"
+      />
+
+      <DepartmentsEditModal
+        v-model:open="isEditModalOpen"
+        :department="selectedEditDepartment"
+        @success="refresh"
       />
     </template>
   </UDashboardPanel>

@@ -243,7 +243,7 @@ const columns: TableColumn<SampleType>[] = [
   },
 ];
 
-const searchQuery = <any>computed({
+const searchQuery = computed<string>({
   get: () =>
     (table.value?.tableApi?.getColumn("name")?.getFilterValue() as string) ||
     "",
@@ -254,7 +254,7 @@ const searchQuery = <any>computed({
   },
 });
 
-const currentPageSize = <any>computed({
+const currentPageSize = computed<number>({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
   set: (value: number) => {
     table.value?.tableApi?.setPageSize(value);

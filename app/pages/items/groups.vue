@@ -2,7 +2,8 @@
 type Department = {
   id: string,
   name: string,
-  code?: string | null
+  code?: string | null,
+  type?: 'office' | 'medical' | null
 }
 
 type GroupNode = {
@@ -130,8 +131,10 @@ async function fetchDepartments() {
   loadingDepartments.value = true
   try {
     const res = await api.get('/medical/departments')
-    const payload = res.data?.data
-    departments.value = Array.isArray(payload) ? payload : []
+    const payload = res.data?.data as Department[] | undefined
+    departments.value = Array.isArray(payload)
+      ? payload.filter(department => department.type === 'medical')
+      : []
     if (!selectedDepartmentId.value) {
       selectedDepartmentId.value = departments.value[0]?.id ?? ''
     }

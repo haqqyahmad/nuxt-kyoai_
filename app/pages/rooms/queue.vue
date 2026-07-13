@@ -92,7 +92,7 @@ const {
   'room-assignment-me',
   async () => {
     try {
-      const res = await api.get('/medical/room-assignments/me', {
+      const res = await api.get('/room-assignments/me', {
         params: { assignedDate: today }
       })
 
@@ -264,28 +264,36 @@ onBeforeUnmount(stopPolling)
 
             <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-4">
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Total</p>
+                <p class="text-xs text-muted">
+                  Total
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.total }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Waiting</p>
+                <p class="text-xs text-muted">
+                  Waiting
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.waiting }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">Called</p>
+                <p class="text-xs text-muted">
+                  Called
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.called }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">In Progress</p>
+                <p class="text-xs text-muted">
+                  In Progress
+                </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
                   {{ activeStats.inProgress }}
                 </p>
@@ -362,14 +370,18 @@ onBeforeUnmount(stopPolling)
             <div class="space-y-4">
               <div class="grid grid-cols-2 gap-3 text-sm">
                 <div class="rounded-lg bg-muted/40 p-3">
-                  <p class="text-xs text-muted">No RM</p>
+                  <p class="text-xs text-muted">
+                    No RM
+                  </p>
                   <p class="mt-1 font-medium text-highlighted">
                     {{ item.queueEntry?.registration?.patient?.PatientId || '-' }}
                   </p>
                 </div>
 
                 <div class="rounded-lg bg-muted/40 p-3">
-                  <p class="text-xs text-muted">Jenis antrian</p>
+                  <p class="text-xs text-muted">
+                    Jenis antrian
+                  </p>
                   <p class="mt-1 font-medium text-highlighted">
                     {{ item.queueEntry?.type || '-' }}
                   </p>
