@@ -5,52 +5,7 @@ defineProps<{
   collapsed?: boolean
 }>()
 
-const { user, fetchUser } = useUser()
-const { isPic } = await useCurrentUser()
-
-onMounted(async () => {
-  const { getToken } = useAuth()
-  const token = getToken()
-
-  console.log('TOKEN:', token)
-
-  if (token) {
-    await fetchUser()
-  }
-})
-
-console.log('USER:', user.value?.data?.data?.name)
-
-function capitalizeWords(text?: string | null) {
-  if (!text) return 'User'
-
-  return text
-    .toLowerCase()
-    .split(' ')
-    .filter(Boolean)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-const userDisplay = computed(() => {
-  const name = user.value?.data?.data?.name
-  const avatar = user.value?.data?.data?.avatar
-
-  return {
-    name: capitalizeWords(name),
-    avatar: {
-      src: avatar || '/default-avatar.png',
-      alt: name || 'User'
-    }
-  }
-})
-
-const userRoles = computed(() =>
-  user.value?.data?.data?.roles?.map((item: { role?: { name?: string } }) => item.role?.name) || []
-)
-
-console.log('User Display', user.value?.data?.data?.name)
-console.log('User Roles', userRoles.value)
+const { isPic, roles: currentRoles, user: currentUser } = await useCurrentUser()
 
 function formatRoleName(role?: string) {
   if (!role) return '-'
@@ -63,20 +18,31 @@ function formatRoleName(role?: string) {
     .join(' ')
 }
 
-const teams = computed(() => {
-  const roles = user.value?.data?.data?.roles || []
+const userDisplay = computed(() => {
+  const name = currentUser.value?.name
+  const avatar = currentUser.value?.avatar
 
-  if (isPic.value) {
-    return [
-      {
-        label: 'PIC',
-        avatar: userDisplay.value.avatar
-      }
-    ]
+  return {
+    name: name ? formatRoleName(name) : 'User',
+    avatar: {
+      src: avatar || '/default-avatar.png',
+      alt: name || 'User'
+    }
+  }
+})
+
+const teams = computed(() => {
+  const roleNames = currentRoles.value
+
+  if (!roleNames.length) {
+    return [{
+      label: isPic.value ? 'PIC' : 'User',
+      avatar: userDisplay.value.avatar
+    }]
   }
 
-  return roles.map((item: { role?: { name?: string } }) => ({
-    label: formatRoleName(item.role?.name),
+  return roleNames.map(name => ({
+    label: formatRoleName(name),
     avatar: userDisplay.value.avatar
   }))
 })

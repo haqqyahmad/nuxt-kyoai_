@@ -4,6 +4,13 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const toast = useToast()
+const { permissions, roles } = await useCurrentUser()
+const { hasRouteAccess } = useRoutePermission()
+
+const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+const isRestrictedUser = computed(() =>
+  roles.value.some(r => restrictedRoles.includes(r))
+)
 
 const open = ref(false)
 const openPrivacyPolicy = ref(false)
@@ -20,9 +27,12 @@ const menuGroups: Record<string, string[]> = {
   'Medical': [
     '/questionnaire',
     '/rooms',
-    '/rooms/assignments',
     '/rooms/types',
     '/services'
+  ],
+  'Examination': [
+    '/rooms/assignments',
+    '/rooms/queue'
   ],
   'Items': [
     '/items/mcu',
@@ -50,6 +60,42 @@ const menuGroups: Record<string, string[]> = {
     '/hris/attendance/shift-configuration',
     '/hris/attendance/shift-schedule'
   ]
+}
+
+const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/settings']
+
+function collectItemRoutes(item: NavigationMenuItem): string[] {
+  if (item.to) return [item.to]
+  if (item.children) return (item.children as NavigationMenuItem[]).flatMap(collectItemRoutes)
+  return []
+}
+
+function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
+  return items.reduce<NavigationMenuItem[]>((acc, item) => {
+    if (isRestrictedUser.value) {
+      const routes = collectItemRoutes(item)
+      const allowed = routes.some(r => restrictedAllowedRoutes.includes(r))
+      if (!allowed) return acc
+    }
+
+    if (item.children) {
+      const filtered = filterSidebarItems(item.children as NavigationMenuItem[])
+      if (filtered.length > 0) {
+        acc.push({ ...item, children: filtered })
+      }
+      return acc
+    }
+
+    if (item.to) {
+      if (hasRouteAccess(item.to, permissions.value)) {
+        acc.push(item)
+      }
+      return acc
+    }
+
+    acc.push(item)
+    return acc
+  }, [])
 }
 
 // State untuk menu yang aktif terbuka
@@ -113,7 +159,7 @@ const updateMenuState = (menuName: string, isOpen: boolean) => {
 }
 
 const links = computed<NavigationMenuItem[][]>(() => [
-  [
+  filterSidebarItems([
     {
       label: 'Dashboard',
       icon: 'i-lucide-house',
@@ -186,16 +232,30 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/rooms'
         },
         {
-          label: 'Room Assignment',
-          to: '/rooms/assignments'
-        },
-        {
           label: 'Room Types',
           to: '/rooms/types'
         },
         {
           label: 'Services',
           to: '/services'
+        }
+      ]
+    },
+    {
+      label: 'Examination',
+      icon: 'i-lucide-stethoscope',
+      type: 'trigger',
+      // Gunakan activeOpenMenu untuk kontrol defaultOpen
+      open: menuOpenState.value['Examination'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Examination', val),
+      children: [
+        {
+          label: 'Room Assignment',
+          to: '/rooms/assignments'
+        },
+        {
+          label: 'Room Queue',
+          to: '/rooms/queue'
         }
       ]
     },
@@ -286,7 +346,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
       icon: 'i-lucide-settings',
       to: '/settings'
     }
-  ],
+  ]),
   []
 ])
 

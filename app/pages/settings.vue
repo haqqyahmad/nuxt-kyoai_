@@ -2,20 +2,22 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+const { permissions } = await useCurrentUser()
+
 const wideSettingsPages = ['/settings/permissions']
-const links = [
-  [
+
+function hasPermission(perm: string) {
+  return permissions.value.some(p => p === perm || p.startsWith(`${perm}:`))
+}
+
+const links = computed<NavigationMenuItem[][]>(() => {
+  const items: NavigationMenuItem[] = [
     {
       label: 'Profile',
       icon: 'i-lucide-user',
       to: '/settings',
       exact: true
     },
-    // {
-    //   label: 'Members',
-    //   icon: 'i-lucide-users',
-    //   to: '/settings/members'
-    // },
     {
       label: 'Notifications',
       icon: 'i-lucide-bell',
@@ -25,19 +27,27 @@ const links = [
       label: 'Security',
       icon: 'i-lucide-shield',
       to: '/settings/security'
-    },
-    {
+    }
+  ]
+
+  if (hasPermission('role')) {
+    items.push({
       label: 'Roles',
       icon: 'i-lucide-circle-user-round',
       to: '/settings/roles'
-    },
-    {
+    })
+  }
+
+  if (hasPermission('permission')) {
+    items.push({
       label: 'Permission',
       icon: 'i-lucide-shield-check',
       to: '/settings/permissions'
-    }
-  ]
-] satisfies NavigationMenuItem[][]
+    })
+  }
+
+  return [items]
+})
 
 const isWidePage = computed(() =>
   wideSettingsPages.some(path => route.path === path || route.path.startsWith(`${path}/`))

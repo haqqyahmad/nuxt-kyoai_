@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
-// import type { AxiosInstance } from "axios";
 
 const api = useApi()
 const { setToken } = useAuth()
@@ -12,45 +11,37 @@ definePageMeta({
   middleware: 'guest'
 })
 
-// const loading = ref(false)
-// const open = ref(false)
-
-// =======================
-// 🧾 Fields
-// =======================
+const loading = ref(false)
 
 const fields = computed<AuthFormField[]>(() => [
   {
-    'name': 'email',
-    'type': 'email',
-    'label': 'Email',
-    'placeholder': 'Enter your email',
-    'required': true,
-    'autofocus': true,
+    name: 'email',
+    type: 'email',
+    label: 'Email',
+    placeholder: 'Enter your email',
+    required: true,
+    autofocus: true,
     'modelValue': loginState.email,
-    'onUpdate:modelValue': (val: string) => (loginState.email = val)
+    'onUpdate:modelValue': (val: string) => { loginState.email = val }
   },
   {
-    'name': 'password',
-    'label': 'Password',
-    'type': 'password',
-    'placeholder': 'Enter your password',
-    'required': true,
+    name: 'password',
+    label: 'Password',
+    type: 'password',
+    placeholder: 'Enter your password',
+    required: true,
     'modelValue': loginState.password,
-    'onUpdate:modelValue': (val: string) => (loginState.password = val)
+    'onUpdate:modelValue': (val: string) => { loginState.password = val }
   },
   {
-    'name': 'remember',
-    'label': 'Remember me',
-    'type': 'checkbox',
+    name: 'remember',
+    label: 'Remember me',
+    type: 'checkbox',
     'modelValue': loginState.remember,
-    'onUpdate:modelValue': (val: boolean) => (loginState.remember = val)
+    'onUpdate:modelValue': (val: boolean) => { loginState.remember = val }
   }
 ])
 
-// =======================
-// ✅ Schema (FIXED)
-// =======================
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email'),
   password: z
@@ -59,14 +50,12 @@ const schema = z.object({
     .min(8, 'Must be at least 8 characters')
 })
 
-// type Schema = z.output<typeof schema>;
-// type RegSchema = z.output<typeof Regschema>;
 type Schema = z.infer<typeof schema>
 
-// =======================
-// 🔐 LOGIN
-// =======================
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
+  if (loading.value) return
+  loading.value = true
+
   try {
     const res = await api.post('/auth/login', {
       email: payload.data.email,
@@ -79,13 +68,25 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       color: 'success'
     })
 
-    await navigateTo('/')
-  } catch (err: any) {
+    const roles: string[] = res.data.data.roles ?? []
+    const redirectRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+    const target = roles.some(r => redirectRoles.includes(r))
+      ? '/rooms/assignments'
+      : '/'
+
+    await navigateTo(target)
+  } catch (err: unknown) {
+    const message =
+      err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : 'Koneksi gagal. Periksa jaringan Anda.'
     toast.add({
       title: 'Login gagal',
-      description: err.response?.data?.message || 'Terjadi kesalahan',
+      description: message || 'Terjadi kesalahan',
       color: 'error'
     })
+  } finally {
+    loading.value = false
   }
 }
 
@@ -130,7 +131,8 @@ const loginState = reactive({
           :submit="{
             label: 'Login',
             color: 'secondary',
-            size: 'lg'
+            size: 'lg',
+            loading: loading
           }"
           @submit="onSubmit"
         />

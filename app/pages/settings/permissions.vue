@@ -40,25 +40,10 @@ type DocumentType = {
 }
 
 type PermissionAction = {
+  id?: number
   key: string
   label: string
 }
-
-const DEFAULT_ACTIONS: PermissionAction[] = [
-  { key: 'select', label: 'Select' },
-  { key: 'read', label: 'Read' },
-  { key: 'write', label: 'Write' },
-  { key: 'create', label: 'Create' },
-  { key: 'delete', label: 'Delete' },
-  { key: 'print', label: 'Print' },
-  { key: 'email', label: 'Email' },
-  { key: 'report', label: 'Report' },
-  { key: 'export', label: 'Export' },
-  { key: 'share', label: 'Share' },
-  { key: 'import', label: 'Import' },
-  { key: 'only-if-creator', label: 'Only If Creator' }
-]
-const ACTION_STORAGE_KEY = 'settings.permission.actions'
 
 const { data: permissionsData, refresh: refreshPermissions } = await useAsyncData<Permission[]>(
   'permissions',
@@ -91,11 +76,18 @@ const { data: rolesData, refresh: refreshRoles } = await useAsyncData<Role[]>(
   { default: () => [] }
 )
 
-const selectedRoleId = ref(typeof route.query.roleId === 'string' ? route.query.roleId : '')
+const selectedRoleId = ref<string | null>(typeof route.query.roleId === 'string' ? route.query.roleId : null)
 const selectedDocumentType = ref('all')
 const documentTypeModalOpen = ref(false)
 const actionManagerOpen = ref(false)
+const addPermissionModalOpen = ref(false)
 const saving = ref(false)
+
+const addPermissionForm = reactive({
+  documentType: '',
+  action: '',
+  roleId: ''
+})
 
 const documentTypeForm = reactive({
   key: '',
@@ -105,8 +97,16 @@ const actionForm = reactive({
   key: '',
   label: ''
 })
-const editingActionKey = ref('')
-const actionCatalog = ref<PermissionAction[]>([...DEFAULT_ACTIONS])
+const editingActionId = ref<number | null>(null)
+
+const { data: actionsData, refresh: refreshActions } = await useAsyncData<PermissionAction[]>(
+  'permission-actions',
+  async () => {
+    const res = await api.get('/settings/permission-actions')
+    return res.data.data ?? res.data ?? []
+  },
+  { default: () => [] }
+)
 
 const data = computed(() => [...permissionsData.value].sort((a, b) => a.id - b.id))
 const documentTypes = computed(() =>
@@ -115,13 +115,14 @@ const documentTypes = computed(() =>
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label))
 )
 const roles = computed(() => [...rolesData.value].sort((a, b) => a.id - b.id))
-const actions = computed(() => [...actionCatalog.value])
+const actions = computed(() => [...actionsData.value])
 
 const selectedRole = computed(() => {
-  if (!roles.value.length) return null
-  if (!selectedRoleId.value) return roles.value[0] ?? null
-  return roles.value.find(role => String(role.id) === selectedRoleId.value) ?? roles.value[0] ?? null
+  if (!selectedRoleId.value || !roles.value.length) return null
+  return roles.value.find(role => String(role.id) === selectedRoleId.value) ?? null
 })
+
+const isRoleSelected = computed(() => selectedRoleId.value !== null)
 
 watch(
   () => route.query.roleId,
@@ -145,43 +146,11 @@ watch(selectedRoleId, (value) => {
   })
 })
 
-function loadActions() {
-  if (!import.meta.client) return
-
-  const saved = localStorage.getItem(ACTION_STORAGE_KEY)
-  if (!saved) return
-
-  try {
-    const parsed = JSON.parse(saved) as PermissionAction[]
-    if (Array.isArray(parsed) && parsed.length) {
-      actionCatalog.value = parsed
-    }
-  } catch {
-    actionCatalog.value = [...DEFAULT_ACTIONS]
-  }
-}
-
-function persistActions() {
-  if (!import.meta.client) return
-  localStorage.setItem(ACTION_STORAGE_KEY, JSON.stringify(actionCatalog.value))
-}
-
-onMounted(() => {
-  loadActions()
-})
-
-watch(actionCatalog, () => {
-  persistActions()
-}, { deep: true })
-
 watch(
   roles,
   (list) => {
-    if (!selectedRoleId.value && list.length) {
-      selectedRoleId.value = String(list[0].id)
-    }
     if (selectedRoleId.value && !list.some(role => String(role.id) === selectedRoleId.value)) {
-      selectedRoleId.value = String(list[0]?.id ?? '')
+      selectedRoleId.value = null
     }
   },
   { immediate: true }
@@ -253,8 +222,20 @@ const permissionGroups = computed<PermissionGroup[]>(() => {
 })
 
 const visibleGroups = computed(() => {
-  if (selectedDocumentType.value === 'all') return permissionGroups.value
-  return permissionGroups.value.filter(group => group.key === selectedDocumentType.value)
+  let groups = permissionGroups.value
+
+  if (selectedDocumentType.value !== 'all') {
+    groups = groups.filter(group => group.key === selectedDocumentType.value)
+  }
+
+  if (isRoleSelected.value && selectedRole.value) {
+    const rolePermissionIds = getPermissionSet(selectedRole.value)
+    groups = groups.filter(group =>
+      group.permissions.some(p => rolePermissionIds.has(p.id))
+    )
+  }
+
+  return groups
 })
 
 const documentTypeOptions = computed(() => [
@@ -265,12 +246,13 @@ const documentTypeOptions = computed(() => [
   }))
 ])
 
-const roleOptions = computed(() =>
-  roles.value.map(role => ({
+const roleOptions = computed(() => [
+  { label: 'All Roles', value: null },
+  ...roles.value.map(role => ({
     label: role.name,
     value: String(role.id)
   }))
-)
+])
 
 function getPermissionSet(role: Role | null) {
   return new Set(role?.permissions.map(item => item.permissionId) ?? [])
@@ -337,7 +319,7 @@ async function submitDocumentType() {
 function resetActionForm() {
   actionForm.key = ''
   actionForm.label = ''
-  editingActionKey.value = ''
+  editingActionId.value = null
 }
 
 function openActionManager() {
@@ -348,69 +330,92 @@ function openActionManager() {
 function startEditAction(action: PermissionAction) {
   actionForm.key = action.key
   actionForm.label = action.label
-  editingActionKey.value = action.key
+  editingActionId.value = action.id ?? null
   actionManagerOpen.value = true
 }
 
-function saveActionForm() {
+async function saveActionForm() {
   const key = normalizeAction(actionForm.key)
   const label = actionForm.label.trim()
 
-  if (!key || !label) return
+  if (!key || !label || saving.value) return
 
-  const nextAction = { key, label }
-  const existsIndex = actionCatalog.value.findIndex(item => item.key === key)
+  saving.value = true
+  try {
+    const payload = { key, label }
 
-  if (editingActionKey.value) {
-    const originalIndex = actionCatalog.value.findIndex(item => item.key === editingActionKey.value)
-    if (originalIndex === -1) return
-
-    if (key !== editingActionKey.value && existsIndex !== -1) {
-      toast.add({
-        title: 'Gagal',
-        description: 'Action key sudah digunakan',
-        color: 'error'
-      })
-      return
+    if (editingActionId.value) {
+      await api.put(`/settings/permission-actions/${editingActionId.value}`, payload)
+    } else {
+      await api.post('/settings/permission-actions', payload)
     }
 
-    actionCatalog.value[originalIndex] = nextAction
-  } else {
-    if (existsIndex !== -1) {
-      toast.add({
-        title: 'Gagal',
-        description: 'Action key sudah digunakan',
-        color: 'error'
-      })
-      return
-    }
-
-    actionCatalog.value = [...actionCatalog.value, nextAction]
-  }
-
-  persistActions()
-  actionManagerOpen.value = false
-  resetActionForm()
-
-  toast.add({
-    title: 'Berhasil',
-    description: 'Action berhasil disimpan',
-    color: 'success'
-  })
-}
-
-function deleteAction(key: string) {
-  actionCatalog.value = actionCatalog.value.filter(item => item.key !== key)
-  persistActions()
-  if (editingActionKey.value === key) {
+    await refreshActions()
+    actionManagerOpen.value = false
     resetActionForm()
+    toast.add({
+      title: 'Berhasil',
+      description: 'Action berhasil disimpan',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menyimpan action'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
   }
 }
 
-function restoreDefaultActions() {
-  actionCatalog.value = [...DEFAULT_ACTIONS]
-  persistActions()
-  resetActionForm()
+async function deleteAction(id: number) {
+  if (saving.value) return
+
+  saving.value = true
+  try {
+    await api.delete(`/settings/permission-actions/${id}`)
+    await refreshActions()
+    toast.add({
+      title: 'Berhasil',
+      description: 'Action berhasil dihapus',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menghapus action'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function syncActions() {
+  if (saving.value) return
+
+  saving.value = true
+  try {
+    await api.post('/settings/permission-actions/sync')
+    await refreshActions()
+    toast.add({
+      title: 'Berhasil',
+      description: 'Action berhasil disinkronisasi dari permission yang ada',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal sinkronisasi action'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
 }
 
 async function ensurePermission(name: string) {
@@ -510,6 +515,71 @@ function ruleActions(group: PermissionGroup) {
     }
   })
 }
+
+function checkedPermissionCount(group: PermissionGroup): number {
+  if (!selectedRole.value) return 0
+  const rolePermissionIds = getPermissionSet(selectedRole.value)
+  return group.permissions.filter(p => rolePermissionIds.has(p.id)).length
+}
+
+function openAddPermissionModal() {
+  addPermissionForm.documentType = ''
+  addPermissionForm.action = ''
+  addPermissionForm.roleId = selectedRoleId.value ?? ''
+  addPermissionModalOpen.value = true
+}
+
+async function submitAddPermission() {
+  const docType = normalizeDocumentType(addPermissionForm.documentType)
+  const action = normalizeAction(addPermissionForm.action)
+  const roleId = addPermissionForm.roleId
+
+  if (!docType || !action || !roleId || saving.value) return
+
+  saving.value = true
+  try {
+    const name = `${docType}:${action}`
+    const existing = data.value.find(p => p.name === name)
+    let permissionId: number
+
+    if (existing) {
+      permissionId = existing.id
+    } else {
+      const res = await api.post('/settings/permissions', { name })
+      await refreshPermissions()
+      const created = permissionsData.value.find(p => p.name === name)
+      if (!created) throw new Error('Gagal membuat permission')
+      permissionId = created.id
+    }
+
+    const selectedRole = roles.value.find(r => String(r.id) === roleId)
+    if (!selectedRole) throw new Error('Role tidak ditemukan')
+
+    const currentIds = new Set(getPermissionSet(selectedRole))
+    currentIds.add(permissionId)
+    await api.post(`/settings/roles/${roleId}/permissions`, {
+      permissionIds: [...currentIds]
+    })
+    await refreshRoles()
+
+    toast.add({
+      title: 'Berhasil',
+      description: `Permission "${name}" ditambahkan ke role`,
+      color: 'success'
+    })
+
+    addPermissionModalOpen.value = false
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menambah permission'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -535,6 +605,14 @@ function ruleActions(group: PermissionGroup) {
           </div>
 
           <div class="flex items-center gap-2">
+            <UButton
+              color="primary"
+              variant="solid"
+              icon="i-lucide-plus-circle"
+              @click="openAddPermissionModal"
+            >
+              Add Role Permission
+            </UButton>
             <UButton
               color="neutral"
               variant="solid"
@@ -619,7 +697,7 @@ function ruleActions(group: PermissionGroup) {
                     {{ group.label }}
                   </p>
                   <p class="mt-1 text-xs text-muted">
-                    {{ group.permissions.length }} permission
+                    {{ selectedRole ? `${checkedPermissionCount(group)} permission` : `${group.permissions.length} permission` }}
                   </p>
                 </div>
 
@@ -627,10 +705,6 @@ function ruleActions(group: PermissionGroup) {
                   <p class="truncate font-medium text-highlighted">
                     {{ selectedRole?.name ?? '-' }}
                   </p>
-                  <label class="mt-2 flex items-center gap-2 text-xs text-muted">
-                    <UCheckbox :model-value="false" />
-                    Only If Creator
-                  </label>
                 </div>
 
                 <div class="pt-0.5 font-semibold text-highlighted">
@@ -742,6 +816,94 @@ function ruleActions(group: PermissionGroup) {
         </template>
       </UModal>
 
+      <UModal v-model:open="addPermissionModalOpen" :ui="{ content: 'sm:max-w-lg' }">
+        <template #content>
+          <UCard :ui="{ body: 'p-0' }">
+            <template #header>
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-lg font-semibold">
+                    Add Role Permission
+                  </h2>
+                  <p class="text-sm text-muted">
+                    Tambahkan permission baru ke role tertentu.
+                  </p>
+                </div>
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  @click="addPermissionModalOpen = false"
+                />
+              </div>
+            </template>
+
+            <form class="space-y-4 p-6" @submit.prevent="submitAddPermission">
+              <UFormField label="Document Type" required>
+                <USelectMenu
+                  v-model="addPermissionForm.documentType"
+                  :items="permissionGroups.map(g => ({ label: g.label, value: g.key }))"
+                  value-key="value"
+                  label-key="label"
+                  class="w-full"
+                  placeholder="Pilih document type"
+                />
+              </UFormField>
+
+              <UFormField label="Action" required>
+                <USelectMenu
+                  v-model="addPermissionForm.action"
+                  :items="actions"
+                  value-key="key"
+                  label-key="label"
+                  class="w-full"
+                  placeholder="Pilih action"
+                />
+              </UFormField>
+
+              <UFormField label="Role" required>
+                <USelectMenu
+                  v-model="addPermissionForm.roleId"
+                  :items="roleOptions"
+                  value-key="value"
+                  label-key="label"
+                  class="w-full"
+                  placeholder="Pilih role"
+                />
+              </UFormField>
+
+              <div class="rounded-xl border border-default bg-elevated/40 p-4 text-sm">
+                <p class="text-xs uppercase tracking-wide text-muted">
+                  Preview
+                </p>
+                <p class="mt-1 font-medium text-highlighted">
+                  {{ addPermissionForm.documentType && addPermissionForm.action ? `${normalizeDocumentType(addPermissionForm.documentType)}:${normalizeAction(addPermissionForm.action)}` : '-' }}
+                </p>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  type="button"
+                  @click="addPermissionModalOpen = false"
+                >
+                  Cancel
+                </UButton>
+                <UButton
+                  color="primary"
+                  type="submit"
+                  icon="i-lucide-save"
+                  :loading="saving"
+                >
+                  Save
+                </UButton>
+              </div>
+            </form>
+          </UCard>
+        </template>
+      </UModal>
+
       <UModal
         v-model:open="actionManagerOpen"
         :ui="{ content: 'w-[calc(100vw-1rem)] sm:max-w-2xl h-[90dvh] overflow-hidden' }"
@@ -791,15 +953,16 @@ function ruleActions(group: PermissionGroup) {
                       icon="i-lucide-save"
                       @click="saveActionForm"
                     >
-                      {{ editingActionKey ? 'Update' : 'Add' }}
+                      {{ editingActionId ? 'Update' : 'Add' }}
                     </UButton>
                     <UButton
                       color="neutral"
                       variant="soft"
                       type="button"
-                      @click="restoreDefaultActions"
+                      icon="i-lucide-refresh-cw"
+                      @click="syncActions"
                     >
-                      Reset
+                      Sync
                     </UButton>
                   </div>
                 </div>
@@ -847,7 +1010,7 @@ function ruleActions(group: PermissionGroup) {
                                 color="error"
                                 variant="ghost"
                                 icon="i-lucide-trash-2"
-                                @click="deleteAction(action.key)"
+                                @click="deleteAction(action.id!)"
                               />
                             </div>
                           </td>

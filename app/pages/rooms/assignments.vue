@@ -9,16 +9,24 @@ const toast = useToast()
 
 const {
   user: currentUser,
+  roles: userRoles,
   isPic,
   canSelfAssign,
   allowedSelfRoomIds,
   allowedSelfRooms,
-  allowedSelfRoomTypeCodes
+  allowedSelfRoomTypeCodes,
+  refresh: refreshUser
 } = await useCurrentUser()
+
+const restrictedStaffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+const isRestrictedStaff = computed(() =>
+  userRoles.value.some(r => restrictedStaffRoles.includes(r))
+)
 
 const {
   rooms,
-  pending: roomsPending
+  pending: roomsPending,
+  refresh: refreshRooms
 } = useRooms()
 
 const {
@@ -504,6 +512,7 @@ onMounted(async () => {
 
         <template #right>
           <UButton
+            v-if="!isRestrictedStaff"
             to="/rooms"
             label="Rooms"
             icon="i-lucide-door-open"
@@ -512,6 +521,7 @@ onMounted(async () => {
           />
 
           <UButton
+            v-if="!isRestrictedStaff"
             to="/rooms/types"
             label="Room Types"
             icon="i-lucide-folder-cog"
@@ -766,7 +776,19 @@ onMounted(async () => {
           v-else-if="canSelfAssign"
           class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]"
         >
-          <UCard>
+          <template v-if="!selfRoomOptions.length">
+            <UAlert
+              color="warning"
+              variant="soft"
+              icon="i-lucide-alert-triangle"
+              title="Belum ada room yang tersedia"
+              description="Saat ini tidak ada room yang bisa dipilih untuk self assignment. Hubungi admin untuk mendapatkan akses room."
+              class="xl:col-span-2"
+            />
+          </template>
+
+          <template v-else>
+            <UCard>
             <template #header>
               <div>
                 <h2 class="text-lg font-semibold text-highlighted">
@@ -922,6 +944,7 @@ onMounted(async () => {
               Belum ada assignment hari ini. Silakan pilih room yang diizinkan.
             </div>
           </UCard>
+          </template>
         </div>
 
         <UAlert
@@ -1010,7 +1033,7 @@ onMounted(async () => {
                   color="neutral"
                   variant="soft"
                   :loading="pending || roomsPending || roomTypesPending || usersPending"
-                  @click="refresh"
+                  @click="refresh(); refreshUser(); refreshRooms()"
                 >
                   Refresh
                 </UButton>
