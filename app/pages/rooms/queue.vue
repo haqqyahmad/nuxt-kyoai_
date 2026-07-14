@@ -1,24 +1,4 @@
-﻿<script setup lang="ts">
-type RoomSession = {
-  id: string
-  roomId: string
-  roomTypeId: string
-  startedAt: string
-  endedAt?: string | null
-  exitReason?: string | null
-  room?: {
-    id: string
-    code: string
-    name: string
-    staffCapacity?: number | null
-  } | null
-  roomType?: {
-    id: string
-    code: string
-    name: string
-  } | null
-}
-
+<script setup lang="ts">
 type RoomAssignment = {
   id: string
   assignedDate: string
@@ -39,42 +19,23 @@ type RoomAssignment = {
   } | null
 }
 
-type SampleCollectionItem = {
+type RoomSession = {
   id: string
-  isPrimary?: boolean
-  item?: {
+  roomId: string
+  roomTypeId: string
+  startedAt: string
+  endedAt?: string | null
+  exitReason?: string | null
+  room?: {
     id: string
-    code?: string | null
-    name?: string | null
+    code: string
+    name: string
   } | null
-}
-
-type SampleCollection = {
-  id: string
-  status: string
-  sampleTypeId: string
-  tubeCount?: number | null
-  barcode?: string | null
-  sampleType?: {
+  roomType?: {
     id: string
-    code?: string | null
-    name?: string | null
+    code: string
+    name: string
   } | null
-  queueEntry?: {
-    id: string
-    queueCode?: string | null
-    registration?: {
-      id_reg?: string | null
-      patient?: {
-        id: string | number
-        PatientId?: string | null
-        firstName?: string | null
-        middleName?: string | null
-        lastName?: string | null
-      } | null
-    } | null
-  } | null
-  items?: SampleCollectionItem[]
 }
 
 type PatientName = {
@@ -89,12 +50,14 @@ type RoomQueueItem = {
   tierOrder: number
   status: string
   unlockedAt?: string | null
+  doneAt?: string | null
   queueEntry?: {
     id: string
     queueCode: string
     queueNumber: number
     type: string
     checkinAt?: string | null
+    doneAt?: string | null
     registration?: {
       id: number
       id_reg?: string | null
@@ -110,6 +73,14 @@ type RoomQueueItem = {
         phone?: string | null
       } | null
     } | null
+    sampleCollections?: Array<{
+      id: string
+      status: string
+      sampleType?: {
+        id: string
+        name?: string | null
+      } | null
+    }>
   } | null
   stageItems?: Array<{
     id: string
@@ -124,39 +95,75 @@ type RoomQueueItem = {
         id: string
         code?: string | null
         name?: string | null
-        department?: {
-          id: string
-          name: string
-        } | null
-        group?: {
-          id: string
-          name: string
-        } | null
       } | null
     } | null
   }>
 }
 
+type QueueHistoryRow = {
+  id: string
+  queueCode: string
+  queueType: string
+  tierOrder: number
+  patientName: string
+  patientId: string
+  roomLabel: string
+  itemSummary: string
+  stageSummary: string
+  sampleSummary: string
+  status: string
+  checkinAt: string | null
+  completedAt: string | null
+  registrationId?: number | null
+}
+
+type WaitingRow = {
+  id: string
+  stageId: string | null
+  queueCode: string
+  queueType: string
+  tierOrder: number
+  patientName: string
+  patientId: string
+  itemSummary: string
+  stageSummary: string
+  status: string
+  checkinAt: string | null
+}
+
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
+const { roles } = await useCurrentUser()
+const {
+  session: roomSession,
+  pending: roomSessionPending,
+  refresh: refreshRoomSession,
+  enterRoomSession,
+  exitRoomSession
+} = await useRoomSession()
+const {
+  roomTypeOptions,
+  pending: roomTypesPending
+} = await useRoomTypes()
 
 const today = new Date().toISOString().slice(0, 10)
-const polling = ref(true)
-let pollingInterval: ReturnType<typeof setInterval> | null = null
-const roomActionLoading = ref(false)
-const queueOperationLoading = ref<Record<string, boolean>>({})
-const isExitOpen = ref(false)
-const exitReason = ref('')
+const isWaitingModalOpen = ref(false)
+const isEnterRoomModalOpen = ref(false)
+const isExitRoomModalOpen = ref(false)
+const roomEnterActionLoading = ref(false)
+const roomExitActionLoading = ref(false)
+const waitingRowActionLoading = ref<Record<string, boolean>>({})
+const selectedWaitingRoomTypeId = ref('')
+const waitingStatusFilter = ref<'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'>('WAITING')
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (typeof error === 'object' && error && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response
-    return response?.data?.message || fallback
-  }
-
-  return fallback
+function normalizeRoleName(role?: string | null) {
+  return (role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
 }
+
+const isSuperAdmin = computed(() =>
+  roles.value.some(role => normalizeRoleName(role).includes('superadmin'))
+)
 
 const {
   data: assignmentData,
@@ -189,32 +196,28 @@ const {
 
 const assignment = computed(() => assignmentData.value ?? null)
 const roomTypeId = computed(() => assignment.value?.roomTypeId ?? null)
-const isLabRoom = computed(() => assignment.value?.roomType?.code === 'LAB')
-const isSampleCollectionRoom = computed(() => {
-  const roomName = (activeSession.value?.room?.name || assignment.value?.room?.name || '').toLowerCase()
-  return roomName.includes('collect')
+const activeRoomSession = computed(() => {
+  if (!roomSession.value?.id || roomSession.value.endedAt) return null
+  return roomSession.value as RoomSession
 })
+const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
+const effectiveWaitingRoomTypeId = computed(() =>
+  isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
+)
 
 const {
-  session: roomSession,
-  pending: sessionPending,
-  refresh: refreshSession,
-  enterRoomSession,
-  exitRoomSession
-} = await useRoomSession()
-
-const {
-  data: queueData,
-  pending: queuePending,
-  refresh: refreshQueue
+  data: historyData,
+  pending: historyPending,
+  refresh: refreshHistory
 } = await useAsyncData<RoomQueueItem[]>(
-  'room-queue-operational',
+  'room-queue-history',
   async () => {
     if (!roomTypeId.value) return []
 
     const res = await api.get(`/medical/exams/queue/room/${roomTypeId.value}`, {
       params: {
         queueDate: today,
+        status: 'DONE',
         limit: 100,
         page: 1,
         _: Date.now()
@@ -231,19 +234,20 @@ const {
   }
 )
 
-const queueItems = computed(() => queueData.value ?? [])
 const {
-  data: sampleCollectionData,
-  pending: sampleCollectionPending,
-  refresh: refreshSampleCollections
-} = await useAsyncData<SampleCollection[]>(
-  'room-sample-collections-operational',
+  data: waitingData,
+  pending: waitingPending,
+  refresh: refreshWaiting
+} = await useAsyncData<RoomQueueItem[]>(
+  'room-queue-waiting',
   async () => {
-    if (!roomTypeId.value || !isLabRoom.value) return []
+    if (!isWaitingModalOpen.value || !effectiveWaitingRoomTypeId.value) return []
+    const status = waitingStatusFilter.value === 'ALL' ? undefined : waitingStatusFilter.value
 
-    const res = await api.get('/medical/exams/queue/samples', {
+    const res = await api.get(`/medical/exams/queue/room/${effectiveWaitingRoomTypeId.value}`, {
       params: {
         queueDate: today,
+        status,
         limit: 100,
         page: 1,
         _: Date.now()
@@ -255,92 +259,100 @@ const {
   },
   {
     default: () => [],
-    watch: [roomTypeId, isLabRoom],
+    watch: [effectiveWaitingRoomTypeId, isWaitingModalOpen, waitingStatusFilter],
     server: false
   }
 )
 
-const sampleCollections = computed(() => sampleCollectionData.value ?? [])
-const visibleSampleCollections = computed(() => {
-  if (!isLabRoom.value) return []
+const historyItems = computed(() =>
+  [...(historyData.value ?? [])]
+    .filter(item => item.status === 'DONE')
+    .sort((a, b) => {
+      const left = new Date(b.doneAt || b.queueEntry?.doneAt || b.queueEntry?.checkinAt || 0).getTime()
+      const right = new Date(a.doneAt || a.queueEntry?.doneAt || a.queueEntry?.checkinAt || 0).getTime()
+      return left - right
+    })
+)
 
-  if (isSampleCollectionRoom.value) {
-    return sampleCollections.value.filter(item => item.status === 'PENDING')
-  }
+const waitingItems = computed(() => waitingData.value ?? [])
 
-  return sampleCollections.value.filter(item => item.status === 'COLLECTED')
-})
-const activeSession = computed(() => {
-  if (!roomSession.value?.id || roomSession.value.endedAt) return null
-  return roomSession.value as RoomSession
-})
-const activeSessionRoomLabel = computed(() => {
-  if (!activeSession.value?.room) return '-'
-  return `${activeSession.value.room.code} - ${activeSession.value.room.name}`
-})
-const activeSessionStartedAt = computed(() => {
-  if (!activeSession.value?.startedAt) return '-'
+const historyRows = computed<QueueHistoryRow[]>(() =>
+  historyItems.value.map((item) => {
+    const registration = item.queueEntry?.registration
+    const patient = registration?.patient
+    const itemNames = (item.examItems ?? [])
+      .map(examItem => examItem.trxExamItem?.item?.name)
+      .filter((value): value is string => Boolean(value))
+    const stageParts = (item.stageItems ?? []).map(stage => `Stage ${stage.stageOrder}: ${getItemStatusLabel(stage.status)}`)
+    const sampleParts = (item.queueEntry?.sampleCollections ?? []).map(sample => `${sample.sampleType?.name || 'Sample'}: ${getSampleStatusLabel(sample.status)}`)
+
+    return {
+      id: item.id,
+      queueCode: item.queueEntry?.queueCode || '-',
+      queueType: item.queueEntry?.type || '-',
+      tierOrder: item.tierOrder,
+      patientName: formatPatientName(patient ?? null),
+      patientId: patient?.PatientId || '-',
+      roomLabel: assignment.value?.roomType?.name
+        ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
+        : `Tier ${item.tierOrder}`,
+      itemSummary: itemNames.length > 0
+        ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
+        : '-',
+      stageSummary: stageParts.length > 0 ? stageParts.join(' | ') : '-',
+      sampleSummary: sampleParts.length > 0 ? sampleParts.join(' | ') : '-',
+      status: item.status,
+      checkinAt: item.queueEntry?.checkinAt ?? null,
+      completedAt: item.doneAt ?? item.queueEntry?.doneAt ?? null,
+      registrationId: registration?.id ?? null
+    }
+  })
+)
+
+const waitingRows = computed<WaitingRow[]>(() =>
+  waitingItems.value.map((item) => {
+    const registration = item.queueEntry?.registration
+    const patient = registration?.patient
+    const itemNames = (item.examItems ?? [])
+      .map(examItem => examItem.trxExamItem?.item?.name)
+      .filter((value): value is string => Boolean(value))
+    const stageParts = (item.stageItems ?? []).map(stage => `Stage ${stage.stageOrder}: ${getItemStatusLabel(stage.status)}`)
+    const waitingStage = (item.stageItems ?? []).find(stage => stage.status === 'WAITING')
+
+    return {
+      id: item.id,
+      stageId: waitingStage?.id ?? null,
+      queueCode: item.queueEntry?.queueCode || '-',
+      queueType: item.queueEntry?.type || '-',
+      tierOrder: item.tierOrder,
+      patientName: formatPatientName(patient ?? null),
+      patientId: patient?.PatientId || '-',
+      itemSummary: itemNames.length > 0
+        ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
+        : '-',
+      stageSummary: stageParts.length > 0 ? stageParts.join(' | ') : '-',
+      status: item.status,
+      checkinAt: item.queueEntry?.checkinAt ?? null
+    }
+  })
+)
+
+const historyStats = computed(() => ({
+  completed: historyRows.value.length,
+  waiting: waitingRows.value.length,
+  access: isSuperAdmin.value ? 'Super Admin' : (roomTypeId.value ? 'Assignment Room' : 'Butuh Assignment')
+}))
+
+function formatQueueDate(dateString?: string | null) {
+  if (!dateString) return '-'
+
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
     timeStyle: 'short'
-  }).format(new Date(activeSession.value.startedAt))
-})
-const roomStaffCapacity = computed(() => assignment.value?.room?.staffCapacity ?? activeSession.value?.room?.staffCapacity ?? null)
-const hasActiveSession = computed(() => activeSession.value !== null)
-const assignmentSourceLabel = computed(() => {
-  if (assignment.value?.assignmentSource === 'SELF') return 'Self Assignment'
-  if (assignment.value?.assignmentSource === 'PIC') return 'PIC Assignment'
-  return '-'
-})
-const roomDisplayLabel = computed(() => {
-  if (!assignment.value?.room) return 'Belum ada room'
-  return `${assignment.value.room.code} - ${assignment.value.room.name}`
-})
-const canShowEnterRoom = computed(() =>
-  Boolean(assignment.value?.roomId)
-  && !hasActiveSession.value
-  && assignment.value?.assignmentSource !== 'SELF'
-)
-const needsSessionSync = computed(() =>
-  Boolean(assignment.value?.roomId)
-  && !hasActiveSession.value
-  && assignment.value?.assignmentSource === 'SELF'
-)
-const sessionStatusLabel = computed(() => {
-  if (hasActiveSession.value) return 'Sesi aktif'
-  if (needsSessionSync.value) return 'Perlu sinkronisasi'
-  return 'Belum aktif'
-})
-
-const activeStats = computed(() => {
-  const total = queueItems.value.length
-  const waiting = queueItems.value.filter(item => item.status === 'WAITING').length
-  const called = queueItems.value.filter(item => item.stageItems?.some(stage => stage.status === 'CALLED')).length
-  const inProgress = queueItems.value.filter(item => item.stageItems?.some(stage => stage.status === 'IN_PROGRESS')).length
-
-  return {
-    total,
-    waiting,
-    called,
-    inProgress
-  }
-})
-
-const sampleStats = computed(() => ({
-  total: visibleSampleCollections.value.length,
-  pending: visibleSampleCollections.value.filter(item => item.status === 'PENDING').length,
-  collected: visibleSampleCollections.value.filter(item => item.status === 'COLLECTED').length,
-  received: visibleSampleCollections.value.filter(item => item.status === 'RECEIVED').length
-}))
-
-function getRoomSessionColor() {
-  return hasActiveSession.value ? 'success' : 'warning'
-}
-
-function getRoomSessionLabel() {
-  if (hasActiveSession.value) return 'Aktif'
-  if (needsSessionSync.value) return 'Perlu sinkronisasi'
-  return 'Belum aktif'
+  }).format(date)
 }
 
 function formatPatientName(patient?: PatientName | null) {
@@ -351,29 +363,24 @@ function formatPatientName(patient?: PatientName | null) {
     .join(' ')
 }
 
-function getStageBadgeColor(status: string) {
+function getItemStatusLabel(status: string) {
+  if (status === 'WAITING') return 'Menunggu dipanggil'
+  if (status === 'CALLED') return 'Pasien diambil'
+  if (status === 'IN_PROGRESS') return 'Sedang diproses'
+  if (status === 'DONE') return 'Selesai'
+  if (status === 'SKIPPED') return 'Skip'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'LOCKED') return 'Terkunci'
+  return 'Menunggu'
+}
+
+function getQueueBadgeColor(status: string) {
   if (status === 'DONE') return 'success'
+  if (status === 'WAITING') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
   return 'neutral'
-}
-
-function getItemStatusLabel(status: string) {
-  if (status === 'DONE') return 'Selesai'
-  if (status === 'CALLED') return 'Dipanggil'
-  if (status === 'IN_PROGRESS') return 'Proses'
-  if (status === 'SKIPPED') return 'Skip'
-  if (status === 'RESCHEDULED') return 'Reschedule'
-  return 'Menunggu'
-}
-
-function getSampleStatusColor(status: string) {
-  if (status === 'RECEIVED') return 'success'
-  if (status === 'COLLECTED') return 'info'
-  if (status === 'REJECTED') return 'error'
-  if (status === 'RESCHEDULED') return 'neutral'
-  return 'warning'
 }
 
 function getSampleStatusLabel(status: string) {
@@ -384,270 +391,211 @@ function getSampleStatusLabel(status: string) {
   return 'Menunggu Ambil'
 }
 
-function getOperationalStage(item: RoomQueueItem) {
-  return (item.stageItems ?? []).find(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status)) ?? null
+function openProcessedDocument(row: QueueHistoryRow) {
+  if (!row.registrationId) return
+
+  router.push({
+    path: '/rooms/exam-results',
+    query: {
+      registrationId: String(row.registrationId),
+      status: 'completed'
+    }
+  })
 }
 
-function canCallPatient(item: RoomQueueItem) {
-  return hasActiveSession.value && getOperationalStage(item)?.status === 'WAITING'
+function getHistoryRowActions(row: QueueHistoryRow) {
+  return [
+    [
+      {
+        label: 'Lihat Detail Dokumen',
+        icon: 'i-lucide-file-text',
+        onSelect: () => openProcessedDocument(row)
+      }
+    ]
+  ]
 }
 
-function isQueueActionLoading(itemId: string) {
-  return Boolean(queueOperationLoading.value[itemId])
+function setWaitingRowLoading(rowId: string, loading: boolean) {
+  waitingRowActionLoading.value = {
+    ...waitingRowActionLoading.value,
+    [rowId]: loading
+  }
 }
 
-function openQueueWork(itemId: string) {
-  return router.push(`/rooms/queue-work/${itemId}`)
-}
+async function handleWaitingRowCall(row: WaitingRow) {
+  if (!row.stageId || waitingRowActionLoading.value[row.id]) return
 
-async function runQueueAction(item: RoomQueueItem, action: 'call') {
-  const stage = getOperationalStage(item)
-  if (!stage) return
-
-  if (!hasActiveSession.value) {
+  if (!activeRoomSession.value) {
     toast.add({
-      title: 'Room belum aktif',
-      description: 'Masuk ke room aktif terlebih dahulu sebelum mengambil pasien.',
+      title: 'Sesi room belum aktif',
+      description: 'Masuk ke room dulu sebelum mengambil pasien dari waiting list.',
       color: 'warning'
     })
     return
   }
 
-  queueOperationLoading.value = {
-    ...queueOperationLoading.value,
-    [item.id]: true
+  if (effectiveWaitingRoomTypeId.value && activeRoomSession.value.roomTypeId !== effectiveWaitingRoomTypeId.value) {
+    toast.add({
+      title: 'Room tidak sesuai',
+      description: 'Room aktif harus sesuai dengan room type yang sedang dibuka.',
+      color: 'warning'
+    })
+    return
   }
 
+  setWaitingRowLoading(row.id, true)
   try {
-    await api.patch(`/medical/exams/queue/stage/${stage.id}/call`, {
-      roomId: activeSession.value?.roomId ?? null
-    })
+    await api.patch(`/medical/exams/queue/stage/${row.stageId}/call`, {})
+    await refreshAll()
+    await refreshRoomSession()
+    isWaitingModalOpen.value = false
 
-    await refreshQueue()
-    await openQueueWork(item.id)
+    await router.push({
+      path: `/rooms/queue-work/${row.id}`
+    })
 
     toast.add({
       title: 'Berhasil',
-      description: 'Pasien berhasil diambil dari queue umum dan dibuka ke halaman kerja room.',
+      description: 'Pasien berhasil diambil dari waiting list.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memproses pasien',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses pasien di room queue.'),
+      title: 'Gagal mengambil pasien',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengambil pasien dari waiting list.'),
       color: 'error'
     })
   } finally {
-    queueOperationLoading.value = {
-      ...queueOperationLoading.value,
-      [item.id]: false
-    }
+    setWaitingRowLoading(row.id, false)
   }
 }
 
-function refreshAll() {
-  return Promise.all([refreshAssignment(), refreshQueue(), refreshSession(), refreshSampleCollections()])
+function getRoomSessionLabel() {
+  if (activeRoomSession.value?.room?.name) {
+    return `${activeRoomSession.value.room.code} - ${activeRoomSession.value.room.name}`
+  }
+  if (activeRoomSession.value?.roomType?.name) {
+    return activeRoomSession.value.roomType.name
+  }
+  return 'Sesi room tidak aktif'
 }
 
-async function handleEnterRoom() {
-  if (roomActionLoading.value) return
-
+function openEnterRoomModal() {
   if (!assignment.value?.roomId) {
     toast.add({
-      title: 'Belum bisa masuk room',
-      description: 'Assignment room hari ini belum memiliki room yang dituju.',
+      title: 'Belum ada assignment room',
+      description: 'Tidak ada room assignment yang bisa dipakai untuk masuk room.',
       color: 'warning'
     })
     return
   }
 
-  roomActionLoading.value = true
+  isEnterRoomModalOpen.value = true
+}
 
+async function handleEnterRoom() {
+  if (roomEnterActionLoading.value || !assignment.value?.roomId) return
+
+  roomEnterActionLoading.value = true
   try {
     await enterRoomSession({ roomId: assignment.value.roomId })
-    await refreshAll()
+    await refreshRoomSession()
+    isEnterRoomModalOpen.value = false
 
     toast.add({
       title: 'Berhasil',
-      description: 'User berhasil masuk room aktif.',
+      description: 'Berhasil masuk ke room aktif.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
       title: 'Gagal masuk room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk room.'),
+      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk ke room aktif.'),
       color: 'error'
     })
   } finally {
-    roomActionLoading.value = false
-  }
-}
-
-async function handleSyncRoom() {
-  if (roomActionLoading.value) return
-
-  if (!assignment.value?.roomId) {
-    toast.add({
-      title: 'Belum bisa sinkronisasi',
-      description: 'Assignment room hari ini belum memiliki room yang dituju.',
-      color: 'warning'
-    })
-    return
-  }
-
-  roomActionLoading.value = true
-  try {
-    await refreshSession({ throwOnError: true })
-
-    if (!roomSession.value?.id) {
-      await enterRoomSession({ roomId: assignment.value.roomId })
-    }
-
-    await Promise.all([
-      refreshAssignment(),
-      refreshQueue(),
-      refreshSession({ throwOnError: true })
-    ])
-
-    toast.add({
-      title: 'Berhasil',
-      description: 'Sesi room berhasil dipulihkan dan status diperbarui.',
-      color: 'success'
-    })
-  } catch (error: unknown) {
-    toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status room.'),
-      color: 'error'
-    })
-  } finally {
-    roomActionLoading.value = false
+    roomEnterActionLoading.value = false
   }
 }
 
 function openExitRoomModal() {
-  exitReason.value = ''
-  isExitOpen.value = true
-}
-
-async function handleExitRoom() {
-  if (roomActionLoading.value || !activeSession.value) return
-
-  roomActionLoading.value = true
-  const previousSession = roomSession.value
-  const previousModalState = isExitOpen.value
-  const previousReason = exitReason.value
-
-  try {
-    roomSession.value = null
-    isExitOpen.value = false
-    await exitRoomSession({
-      exitReason: exitReason.value.trim() || undefined
-    })
-    await refreshAll()
-
-    exitReason.value = ''
-
+  if (!activeRoomSession.value) {
     toast.add({
-      title: 'Berhasil',
-      description: 'User berhasil keluar dari room aktif.',
-      color: 'success'
-    })
-  } catch (error: unknown) {
-    roomSession.value = previousSession ?? null
-    isExitOpen.value = previousModalState
-    exitReason.value = previousReason
-    toast.add({
-      title: 'Gagal keluar room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar room.'),
-      color: 'error'
-    })
-  } finally {
-    roomActionLoading.value = false
-  }
-}
-
-function stopPolling() {
-  if (pollingInterval) {
-    clearInterval(pollingInterval)
-    pollingInterval = null
-  }
-}
-
-function startPolling() {
-  stopPolling()
-
-  pollingInterval = setInterval(() => {
-    if (!document.hidden) {
-      refreshAll()
-    }
-  }, 5000)
-}
-
-watch(
-  polling,
-  (enabled) => {
-    if (!enabled) {
-      stopPolling()
-      return
-    }
-
-    startPolling()
-  },
-  { immediate: true }
-)
-
-onBeforeUnmount(stopPolling)
-
-async function runSampleCollectionAction(collection: SampleCollection, action: 'collect' | 'receive') {
-  if (!hasActiveSession.value) {
-    toast.add({
-      title: 'Room belum aktif',
-      description: 'Aktifkan sesi room terlebih dahulu sebelum memproses sample.',
+      title: 'Sesi room belum aktif',
+      description: 'Tidak ada room aktif yang bisa dikeluarkan.',
       color: 'warning'
     })
     return
   }
 
-  queueOperationLoading.value = {
-    ...queueOperationLoading.value,
-    [collection.id]: true
-  }
+  isExitRoomModalOpen.value = true
+}
 
+async function handleExitRoom() {
+  if (roomExitActionLoading.value || !activeRoomSession.value) return
+
+  roomExitActionLoading.value = true
   try {
-    const payload = action === 'collect'
-      ? {}
-      : {}
-
-    await api.patch(`/medical/exams/queue/samples/${collection.id}/${action}`, payload)
-    await refreshAll()
+    await exitRoomSession()
+    await refreshRoomSession()
+    isExitRoomModalOpen.value = false
 
     toast.add({
       title: 'Berhasil',
-      description: action === 'collect' ? 'Sample berhasil ditandai sudah diambil.' : 'Sample berhasil diterima oleh lab.',
+      description: 'Berhasil keluar dari room aktif.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memproses sample',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses sample.'),
+      title: 'Gagal keluar room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar dari room aktif.'),
       color: 'error'
     })
   } finally {
-    queueOperationLoading.value = {
-      ...queueOperationLoading.value,
-      [collection.id]: false
-    }
+    roomExitActionLoading.value = false
   }
 }
+
+async function refreshAll() {
+  await Promise.all([
+    refreshAssignment(),
+    refreshHistory(),
+    refreshWaiting()
+  ])
+}
+
+async function openWaitingPatientsModal() {
+  if (!isSuperAdmin.value && !roomTypeId.value) {
+    toast.add({
+      title: 'Perlu assignment room',
+      description: 'Untuk melihat daftar pasien waiting, user harus punya assignment room aktif.',
+      color: 'warning'
+    })
+  }
+
+  if (isSuperAdmin.value && !selectedWaitingRoomTypeId.value) {
+    selectedWaitingRoomTypeId.value = roomTypeId.value || (roomTypeOptions.value[0]?.value ?? '')
+  }
+
+  isWaitingModalOpen.value = true
+  await refreshWaiting()
+}
+
+watch(
+  [isWaitingModalOpen, effectiveWaitingRoomTypeId],
+  async ([open, roomType]) => {
+    if (!open || !roomType) return
+    await refreshWaiting()
+  }
+)
 </script>
 
 <template>
-  <UDashboardPanel id="room-queue">
+  <UDashboardPanel id="room-queue-history">
     <template #header>
       <UDashboardNavbar
-        title="Room Queue"
-        subtitle="Queue operasional mengikuti assignment dan session room aktif"
+        title="Room Queue History"
+        subtitle="Histori queue selesai dan daftar pasien waiting"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -655,21 +603,47 @@ async function runSampleCollectionAction(collection: SampleCollection, action: '
 
         <template #right>
           <UBadge
-            :color="getRoomSessionColor()"
+            :color="activeRoomSession ? 'success' : 'neutral'"
             variant="subtle"
-            :label="getRoomSessionLabel()"
+            :label="roomSessionPending ? 'Mengecek sesi room...' : getRoomSessionLabel()"
           />
 
-          <USwitch
-            v-model="polling"
-            label="Realtime"
-          />
+          <UButton
+            v-if="canEnterRoom"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-log-in"
+            :loading="assignmentPending || roomEnterActionLoading"
+            @click="openEnterRoomModal"
+          >
+            Masuk Room
+          </UButton>
+
+          <UButton
+            v-if="activeRoomSession"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-log-out"
+            :loading="roomExitActionLoading"
+            @click="openExitRoomModal"
+          >
+            Keluar Room
+          </UButton>
+
+          <UButton
+            icon="i-lucide-users-round"
+            color="neutral"
+            variant="soft"
+            @click="openWaitingPatientsModal"
+          >
+            Lihat Pasien Menunggu
+          </UButton>
 
           <UButton
             icon="i-lucide-refresh-cw"
             color="neutral"
             variant="soft"
-            :loading="assignmentPending || queuePending"
+            :loading="assignmentPending || historyPending || waitingPending"
             @click="refreshAll"
           >
             Refresh
@@ -681,103 +655,47 @@ async function runSampleCollectionAction(collection: SampleCollection, action: '
     <template #body>
       <div class="space-y-4">
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p class="text-sm font-medium text-muted">
-                Assignment aktif hari ini
-              </p>
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-3">
+              <div>
+                <p class="text-sm font-medium text-muted">
+                  Assignment room hari ini
+                </p>
+                <h2 class="mt-1 text-xl font-semibold text-highlighted">
+                  {{ assignment?.roomType?.name || 'Belum ada assignment room' }}
+                </h2>
+                <p class="mt-1 text-sm text-muted">
+                  {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
+                  {{ assignment?.room?.name || 'Histori tetap bisa dilihat tanpa masuk room.' }}
+                </p>
+              </div>
 
-              <h2 class="mt-1 text-xl font-semibold text-highlighted">
-                {{ assignment?.roomType?.name || 'Belum ada assignment room' }}
-              </h2>
-
-              <p class="mt-1 text-sm text-muted">
-                {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
-                {{ assignment?.room?.name || 'System akan menampilkan queue sesuai roomType assignment.' }}
-              </p>
-
-              <div class="mt-4 flex flex-wrap items-center gap-2">
+              <div class="flex flex-wrap gap-2">
                 <UBadge
-                  :color="getRoomSessionColor()"
+                  :color="isSuperAdmin ? 'success' : (roomTypeId ? 'info' : 'warning')"
                   variant="subtle"
-                  :label="sessionStatusLabel"
+                  :label="isSuperAdmin ? 'Super Admin' : (roomTypeId ? 'Room Ter-assign' : 'Belum assign room')"
                 />
-
                 <UBadge
-                  v-if="roomStaffCapacity !== null"
-                  color="neutral"
-                  variant="outline"
-                  :label="`Kapasitas petugas: ${roomStaffCapacity}`"
-                />
-
-                <UBadge
+                  v-if="assignment?.assignmentSource"
                   color="neutral"
                   variant="soft"
-                  :label="assignmentSourceLabel"
+                  :label="assignment.assignmentSource === 'SELF' ? 'Self Assignment' : 'PIC Assignment'"
                 />
               </div>
 
               <p class="text-sm text-muted">
-                {{ roomDisplayLabel }}
+                {{ assignment?.notes || 'Histori queue hanya menampilkan data yang sudah selesai diproses.' }}
               </p>
-
-              <p class="text-xs text-muted">
-                <span v-if="hasActiveSession">
-                  Room aktif:
-                  <strong class="text-highlighted">{{ activeSessionRoomLabel }}</strong>
-                  - Masuk sejak {{ activeSessionStartedAt }}
-                </span>
-
-                <span v-else-if="needsSessionSync">
-                  Self assignment sudah dibuat, tetapi sesi room belum aktif. Tekan pulihkan sesi room.
-                </span>
-
-                <span v-else>
-                  Assignment aktif sudah siap. Queue operasional akan mengikuti room yang dipilih.
-                </span>
-              </p>
-
-              <div class="mt-4 flex flex-wrap gap-2">
-                <UButton
-                  v-if="canShowEnterRoom"
-                  icon="i-lucide-log-in"
-                  :loading="roomActionLoading || sessionPending"
-                  @click="handleEnterRoom"
-                >
-                  Masuk Room
-                </UButton>
-
-                <UButton
-                  v-else-if="needsSessionSync"
-                  color="warning"
-                  variant="soft"
-                  icon="i-lucide-refresh-ccw"
-                  :loading="roomActionLoading || sessionPending"
-                  @click="handleSyncRoom"
-                >
-                  Pulihkan Sesi Room
-                </UButton>
-
-                <UButton
-                  v-else-if="hasActiveSession"
-                  color="error"
-                  variant="soft"
-                  icon="i-lucide-log-out"
-                  :loading="roomActionLoading || sessionPending"
-                  @click="openExitRoomModal"
-                >
-                  Keluar Room
-                </UButton>
-              </div>
             </div>
 
-              <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-3">
               <div class="rounded-lg border border-default bg-muted/30 p-3">
                 <p class="text-xs text-muted">
-                  Total
+                  Selesai
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ isLabRoom ? sampleStats.total : activeStats.total }}
+                  {{ historyStats.completed }}
                 </p>
               </div>
 
@@ -786,25 +704,16 @@ async function runSampleCollectionAction(collection: SampleCollection, action: '
                   Waiting
                 </p>
                 <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ isLabRoom ? sampleStats.pending : activeStats.waiting }}
+                  {{ historyStats.waiting }}
                 </p>
               </div>
 
               <div class="rounded-lg border border-default bg-muted/30 p-3">
                 <p class="text-xs text-muted">
-                  Called
+                  Akses
                 </p>
-                <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ isLabRoom ? sampleStats.collected : activeStats.called }}
-                </p>
-              </div>
-
-              <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">
-                  In Progress
-                </p>
-                <p class="mt-1 text-2xl font-semibold text-highlighted">
-                  {{ isLabRoom ? sampleStats.received : activeStats.inProgress }}
+                <p class="mt-1 text-sm font-medium text-highlighted">
+                  {{ historyStats.access }}
                 </p>
               </div>
             </div>
@@ -812,366 +721,405 @@ async function runSampleCollectionAction(collection: SampleCollection, action: '
         </UCard>
 
         <UAlert
-          v-if="!assignmentPending && !assignment"
+          v-if="!assignmentPending && !assignment && !isSuperAdmin"
           color="warning"
           title="Belum ada assignment aktif"
-          description="User ini belum di-assign ke room pada tanggal hari ini. Queue operasional tidak akan tampil sampai assignment tersedia."
+          description="Histori queue tetap bisa dibuka. Untuk melihat daftar pasien waiting, user harus punya assignment room."
         />
 
-        <div
-          v-if="isLabRoom"
-          class="space-y-4"
-        >
-          <div
-            v-if="sampleCollectionPending"
-            class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]"
-          >
-            <USkeleton
-              v-for="item in 4"
-              :key="item"
-              class="h-56 rounded-xl"
-            />
+        <UCard class="overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold text-highlighted">
+                  Histori Queue
+                </h3>
+                <p class="text-sm text-muted">
+                  Hanya queue yang sudah selesai diproses. Bagian ini read-only.
+                </p>
+              </div>
+              <UBadge
+                variant="soft"
+                color="neutral"
+                :label="`${historyRows.length} record`"
+              />
+            </div>
+          </template>
+
+          <div v-if="historyPending" class="space-y-3">
+            <USkeleton class="h-14 rounded-xl" />
+            <USkeleton class="h-14 rounded-xl" />
+            <USkeleton class="h-14 rounded-xl" />
           </div>
 
-          <div
-            v-else-if="!visibleSampleCollections.length"
-            class="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
-          >
+          <div v-else-if="!historyRows.length" class="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center">
             <UIcon
-              name="i-lucide-test-tube-diagonal"
+              name="i-lucide-clipboard-list"
               class="mb-3 size-10 text-muted"
             />
-
             <h3 class="text-base font-semibold text-highlighted">
-              {{ isSampleCollectionRoom ? 'Tidak ada sample collection aktif' : 'Tidak ada sample reception aktif' }}
+              Tidak ada histori queue
             </h3>
-
             <p class="mt-1 max-w-lg text-sm text-muted">
-              {{ isSampleCollectionRoom
-                ? 'Data sample akan muncul di sini setelah pasien check-in dan item sample-based masuk ke tahap pengambilan sample.'
-                : 'Data sample yang sudah diambil akan muncul di sini untuk diterima oleh lab.' }}
+              Data akan muncul setelah pasien selesai diproses di room.
             </p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full border-separate border-spacing-0">
+              <thead>
+                <tr class="bg-muted/30">
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Queue
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Pasien
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Item
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Stage
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Sample
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Status
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in historyRows"
+                  :key="row.id"
+                  class="align-top hover:bg-muted/20"
+                >
+                  <td class="border-b border-default px-4 py-4">
+                    <div class="space-y-1">
+                      <p class="font-semibold text-highlighted">
+                        {{ row.queueCode }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ row.queueType }} · Tier {{ row.tierOrder }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        Check-in {{ formatQueueDate(row.checkinAt) }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        Selesai {{ formatQueueDate(row.completedAt) }}
+                      </p>
+                    </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <div class="space-y-1">
+                      <p class="font-medium text-highlighted">
+                        {{ row.patientName }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        RM {{ row.patientId }}
+                      </p>
+                    </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ row.itemSummary }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-muted">
+                      {{ row.stageSummary }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-muted">
+                      {{ row.sampleSummary }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <UBadge
+                      :label="getItemStatusLabel(row.status)"
+                      :color="getQueueBadgeColor(row.status)"
+                      variant="subtle"
+                    />
+                  </td>
+                  <td class="border-b border-default px-4 py-4 text-right">
+                    <UDropdownMenu
+                      :items="getHistoryRowActions(row)"
+                      :content="{ align: 'end' }"
+                    >
+                      <UButton
+                        icon="i-lucide-ellipsis-vertical"
+                        color="neutral"
+                        variant="ghost"
+                      />
+                    </UDropdownMenu>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </UCard>
+      </div>
+
+      <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
+        <template #body>
+        <div class="space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-lg font-semibold text-highlighted">
+                Pasien di Ruang Tunggu
+              </h3>
+              <p class="text-sm text-muted">
+                Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
+              </p>
+            </div>
+            <UButton
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="soft"
+              :loading="waitingPending"
+              @click="refreshWaiting"
+            >
+              Refresh
+            </UButton>
+          </div>
+
+          <div v-if="isSuperAdmin" class="space-y-2">
+            <UFormField
+              label="Room Type"
+              description="Pilih room type yang ingin dilihat daftar waiting-nya."
+            >
+              <USelect
+                v-model="selectedWaitingRoomTypeId"
+                :items="roomTypeOptions"
+                :loading="roomTypesPending"
+                placeholder="Pilih room type"
+              />
+            </UFormField>
+          </div>
+
+          <div class="space-y-2">
+            <UFormField
+              label="Status"
+              description="Default hanya waiting agar pasien yang sudah diambil tidak ikut tampil."
+            >
+              <USelect
+                v-model="waitingStatusFilter"
+                :items="[
+                  { label: 'Waiting', value: 'WAITING' },
+                  { label: 'Called', value: 'CALLED' },
+                  { label: 'In Progress', value: 'IN_PROGRESS' },
+                  { label: 'Semua', value: 'ALL' }
+                ]"
+              />
+            </UFormField>
+          </div>
+
+          <UAlert
+            v-if="!roomTypeId && !isSuperAdmin"
+            color="warning"
+            title="Perlu assignment room"
+            description="User biasa harus punya assignment room untuk melihat daftar pasien waiting."
+          />
+
+          <UAlert
+            v-else-if="isSuperAdmin && !effectiveWaitingRoomTypeId"
+            color="info"
+            title="Room type belum dipilih"
+            description="Super admin perlu memilih room type untuk memuat daftar pasien waiting."
+          />
+
+          <UAlert
+            v-if="effectiveWaitingRoomTypeId && !activeRoomSession"
+            color="warning"
+            title="Sesi room belum aktif"
+            description="Untuk mengambil pasien dari waiting list, user harus masuk ke room terlebih dahulu."
+          />
+
+          <div v-if="waitingPending" class="space-y-3">
+            <USkeleton class="h-14 rounded-xl" />
+            <USkeleton class="h-14 rounded-xl" />
+            <USkeleton class="h-14 rounded-xl" />
+          </div>
+
+          <div v-else-if="waitingRows.length" class="overflow-x-auto">
+            <table class="min-w-full border-separate border-spacing-0">
+              <thead>
+                <tr class="bg-muted/30">
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Queue
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Pasien
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Item
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Stage
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Status
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in waitingRows"
+                  :key="row.id"
+                  class="align-top hover:bg-muted/20"
+                >
+                  <td class="border-b border-default px-4 py-4">
+                    <div class="space-y-1">
+                      <p class="font-semibold text-highlighted">
+                        {{ row.queueCode }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ row.queueType }} · Tier {{ row.tierOrder }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        Check-in {{ formatQueueDate(row.checkinAt) }}
+                      </p>
+                    </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <div class="space-y-1">
+                      <p class="font-medium text-highlighted">
+                        {{ row.patientName }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        RM {{ row.patientId }}
+                      </p>
+                    </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ row.itemSummary }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-muted">
+                      {{ row.stageSummary }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <UBadge
+                      :label="getItemStatusLabel(row.status)"
+                      :color="getQueueBadgeColor(row.status)"
+                      variant="subtle"
+                    />
+                  </td>
+                  <td class="border-b border-default px-4 py-4 text-right">
+                    <UButton
+                      v-if="row.status === 'WAITING'"
+                      color="primary"
+                      variant="soft"
+                      icon="i-lucide-log-in"
+                      :loading="waitingRowActionLoading[row.id]"
+                      :disabled="!row.stageId || !activeRoomSession || (effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
+                      @click="handleWaitingRowCall(row)"
+                    >
+                      Ambil Pasien
+                    </UButton>
+                    <UBadge
+                      v-else
+                      :label="getItemStatusLabel(row.status)"
+                      :color="getQueueBadgeColor(row.status)"
+                      variant="soft"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <div
             v-else
-            class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
+            class="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
           >
-            <UCard
-              v-for="collection in visibleSampleCollections"
-              :key="collection.id"
-              class="overflow-hidden border border-default/80 shadow-sm"
-            >
-              <template #header>
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <p class="text-xs text-muted">
-                      {{ collection.queueEntry?.queueCode || '-' }} · {{ collection.sampleType?.name || 'Sample' }}
-                    </p>
-                    <h3 class="mt-1 text-base font-semibold text-highlighted">
-                      {{ formatPatientName(collection.queueEntry?.registration?.patient) }}
-                    </h3>
-                  </div>
-
-                  <UBadge
-                    :label="getSampleStatusLabel(collection.status)"
-                    :color="getSampleStatusColor(collection.status)"
-                    variant="subtle"
-                  />
-                </div>
-              </template>
-
-              <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                  <div class="rounded-xl bg-muted/40 p-3">
-                    <p class="text-xs text-muted">
-                      No RM
-                    </p>
-                    <p class="mt-1 font-medium text-highlighted">
-                      {{ collection.queueEntry?.registration?.patient?.PatientId || '-' }}
-                    </p>
-                  </div>
-
-                  <div class="rounded-xl bg-muted/40 p-3">
-                    <p class="text-xs text-muted">
-                      Tube
-                    </p>
-                    <p class="mt-1 font-medium text-highlighted">
-                      {{ collection.tubeCount || 1 }}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Item sample
-                  </p>
-                  <div class="space-y-2">
-                    <div
-                      v-for="sampleItem in collection.items || []"
-                      :key="sampleItem.id"
-                      class="flex items-center justify-between gap-3 rounded-lg border border-default px-3 py-2"
-                    >
-                      <div class="min-w-0">
-                        <p class="truncate text-sm font-medium text-highlighted">
-                          {{ sampleItem.item?.name || '-' }}
-                        </p>
-                        <p class="truncate text-xs text-muted">
-                          {{ sampleItem.item?.code || '-' }}
-                        </p>
-                      </div>
-
-                      <UBadge
-                        :label="sampleItem.isPrimary ? 'Primary' : 'Linked'"
-                        :color="sampleItem.isPrimary ? 'primary' : 'neutral'"
-                        variant="soft"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
-                  <UButton
-                    v-if="collection.status === 'PENDING' && isSampleCollectionRoom"
-                    color="warning"
-                    icon="i-lucide-test-tube"
-                    :loading="isQueueActionLoading(collection.id)"
-                    @click="runSampleCollectionAction(collection, 'collect')"
-                  >
-                    Ambil Sample
-                  </UButton>
-
-                  <UButton
-                    v-if="collection.status === 'COLLECTED' && !isSampleCollectionRoom"
-                    color="success"
-                    variant="soft"
-                    icon="i-lucide-badge-check"
-                    :loading="isQueueActionLoading(collection.id)"
-                    @click="runSampleCollectionAction(collection, 'receive')"
-                  >
-                    Terima Sample
-                  </UButton>
-                </div>
-              </div>
-            </UCard>
+            <UIcon
+              name="i-lucide-users"
+              class="mb-3 size-10 text-muted"
+            />
+            <h3 class="text-base font-semibold text-highlighted">
+              Tidak ada pasien waiting
+            </h3>
+            <p class="mt-1 max-w-lg text-sm text-muted">
+              Daftar ini hanya menampilkan pasien yang masih menunggu di room aktif.
+            </p>
           </div>
         </div>
+        </template>
+      </UModal>
 
-        <div
-          v-if="queuePending && (!isLabRoom || !isSampleCollectionRoom)"
-          class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]"
-        >
-          <USkeleton
-            v-for="item in 6"
-            :key="item"
-            class="h-56 rounded-xl"
-          />
-        </div>
+      <UModal v-model:open="isEnterRoomModalOpen" title="Masuk Room">
+        <template #body>
+          <div class="space-y-4">
+            <UAlert
+              color="info"
+              title="Masuk ke room assignment?"
+              :description="`Room assignment saat ini: ${assignment?.room?.code ? `${assignment.room.code} - ` : ''}${assignment?.room?.name || assignment?.roomType?.name || '-'}.`"
+            />
+          </div>
+        </template>
 
-        <div
-          v-else-if="(!assignment || !queueItems.length) && (!isLabRoom || !isSampleCollectionRoom)"
-          class="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
-        >
-          <UIcon
-            name="i-lucide-clipboard-list"
-            class="mb-3 size-10 text-muted"
-          />
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="roomEnterActionLoading"
+              @click="isEnterRoomModalOpen = false"
+            >
+              Batal
+            </UButton>
+            <UButton
+              color="primary"
+              :loading="roomEnterActionLoading"
+              @click="handleEnterRoom"
+            >
+              Masuk Room
+            </UButton>
+          </div>
+        </template>
+      </UModal>
 
-          <h3 class="text-base font-semibold text-highlighted">
-            Tidak ada queue yang bisa ditampilkan
-          </h3>
+      <UModal v-model:open="isExitRoomModalOpen" title="Keluar Room">
+        <template #body>
+          <div class="space-y-4">
+            <UAlert
+              color="warning"
+              title="Keluar dari sesi room aktif?"
+              :description="`Sesi aktif saat ini: ${getRoomSessionLabel()}. Setelah keluar, kamu bisa pindah ke room lain.`"
+            />
+          </div>
+        </template>
 
-          <p class="mt-1 max-w-lg text-sm text-muted">
-            Queue general akan muncul di sini setelah FO check-in dan roomType pasien cocok dengan assignment petugas.
-          </p>
-        </div>
-
-        <div
-          v-else-if="!isLabRoom || !isSampleCollectionRoom"
-          class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]"
-        >
-          <UCard
-            v-for="item in queueItems"
-            :key="item.id"
-            class="overflow-hidden border border-default/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <template #header>
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-xs text-muted">
-                    {{ item.queueEntry?.queueCode || '-' }} - Tier {{ item.tierOrder }}
-                  </p>
-
-                  <h3 class="mt-1 text-base font-semibold text-highlighted">
-                    {{ formatPatientName(item.queueEntry?.registration?.patient) }}
-                  </h3>
-                </div>
-
-                <UBadge
-                  :label="getItemStatusLabel(item.status)"
-                  :color="getStageBadgeColor(item.status)"
-                  variant="subtle"
-                />
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <div class="grid grid-cols-2 gap-3 text-sm">
-                <div class="rounded-xl bg-muted/40 p-3">
-                  <p class="text-xs text-muted">
-                    No RM
-                  </p>
-                  <p class="mt-1 font-medium text-highlighted">
-                    {{ item.queueEntry?.registration?.patient?.PatientId || '-' }}
-                  </p>
-                </div>
-
-                <div class="rounded-xl bg-muted/40 p-3">
-                  <p class="text-xs text-muted">
-                    Jenis antrian
-                  </p>
-                  <p class="mt-1 font-medium text-highlighted">
-                    {{ item.queueEntry?.type || '-' }}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                  Item yang harus dikerjakan
-                </p>
-
-                <div class="space-y-2">
-                  <div
-                    v-for="examItem in item.examItems || []"
-                    :key="examItem.id"
-                    class="flex items-center justify-between gap-3 rounded-lg border border-default px-3 py-2"
-                  >
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium text-highlighted">
-                        {{ examItem.trxExamItem?.item?.name || '-' }}
-                      </p>
-
-                      <p class="truncate text-xs text-muted">
-                        {{ examItem.trxExamItem?.item?.code || '-' }}
-                        <span v-if="examItem.trxExamItem?.item?.group?.name">
-                          - {{ examItem.trxExamItem.item.group.name }}
-                        </span>
-                      </p>
-                    </div>
-
-                    <UBadge
-                      :label="getItemStatusLabel(examItem.status)"
-                      :color="getStageBadgeColor(examItem.status)"
-                      variant="soft"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                <UBadge
-                  v-for="stage in item.stageItems || []"
-                  :key="stage.id"
-                  :label="`Stage ${stage.stageOrder}: ${getItemStatusLabel(stage.status)}`"
-                  :color="getStageBadgeColor(stage.status)"
-                  variant="outline"
-                />
-              </div>
-
-              <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
-                <UButton
-                  v-if="canCallPatient(item)"
-                  color="primary"
-                  icon="i-lucide-bell-ring"
-                  :loading="isQueueActionLoading(item.id)"
-                  @click="runQueueAction(item, 'call')"
-                >
-                  Ambil Pasien
-                </UButton>
-
-                <UButton
-                  v-if="hasActiveSession && getOperationalStage(item)"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-lucide-stethoscope"
-                  @click="openQueueWork(item.id)"
-                >
-                  Buka Pemeriksaan
-                </UButton>
-
-                <p
-                  v-if="!hasActiveSession"
-                  class="text-xs text-muted"
-                >
-                  Aktifkan sesi room dulu agar pasien dari queue general bisa diproses.
-                </p>
-              </div>
-            </div>
-          </UCard>
-        </div>
-      </div>
-
-      <UModal v-model:open="isExitOpen">
-        <template #content>
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <h3 class="text-lg font-semibold">
-                    Keluar Room
-                  </h3>
-                  <p class="text-sm text-muted">
-                    Tambahkan alasan jika diperlukan sebelum sesi ditutup.
-                  </p>
-                </div>
-
-                <UButton
-                  icon="i-lucide-x"
-                  color="neutral"
-                  variant="ghost"
-                  @click="isExitOpen = false"
-                />
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <UAlert
-                color="warning"
-                title="Pastikan room sudah selesai digunakan"
-                description="Setelah keluar room, user tidak bisa melakukan action stage sampai masuk room lagi."
-              />
-
-              <UFormField
-                label="Alasan keluar"
-                help="Opsional, misalnya pindah room atau selesai shift."
-              >
-                <UTextarea
-                  v-model="exitReason"
-                  :rows="3"
-                  placeholder="Tuliskan alasan keluar room..."
-                />
-              </UFormField>
-
-              <div class="flex justify-end gap-2">
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  @click="isExitOpen = false"
-                >
-                  Batal
-                </UButton>
-
-                <UButton
-                  color="error"
-                  :loading="roomActionLoading"
-                  @click="handleExitRoom"
-                >
-                  Simpan & Keluar
-                </UButton>
-              </div>
-            </div>
-          </UCard>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="roomExitActionLoading"
+              @click="isExitRoomModalOpen = false"
+            >
+              Batal
+            </UButton>
+            <UButton
+              color="warning"
+              :loading="roomExitActionLoading"
+              @click="handleExitRoom"
+            >
+              Keluar Room
+            </UButton>
+          </div>
         </template>
       </UModal>
     </template>
