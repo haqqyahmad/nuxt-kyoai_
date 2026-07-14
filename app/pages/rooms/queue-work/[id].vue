@@ -30,6 +30,45 @@ type SampleCollection = {
   } | null
 }
 
+type RoomAssignment = {
+  id: string
+  assignedDate: string
+  roomId: string | null
+  roomTypeId: string | null
+  assignmentSource?: 'PIC' | 'SELF'
+  notes?: string | null
+  room?: {
+    id: string
+    code: string
+    name: string
+  } | null
+  roomType?: {
+    id: string
+    code: string
+    name: string
+    tierOrder: number
+  } | null
+}
+
+type RoomSession = {
+  id: string
+  roomId: string
+  roomTypeId: string
+  startedAt: string
+  endedAt?: string | null
+  exitReason?: string | null
+  room?: {
+    id: string
+    code: string
+    name: string
+  } | null
+  roomType?: {
+    id: string
+    code: string
+    name: string
+  } | null
+}
+
 type RoomQueueDetail = {
   id: string
   roomTypeId: string
@@ -150,8 +189,46 @@ const route = useRoute()
 const router = useRouter()
 const api = useApi()
 const toast = useToast()
+const { user, permissions } = await useCurrentUser()
+const today = new Date().toISOString().slice(0, 10)
+const {
+  data: assignmentData,
+  pending: assignmentPending,
+  refresh: refreshAssignment
+} = await useAsyncData<RoomAssignment | null>(
+  'room-assignment-work',
+  async () => {
+    try {
+      const res = await api.get('/room-assignments/me', {
+        params: {
+          assignedDate: today,
+          _: Date.now()
+        }
+      })
+
+      const payload = res.data
+      return (payload && Object.prototype.hasOwnProperty.call(payload, 'data')
+        ? payload.data
+        : payload) as RoomAssignment | null
+    } catch {
+      return null
+    }
+  },
+  {
+    default: () => null,
+    server: false
+  }
+)
+const {
+  session: roomSession,
+  pending: roomSessionPending,
+  refresh: refreshRoomSession,
+  enterRoomSession,
+  exitRoomSession
+} = await useRoomSession()
 
 const roomQueueItemId = computed(() => String(route.params.id ?? ''))
+const currentUserId = computed(() => user.value?.id ?? null)
 const loading = ref(false)
 const refreshing = ref(false)
 const roomQueueDetail = ref<RoomQueueDetail | null>(null)
@@ -161,6 +238,16 @@ const itemActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
 const resultDrafts = reactive<Record<string, Record<string, ResultDraft>>>({})
 const itemNotes = reactive<Record<string, string>>({})
+const isItemActionModalOpen = ref(false)
+const selectedItemAction = ref<RoomExamItem | null>(null)
+const selectedItemActionType = ref<'skip' | 'reschedule' | 'retest' | null>(null)
+const itemActionReason = ref('')
+const itemActionNote = ref('')
+const itemActionSubmitLoading = ref(false)
+const isExitRoomModalOpen = ref(false)
+const isEnterRoomModalOpen = ref(false)
+const roomSessionActionLoading = ref(false)
+const roomEnterActionLoading = ref(false)
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -170,6 +257,23 @@ function getErrorMessage(error: unknown, fallback: string) {
 
   return fallback
 }
+
+const activeRoomSession = computed(() => {
+  if (!roomSession.value?.id || roomSession.value.endedAt) return null
+  return roomSession.value as RoomSession
+})
+
+const roomAssignment = computed(() => assignmentData.value ?? null)
+const canEnterRoom = computed(() => Boolean(roomAssignment.value?.roomId) && !activeRoomSession.value)
+const canUseAssignShortcut = computed(() => !roomAssignment.value?.roomId)
+
+const roomSessionLabel = computed(() => {
+  if (!activeRoomSession.value) return 'Sesi room tidak aktif'
+  if (activeRoomSession.value.room?.name) {
+    return `${activeRoomSession.value.room.code} - ${activeRoomSession.value.room.name}`
+  }
+  return activeRoomSession.value.roomType?.name || 'Sesi room aktif'
+})
 
 function formatPatientName(patient?: Patient | null) {
   if (!patient) return '-'
@@ -380,6 +484,7 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
 }
 
 const patient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
+const canManageItemActions = computed(() => permissions.value.includes('queue:admin'))
 const activeStage = computed(() =>
   (roomQueueDetail.value?.stageItems ?? []).find(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status)) ?? null
 )
@@ -401,24 +506,74 @@ function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
 }
 
+function isDeferredItem(item: RoomExamItem) {
+  return item.trxExamItem?.item?.resultTiming === 'deferred'
+}
+
+function getSampleCollectionStatus(item: RoomExamItem) {
+  return item.sampleImpact?.collectionStatus ?? null
+}
+
+function isItemInProgress(item: RoomExamItem) {
+  return item.status === 'IN_PROGRESS'
+}
+
+function canInteractWithItem(item: RoomExamItem) {
+  if (!isExamStageActive()) return false
+  if (!isItemInProgress(item)) return false
+  if (item.operationalStatus === 'WAITING_SAMPLE') return false
+  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED') return false
+  return true
+}
+
 function canRenderExamInputs(item: RoomExamItem) {
-  if (!hasStructuredInputs(item)) return false
-  if (!isSampleManagedItem(item)) return true
-  return isExamStageActive() && item.operationalStatus !== 'WAITING_SAMPLE' && item.operationalStatus !== 'BLOCKED_SAMPLE_REJECTED'
+  return hasStructuredInputs(item) && !isDeferredItem(item) && canInteractWithItem(item)
+}
+
+function canRenderItemNotes(item: RoomExamItem) {
+  return canInteractWithItem(item) && (isDeferredItem(item) || !hasStructuredInputs(item))
 }
 
 function getOperationalStatusLabel(item: RoomExamItem) {
-  if (item.operationalStatus === 'WAITING_SAMPLE') return 'Menunggu sample diterima'
-  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED') return 'Sample ditolak'
-  if (item.operationalStatus === 'RESCHEDULED') return 'Sample dijadwalkan ulang'
+  const sampleStatus = getSampleCollectionStatus(item)
+
+  if (item.operationalStatus === 'WAITING_SAMPLE' || sampleStatus === 'COLLECTED') return 'Menunggu sample diterima'
+  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'Sample ditolak'
+  if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'Sample dijadwalkan ulang'
   return getStatusLabel(item.status)
 }
 
 function getOperationalStatusColor(item: RoomExamItem) {
-  if (item.operationalStatus === 'WAITING_SAMPLE') return 'warning'
-  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED') return 'error'
-  if (item.operationalStatus === 'RESCHEDULED') return 'neutral'
+  const sampleStatus = getSampleCollectionStatus(item)
+
+  if (item.operationalStatus === 'WAITING_SAMPLE' || sampleStatus === 'COLLECTED') return 'warning'
+  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'error'
+  if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'neutral'
   return getStatusColor(item.status)
+}
+
+function getSampleActionDescription(item: RoomExamItem) {
+  const sampleStatus = getSampleCollectionStatus(item)
+
+  if (sampleStatus === 'REJECTED') {
+    return item.sampleImpact?.rejectReason || 'Sample ditolak dan perlu reschedule sebelum item bisa dikerjakan.'
+  }
+
+  if (sampleStatus === 'RESCHEDULED') {
+    return item.sampleImpact?.rescheduledAt
+      ? `Sample dijadwalkan ulang ke ${item.sampleImpact.rescheduledAt}.`
+      : 'Sample dijadwalkan ulang dan menunggu kunjungan berikutnya.'
+  }
+
+  if (sampleStatus === 'COLLECTED') {
+    return 'Sample sudah diambil dan menunggu diterima oleh lab.'
+  }
+
+  if (sampleStatus === 'RECEIVED') {
+    return 'Sample sudah diterima oleh lab dan siap diproses di stage exam.'
+  }
+
+  return 'Item ini masih mengikuti status sample terkait.'
 }
 
 function hasStructuredInputs(item: RoomExamItem) {
@@ -435,6 +590,101 @@ function getInputDraft(itemId: string, inputId: string) {
   }
 
   return resultDrafts[itemId][inputId]
+}
+
+function openItemActionModal(item: RoomExamItem, action: 'skip' | 'reschedule' | 'retest') {
+  selectedItemAction.value = item
+  selectedItemActionType.value = action
+  itemActionReason.value = ''
+  itemActionNote.value = ''
+  isItemActionModalOpen.value = true
+}
+
+function closeItemActionModal() {
+  isItemActionModalOpen.value = false
+  selectedItemAction.value = null
+  selectedItemActionType.value = null
+  itemActionReason.value = ''
+  itemActionNote.value = ''
+}
+
+function openExitRoomModal() {
+  if (!activeRoomSession.value) {
+    toast.add({
+      title: 'Sesi room belum aktif',
+      description: 'Tidak ada room aktif yang bisa dikeluarkan.',
+      color: 'warning'
+    })
+    return
+  }
+
+  isExitRoomModalOpen.value = true
+}
+
+function openEnterRoomModal() {
+  if (!roomAssignment.value?.roomId) {
+    toast.add({
+      title: 'Belum ada assignment room',
+      description: 'Tidak ada room assignment yang bisa dipakai untuk masuk room.',
+      color: 'warning'
+    })
+    return
+  }
+
+  isEnterRoomModalOpen.value = true
+}
+
+async function handleEnterRoom() {
+  if (roomEnterActionLoading.value || !roomAssignment.value?.roomId) return
+
+  roomEnterActionLoading.value = true
+  try {
+    await enterRoomSession({ roomId: roomAssignment.value.roomId })
+    await refreshRoomSession()
+    await refreshAssignment()
+    isEnterRoomModalOpen.value = false
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Berhasil masuk ke room aktif.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal masuk room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk ke room aktif.'),
+      color: 'error'
+    })
+  } finally {
+    roomEnterActionLoading.value = false
+  }
+}
+
+async function handleExitRoom() {
+  if (roomSessionActionLoading.value || !activeRoomSession.value) return
+
+  roomSessionActionLoading.value = true
+  try {
+    await exitRoomSession()
+    await refreshRoomSession()
+    isExitRoomModalOpen.value = false
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Berhasil keluar dari room aktif.',
+      color: 'success'
+    })
+
+    await router.push('/rooms/assignments')
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal keluar room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar dari room aktif.'),
+      color: 'error'
+    })
+  } finally {
+    roomSessionActionLoading.value = false
+  }
 }
 
 function seedLocalState() {
@@ -580,6 +830,29 @@ async function handleCallPatient() {
   }
 }
 
+async function handleReturnPatient() {
+  if (!activeStage.value || stageActionLoading.value) return
+
+  stageActionLoading.value = true
+  try {
+    await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/return`, {})
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien dikembalikan ke waiting list.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal mengembalikan pasien',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengembalikan pasien ke waiting list.'),
+      color: 'error'
+    })
+  } finally {
+    stageActionLoading.value = false
+  }
+}
+
 async function handleStartStage() {
   if (!activeStage.value || stageActionLoading.value) return
 
@@ -614,7 +887,36 @@ async function handleFinishStage() {
       description: 'Pemeriksaan room selesai.',
       color: 'success'
     })
-    await router.push('/rooms/queue')
+
+    // Check if there are deferred items that need result input
+    const deferredItems = (roomExamItems.value || []).filter(
+      item => item.trxExamItem?.item?.resultTiming === 'deferred'
+    )
+
+    if (deferredItems.length > 0) {
+      const firstDeferredItem = deferredItems.find(item => item.trxExamItem?.exam?.id)
+      const departmentId = deferredItems.find(item => item.trxExamItem?.item?.department?.id)
+        ?.trxExamItem?.item?.department?.id
+
+      toast.add({
+        title: 'Ada hasil yang perlu diinput',
+        description: `${deferredItems.length} item menunggu input hasil.`,
+        color: 'info'
+      })
+      // Redirect to exam results page with deferred items highlighted
+      await router.push({
+        path: '/rooms/exam-results',
+        query: {
+          examId: firstDeferredItem?.trxExamItem?.exam?.id ?? undefined,
+          queueEntryId: roomQueueDetail.value?.queueEntry?.id ?? undefined,
+          departmentId: departmentId ?? undefined,
+          resultTiming: 'deferred'
+        }
+      })
+    } else {
+      // No deferred items, go back to queue
+      await router.push('/rooms/queue')
+    }
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { errors?: { pendingItems?: Array<{ itemName?: string }> } } } }).response
     const pendingItems = response?.data?.errors?.pendingItems ?? []
@@ -691,10 +993,19 @@ async function handleSaveResults(item: RoomExamItem) {
 
 async function handleDoneItem(item: RoomExamItem) {
   if (itemActionLoading.value[item.id]) return
+  if (!currentUserId.value) {
+    toast.add({
+      title: 'Akun pengguna tidak ditemukan',
+      description: 'Muat ulang halaman lalu coba lagi.',
+      color: 'error'
+    })
+    return
+  }
 
   setItemLoading(item.id, true)
   try {
     await api.patch(`/medical/exams/queue/exam-item/${item.id}/done`, {
+      updatedBy: currentUserId.value,
       notes: itemNotes[item.id]?.trim() || null
     })
     await loadPage(true)
@@ -713,6 +1024,66 @@ async function handleDoneItem(item: RoomExamItem) {
     setItemLoading(item.id, false)
   }
 }
+
+async function handleSubmitItemAction() {
+  if (!selectedItemAction.value || !selectedItemActionType.value || itemActionSubmitLoading.value) return
+  if (!currentUserId.value) {
+    toast.add({
+      title: 'Akun pengguna tidak ditemukan',
+      description: 'Muat ulang halaman lalu coba lagi.',
+      color: 'error'
+    })
+    return
+  }
+
+  const item = selectedItemAction.value
+  const actionType = selectedItemActionType.value
+  itemActionSubmitLoading.value = true
+
+  try {
+    if (actionType === 'skip') {
+      if (!itemActionReason.value.trim()) {
+        toast.add({
+          title: 'Alasan wajib diisi',
+          description: 'Isi alasan skip/refuse sebelum melanjutkan.',
+          color: 'warning'
+        })
+        return
+      }
+
+      await api.patch(`/medical/exams/queue/exam-item/${item.id}/skip`, {
+        skippedBy: currentUserId.value,
+        skipReason: itemActionReason.value.trim(),
+        notes: itemActionNote.value.trim() || null
+      })
+    } else {
+      await api.patch(`/medical/exams/queue/exam-item/${item.id}/reschedule`, {
+        rescheduledBy: currentUserId.value,
+        rescheduleNote: itemActionNote.value.trim() || (actionType === 'retest' ? 'Retest requested' : null)
+      })
+    }
+
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: actionType === 'skip'
+        ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditolak.`
+        : actionType === 'retest'
+          ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang untuk retest.`
+          : `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang.`,
+      color: 'success'
+    })
+    closeItemActionModal()
+  } catch (error: unknown) {
+    toast.add({
+      title: actionType === 'skip' ? 'Gagal menolak item' : actionType === 'retest' ? 'Gagal retest item' : 'Gagal reschedule item',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses item pemeriksaan.'),
+      color: 'error'
+    })
+  } finally {
+    itemActionSubmitLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -727,6 +1098,34 @@ async function handleDoneItem(item: RoomExamItem) {
         </template>
 
         <template #right>
+          <UBadge
+            :color="activeRoomSession ? 'success' : 'neutral'"
+            variant="subtle"
+            :label="roomSessionPending ? 'Mengecek sesi room...' : roomSessionLabel"
+          />
+
+          <UButton
+            v-if="canEnterRoom"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-log-in"
+            :loading="assignmentPending || roomEnterActionLoading"
+            @click="openEnterRoomModal"
+          >
+            Masuk Room
+          </UButton>
+
+          <UButton
+            v-if="activeRoomSession"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-log-out"
+            :loading="roomSessionActionLoading"
+            @click="openExitRoomModal"
+          >
+            Keluar Room
+          </UButton>
+
           <UButton
             color="neutral"
             variant="soft"
@@ -801,7 +1200,7 @@ async function handleDoneItem(item: RoomExamItem) {
                 </div>
 
                 <p class="max-w-2xl text-sm text-muted">
-                  Selesaikan item pemeriksaan satu per satu. Jika item punya input hasil exam, simpan hasilnya dulu. Jika tidak punya inputan, isi dokumentasi hasil sebelum item ditandai selesai.
+                  Selesaikan item pemeriksaan satu per satu. Input hasil hanya aktif saat item sudah <code>IN_PROGRESS</code>. Untuk item dengan <code>resultTiming</code> deferred, lakukan pemeriksaan tanpa input lalu isi dokumentasi sebelum item ditandai selesai.
                 </p>
 
                 <div
@@ -821,7 +1220,7 @@ async function handleDoneItem(item: RoomExamItem) {
                     />
                   </div>
                   <p class="mt-2 text-xs text-muted">
-                    Item lab baru bisa diisi saat tahap aktif sudah EXAM dan sample terkait sudah RECEIVED.
+                    Item lab baru bisa diisi saat tahap aktif sudah EXAM, sample terkait sudah RECEIVED, dan item sudah berstatus IN_PROGRESS.
                   </p>
                 </div>
               </div>
@@ -837,7 +1236,17 @@ async function handleDoneItem(item: RoomExamItem) {
                 </UButton>
 
                 <UButton
-                  v-if="activeStage && ['WAITING', 'CALLED'].includes(activeStage.status)"
+                  v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-user-round-plus"
+                  to="/rooms/assignments"
+                >
+                  Assign Room
+                </UButton>
+
+                <UButton
+                  v-if="activeStage?.status === 'CALLED'"
                   color="warning"
                   variant="soft"
                   icon="i-lucide-play"
@@ -845,6 +1254,17 @@ async function handleDoneItem(item: RoomExamItem) {
                   @click="handleStartStage"
                 >
                   Mulai Pemeriksaan
+                </UButton>
+
+                <UButton
+                  v-if="activeStage?.status === 'CALLED'"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-rotate-ccw"
+                  :loading="stageActionLoading"
+                  @click="handleReturnPatient"
+                >
+                  Kembalikan ke Waiting
                 </UButton>
 
                 <UButton
@@ -906,10 +1326,17 @@ async function handleDoneItem(item: RoomExamItem) {
                 />
 
                 <UAlert
-                  v-else-if="item.operationalStatus === 'WAITING_SAMPLE' || item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED'"
-                  :color="item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' ? 'error' : 'warning'"
-                  :title="item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' ? 'Sample bermasalah' : 'Menunggu sample diterima'"
-                  :description="item.blockedReason || 'Item ini belum bisa dikerjakan.'"
+                  v-else-if="getSampleCollectionStatus(item) && getSampleCollectionStatus(item) !== 'RECEIVED'"
+                  :color="getOperationalStatusColor(item)"
+                  :title="getOperationalStatusLabel(item)"
+                  :description="item.blockedReason || getSampleActionDescription(item)"
+                />
+
+                <UAlert
+                  v-else-if="hasStructuredInputs(item) && isDeferredItem(item)"
+                  color="info"
+                  title="Hasil deferred"
+                  description="Item ini tidak memerlukan input hasil. Lakukan pemeriksaan, tulis dokumentasi singkat, lalu selesaikan item."
                 />
 
                 <div
@@ -1005,7 +1432,7 @@ async function handleDoneItem(item: RoomExamItem) {
                   </div>
                 </div>
 
-                <div v-else-if="!hasStructuredInputs(item)">
+                <div v-if="canRenderItemNotes(item)">
                   <label class="mb-2 block text-sm font-medium text-highlighted">
                     Dokumentasi hasil pemeriksaan
                   </label>
@@ -1030,7 +1457,7 @@ async function handleDoneItem(item: RoomExamItem) {
                   </UButton>
 
                   <UButton
-                    v-if="hasStructuredInputs(item) && ['PENDING', 'IN_PROGRESS'].includes(item.status)"
+                    v-if="hasStructuredInputs(item) && !isDeferredItem(item) && item.status === 'IN_PROGRESS'"
                     color="primary"
                     variant="soft"
                     icon="i-lucide-save"
@@ -1041,7 +1468,7 @@ async function handleDoneItem(item: RoomExamItem) {
                   </UButton>
 
                   <UButton
-                    v-if="['PENDING', 'IN_PROGRESS'].includes(item.status)"
+                    v-if="item.status === 'IN_PROGRESS'"
                     color="success"
                     variant="soft"
                     icon="i-lucide-check"
@@ -1049,6 +1476,39 @@ async function handleDoneItem(item: RoomExamItem) {
                     @click="handleDoneItem(item)"
                   >
                     Selesaikan Item
+                  </UButton>
+
+                  <UButton
+                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                    color="error"
+                    variant="soft"
+                    icon="i-lucide-ban"
+                    :loading="itemActionLoading[item.id]"
+                    @click="openItemActionModal(item, 'skip')"
+                  >
+                    Tolak
+                  </UButton>
+
+                  <UButton
+                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                    color="warning"
+                    variant="soft"
+                    icon="i-lucide-calendar-clock"
+                    :loading="itemActionLoading[item.id]"
+                    @click="openItemActionModal(item, 'reschedule')"
+                  >
+                    Reschedule
+                  </UButton>
+
+                  <UButton
+                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                    color="primary"
+                    variant="soft"
+                    icon="i-lucide-refresh-cw"
+                    :loading="itemActionLoading[item.id]"
+                    @click="openItemActionModal(item, 'retest')"
+                  >
+                    Retest
                   </UButton>
                 </div>
               </div>
@@ -1058,4 +1518,135 @@ async function handleDoneItem(item: RoomExamItem) {
       </div>
     </template>
   </UDashboardPanel>
+
+  <UModal
+    v-model:open="isItemActionModalOpen"
+    :title="selectedItemActionType === 'skip' ? 'Tolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item'"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          :color="selectedItemActionType === 'skip' ? 'error' : 'warning'"
+          :title="selectedItemAction?.trxExamItem?.item?.name || 'Item pemeriksaan'"
+          :description="selectedItemActionType === 'skip'
+            ? 'Item ini akan ditandai skip/refuse.'
+            : selectedItemActionType === 'retest'
+              ? 'Item ini akan dijadwalkan ulang untuk pemeriksaan ulang.'
+              : 'Item ini akan dijadwalkan ulang untuk kunjungan berikutnya.'"
+        />
+
+        <div v-if="selectedItemActionType === 'skip'" class="space-y-2">
+          <label class="block text-sm font-medium text-highlighted">
+            Alasan skip
+          </label>
+          <UTextarea
+            v-model="itemActionReason"
+            :rows="4"
+            placeholder="Contoh: pasien menolak, sampel tidak tersedia, kondisi lain..."
+          />
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-highlighted">
+            Catatan
+          </label>
+          <UTextarea
+            v-model="itemActionNote"
+            :rows="4"
+            placeholder="Catatan tambahan opsional"
+          />
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="itemActionSubmitLoading"
+          @click="closeItemActionModal"
+        >
+          Batal
+        </UButton>
+        <UButton
+          :color="selectedItemActionType === 'skip' ? 'error' : selectedItemActionType === 'retest' ? 'primary' : 'warning'"
+          :loading="itemActionSubmitLoading"
+          @click="handleSubmitItemAction"
+        >
+          {{ selectedItemActionType === 'skip' ? 'Tolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isExitRoomModalOpen"
+    title="Keluar Room"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="warning"
+          title="Keluar dari sesi room aktif?"
+          :description="`Sesi aktif saat ini: ${roomSessionLabel}. Setelah keluar, kamu akan diarahkan ke halaman assignment room.`"
+        />
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomSessionActionLoading"
+          @click="isExitRoomModalOpen = false"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="warning"
+          :loading="roomSessionActionLoading"
+          @click="handleExitRoom"
+        >
+          Keluar Room
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isEnterRoomModalOpen"
+    title="Masuk Room"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="info"
+          title="Masuk ke room assignment?"
+          :description="`Room assignment saat ini: ${roomAssignment?.room?.code ? `${roomAssignment.room.code} - ` : ''}${roomAssignment?.room?.name || roomAssignment?.roomType?.name || '-'}.`"
+        />
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomEnterActionLoading"
+          @click="isEnterRoomModalOpen = false"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="primary"
+          :loading="roomEnterActionLoading"
+          @click="handleEnterRoom"
+        >
+          Masuk Room
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

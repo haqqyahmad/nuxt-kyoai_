@@ -421,6 +421,65 @@ const TYPE_LABEL: Record<InputType, string> = {
   string: 'Teks'
 }
 
+function formatSexLabel(sex?: 'MALE' | 'FEMALE' | null) {
+  if (sex === 'MALE') return 'Laki-laki'
+  if (sex === 'FEMALE') return 'Perempuan'
+  return 'Pilih sex'
+}
+
+function formatAgeRule(ageMin?: number | null) {
+  if (ageMin == null) return 'Usia mulai: -'
+  if (ageMin <= 0) return 'Untuk semua usia'
+  return `Berlaku mulai usia ${ageMin} tahun`
+}
+
+function getAgeBadgeLabel(
+  ageMin?: number | null,
+  sex?: 'MALE' | 'FEMALE' | null,
+  rules?: Array<{ sex?: 'MALE' | 'FEMALE' | null; ageMin?: number | null }>,
+) {
+  if (ageMin == null) return 'Usia mulai: -'
+  if (ageMin <= 0) {
+    const sameSexRules = (rules || []).filter(rule => {
+      if (!sex || !rule.sex) return false
+      return rule.sex === sex
+    })
+
+    return sameSexRules.length <= 1 ? 'Semua usia' : 'Usia 0+'
+  }
+  return `Usia ${ageMin}+`
+}
+
+function formatRangeValue(minValue?: number | null, maxValue?: number | null) {
+  const hasMin = minValue !== null && minValue !== undefined
+  const hasMax = maxValue !== null && maxValue !== undefined
+
+  if (hasMin && hasMax) return `${minValue} - ${maxValue}`
+  if (hasMin) return `>= ${minValue}`
+  if (hasMax) return `<= ${maxValue}`
+  return '-'
+}
+
+function formatNormalRuleSummary(range: NilaiNormalNum) {
+  return {
+    sex: formatSexLabel(range.sex),
+    age: formatAgeRule(range.ageMin),
+    value: formatRangeValue(range.minValue, range.maxValue),
+  }
+}
+
+function formatSelectedRuleSummary(range: NilaiNormalSel) {
+  return {
+    sex: formatSexLabel(range.sex),
+    age: formatAgeRule(range.ageMin),
+  }
+}
+
+function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null) {
+  if (minValue == null || maxValue == null) return false
+  return Number(minValue) > Number(maxValue)
+}
+
 </script>
 
 <template>
@@ -584,29 +643,74 @@ const TYPE_LABEL: Record<InputType, string> = {
               <div v-if="selectedInputan.nilaiNormalNumber.length === 0" class="text-center py-6 text-sm text-muted">
                 Belum ada aturan range normal
               </div>
-              <div v-for="(range, ridx) in selectedInputan.nilaiNormalNumber" :key="ridx"
-                class="grid grid-cols-12 gap-2 p-3 bg-elevated/30 border border-default rounded-lg items-end">
-                <div class="col-span-4">
-                  <label class="text-xs text-muted block mb-1">Jenis Kelamin</label>
-                  <USelect v-model="range.sex"
-                    :items="[{ label:'Semua', value:null },{ label:'Laki-laki', value:'MALE' },{ label:'Perempuan', value:'FEMALE' }]"
-                    size="sm" class="w-full" />
+              <div class="rounded-2xl border border-info/20 bg-info/5 p-4 text-sm text-muted">
+                Aturan akan dipilih berdasarkan sex yang sama dan usia mulai yang paling mendekati usia pasien saat exam.
+              </div>
+              <div
+                v-for="(range, ridx) in selectedInputan.nilaiNormalNumber"
+                :key="ridx"
+                class="rounded-2xl border border-default bg-elevated/20 p-4"
+              >
+                <div class="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p class="text-sm font-semibold text-highlighted">Rule {{ ridx + 1 }}</p>
+                  </div>
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    @click="removeRange(selectedInputan, ridx)"
+                  />
                 </div>
-                <div class="col-span-2">
-                  <label class="text-xs text-muted block mb-1">Usia Min</label>
-                  <UInput v-model="range.ageMin" type="number" min="0" size="sm" class="w-full" />
+
+                <div class="grid gap-3 md:grid-cols-12">
+                  <div class="md:col-span-3">
+                    <label class="mb-1 block text-xs text-muted">Sex</label>
+                    <USelect
+                      v-model="range.sex"
+                      :items="[
+                        { label: 'Pilih sex', value: null },
+                        { label: 'Laki-laki', value: 'MALE' },
+                        { label: 'Perempuan', value: 'FEMALE' },
+                      ]"
+                      size="sm"
+                      class="w-full"
+                    />
+                  </div>
+                  <div class="md:col-span-3">
+                    <label class="mb-1 block text-xs text-muted">Age Min</label>
+                    <UInput v-model="range.ageMin" type="number" min="0" size="sm" class="w-full" />
+                    <p class="mt-1 text-[11px] text-muted">
+                      {{ getAgeBadgeLabel(range.ageMin, range.sex, selectedInputan.nilaiNormalNumber) }}
+                    </p>
+                  </div>
+                  <div class="md:col-span-3">
+                    <label class="mb-1 block text-xs text-muted">Normal Min</label>
+                    <UInput v-model="range.minValue" type="number" size="sm" class="w-full" />
+                  </div>
+                  <div class="md:col-span-3">
+                    <label class="mb-1 block text-xs text-muted">Normal Max</label>
+                    <UInput v-model="range.maxValue" type="number" size="sm" class="w-full" />
+                  </div>
                 </div>
-                <div class="col-span-2">
-                  <label class="text-xs text-muted block mb-1">Nilai Min</label>
-                  <UInput v-model="range.minValue" type="number" size="sm" class="w-full" />
-                </div>
-                <div class="col-span-2">
-                  <label class="text-xs text-muted block mb-1">Nilai Max</label>
-                  <UInput v-model="range.maxValue" type="number" size="sm" class="w-full" />
-                </div>
-                <div class="col-span-2 flex justify-end">
-                  <UButton icon="i-lucide-trash-2" size="sm" color="error" variant="ghost"
-                    @click="removeRange(selectedInputan, ridx)" />
+
+                <div class="mt-4 rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <UBadge color="neutral" variant="soft" :label="formatNormalRuleSummary(range).sex" />
+                    <UBadge
+                      color="neutral"
+                      variant="soft"
+                      :label="getAgeBadgeLabel(range.ageMin, range.sex, selectedInputan.nilaiNormalNumber)"
+                    />
+                    <UBadge color="primary" variant="soft" :label="formatNormalRuleSummary(range).value" />
+                    <UBadge
+                      v-if="isRangeValueInvalid(range.minValue, range.maxValue)"
+                      color="error"
+                      variant="soft"
+                      label="Normal Min harus <= Normal Max"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -667,10 +771,10 @@ const TYPE_LABEL: Record<InputType, string> = {
                     <p class="text-sm font-medium">Nilai Normal Pilihan</p>
                     <p class="text-xs text-muted mt-0.5">
                       Tentukan opsi mana yang dianggap
-                      <span class="text-success font-medium">normal</span>
-                      per jenis kelamin &amp; usia minimum.
-                    </p>
-                  </div>
+                        <span class="text-success font-medium">normal</span>
+                        per sex dan usia minimum.
+                      </p>
+                    </div>
                   <div class="flex gap-2">
                     <UButton icon="i-lucide-plus" size="xs" variant="soft"
                       :disabled="!opsisAlreadySaved"
@@ -705,30 +809,71 @@ const TYPE_LABEL: Record<InputType, string> = {
                   Belum ada aturan nilai normal pilihan
                 </div>
 
-                <div v-for="(nn, nidx) in selectedInputan.nilaiNormalSel" :key="nidx"
-                  class="grid grid-cols-12 gap-2 p-3 bg-elevated/30 border border-default rounded-lg items-end">
-                  <div class="col-span-3">
-                    <label class="text-xs text-muted block mb-1">Jenis Kelamin</label>
-                    <USelect v-model="nn.sex"
-                      :items="[{ label:'Semua', value:null },{ label:'Laki-laki', value:'MALE' },{ label:'Perempuan', value:'FEMALE' }]"
-                      size="sm" class="w-full" />
+                <div
+                  v-for="(nn, nidx) in selectedInputan.nilaiNormalSel"
+                  :key="nidx"
+                  class="rounded-2xl border border-default bg-elevated/20 p-4"
+                >
+                  <div class="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p class="text-sm font-semibold text-highlighted">Rule {{ nidx + 1 }}</p>
                   </div>
-                  <div class="col-span-2">
-                    <label class="text-xs text-muted block mb-1">Usia Min</label>
-                    <UInput v-model="nn.ageMin" type="number" min="0" size="sm" class="w-full" />
-                  </div>
-                  <div class="col-span-5">
-                    <label class="text-xs text-muted block mb-1">Opsi yang Normal</label>
-                    <USelect
-                      v-model="nn.opsiId"
-                      :items="opsiSelectItems"
-                      placeholder="Pilih opsi..."
-                      size="sm" class="w-full"
+                    <UButton
+                      icon="i-lucide-trash-2"
+                      size="sm"
+                      color="error"
+                      variant="ghost"
+                      @click="removeNilaiNormalSel(selectedInputan, nidx)"
                     />
                   </div>
-                  <div class="col-span-2 flex justify-end">
-                    <UButton icon="i-lucide-trash-2" size="sm" color="error" variant="ghost"
-                      @click="removeNilaiNormalSel(selectedInputan, nidx)" />
+
+                  <div class="grid gap-3 md:grid-cols-12">
+                    <div class="md:col-span-3">
+                      <label class="mb-1 block text-xs text-muted">Sex</label>
+                      <USelect
+                        v-model="nn.sex"
+                        :items="[
+                          { label: 'Pilih sex', value: null },
+                          { label: 'Laki-laki', value: 'MALE' },
+                          { label: 'Perempuan', value: 'FEMALE' },
+                        ]"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </div>
+                  <div class="md:col-span-3">
+                    <label class="mb-1 block text-xs text-muted">Age Min</label>
+                    <UInput v-model="nn.ageMin" type="number" min="0" size="sm" class="w-full" />
+                    <p class="mt-1 text-[11px] text-muted">
+                      {{ getAgeBadgeLabel(nn.ageMin, nn.sex, selectedInputan.nilaiNormalSel) }}
+                    </p>
+                  </div>
+                    <div class="md:col-span-6">
+                      <label class="mb-1 block text-xs text-muted">Opsi yang Normal</label>
+                      <USelect
+                        v-model="nn.opsiId"
+                        :items="opsiSelectItems"
+                        placeholder="Pilih opsi..."
+                        size="sm"
+                        class="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="mt-4 rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <UBadge color="neutral" variant="soft" :label="formatSelectedRuleSummary(nn).sex" />
+                      <UBadge
+                        color="neutral"
+                        variant="soft"
+                        :label="getAgeBadgeLabel(nn.ageMin, nn.sex, selectedInputan.nilaiNormalSel)"
+                      />
+                      <UBadge
+                        color="primary"
+                        variant="soft"
+                        :label="selectedInputan.opsis.find(o => o.id === nn.opsiId)?.label || 'Opsi belum dipilih'"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
