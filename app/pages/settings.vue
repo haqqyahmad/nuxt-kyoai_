@@ -19,14 +19,14 @@ const links = computed<NavigationMenuItem[][]>(() => {
       exact: true
     },
     {
-      label: 'Notifications',
-      icon: 'i-lucide-bell',
-      to: '/settings/notifications'
-    },
-    {
       label: 'Security',
       icon: 'i-lucide-shield',
       to: '/settings/security'
+    },
+    {
+      label: 'Notifications',
+      icon: 'i-lucide-bell',
+      to: '/settings/notifications'
     }
   ]
 

@@ -1,4 +1,4 @@
-<!-- app/pages/packages/create.vue -->
+<!-- app/pages/services/types/create.vue -->
 <script setup lang="ts">
 const api = useApi()
 const toast = useToast()
@@ -93,8 +93,6 @@ async function fetchDepartments() {
   try {
     const res = await api.get('/medical/departments')
 
-    console.log('departments full response:', res.data?.data)
-
     const payload = res.data?.data
 
     departments.value = Array.isArray(payload)
@@ -102,10 +100,6 @@ async function fetchDepartments() {
       : Array.isArray(payload?.data)
         ? payload.data
         : []
-
-    console.log('departments parsed:', departments.value)
-    console.log('department id:', departments.value[0]?.id)
-    console.log('department name:', departments.value[0]?.name)
   } catch (err) {
     console.error('fetch departments error:', err)
     departments.value = []

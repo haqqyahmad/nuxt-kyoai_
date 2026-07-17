@@ -9,6 +9,10 @@ type EmployeeItem = {
   educations?: any[]
 }
 
+const emit = defineEmits<{
+  (e: 'edit', id: number): void
+}>()
+
 const props = defineProps<{
   employees: EmployeeItem[]
   loading?: boolean
@@ -145,7 +149,7 @@ function getStatusColor(status?: string) {
                 variant="soft"
                 icon="i-lucide-edit"
                 size="sm"
-                @click="openEdit = true"
+                @click="emit('edit', employee.id)"
               >
                 Edit
               </UButton>
@@ -169,6 +173,5 @@ function getStatusColor(status?: string) {
       </div>
     </template>
 
-    <HrisEmployeesEditModal v-model:open="openEdit" />
   </UCard>
 </template>

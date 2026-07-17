@@ -105,23 +105,13 @@ export async function useCurrentUser() {
       .filter((value): value is NonNullable<AuthRoomAccess['room']> => Boolean(value))
   })
 
-  const allowedSelfRoomTypeCodes = computed(() => {
-    if (isPic.value) return []
-    if (allowedSelfRooms.value.length > 0) {
-      return [...new Set(
-        allowedSelfRooms.value
-          .map(room => room.roomType?.code)
-          .filter((value): value is string => Boolean(value))
-      )]
-    }
-    return collectSelfAssignableRoomTypeCodes(roles.value)
-  })
+const allowedSelfRoomTypeCodes = computed(() => {
+  return collectSelfAssignableRoomTypeCodes(roles.value)
+})
 
-  const canSelfAssign = computed(() =>
-    isPic.value
-    || allowedSelfRoomIds.value.length > 0
-    || allowedSelfRoomTypeCodes.value.length > 0
-  )
+const canSelfAssign = computed(() =>
+  isPic.value || allowedSelfRoomIds.value.length > 0
+)
 
   return {
     user,

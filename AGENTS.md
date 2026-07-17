@@ -77,6 +77,12 @@ server/api/            # Nitro mock API
 - `useState` untuk shared state (jika perlu).
 - Hindari Pinia/Vuex.
 
+### Employee vs User vs External Doctor
+- **Employee** → data HR (NIK, nama, department). Bisa punya User account (1-to-0..1).
+- **User** → akun login sistem. Tidak harus Employee (misal: dokter external).
+- **External Doctor** → User dengan flag `isExternal` (BMAD), bukan Employee.
+- Saat ini Employee dan User sudah memiliki relasi di Prisma (userId opsional di Employee).
+
 ## Sidebar Permission Mapping
 
 Setiap route di sidebar di-map ke document type key secara dinamis via `useRoutePermission`:
@@ -116,6 +122,12 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-07-17 — Profile Employee Tabs, Employee↔User Link
+- Employee ↔ User: relasi Prisma (userId di Employee) + Tab User di EditModal + auto-copy data.
+- Profile /settings: tampilkan semua data employee dalam tabs jika ter-link + Leave Balance card.
+- BE: endpoint `/users/auth/employee` + `/users/profile` untuk self-update.
+- Perbaikan date fields di EditModal + Profile.
+
 ### 2026-07-14 — Permission Matrix, Sidebar Filter & Settings Tabs
 - `/settings/permissions`: hapus Only If Creator duplikat + Add Role Permission modal.
 - `layouts/default.vue`: sidebar navigasi difilter permissions user login + untuk petugas-lab/radiologi/dokter hanya tampilkan Dashboard, Examination, Settings.
@@ -125,6 +137,10 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `login.vue`: fix form binding + loading state + redirect berdasarkan role.
 - `TeamsMenu.vue`: tampilkan nama role, bukan "PIC".
 - Backend auth: login response include `roles` array.
+- Employee ↔ User: relasi Prisma (userId di Employee) + Tab User di EditModal + auto-copy data.
+- Profile /settings: tampilkan semua data employee dalam tabs jika ter-link.
+- Profile: Leave Balance card di kanan atas.
+- Room access pre-populate: BE auto-create `UserRoomAccess` dari role mapping saat user buka `/rooms/assignments`.
 - Dokumentasi: `docs/permissions-worklog.md`.
 
 ## Workflow

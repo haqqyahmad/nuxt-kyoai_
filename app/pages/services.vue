@@ -1,4 +1,4 @@
-<!-- app/pages/items.vue -->
+<!-- app/pages/services.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
@@ -20,9 +20,7 @@ const links: NavigationMenuItem[] = [
     to: '/services/packages'
   }
 ]
-console.log('path', route.path)
 
-// const linkHidden = ['/settings/roles', '/settings/roles/new']
 </script>
 
 <template>

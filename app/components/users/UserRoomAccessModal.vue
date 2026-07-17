@@ -49,6 +49,8 @@ async function fetchUserRoomAccess() {
 
   loadingData.value = true
   try {
+    await api.post(`/room-assignments/sync-room-access/${props.user.id}`)
+
     const res = await api.get(`/users/${props.user.id}/room-access`)
     const data = res.data.data ?? res.data ?? []
 
@@ -152,7 +154,7 @@ async function saveRoomAccess() {
   <UModal
     v-model:open="open"
     :title="`Room Access — ${user?.name ?? '-'}`"
-    description="Pilih room yang boleh diakses user ini saat self assignment atau operasional."
+    description="Pilih room yang boleh diakses user ini."
   >
     <template #body>
       <div
@@ -195,7 +197,7 @@ async function saveRoomAccess() {
           </UButton>
         </div>
 
-        <div class="flex items-center justify-between gap-2 rounded-xl border border-default p-3 text-sm">
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-default p-3 text-sm">
           <span class="text-muted">
             Selected room
           </span>

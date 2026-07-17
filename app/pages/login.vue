@@ -59,7 +59,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   try {
     const res = await api.post('/auth/login', {
       email: payload.data.email,
-      password: payload.data.password
+      password: payload.data.password,
+      remember: loginState.remember
     })
     setToken(res.data.data.token, loginState.remember)
 

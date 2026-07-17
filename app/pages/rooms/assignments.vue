@@ -23,6 +23,16 @@ const isRestrictedStaff = computed(() =>
   userRoles.value.some(r => restrictedStaffRoles.includes(r))
 )
 
+async function syncRoomAccess() {
+  try {
+    if (currentUser.value?.id) {
+      await api.post(`/room-assignments/sync-room-access/${currentUser.value.id}`)
+    }
+  } catch {
+    // silent
+  }
+}
+
 const {
   rooms,
   pending: roomsPending,
@@ -103,12 +113,10 @@ const activeRoomOptions = computed(() =>
 
 const selfRoomOptions = computed(() => {
   const allowedRoomIds = allowedSelfRoomIds.value
-  const allowedCodes = allowedSelfRoomTypeCodes.value
-  const directRooms = allowedSelfRooms.value
 
-  if (!isPic.value && directRooms.length > 0) {
-    return directRooms
-      .filter(room => room.isActive !== false)
+  if (isPic.value) {
+    return rooms.value
+      .filter(room => room.isActive)
       .map(room => ({
         label: `${room.code} - ${room.name}${room.roomType?.name ? ` (${room.roomType.name})` : ''}`,
         value: room.id
@@ -116,13 +124,7 @@ const selfRoomOptions = computed(() => {
   }
 
   return rooms.value
-    .filter((room) => {
-      if (!room.isActive) return false
-      if (isPic.value) return true
-      if (allowedRoomIds.length) return allowedRoomIds.includes(room.id)
-      if (!allowedCodes.length) return true
-      return Boolean(room.roomType?.code && allowedCodes.includes(room.roomType.code))
-    })
+    .filter(room => room.isActive && allowedRoomIds.includes(room.id))
     .map(room => ({
       label: `${room.code} - ${room.name}${room.roomType?.name ? ` (${room.roomType.name})` : ''}`,
       value: room.id
@@ -495,6 +497,8 @@ watch(
 )
 
 onMounted(async () => {
+  await syncRoomAccess()
+  await refreshUser()
   await refreshMyAssignment()
 })
 </script>
@@ -1033,7 +1037,7 @@ onMounted(async () => {
                   color="neutral"
                   variant="soft"
                   :loading="pending || roomsPending || roomTypesPending || usersPending"
-                  @click="refresh(); refreshUser(); refreshRooms()"
+                  @click="syncRoomAccess(); refresh(); refreshUser(); refreshRooms()"
                 >
                   Refresh
                 </UButton>
