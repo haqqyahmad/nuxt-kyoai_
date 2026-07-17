@@ -80,6 +80,7 @@ export async function useRoomAssignments() {
     const res = await api.post('/room-assignments/self', payload)
     await refresh()
     clearNuxtData('room-session-me')
+    clearNuxtData('room-assignment-me')
     return res
   }
 

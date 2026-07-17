@@ -57,6 +57,36 @@ export async function useRoomTypes() {
     return res
   }
 
+  async function createStage(roomTypeId: string, payload: {
+    code: string
+    name: string
+    stageOrder: number
+    slotLimit?: number
+    isActive?: boolean
+  }) {
+    const res = await api.post(`/medical/rooms/room-types/${roomTypeId}/stages`, payload)
+    await refresh()
+    return res
+  }
+
+  async function updateStage(roomTypeId: string, stageId: string, payload: {
+    code?: string
+    name?: string
+    stageOrder?: number
+    slotLimit?: number
+    isActive?: boolean
+  }) {
+    const res = await api.put(`/medical/rooms/room-types/${roomTypeId}/stages/${stageId}`, payload)
+    await refresh()
+    return res
+  }
+
+  async function deleteStage(roomTypeId: string, stageId: string) {
+    const res = await api.delete(`/medical/rooms/room-types/${roomTypeId}/stages/${stageId}`)
+    await refresh()
+    return res
+  }
+
   return {
     roomTypes,
     roomTypeOptions,
@@ -64,6 +94,9 @@ export async function useRoomTypes() {
     refresh,
     createRoomType,
     updateRoomType,
-    deleteRoomType
+    deleteRoomType,
+    createStage,
+    updateStage,
+    deleteStage
   }
 }

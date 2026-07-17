@@ -14,6 +14,7 @@ type QueueStageItem = {
   id: string
   stageOrder: number
   status: string
+  roomId: string | null
   stage?: {
     id: string
     code: string
@@ -240,7 +241,7 @@ const resultDrafts = reactive<Record<string, Record<string, ResultDraft>>>({})
 const itemNotes = reactive<Record<string, string>>({})
 const isItemActionModalOpen = ref(false)
 const selectedItemAction = ref<RoomExamItem | null>(null)
-const selectedItemActionType = ref<'skip' | 'reschedule' | 'retest' | null>(null)
+const selectedItemActionType = ref<'skip' | 'reschedule' | 'retest' | 'refuse' | null>(null)
 const itemActionReason = ref('')
 const itemActionNote = ref('')
 const itemActionSubmitLoading = ref(false)
@@ -285,6 +286,8 @@ function getStatusColor(status: string) {
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
+  if (status === 'REFUSED') return 'error'
+  if (status === 'RETEXT') return 'warning'
   return 'neutral'
 }
 
@@ -294,6 +297,8 @@ function getStatusLabel(status: string) {
   if (status === 'CALLED') return 'Sudah dipanggil'
   if (status === 'SKIPPED') return 'Skip'
   if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'REFUSED') return 'Pasien Menolak'
+  if (status === 'RETEXT') return 'Perlu Tes Ulang'
   return 'Menunggu'
 }
 
@@ -391,7 +396,7 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
   const ranges = getNumericNormalRanges(inputan)
   if (ranges.length === 0) return null
 
-  const matchedNormal = ranges.find(range => {
+  const matchedNormal = ranges.find((range) => {
     const lowOk = range.normalLow == null || value >= range.normalLow
     const highOk = range.normalHigh == null || value <= range.normalHigh
     return lowOk && highOk
@@ -404,7 +409,7 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
     }
   }
 
-  const matchedCritical = ranges.find(range => {
+  const matchedCritical = ranges.find((range) => {
     const lowCritical = range.criticalLow != null && value <= range.criticalLow
     const highCritical = range.criticalHigh != null && value >= range.criticalHigh
     return lowCritical || highCritical
@@ -485,9 +490,29 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
 
 const patient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
 const canManageItemActions = computed(() => permissions.value.includes('queue:admin'))
-const activeStage = computed(() =>
-  (roomQueueDetail.value?.stageItems ?? []).find(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status)) ?? null
+const currentRoomId = computed(() =>
+  activeRoomSession.value?.roomId ?? roomAssignment.value?.roomId ?? null
 )
+
+const activeStage = computed(() => {
+  const stages = (roomQueueDetail.value?.stageItems ?? [])
+    .filter(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status))
+
+  if (stages.length === 0) return null
+
+  const roomId = currentRoomId.value
+  if (roomId) {
+    const ownStage = stages.find(stage => stage.roomId === roomId)
+    if (ownStage) return ownStage
+
+    const unassignedStage = stages.find(stage => !stage.roomId)
+    if (unassignedStage) return unassignedStage
+
+    return null
+  }
+
+  return stages[0] ?? null
+})
 const activeStageCode = computed(() => activeStage.value?.stage?.code ?? null)
 const allItemsFinal = computed(() =>
   roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status))
@@ -495,11 +520,59 @@ const allItemsFinal = computed(() =>
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
 function getStageDisplayName(stage?: QueueStageItem | null) {
-  return stage?.stage?.name || `Stage ${stage?.stageOrder ?? '-'}`
+  if (!stage) return '-'
+  const total = (roomQueueDetail.value?.stageItems ?? []).length
+  const code = stage.stage?.code
+  const name = (code ? `${code} · ` : '') + (stage.stage?.name || `Stage ${stage.stageOrder ?? '-'}`)
+  const otherRoom = stage.roomId && stage.roomId !== roomAssignment.value?.roomId
+  const suffix = otherRoom ? ' (ruangan lain)' : ''
+  return (total > 1 ? `Stage ${stage.stageOrder} dari ${total}: ` : '') + name + suffix
 }
+
+const stageSummary = computed(() => {
+  const items = roomQueueDetail.value?.stageItems ?? []
+  if (items.length === 0) return '-'
+  const active = items.find(s => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(s.status))
+  const activeOrder = active?.stageOrder ?? 0
+  const names = items
+    .slice()
+    .sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0))
+    .map((s) => {
+      const code = s.stage?.code
+      const otherRoom = s.roomId && s.roomId !== roomAssignment.value?.roomId
+      return (code ? `${code} · ` : '') + (s.stage?.name || `Stage ${s.stageOrder}`) + (otherRoom ? ' (ruangan lain)' : '')
+    })
+  return `Stage ${activeOrder} dari ${items.length} (${names.join(' → ')})`
+})
 
 function isExamStageActive() {
   return activeStageCode.value === 'EXAM'
+}
+
+function isCollectStageActive() {
+  return activeStageCode.value === 'COLLECT'
+}
+
+function isReceiveStageActive() {
+  return activeStageCode.value === 'RECEIVE'
+}
+
+function getItemSampleCollection(item: RoomExamItem): SampleCollection | null {
+  const collectionId = item.sampleImpact?.collectionId
+  if (!collectionId) return null
+  return sampleCollections.value.find(collection => collection.id === collectionId) ?? null
+}
+
+function canCollectSample(item: RoomExamItem) {
+  if (!isCollectStageActive()) return false
+  const collection = getItemSampleCollection(item)
+  return Boolean(collection) && collection?.status === 'PENDING'
+}
+
+function canReceiveSample(item: RoomExamItem) {
+  if (!isReceiveStageActive()) return false
+  const collection = getItemSampleCollection(item)
+  return Boolean(collection) && collection?.status === 'COLLECTED'
 }
 
 function isSampleManagedItem(item: RoomExamItem) {
@@ -592,7 +665,7 @@ function getInputDraft(itemId: string, inputId: string) {
   return resultDrafts[itemId][inputId]
 }
 
-function openItemActionModal(item: RoomExamItem, action: 'skip' | 'reschedule' | 'retest') {
+function openItemActionModal(item: RoomExamItem, action: 'skip' | 'reschedule' | 'retest' | 'refuse') {
   selectedItemAction.value = item
   selectedItemActionType.value = action
   itemActionReason.value = ''
@@ -767,6 +840,10 @@ function setResultSaving(itemId: string, value: boolean) {
   }
 }
 
+function getDraftText(value: unknown) {
+  return String(value ?? '').trim()
+}
+
 function buildResultsPayload(item: RoomExamItem) {
   const itemDraft = resultDrafts[item.id] ?? {}
   const inputs = item.trxExamItem?.item?.inputans ?? []
@@ -776,7 +853,7 @@ function buildResultsPayload(item: RoomExamItem) {
     const base = { inputanId: inputan.id }
 
     if (inputan.inputType === 'number') {
-      if (!draft.valueNumber?.trim()) return null
+      if (!getDraftText(draft.valueNumber)) return null
       return {
         ...base,
         valueNumber: Number(draft.valueNumber)
@@ -784,7 +861,7 @@ function buildResultsPayload(item: RoomExamItem) {
     }
 
     if (inputan.inputType === 'selected') {
-      if (!draft.valueSelected?.trim()) return null
+      if (!getDraftText(draft.valueSelected)) return null
       return {
         ...base,
         valueSelected: draft.valueSelected
@@ -792,17 +869,17 @@ function buildResultsPayload(item: RoomExamItem) {
     }
 
     if (inputan.inputType === 'calculated') {
-      if (!draft.valueCalculated?.trim()) return null
+      if (!getDraftText(draft.valueCalculated)) return null
       return {
         ...base,
         valueCalculated: Number(draft.valueCalculated)
       }
     }
 
-    if (!draft.valueString?.trim()) return null
+    if (!getDraftText(draft.valueString)) return null
     return {
       ...base,
-      valueString: draft.valueString.trim()
+      valueString: getDraftText(draft.valueString)
     }
   }).filter((value): value is Record<string, unknown> => Boolean(value))
 }
@@ -957,6 +1034,54 @@ async function handleStartItem(item: RoomExamItem) {
   }
 }
 
+async function handleCollectSample(item: RoomExamItem) {
+  const collection = getItemSampleCollection(item)
+  if (!collection || itemActionLoading.value[item.id]) return
+
+  setItemLoading(item.id, true)
+  try {
+    await api.patch(`/medical/exams/queue/samples/${collection.id}/collect`, {})
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: `Sample ${collection.sampleType?.name ?? ''} berhasil diambil.`.trim(),
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal mengambil sample',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengambil sample.'),
+      color: 'error'
+    })
+  } finally {
+    setItemLoading(item.id, false)
+  }
+}
+
+async function handleReceiveSample(item: RoomExamItem) {
+  const collection = getItemSampleCollection(item)
+  if (!collection || itemActionLoading.value[item.id]) return
+
+  setItemLoading(item.id, true)
+  try {
+    await api.patch(`/medical/exams/queue/samples/${collection.id}/receive`, {})
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: `Sample ${collection.sampleType?.name ?? ''} berhasil diterima.`.trim(),
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal menerima sample',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat menerima sample.'),
+      color: 'error'
+    })
+  } finally {
+    setItemLoading(item.id, false)
+  }
+}
+
 async function handleSaveResults(item: RoomExamItem) {
   const examId = item.trxExamItem?.exam?.id
   if (!examId) return
@@ -1045,7 +1170,7 @@ async function handleSubmitItemAction() {
       if (!itemActionReason.value.trim()) {
         toast.add({
           title: 'Alasan wajib diisi',
-          description: 'Isi alasan skip/refuse sebelum melanjutkan.',
+          description: 'Isi alasan skip sebelum melanjutkan.',
           color: 'warning'
         })
         return
@@ -1056,10 +1181,31 @@ async function handleSubmitItemAction() {
         skipReason: itemActionReason.value.trim(),
         notes: itemActionNote.value.trim() || null
       })
+    } else if (actionType === 'refuse') {
+      if (!itemActionReason.value.trim()) {
+        toast.add({
+          title: 'Alasan wajib diisi',
+          description: 'Isi alasan penolakan sebelum melanjutkan.',
+          color: 'warning'
+        })
+        return
+      }
+
+      await api.patch(`/medical/exams/queue/exam-item/${item.id}/refuse`, {
+        refusedBy: currentUserId.value,
+        refuseReason: itemActionReason.value.trim(),
+        notes: itemActionNote.value.trim() || null
+      })
+    } else if (actionType === 'retest') {
+      await api.patch(`/medical/exams/queue/exam-item/${item.id}/retest`, {
+        retestedBy: currentUserId.value,
+        retestReason: itemActionReason.value.trim() || 'Retest requested',
+        notes: itemActionNote.value.trim() || null
+      })
     } else {
       await api.patch(`/medical/exams/queue/exam-item/${item.id}/reschedule`, {
         rescheduledBy: currentUserId.value,
-        rescheduleNote: itemActionNote.value.trim() || (actionType === 'retest' ? 'Retest requested' : null)
+        rescheduleNote: itemActionNote.value.trim() || null
       })
     }
 
@@ -1067,16 +1213,18 @@ async function handleSubmitItemAction() {
     toast.add({
       title: 'Berhasil',
       description: actionType === 'skip'
-        ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditolak.`
-        : actionType === 'retest'
-          ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang untuk retest.`
-          : `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang.`,
+        ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditandai skip.`
+        : actionType === 'refuse'
+          ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditolak pasien.`
+          : actionType === 'retest'
+            ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditandai perlu tes ulang.`
+            : `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang.`,
       color: 'success'
     })
     closeItemActionModal()
   } catch (error: unknown) {
     toast.add({
-      title: actionType === 'skip' ? 'Gagal menolak item' : actionType === 'retest' ? 'Gagal retest item' : 'Gagal reschedule item',
+      title: actionType === 'skip' ? 'Gagal skip item' : actionType === 'refuse' ? 'Gagal menolak item' : actionType === 'retest' ? 'Gagal retest item' : 'Gagal reschedule item',
       description: getErrorMessage(error, 'Terjadi kesalahan saat memproses item pemeriksaan.'),
       color: 'error'
     })
@@ -1183,9 +1331,14 @@ async function handleSubmitItemAction() {
 
                 <div class="flex flex-wrap gap-2">
                   <UBadge
-                    :label="`Stage aktif: ${activeStage ? getStageDisplayName(activeStage) : 'Selesai'}`"
+                    :label="`${activeStage ? getStageDisplayName(activeStage) : 'Selesai'}`"
                     :color="activeStage ? getStatusColor(activeStage.status) : 'success'"
                     variant="subtle"
+                  />
+                  <UBadge
+                    color="info"
+                    variant="outline"
+                    :label="stageSummary"
                   />
                   <UBadge
                     :label="`Status room: ${getStatusLabel(roomQueueDetail.status)}`"
@@ -1446,7 +1599,29 @@ async function handleSubmitItemAction() {
 
                 <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
                   <UButton
-                    v-if="item.status === 'PENDING'"
+                    v-if="canCollectSample(item)"
+                    color="info"
+                    variant="soft"
+                    icon="i-lucide-test-tube"
+                    :loading="itemActionLoading[item.id]"
+                    @click="handleCollectSample(item)"
+                  >
+                    Ambil Sample
+                  </UButton>
+
+                  <UButton
+                    v-else-if="canReceiveSample(item)"
+                    color="info"
+                    variant="soft"
+                    icon="i-lucide-package-check"
+                    :loading="itemActionLoading[item.id]"
+                    @click="handleReceiveSample(item)"
+                  >
+                    Terima Sample
+                  </UButton>
+
+                  <UButton
+                    v-else-if="item.status === 'PENDING' && isExamStageActive()"
                     color="warning"
                     variant="soft"
                     icon="i-lucide-play"
@@ -1479,14 +1654,14 @@ async function handleSubmitItemAction() {
                   </UButton>
 
                   <UButton
-                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(item.status)"
                     color="error"
                     variant="soft"
                     icon="i-lucide-ban"
                     :loading="itemActionLoading[item.id]"
-                    @click="openItemActionModal(item, 'skip')"
+                    @click="openItemActionModal(item, 'refuse')"
                   >
-                    Tolak
+                    Pasien Menolak
                   </UButton>
 
                   <UButton
@@ -1521,28 +1696,43 @@ async function handleSubmitItemAction() {
 
   <UModal
     v-model:open="isItemActionModalOpen"
-    :title="selectedItemActionType === 'skip' ? 'Tolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item'"
+    :title="selectedItemActionType === 'skip' ? 'Skip Item' : selectedItemActionType === 'refuse' ? 'Pasien Menolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item'"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
-          :color="selectedItemActionType === 'skip' ? 'error' : 'warning'"
+          :color="(selectedItemActionType === 'skip' || selectedItemActionType === 'refuse') ? 'error' : 'warning'"
           :title="selectedItemAction?.trxExamItem?.item?.name || 'Item pemeriksaan'"
           :description="selectedItemActionType === 'skip'
-            ? 'Item ini akan ditandai skip/refuse.'
-            : selectedItemActionType === 'retest'
-              ? 'Item ini akan dijadwalkan ulang untuk pemeriksaan ulang.'
-              : 'Item ini akan dijadwalkan ulang untuk kunjungan berikutnya.'"
+            ? 'Item ini akan ditandai skip (batal oleh admin/petugas).'
+            : selectedItemActionType === 'refuse'
+              ? 'Item ini akan ditandai pasien menolak pemeriksaan.'
+              : selectedItemActionType === 'retest'
+                ? 'Item ini akan dijadwalkan ulang untuk pemeriksaan ulang.'
+                : 'Item ini akan dijadwalkan ulang untuk kunjungan berikutnya.'"
         />
 
-        <div v-if="selectedItemActionType === 'skip'" class="space-y-2">
+        <div v-if="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse'" class="space-y-2">
           <label class="block text-sm font-medium text-highlighted">
-            Alasan skip
+            {{ selectedItemActionType === 'refuse' ? 'Alasan penolakan' : 'Alasan skip' }}
           </label>
           <UTextarea
             v-model="itemActionReason"
             :rows="4"
-            placeholder="Contoh: pasien menolak, sampel tidak tersedia, kondisi lain..."
+            :placeholder="selectedItemActionType === 'refuse'
+              ? 'Contoh: pasien tidak ingin diperiksa, kondisi lain...'
+              : 'Contoh: sampel tidak tersedia, kondisi lain...'"
+          />
+        </div>
+
+        <div v-else-if="selectedItemActionType === 'retest'" class="space-y-2">
+          <label class="block text-sm font-medium text-highlighted">
+            Alasan retest
+          </label>
+          <UTextarea
+            v-model="itemActionReason"
+            :rows="4"
+            placeholder="Contoh: hasil tidak valid, alat bermasalah, kondisi lain..."
           />
         </div>
 

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 
+import { examTypeBadgeColor } from '~/constants/room-types'
+import { useAudit } from '~/composables/useAudit'
+
 type Patient = {
   id: string | number
   PatientId?: string | null
@@ -62,6 +65,11 @@ type ExamResultDetail = {
   status?: 'pending' | 'completed'
   exam?: {
     id: string
+    examType?: 'MCU' | 'RAWAT_JALAN' | null
+    examCode?: string | null
+    externalStatus?: 'ASSIGNED' | 'CANCELLED' | 'FILLED' | null
+    assignedExternalUserId?: number | null
+    attachmentUrl?: string | null
     results?: Array<{
       inputanId: string
       valueString?: string | null
@@ -92,8 +100,164 @@ const emit = defineEmits<{
   resultSaved: [result: ExamResultDetail]
 }>()
 
+const result = computed(() => props.result)
+
 const api = useApi()
 const toast = useToast()
+const { loading: auditLoading, entries: auditEntries, fetchAudit, resetAudit } = useAudit()
+
+const gradingColor: Record<string, 'success' | 'warning' | 'error'> = {
+  NORMAL: 'success',
+  ABNORMAL_INC: 'warning',
+  ABNORMAL_DEC: 'error'
+}
+const gradingLabel: Record<string, string> = {
+  NORMAL: 'Normal',
+  ABNORMAL_INC: 'Abnormal ↑',
+  ABNORMAL_DEC: 'Abnormal ↓'
+}
+
+function getItemGrading(inputanId: string) {
+  const found = props.result?.exam?.results?.find((r: any) => r.inputanId === inputanId)
+  return found?.grading ?? null
+}
+
+const groupGradingForm = ref<{ groupId: string, groupName: string, grading: string | null }>({
+  groupId: '',
+  groupName: '',
+  grading: null
+})
+const autoComment = ref<string | null>(null)
+const groupGradingSaving = ref(false)
+
+async function loadGroupResults() {
+  if (!props.result?.exam?.id) return
+  try {
+    const { data } = await api.get(`/mcu/exams/${props.result.exam.id}/group-results`)
+    const list = data?.data ?? []
+    if (Array.isArray(list) && list.length > 0) {
+      const g = list[0]
+      groupGradingForm.value = { groupId: g.groupId, groupName: g.groupName ?? '', grading: g.grading ?? null }
+      autoComment.value = g.autoComment ?? null
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+async function saveGroupGrading() {
+  if (!props.result?.exam?.id) return
+  if (!groupGradingForm.value.groupId) {
+    toast.add({ title: 'groupId wajib diisi', color: 'error' })
+    return
+  }
+  groupGradingSaving.value = true
+  try {
+    const items = (props.result.exam?.results ?? [])
+      .filter((r: any) => r.grading && r.grading !== 'NORMAL')
+      .map((r: any) => ({ inputanId: r.inputanId, grading: r.grading, name: inputanLabel(r.inputanId) }))
+    const { data } = await api.post(`/mcu/exams/${props.result.exam.id}/group-result`, {
+      ...groupGradingForm.value,
+      items
+    })
+    autoComment.value = data?.data?.autoComment ?? null
+    toast.add({ title: 'Grading group disimpan', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: e?.response?.data?.message ?? 'Gagal menyimpan', color: 'error' })
+  } finally {
+    groupGradingSaving.value = false
+  }
+}
+
+function inputanLabel(inputanId: string) {
+  return props.result?.item?.inputans?.find((i: any) => i.id === inputanId)?.label ?? inputanId
+}
+
+const externalDoctors = ref<Array<{ id: number, name: string }>>([])
+const selectedExternalDoctor = ref<number | null>(null)
+const externalSaving = ref(false)
+const externalFile = ref<File | null>(null)
+
+async function loadExternalDoctors() {
+  try {
+    const res = await api.get('/users?limit=1000')
+    const payload = res.data?.data ?? []
+    if (Array.isArray(payload)) {
+      externalDoctors.value = payload
+        .filter((u: any) => u.isExternal)
+        .map((u: any) => ({ id: u.id, name: u.name }))
+    }
+  } catch {
+    externalDoctors.value = []
+  }
+}
+loadExternalDoctors()
+
+function getErrorMessage(error: unknown, fallback = 'Terjadi kesalahan'): string {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = (error as any).data
+    if (data?.message) return typeof data.message === 'string' ? data.message : JSON.stringify(data.message)
+  }
+  if (error instanceof Error) return error.message
+  return fallback
+}
+
+const externalStatusColor: Record<string, string> = {
+  ASSIGNED: 'warning',
+  CANCELLED: 'neutral',
+  FILLED: 'success'
+}
+
+async function assignExternalDoctor() {
+  if (!selectedExternalDoctor.value) return
+  externalSaving.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/assign-external`, {
+      externalUserId: selectedExternalDoctor.value
+    })
+    toast.add({ title: 'Berhasil', description: 'Dokter luar ditugaskan.', color: 'success' })
+    emit('resultSaved', props.result as ExamResultDetail)
+  } catch (error: unknown) {
+    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal menugaskan dokter luar.'), color: 'error' })
+  } finally {
+    externalSaving.value = false
+  }
+}
+
+async function cancelExternalDoctor() {
+  externalSaving.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/cancel-external`)
+    toast.add({ title: 'Berhasil', description: 'Penugasan dokter luar dibatalkan.', color: 'success' })
+    emit('resultSaved', props.result as ExamResultDetail)
+  } catch (error: unknown) {
+    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal membatalkan penugasan.'), color: 'error' })
+  } finally {
+    externalSaving.value = false
+  }
+}
+
+async function uploadExternalResult() {
+  if (!externalFile.value) {
+    toast.add({ title: 'PDF wajib diunggah', color: 'warning' })
+    return
+  }
+  externalSaving.value = true
+  try {
+    const form = new FormData()
+    form.append('attachment', externalFile.value)
+    form.append('externalUserId', String(props.result?.exam?.assignedExternalUserId ?? selectedExternalDoctor.value ?? ''))
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/external-result`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    toast.add({ title: 'Berhasil', description: 'Hasil dokter luar disimpan.', color: 'success' })
+    emit('resultSaved', props.result as ExamResultDetail)
+  } catch (error: unknown) {
+    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal menyimpan hasil dokter luar.'), color: 'error' })
+  } finally {
+    externalSaving.value = false
+  }
+}
 
 const saving = ref(false)
 const resultDrafts = ref<Record<string, ResultDraft>>({})
@@ -109,14 +273,14 @@ function formatDateTime(dateString?: string | null) {
   if (!dateString) return '-'
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
-    timeStyle: 'short',
+    timeStyle: 'short'
   }).format(new Date(dateString))
 }
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return '-'
   return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
+    dateStyle: 'medium'
   }).format(new Date(dateString))
 }
 
@@ -152,7 +316,7 @@ function isRangeMatchPatient(
     ageMin?: number | null
   },
   patientGenderKey: string | null,
-  patientAge: number | null,
+  patientAge: number | null
 ) {
   if (range.sex == null || range.ageMin == null) {
     return false
@@ -182,7 +346,7 @@ function getPatientMatchedNormalRanges(inputan: ExamInput) {
   const patientGenderKey = getPatientGenderKey(props.result?.patient?.gender)
 
   const matched = ranges.filter(range =>
-    isRangeMatchPatient(range, patientGenderKey, patientAge),
+    isRangeMatchPatient(range, patientGenderKey, patientAge)
   )
 
   if (!matched.length || patientAge == null || !patientGenderKey) {
@@ -197,21 +361,25 @@ function getMatchedNormalRange(inputan: ExamInput) {
   return getPatientMatchedNormalRanges(inputan)[0] || null
 }
 
+function getDraftText(value: unknown) {
+  return String(value ?? '').trim()
+}
+
 function getInputResultValue(inputanId: string) {
   const existing = props.result?.exam?.results?.find(result => result.inputanId === inputanId)
   const draft = resultDrafts.value[inputanId] || {}
 
-  if (draft.valueNumber?.trim()) {
-    return { raw: draft.valueNumber, numeric: Number(draft.valueNumber) }
+  if (getDraftText(draft.valueNumber)) {
+    return { raw: String(draft.valueNumber), numeric: Number(draft.valueNumber) }
   }
-  if (draft.valueCalculated?.trim()) {
-    return { raw: draft.valueCalculated, numeric: Number(draft.valueCalculated) }
+  if (getDraftText(draft.valueCalculated)) {
+    return { raw: String(draft.valueCalculated), numeric: Number(draft.valueCalculated) }
   }
-  if (draft.valueString?.trim()) {
-    return { raw: draft.valueString, numeric: null }
+  if (getDraftText(draft.valueString)) {
+    return { raw: String(draft.valueString), numeric: null }
   }
-  if (draft.valueSelected?.trim()) {
-    return { raw: draft.valueSelected, numeric: null }
+  if (getDraftText(draft.valueSelected)) {
+    return { raw: String(draft.valueSelected), numeric: null }
   }
 
   if (existing?.valueNumber != null) {
@@ -264,7 +432,7 @@ function getResultNormalityState(inputan: ExamInput) {
     return {
       label: 'No normal range',
       color: 'neutral' as const,
-      tone: 'No range available for this item',
+      tone: 'No range available for this item'
     }
   }
 
@@ -272,7 +440,7 @@ function getResultNormalityState(inputan: ExamInput) {
     return {
       label: 'Pending',
       color: 'neutral' as const,
-      tone: 'Enter a numeric value to evaluate',
+      tone: 'Enter a numeric value to evaluate'
     }
   }
 
@@ -280,14 +448,14 @@ function getResultNormalityState(inputan: ExamInput) {
     return {
       label: 'Abnormal',
       color: 'error' as const,
-      tone: 'Outside the normal range',
+      tone: 'Outside the normal range'
     }
   }
 
   return {
     label: 'Normal',
     color: 'success' as const,
-    tone: 'Inside the normal range',
+    tone: 'Inside the normal range'
   }
 }
 
@@ -364,7 +532,7 @@ function seedDraftsFromExistingResults() {
   if (!props.result?.exam?.results) return
 
   const resultMap = new Map(
-    (props.result.exam.results || []).map(result => [result.inputanId, result]),
+    (props.result.exam.results || []).map(result => [result.inputanId, result])
   )
 
   for (const inputan of props.result.item?.inputans || []) {
@@ -395,22 +563,22 @@ function buildResultsPayload() {
       const base = { inputanId: inputan.id }
 
       if (inputan.inputType === 'number') {
-        if (!draft.valueNumber?.trim()) return null
+        if (!getDraftText(draft.valueNumber)) return null
         return { ...base, valueNumber: Number(draft.valueNumber) }
       }
 
       if (inputan.inputType === 'selected') {
-        if (!draft.valueSelected?.trim()) return null
+        if (!getDraftText(draft.valueSelected)) return null
         return { ...base, valueSelected: draft.valueSelected }
       }
 
       if (inputan.inputType === 'calculated') {
-        if (!draft.valueCalculated?.trim()) return null
+        if (!getDraftText(draft.valueCalculated)) return null
         return { ...base, valueCalculated: Number(draft.valueCalculated) }
       }
 
-      if (!draft.valueString?.trim()) return null
-      return { ...base, valueString: draft.valueString.trim() }
+      if (!getDraftText(draft.valueString)) return null
+      return { ...base, valueString: getDraftText(draft.valueString) }
     })
     .filter((value): value is Record<string, unknown> => Boolean(value))
 }
@@ -420,7 +588,7 @@ async function handleSaveResult() {
     toast.add({
       title: 'Error',
       description: 'Invalid exam ID',
-      color: 'error',
+      color: 'error'
     })
     return
   }
@@ -430,7 +598,7 @@ async function handleSaveResult() {
     toast.add({
       title: 'No results',
       description: 'Please fill in at least one result field',
-      color: 'warning',
+      color: 'warning'
     })
     return
   }
@@ -442,7 +610,7 @@ async function handleSaveResult() {
     toast.add({
       title: 'Success',
       description: 'Results saved successfully',
-      color: 'success',
+      color: 'success'
     })
 
     emit('resultSaved', props.result)
@@ -454,7 +622,7 @@ async function handleSaveResult() {
     toast.add({
       title: 'Error',
       description: message,
-      color: 'error',
+      color: 'error'
     })
   } finally {
     saving.value = false
@@ -467,8 +635,17 @@ watch(
     resultDrafts.value = {}
     if (props.result) {
       seedDraftsFromExistingResults()
+      if (props.result.id) {
+        fetchAudit('RoomExamItem', props.result.id)
+        loadGroupResults()
+      } else {
+        resetAudit()
+      }
+    } else {
+      resetAudit()
     }
   },
+  { immediate: true }
 )
 
 onMounted(() => {
@@ -521,11 +698,17 @@ onMounted(() => {
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Queue Code</p>
-              <p class="mt-2 text-lg font-semibold text-highlighted">{{ result.queueCode }}</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Queue Code
+              </p>
+              <p class="mt-2 text-lg font-semibold text-highlighted">
+                {{ result.queueCode }}
+              </p>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Status</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Status
+              </p>
               <div class="mt-2">
                 <UBadge
                   :label="getStatusLabel(result.status)"
@@ -535,7 +718,9 @@ onMounted(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Type</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Type
+              </p>
               <div class="mt-2">
                 <UBadge
                   :label="getTypeLabel(result.resultTiming)"
@@ -545,8 +730,12 @@ onMounted(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Check-in</p>
-              <p class="mt-2 text-sm font-semibold text-highlighted">{{ formatDateTime(result.checkinAt) }}</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Check-in
+              </p>
+              <p class="mt-2 text-sm font-semibold text-highlighted">
+                {{ formatDateTime(result.checkinAt) }}
+              </p>
             </div>
           </div>
         </div>
@@ -557,38 +746,50 @@ onMounted(() => {
               <UCard class="border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between">
-                    <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Patient Summary</h4>
+                    <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                      Patient Summary
+                    </h4>
                     <UIcon name="i-lucide-user-round" class="size-4 text-muted" />
                   </div>
                 </template>
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Full Name</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Full Name
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatPatientName(result.patient) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Patient ID</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Patient ID
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.PatientId || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Date of Birth</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Date of Birth
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDate(result.patient?.dob) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Gender</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Gender
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.gender === 'MALE' ? 'Male' : result.patient?.gender === 'FEMALE' ? 'Female' : '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Age at Exam</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Age at Exam
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getAgeAtExamLabel(result.patient, result.checkinAt) }}
                     </dd>
@@ -599,32 +800,128 @@ onMounted(() => {
               <UCard class="border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between">
-                    <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Exam Context</h4>
+                    <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                      Exam Context
+                    </h4>
                     <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
                   </div>
                 </template>
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Item</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Item
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.item?.name || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Department</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Department
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getDepartmentLabel(result.item?.department) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Queue Entry</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Queue Entry
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.queueEntryId }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Completed</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Exam Type
+                    </dt>
+                    <dd class="mt-1">
+                      <UBadge :color="examTypeBadgeColor[result.exam?.examType ?? 'MCU'] ?? 'neutral'" variant="subtle">
+                        {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Rawat Jalan' : 'MCU' }}
+                      </UBadge>
+                    </dd>
+                  </div>
+                  <div v-if="result.exam?.examCode">
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Exam Code (Edisi)
+                    </dt>
+                    <dd class="mt-1 text-sm font-semibold text-highlighted font-mono">
+                      {{ result.exam.examCode }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Dokter Luar
+                    </dt>
+                    <dd class="mt-1 space-y-2">
+                      <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
+                        {{ result.exam.externalStatus }}
+                      </UBadge>
+                      <span v-else class="text-sm text-muted">-</span>
+
+                      <div v-if="!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED'" class="flex items-center gap-2">
+                        <USelectMenu
+                          v-model="selectedExternalDoctor"
+                          :items="externalDoctors"
+                          value-attribute="id"
+                          label-attribute="name"
+                          placeholder="Pilih dokter luar"
+                          class="min-w-48"
+                        />
+                        <UButton
+                          size="xs"
+                          color="primary"
+                          variant="soft"
+                          :loading="externalSaving"
+                          :disabled="!selectedExternalDoctor"
+                          @click="assignExternalDoctor"
+                        >
+                          Tugaskan
+                        </UButton>
+                      </div>
+
+                      <div v-if="result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
+                        <UButton
+                          size="xs"
+                          color="error"
+                          variant="soft"
+                          :loading="externalSaving"
+                          @click="cancelExternalDoctor"
+                        >
+                          Batalkan
+                        </UButton>
+                        <UButton
+                          size="xs"
+                          color="success"
+                          variant="soft"
+                          :loading="externalSaving"
+                          @click="uploadExternalResult"
+                        >
+                          Upload Hasil
+                        </UButton>
+                        <UInput
+                          type="file"
+                          accept="application/pdf"
+                          size="xs"
+                          @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
+                        />
+                      </div>
+
+                      <a
+                        v-if="result.exam?.attachmentUrl"
+                        :href="result.exam.attachmentUrl"
+                        target="_blank"
+                        class="text-xs text-primary underline"
+                      >
+                        Lihat PDF
+                      </a>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Completed
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDateTime(result.completedAt) }}
                     </dd>
@@ -638,14 +935,54 @@ onMounted(() => {
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Workflow History</h4>
-                      <p class="mt-1 text-xs text-muted">Audit trail of the exam process</p>
+                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                        Workflow History
+                      </h4>
+                      <p class="mt-1 text-xs text-muted">
+                        Audit trail of the exam process
+                      </p>
                     </div>
-                    <UIcon name="i-lucide-list-timeline" class="size-4 text-muted" />
+                    <UIcon name="i-lucide-list-checks" class="size-4 text-muted" />
                   </div>
                 </template>
 
-                <div v-if="result.workHistory?.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+                <div v-if="auditLoading" class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
+                  Loading audit history...
+                </div>
+
+                <div v-else-if="auditEntries.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+                  <div
+                    v-for="(entry, index) in auditEntries"
+                    :key="entry.id ?? index"
+                    class="rounded-2xl border border-default/70 bg-muted/30 p-4"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-highlighted">
+                          {{ entry.action }}
+                        </p>
+                        <p v-if="entry.actorId" class="mt-1 text-xs text-muted">
+                          by <strong>user #{{ entry.actorId }}</strong>
+                          <span v-if="entry.actorRole"> ({{ entry.actorRole }})</span>
+                        </p>
+                      </div>
+                      <p class="shrink-0 text-xs text-muted">
+                        {{ formatDateTime(entry.createdAt) }}
+                      </p>
+                    </div>
+                    <p v-if="entry.notes" class="mt-3 text-sm leading-6 text-muted">
+                      {{ entry.notes }}
+                    </p>
+                    <div v-if="entry.payloadAfter" class="mt-3 space-y-1 text-xs text-muted">
+                      <div v-for="(diff, key) in entry.payloadAfter" :key="key" class="flex gap-2">
+                        <span class="font-medium text-highlighted">{{ key }}:</span>
+                        <span>{{ diff.from ?? '-' }} → {{ diff.to ?? '-' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else-if="result.workHistory?.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
                   <div
                     v-for="(event, index) in result.workHistory"
                     :key="index"
@@ -660,7 +997,9 @@ onMounted(() => {
                           by <strong>{{ event.actor }}</strong>
                         </p>
                       </div>
-                      <p class="shrink-0 text-xs text-muted">{{ formatDateTime(event.timestamp) }}</p>
+                      <p class="shrink-0 text-xs text-muted">
+                        {{ formatDateTime(event.timestamp) }}
+                      </p>
                     </div>
                     <p v-if="event.details" class="mt-3 text-sm leading-6 text-muted">
                       {{ event.details }}
@@ -677,9 +1016,11 @@ onMounted(() => {
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Result Input</h4>
+                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                        Result Input
+                      </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Backend rule: pilih range dengan `sex` yang sama dan `ageMin` terbesar yang masih <= umur pasien saat exam.
+                        Backend rule: pilih range dengan `sex` yang sama dan `ageMin` terbesar yang masih &lt;= umur pasien saat exam.
                       </p>
                     </div>
                     <UIcon name="i-lucide-file-pen-line" class="size-4 text-muted" />
@@ -720,6 +1061,13 @@ onMounted(() => {
                               <p v-if="inputan.uom" class="text-xs text-muted">
                                 Unit: {{ inputan.uom }}
                               </p>
+                              <UBadge
+                                v-if="getItemGrading(inputan.id)"
+                                :label="gradingLabel[getItemGrading(inputan.id)]"
+                                :color="gradingColor[getItemGrading(inputan.id)]"
+                                variant="subtle"
+                                class="mt-1"
+                              />
                             </div>
                           </td>
 
@@ -775,7 +1123,7 @@ onMounted(() => {
                                 type="number"
                                 :class="getResultInputClass(inputan)"
                                 :placeholder="`Enter ${inputan.label}`"
-                              />
+                              >
 
                               <input
                                 v-else-if="inputan.inputType === 'string'"
@@ -783,14 +1131,16 @@ onMounted(() => {
                                 type="text"
                                 class="w-full rounded-xl border border-default bg-default px-3 py-2.5 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
                                 :placeholder="`Enter ${inputan.label}`"
-                              />
+                              >
 
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
                                 v-model="getInputDraft(inputan.id).valueSelected"
                                 class="w-full rounded-xl border border-default bg-default px-3 py-2.5 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
                               >
-                                <option value="">Select an option</option>
+                                <option value="">
+                                  Select an option
+                                </option>
                                 <option
                                   v-for="opsi in inputan.opsis"
                                   :key="opsi.id"
@@ -806,7 +1156,7 @@ onMounted(() => {
                                 type="number"
                                 :class="getResultInputClass(inputan)"
                                 :placeholder="`Enter ${inputan.label}`"
-                              />
+                              >
 
                               <p v-if="isResultOutsideNormalRange(inputan)" class="text-xs font-semibold text-red-600 dark:text-red-400">
                                 Nilai ini berada di luar rentang normal yang sesuai.
@@ -824,6 +1174,67 @@ onMounted(() => {
 
                 <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
                   No input fields defined for this item.
+                </div>
+              </UCard>
+
+              <UCard class="border border-default/80 bg-default/80 shadow-sm">
+                <template #header>
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                        Group Grading & Auto Comment
+                      </h4>
+                      <p class="mt-1 text-xs text-muted">
+                        Grading item dihitung otomatis. Grading group diisi manual, lalu sistem membuat auto doctor comment.
+                      </p>
+                    </div>
+                    <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
+                  </div>
+                </template>
+
+                <div class="space-y-4">
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <UFormField label="Group ID">
+                      <UInput v-model="groupGradingForm.groupId" placeholder="e.g. HEMATOLOGY" class="w-full" />
+                    </UFormField>
+                    <UFormField label="Group Name">
+                      <UInput v-model="groupGradingForm.groupName" placeholder="e.g. Hematology" class="w-full" />
+                    </UFormField>
+                  </div>
+
+                  <UFormField label="Grading Group (manual)">
+                    <USelect
+                      v-model="groupGradingForm.grading"
+                      :items="[
+                        { label: 'Normal', value: 'NORMAL' },
+                        { label: 'Abnormal (meningkat)', value: 'ABNORMAL_INC' },
+                        { label: 'Abnormal (menurun)', value: 'ABNORMAL_DEC' }
+                      ]"
+                      :placeholder="'Pilih grading group'"
+                      class="w-full sm:w-72"
+                    />
+                  </UFormField>
+
+                  <div>
+                    <p class="mb-1 text-xs font-medium text-muted">
+                      Auto Doctor Comment
+                    </p>
+                    <UTextarea
+                      :model-value="autoComment ?? ''"
+                      readonly
+                      :rows="4"
+                      class="w-full"
+                      placeholder="Auto-comment akan digenerate setelah simpan grading group."
+                    />
+                  </div>
+
+                  <UButton
+                    :loading="groupGradingSaving"
+                    icon="i-lucide-save"
+                    @click="saveGroupGrading"
+                  >
+                    Simpan Grading Group
+                  </UButton>
                 </div>
               </UCard>
             </div>
@@ -845,7 +1256,12 @@ onMounted(() => {
         >
           Save Results
         </UButton>
-        <UButton v-else color="neutral" variant="soft" disabled>
+        <UButton
+          v-else
+          color="neutral"
+          variant="soft"
+          disabled
+        >
           Already Completed
         </UButton>
       </div>

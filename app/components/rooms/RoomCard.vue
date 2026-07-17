@@ -129,6 +129,30 @@ function getRoomTypeColor(serviceType?: string | null) {
             {{ room.isActive ? 'Aktif' : 'Tidak aktif' }}
           </p>
         </div>
+
+        <div class="rounded-lg bg-muted/40 p-3">
+          <p class="text-xs text-muted">
+            Stage yang ditangani
+          </p>
+          <div
+            v-if="(room.stageLinks ?? []).length"
+            class="mt-1.5 flex flex-wrap gap-1.5"
+          >
+            <UBadge
+              v-for="link in room.stageLinks"
+              :key="link.id"
+              :label="`${link.stage.code} · ${link.stage.name}`"
+              color="info"
+              variant="subtle"
+            />
+          </div>
+          <p
+            v-else
+            class="mt-1 text-xs text-muted"
+          >
+            Belum ada stage dipetakan
+          </p>
+        </div>
       </div>
     </div>
 
