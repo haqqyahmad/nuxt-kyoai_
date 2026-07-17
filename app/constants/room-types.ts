@@ -53,3 +53,8 @@ export const serviceTypeBadgeColor: Record<ServiceType, string> = {
   MCU: 'info',
   Dental: 'warning'
 }
+
+export const examTypeBadgeColor: Record<ExamType, string> = {
+  MCU: 'info',
+  RAWAT_JALAN: 'success'
+}

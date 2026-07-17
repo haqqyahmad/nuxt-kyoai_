@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Room } from '~/types/room'
+
 type RoomAssignment = {
   id: string
   assignedDate: string
@@ -102,6 +104,7 @@ type RoomQueueItem = {
 
 type QueueHistoryRow = {
   id: string
+  queueEntryId: string | null
   queueCode: string
   queueType: string
   tierOrder: number
@@ -111,10 +114,60 @@ type QueueHistoryRow = {
   itemSummary: string
   stageSummary: string
   sampleSummary: string
+  hasSample: boolean
   status: string
   checkinAt: string | null
   completedAt: string | null
   registrationId?: number | null
+}
+
+type SampleUser = {
+  id: number
+  name: string
+  email?: string | null
+}
+
+type SampleCollectionDetail = {
+  id: string
+  status: string
+  tubeCount?: number | null
+  barcode?: string | null
+  collectedAt?: string | null
+  receivedAt?: string | null
+  rejectReason?: string | null
+  rescheduledAt?: string | null
+  sampleType?: {
+    id: string
+    name?: string | null
+  } | null
+  collectedByUser?: SampleUser | null
+  receivedByUser?: SampleUser | null
+  items?: Array<{
+    id: string
+    item?: {
+      id: string
+      code?: string | null
+      name?: string | null
+    } | null
+  }>
+  queueEntry?: {
+    id: string
+    queueCode?: string | null
+    registration?: {
+      id: number
+      id_reg?: string | null
+      patient?: {
+        id: number
+        PatientId?: string | null
+        firstName?: string | null
+        middleName?: string | null
+        lastName?: string | null
+        gender?: string | null
+        dob?: string | null
+        phone?: string | null
+      } | null
+    } | null
+  } | null
 }
 
 type WaitingRow = {
@@ -155,7 +208,19 @@ const roomEnterActionLoading = ref(false)
 const roomExitActionLoading = ref(false)
 const waitingRowActionLoading = ref<Record<string, boolean>>({})
 const selectedWaitingRoomTypeId = ref('')
+const selectedHistoryRoomTypeId = ref('')
 const waitingStatusFilter = ref<'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'>('WAITING')
+
+type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'IN_PROGRESS' | 'ALL'
+const historyStatusFilter = ref<HistoryStatusFilter>('DONE')
+const historyStatusOptions = [
+  { label: 'Selesai', value: 'DONE' },
+  { label: 'Sedang diproses', value: 'IN_PROGRESS' },
+  { label: 'Skip', value: 'SKIPPED' },
+  { label: 'Reschedule', value: 'RESCHEDULED' },
+  { label: 'Pasien Menolak', value: 'REFUSED' },
+  { label: 'Semua', value: 'ALL' }
+]
 
 function normalizeRoleName(role?: string | null) {
   return (role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
@@ -196,6 +261,39 @@ const {
 
 const assignment = computed(() => assignmentData.value ?? null)
 const roomTypeId = computed(() => assignment.value?.roomTypeId ?? null)
+
+const {
+  data: myRoomData
+} = await useAsyncData<Room | null>(
+  'my-room-detail',
+  async () => {
+    if (!assignment.value?.roomId) return null
+
+    try {
+      const res = await api.get(`/medical/rooms/rooms/${assignment.value.roomId}`)
+      const payload = res.data?.data ?? res.data
+      return (payload ?? null) as Room | null
+    } catch {
+      return null
+    }
+  },
+  {
+    default: () => null,
+    watch: [assignment],
+    server: false
+  }
+)
+
+const myRoom = computed(() => myRoomData.value ?? null)
+const myStageIds = computed(() =>
+  (myRoom.value?.stageLinks ?? []).map(link => link.stageId)
+)
+const isSampleReceptionRoom = computed(() =>
+  (myRoom.value?.stageLinks ?? []).some(link =>
+    ['COLLECT', 'RECEIVE'].includes(link.stage?.code)
+  )
+)
+const myRoomId = computed(() => assignment.value?.roomId ?? null)
 const activeRoomSession = computed(() => {
   if (!roomSession.value?.id || roomSession.value.endedAt) return null
   return roomSession.value as RoomSession
@@ -203,6 +301,9 @@ const activeRoomSession = computed(() => {
 const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
 const effectiveWaitingRoomTypeId = computed(() =>
   isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
+)
+const effectiveHistoryRoomTypeId = computed(() =>
+  isSuperAdmin.value ? selectedHistoryRoomTypeId.value : roomTypeId.value
 )
 
 const {
@@ -212,12 +313,14 @@ const {
 } = await useAsyncData<RoomQueueItem[]>(
   'room-queue-history',
   async () => {
-    if (!roomTypeId.value) return []
+    if (!effectiveHistoryRoomTypeId.value) return []
 
-    const res = await api.get(`/medical/exams/queue/room/${roomTypeId.value}`, {
+    const status = historyStatusFilter.value === 'ALL' ? undefined : historyStatusFilter.value
+
+    const res = await api.get(`/medical/exams/queue/room/${effectiveHistoryRoomTypeId.value}`, {
       params: {
         queueDate: today,
-        status: 'DONE',
+        status,
         limit: 100,
         page: 1,
         _: Date.now()
@@ -229,7 +332,7 @@ const {
   },
   {
     default: () => [],
-    watch: [roomTypeId],
+    watch: [effectiveHistoryRoomTypeId, historyStatusFilter],
     server: false
   }
 )
@@ -266,7 +369,7 @@ const {
 
 const historyItems = computed(() =>
   [...(historyData.value ?? [])]
-    .filter(item => item.status === 'DONE')
+    .filter(item => historyStatusFilter.value === 'ALL' || item.status === historyStatusFilter.value)
     .sort((a, b) => {
       const left = new Date(b.doneAt || b.queueEntry?.doneAt || b.queueEntry?.checkinAt || 0).getTime()
       const right = new Date(a.doneAt || a.queueEntry?.doneAt || a.queueEntry?.checkinAt || 0).getTime()
@@ -276,8 +379,46 @@ const historyItems = computed(() =>
 
 const waitingItems = computed(() => waitingData.value ?? [])
 
+function itemHasMyStage(item: RoomQueueItem): boolean {
+  if (!myStageIds.value.length) return isSuperAdmin.value
+  if (!item.stageItems?.length) return false
+  return item.stageItems.some(stage => myStageIds.value.includes(stage.stageId))
+}
+
+function itemHandledByMyRoom(item: RoomQueueItem): boolean {
+  if (!myRoomId.value) return false
+  if (!item.stageItems?.length) return false
+  return item.stageItems.some(
+    stage => myStageIds.value.includes(stage.stageId) && stage.roomId === myRoomId.value
+  )
+}
+
+function itemInPublicWaiting(item: RoomQueueItem): boolean {
+  if (!myStageIds.value.length) return isSuperAdmin.value
+  if (!item.stageItems?.length) return false
+  return item.stageItems.some(
+    stage => myStageIds.value.includes(stage.stageId) && !stage.roomId
+  )
+}
+
+const visibleWaitingItems = computed(() =>
+  waitingItems.value.filter((item) => {
+    if (isSuperAdmin.value) return true
+    if (!myStageIds.value.length) return true
+    return itemInPublicWaiting(item) || itemHandledByMyRoom(item)
+  })
+)
+
+const visibleHistoryItems = computed(() =>
+  historyItems.value.filter((item) => {
+    if (isSuperAdmin.value) return true
+    if (!myStageIds.value.length) return true
+    return itemHasMyStage(item)
+  })
+)
+
 const historyRows = computed<QueueHistoryRow[]>(() =>
-  historyItems.value.map((item) => {
+  visibleHistoryItems.value.map((item) => {
     const registration = item.queueEntry?.registration
     const patient = registration?.patient
     const itemNames = (item.examItems ?? [])
@@ -288,6 +429,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
 
     return {
       id: item.id,
+      queueEntryId: item.queueEntry?.id ?? null,
       queueCode: item.queueEntry?.queueCode || '-',
       queueType: item.queueEntry?.type || '-',
       tierOrder: item.tierOrder,
@@ -301,6 +443,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
         : '-',
       stageSummary: stageParts.length > 0 ? stageParts.join(' | ') : '-',
       sampleSummary: sampleParts.length > 0 ? sampleParts.join(' | ') : '-',
+      hasSample: (item.queueEntry?.sampleCollections ?? []).length > 0,
       status: item.status,
       checkinAt: item.queueEntry?.checkinAt ?? null,
       completedAt: item.doneAt ?? item.queueEntry?.doneAt ?? null,
@@ -310,7 +453,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
 )
 
 const waitingRows = computed<WaitingRow[]>(() =>
-  waitingItems.value.map((item) => {
+  visibleWaitingItems.value.map((item) => {
     const registration = item.queueEntry?.registration
     const patient = registration?.patient
     const itemNames = (item.examItems ?? [])
@@ -370,6 +513,8 @@ function getItemStatusLabel(status: string) {
   if (status === 'DONE') return 'Selesai'
   if (status === 'SKIPPED') return 'Skip'
   if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'REFUSED') return 'Pasien Menolak'
+  if (status === 'RETEXT') return 'Perlu Tes Ulang'
   if (status === 'LOCKED') return 'Terkunci'
   return 'Menunggu'
 }
@@ -380,6 +525,8 @@ function getQueueBadgeColor(status: string) {
   if (status === 'CALLED') return 'info'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
+  if (status === 'REFUSED') return 'error'
+  if (status === 'RETEXT') return 'warning'
   return 'neutral'
 }
 
@@ -403,16 +550,80 @@ function openProcessedDocument(row: QueueHistoryRow) {
   })
 }
 
+const sampleDetailOpen = ref(false)
+const sampleDetailLoading = ref(false)
+const sampleDetailData = ref<SampleCollectionDetail[]>([])
+const sampleDetailPatientName = ref('-')
+
+async function openSampleDetail(row: QueueHistoryRow) {
+  if (!row.queueEntryId) return
+
+  sampleDetailOpen.value = true
+  sampleDetailLoading.value = true
+  sampleDetailData.value = []
+  sampleDetailPatientName.value = row.patientName
+
+  try {
+    const res = await api.get(`/medical/exams/queue/${row.queueEntryId}/samples`)
+    const payload = res.data
+    sampleDetailData.value = (payload?.data ?? payload ?? []) as SampleCollectionDetail[]
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal memuat detail sample',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memuat detail pengambilan sample.'),
+      color: 'error'
+    })
+  } finally {
+    sampleDetailLoading.value = false
+  }
+}
+
 function getHistoryRowActions(row: QueueHistoryRow) {
-  return [
-    [
-      {
-        label: 'Lihat Detail Dokumen',
-        icon: 'i-lucide-file-text',
-        onSelect: () => openProcessedDocument(row)
-      }
-    ]
+  const actions = [
+    {
+      label: 'Lihat Detail Dokumen',
+      icon: 'i-lucide-file-text',
+      onSelect: () => openProcessedDocument(row)
+    }
   ]
+
+  if (row.hasSample) {
+    actions.unshift({
+      label: 'Lihat Detail Pengambilan Sample',
+      icon: 'i-lucide-test-tube-diagonal',
+      onSelect: () => openSampleDetail(row)
+    })
+  }
+
+  if (row.status === 'WAITING' || row.status === 'LOCKED') {
+    actions.push({
+      label: 'Remove dari Antrian Room',
+      icon: 'i-lucide-user-x',
+      onSelect: () => handleRemoveRoomQueueItem(row)
+    })
+  }
+
+  return [actions]
+}
+
+async function handleRemoveRoomQueueItem(row: QueueHistoryRow) {
+  if (!confirm(`Hapus pasien ${row.patientName} dari antrian room ini? Tindakan hanya bisa dilakukan bila belum ada item yang diproses.`)) return
+
+  try {
+    await api.delete(`/medical/exams/queue/room-item/${row.id}`)
+    await refreshHistory()
+    toast.add({
+      title: 'Berhasil',
+      description: `Pasien ${row.patientName} dihapus dari antrian room.`,
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal menghapus dari antrian room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat menghapus pasien dari antrian room.'),
+      color: 'error'
+    })
+  }
 }
 
 function setWaitingRowLoading(rowId: string, loading: boolean) {
@@ -434,7 +645,11 @@ async function handleWaitingRowCall(row: WaitingRow) {
     return
   }
 
-  if (effectiveWaitingRoomTypeId.value && activeRoomSession.value.roomTypeId !== effectiveWaitingRoomTypeId.value) {
+  if (
+    !isSuperAdmin.value
+    && effectiveWaitingRoomTypeId.value
+    && activeRoomSession.value.roomTypeId !== effectiveWaitingRoomTypeId.value
+  ) {
     toast.add({
       title: 'Room tidak sesuai',
       description: 'Room aktif harus sesuai dengan room type yang sedang dibuka.',
@@ -445,7 +660,10 @@ async function handleWaitingRowCall(row: WaitingRow) {
 
   setWaitingRowLoading(row.id, true)
   try {
-    await api.patch(`/medical/exams/queue/stage/${row.stageId}/call`, {})
+    await api.patch(`/medical/exams/queue/stage/${row.stageId}/call`, {
+      roomId: myRoomId.value,
+      roomTypeId: activeRoomSession.value?.roomTypeId ?? undefined
+    })
     await refreshAll()
     await refreshRoomSession()
     isWaitingModalOpen.value = false
@@ -460,11 +678,29 @@ async function handleWaitingRowCall(row: WaitingRow) {
       color: 'success'
     })
   } catch (error: unknown) {
-    toast.add({
-      title: 'Gagal mengambil pasien',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengambil pasien dari waiting list.'),
-      color: 'error'
-    })
+    const status = (error as { response?: { status?: number } })?.response?.status
+    const message = getErrorMessage(error, 'Terjadi kesalahan saat mengambil pasien dari waiting list.')
+
+    if (status === 409) {
+      toast.add({
+        title: 'Sudah diambil ruangan lain',
+        description: 'Pasien ini sudah dipanggil oleh ruangan lain. Silakan refresh antrian.',
+        color: 'warning'
+      })
+      await refreshWaiting()
+    } else if (status === 403) {
+      toast.add({
+        title: 'Tidak berwenang',
+        description: 'Ruangan ini tidak menangani stage yang dipanggil.',
+        color: 'error'
+      })
+    } else {
+      toast.add({
+        title: 'Gagal mengambil pasien',
+        description: message,
+        color: 'error'
+      })
+    }
   } finally {
     setWaitingRowLoading(row.id, false)
   }
@@ -588,6 +824,25 @@ watch(
     await refreshWaiting()
   }
 )
+
+watch(
+  [isSuperAdmin, roomTypeOptions, roomTypeId],
+  ([superAdmin, options, assignedRoomTypeId]) => {
+    if (!superAdmin || selectedHistoryRoomTypeId.value) return
+    selectedHistoryRoomTypeId.value = assignedRoomTypeId || (options[0]?.value ?? '')
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  refreshAssignment()
+  refreshRoomSession()
+})
+
+watch(
+  () => assignment.value?.id,
+  () => refreshRoomSession()
+)
 </script>
 
 <template>
@@ -654,6 +909,15 @@ watch(
 
     <template #body>
       <div class="space-y-4">
+        <UAlert
+          v-if="assignment && !activeRoomSession"
+          color="info"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Assignment aktif, tetapi belum masuk room"
+          :description="`Anda sudah di-assign ke ${assignment.room?.name || assignment.roomType?.name || 'ruangan'}. Klik 'Masuk Room' di kanan atas untuk memulai sesi, lalu tombol 'Ambil Pasien' akan aktif.`"
+        />
+
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="space-y-3">
@@ -727,6 +991,12 @@ watch(
           description="Histori queue tetap bisa dibuka. Untuk melihat daftar pasien waiting, user harus punya assignment room."
         />
 
+        <RoomsSampleReceptionPanel
+          v-if="isSampleReceptionRoom"
+          :active-room-session="activeRoomSession"
+          :is-super-admin="isSuperAdmin"
+        />
+
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex items-center justify-between gap-3">
@@ -735,14 +1005,29 @@ watch(
                   Histori Queue
                 </h3>
                 <p class="text-sm text-muted">
-                  Hanya queue yang sudah selesai diproses. Bagian ini read-only.
+                  Histori queue room. Gunakan filter status untuk melihat data lain. Bagian ini read-only.
                 </p>
               </div>
-              <UBadge
-                variant="soft"
-                color="neutral"
-                :label="`${historyRows.length} record`"
-              />
+              <div class="flex items-center gap-3">
+                <USelect
+                  v-if="isSuperAdmin"
+                  v-model="selectedHistoryRoomTypeId"
+                  :items="roomTypeOptions"
+                  :loading="roomTypesPending"
+                  placeholder="Pilih room type"
+                  class="w-56"
+                />
+                <USelect
+                  v-model="historyStatusFilter"
+                  :items="historyStatusOptions"
+                  class="w-44"
+                />
+                <UBadge
+                  variant="soft"
+                  color="neutral"
+                  :label="`${historyRows.length} record`"
+                />
+              </div>
             </div>
           </template>
 
@@ -758,10 +1043,12 @@ watch(
               class="mb-3 size-10 text-muted"
             />
             <h3 class="text-base font-semibold text-highlighted">
-              Tidak ada histori queue
+              {{ isSuperAdmin && !effectiveHistoryRoomTypeId ? 'Pilih room type dulu' : 'Tidak ada histori queue' }}
             </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
-              Data akan muncul setelah pasien selesai diproses di room.
+              {{ isSuperAdmin && !effectiveHistoryRoomTypeId
+                ? 'Super admin perlu memilih room type di atas untuk memuat histori queue.'
+                : 'Data akan muncul setelah pasien selesai diproses di room.' }}
             </p>
           </div>
 
@@ -867,195 +1154,195 @@ watch(
 
       <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
         <template #body>
-        <div class="space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <h3 class="text-lg font-semibold text-highlighted">
-                Pasien di Ruang Tunggu
+          <div class="space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-highlighted">
+                  Pasien di Ruang Tunggu
+                </h3>
+                <p class="text-sm text-muted">
+                  Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                :loading="waitingPending"
+                @click="refreshWaiting"
+              >
+                Refresh
+              </UButton>
+            </div>
+
+            <div v-if="isSuperAdmin" class="space-y-2">
+              <UFormField
+                label="Room Type"
+                description="Pilih room type yang ingin dilihat daftar waiting-nya."
+              >
+                <USelect
+                  v-model="selectedWaitingRoomTypeId"
+                  :items="roomTypeOptions"
+                  :loading="roomTypesPending"
+                  placeholder="Pilih room type"
+                />
+              </UFormField>
+            </div>
+
+            <div class="space-y-2">
+              <UFormField
+                label="Status"
+                description="Default hanya waiting agar pasien yang sudah diambil tidak ikut tampil."
+              >
+                <USelect
+                  v-model="waitingStatusFilter"
+                  :items="[
+                    { label: 'Waiting', value: 'WAITING' },
+                    { label: 'Called', value: 'CALLED' },
+                    { label: 'In Progress', value: 'IN_PROGRESS' },
+                    { label: 'Semua', value: 'ALL' }
+                  ]"
+                />
+              </UFormField>
+            </div>
+
+            <UAlert
+              v-if="!roomTypeId && !isSuperAdmin"
+              color="warning"
+              title="Perlu assignment room"
+              description="User biasa harus punya assignment room untuk melihat daftar pasien waiting."
+            />
+
+            <UAlert
+              v-else-if="isSuperAdmin && !effectiveWaitingRoomTypeId"
+              color="info"
+              title="Room type belum dipilih"
+              description="Super admin perlu memilih room type untuk memuat daftar pasien waiting."
+            />
+
+            <UAlert
+              v-if="effectiveWaitingRoomTypeId && !activeRoomSession"
+              color="warning"
+              title="Sesi room belum aktif"
+              description="Untuk mengambil pasien dari waiting list, user harus masuk ke room terlebih dahulu."
+            />
+
+            <div v-if="waitingPending" class="space-y-3">
+              <USkeleton class="h-14 rounded-xl" />
+              <USkeleton class="h-14 rounded-xl" />
+              <USkeleton class="h-14 rounded-xl" />
+            </div>
+
+            <div v-else-if="waitingRows.length" class="overflow-x-auto">
+              <table class="min-w-full border-separate border-spacing-0">
+                <thead>
+                  <tr class="bg-muted/30">
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Queue
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Pasien
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Item
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Stage
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Status
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in waitingRows"
+                    :key="row.id"
+                    class="align-top hover:bg-muted/20"
+                  >
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="space-y-1">
+                        <p class="font-semibold text-highlighted">
+                          {{ row.queueCode }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ row.queueType }} · Tier {{ row.tierOrder }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          Check-in {{ formatQueueDate(row.checkinAt) }}
+                        </p>
+                      </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="space-y-1">
+                        <p class="font-medium text-highlighted">
+                          {{ row.patientName }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          RM {{ row.patientId }}
+                        </p>
+                      </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <p class="text-sm text-highlighted">
+                        {{ row.itemSummary }}
+                      </p>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <p class="text-sm text-muted">
+                        {{ row.stageSummary }}
+                      </p>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <UBadge
+                        :label="getItemStatusLabel(row.status)"
+                        :color="getQueueBadgeColor(row.status)"
+                        variant="subtle"
+                      />
+                    </td>
+                    <td class="border-b border-default px-4 py-4 text-right">
+                      <UButton
+                        v-if="row.stageId"
+                        color="primary"
+                        variant="soft"
+                        icon="i-lucide-log-in"
+                        :loading="waitingRowActionLoading[row.id]"
+                        :disabled="!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
+                        @click="handleWaitingRowCall(row)"
+                      >
+                        Ambil Pasien
+                      </UButton>
+                      <UBadge
+                        v-else
+                        :label="getItemStatusLabel(row.status)"
+                        :color="getQueueBadgeColor(row.status)"
+                        variant="soft"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              v-else
+              class="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
+            >
+              <UIcon
+                name="i-lucide-users"
+                class="mb-3 size-10 text-muted"
+              />
+              <h3 class="text-base font-semibold text-highlighted">
+                Tidak ada pasien waiting
               </h3>
-              <p class="text-sm text-muted">
-                Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
+              <p class="mt-1 max-w-lg text-sm text-muted">
+                Daftar ini hanya menampilkan pasien yang masih menunggu di room aktif.
               </p>
             </div>
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="soft"
-              :loading="waitingPending"
-              @click="refreshWaiting"
-            >
-              Refresh
-            </UButton>
           </div>
-
-          <div v-if="isSuperAdmin" class="space-y-2">
-            <UFormField
-              label="Room Type"
-              description="Pilih room type yang ingin dilihat daftar waiting-nya."
-            >
-              <USelect
-                v-model="selectedWaitingRoomTypeId"
-                :items="roomTypeOptions"
-                :loading="roomTypesPending"
-                placeholder="Pilih room type"
-              />
-            </UFormField>
-          </div>
-
-          <div class="space-y-2">
-            <UFormField
-              label="Status"
-              description="Default hanya waiting agar pasien yang sudah diambil tidak ikut tampil."
-            >
-              <USelect
-                v-model="waitingStatusFilter"
-                :items="[
-                  { label: 'Waiting', value: 'WAITING' },
-                  { label: 'Called', value: 'CALLED' },
-                  { label: 'In Progress', value: 'IN_PROGRESS' },
-                  { label: 'Semua', value: 'ALL' }
-                ]"
-              />
-            </UFormField>
-          </div>
-
-          <UAlert
-            v-if="!roomTypeId && !isSuperAdmin"
-            color="warning"
-            title="Perlu assignment room"
-            description="User biasa harus punya assignment room untuk melihat daftar pasien waiting."
-          />
-
-          <UAlert
-            v-else-if="isSuperAdmin && !effectiveWaitingRoomTypeId"
-            color="info"
-            title="Room type belum dipilih"
-            description="Super admin perlu memilih room type untuk memuat daftar pasien waiting."
-          />
-
-          <UAlert
-            v-if="effectiveWaitingRoomTypeId && !activeRoomSession"
-            color="warning"
-            title="Sesi room belum aktif"
-            description="Untuk mengambil pasien dari waiting list, user harus masuk ke room terlebih dahulu."
-          />
-
-          <div v-if="waitingPending" class="space-y-3">
-            <USkeleton class="h-14 rounded-xl" />
-            <USkeleton class="h-14 rounded-xl" />
-            <USkeleton class="h-14 rounded-xl" />
-          </div>
-
-          <div v-else-if="waitingRows.length" class="overflow-x-auto">
-            <table class="min-w-full border-separate border-spacing-0">
-              <thead>
-                <tr class="bg-muted/30">
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Queue
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Pasien
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Item
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Stage
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Status
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in waitingRows"
-                  :key="row.id"
-                  class="align-top hover:bg-muted/20"
-                >
-                  <td class="border-b border-default px-4 py-4">
-                    <div class="space-y-1">
-                      <p class="font-semibold text-highlighted">
-                        {{ row.queueCode }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        {{ row.queueType }} · Tier {{ row.tierOrder }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        Check-in {{ formatQueueDate(row.checkinAt) }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <div class="space-y-1">
-                      <p class="font-medium text-highlighted">
-                        {{ row.patientName }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        RM {{ row.patientId }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-highlighted">
-                      {{ row.itemSummary }}
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-muted">
-                      {{ row.stageSummary }}
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <UBadge
-                      :label="getItemStatusLabel(row.status)"
-                      :color="getQueueBadgeColor(row.status)"
-                      variant="subtle"
-                    />
-                  </td>
-                  <td class="border-b border-default px-4 py-4 text-right">
-                    <UButton
-                      v-if="row.status === 'WAITING'"
-                      color="primary"
-                      variant="soft"
-                      icon="i-lucide-log-in"
-                      :loading="waitingRowActionLoading[row.id]"
-                      :disabled="!row.stageId || !activeRoomSession || (effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
-                      @click="handleWaitingRowCall(row)"
-                    >
-                      Ambil Pasien
-                    </UButton>
-                    <UBadge
-                      v-else
-                      :label="getItemStatusLabel(row.status)"
-                      :color="getQueueBadgeColor(row.status)"
-                      variant="soft"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div
-            v-else
-            class="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center"
-          >
-            <UIcon
-              name="i-lucide-users"
-              class="mb-3 size-10 text-muted"
-            />
-            <h3 class="text-base font-semibold text-highlighted">
-              Tidak ada pasien waiting
-            </h3>
-            <p class="mt-1 max-w-lg text-sm text-muted">
-              Daftar ini hanya menampilkan pasien yang masih menunggu di room aktif.
-            </p>
-          </div>
-        </div>
         </template>
       </UModal>
 
@@ -1119,6 +1406,151 @@ watch(
             >
               Keluar Room
             </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="sampleDetailOpen"
+        title="Detail Pengambilan Sample"
+        :ui="{ content: 'sm:max-w-3xl' }"
+      >
+        <template #body>
+          <div
+            v-if="sampleDetailLoading"
+            class="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin size-6"
+            />
+            <span class="ml-2">Memuat detail pengambilan sample…</span>
+          </div>
+
+          <template v-else-if="sampleDetailData.length">
+            <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              Pasien: <span class="font-semibold text-gray-900 dark:text-gray-50">{{ sampleDetailPatientName }}</span>
+            </p>
+
+            <div
+              v-for="collection in sampleDetailData"
+              :key="collection.id"
+              class="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+            >
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="text-base font-semibold text-gray-900 dark:text-gray-50">
+                  {{ collection.sampleType?.name || 'Sample' }}
+                </div>
+                <UBadge :color="collection.status === 'RECEIVED' ? 'success' : (collection.status === 'REJECTED' ? 'error' : 'warning')">
+                  {{ getSampleStatusLabel(collection.status) }}
+                </UBadge>
+              </div>
+
+              <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Jenis Sample
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.sampleType?.name || '-' }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Barcode
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.barcode || '-' }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Jumlah Tabung
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.tubeCount ?? 1 }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Waktu Pengambilan
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ formatQueueDate(collection.collectedAt) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Petugas Pengambil (COLLECT)
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.collectedByUser?.name || (collection.collectedAt ? 'Tidak diketahui' : '-') }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Waktu Diterima Lab (RECEIVE)
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ formatQueueDate(collection.receivedAt) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Petugas Penerima (RECEIVE)
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.receivedByUser?.name || (collection.receivedAt ? 'Tidak diketahui' : '-') }}
+                  </dd>
+                </div>
+                <div
+                  v-if="collection.status === 'REJECTED'"
+                >
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Alasan Ditolak
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ collection.rejectReason || '-' }}
+                  </dd>
+                </div>
+                <div
+                  v-if="collection.status === 'RESCHEDULED'"
+                >
+                  <dt class="text-xs text-gray-500 dark:text-gray-400">
+                    Jadwal Ulang
+                  </dt>
+                  <dd class="text-sm text-gray-900 dark:text-gray-50">
+                    {{ formatQueueDate(collection.rescheduledAt) }}
+                  </dd>
+                </div>
+              </dl>
+
+              <div
+                v-if="collection.items?.length"
+                class="mt-3"
+              >
+                <p class="mb-1 text-xs text-gray-500 dark:text-gray-400">
+                  Item terkait:
+                </p>
+                <div class="flex flex-wrap gap-1">
+                  <UBadge
+                    v-for="sampleItem in collection.items"
+                    :key="sampleItem.id"
+                    variant="subtle"
+                    color="neutral"
+                  >
+                    {{ sampleItem.item?.name || sampleItem.item?.code || 'Item' }}
+                  </UBadge>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div
+            v-else
+            class="py-12 text-center text-gray-500 dark:text-gray-400"
+          >
+            Tidak ada data pengambilan sample untuk antrian ini.
           </div>
         </template>
       </UModal>

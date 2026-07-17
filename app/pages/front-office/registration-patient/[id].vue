@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { examTypeBadgeColor } from '~/constants/room-types'
 const route = useRoute()
 const api = useApi()
 const toast = useToast()
@@ -222,6 +223,8 @@ const statusHistory = computed(() => {
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
 const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
 const isMCU = computed(() => reg.value?.serviceType === 'MCU')
+
+const examType = computed(() => reg.value?.examType ?? (isMCU.value ? 'MCU' : 'RAWAT_JALAN'))
 
 const checkinModalOpen = ref(false)
 const checkinLoading = ref(false)
@@ -462,6 +465,10 @@ async function cancelRegistration() {
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service Type</span>
                 <span class="text-sm font-semibold text-primary">{{ SERVICE_LABEL[reg.serviceType] ?? reg.serviceType }}</span>
+              </div>
+              <div class="flex items-center justify-between px-5 py-3">
+                <span class="text-xs text-muted">Exam Type</span>
+                <UBadge :color="examTypeBadgeColor[examType] ?? 'neutral'" variant="subtle">{{ examType === 'MCU' ? 'MCU (Medical Checkup)' : 'Rawat Jalan' }}</UBadge>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>

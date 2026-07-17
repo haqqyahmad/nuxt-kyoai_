@@ -62,7 +62,7 @@ const menuGroups: Record<string, string[]> = {
   ]
 }
 
-const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/settings']
+const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/rooms/exam-results', '/rooms/sample-collection', '/rooms/sample-reception', '/settings']
 
 function collectItemRoutes(item: NavigationMenuItem): string[] {
   if (item.to) return [item.to]
@@ -256,6 +256,18 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Room Queue',
           to: '/rooms/queue'
+        },
+        {
+          label: 'Hasil Exam Lab',
+          to: '/rooms/exam-results'
+        },
+        {
+          label: 'Sample Collection',
+          to: '/rooms/sample-collection'
+        },
+        {
+          label: 'Sample Reception',
+          to: '/rooms/sample-reception'
         }
       ]
     },

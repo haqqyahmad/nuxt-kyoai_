@@ -12,6 +12,19 @@ export type ServiceType =
   | 'MCU'
   | 'Dental'
 
+export type ExamType =
+  | 'MCU'
+  | 'RAWAT_JALAN'
+
+export type RoomTypeStage = {
+  id: string
+  code: string
+  name: string
+  stageOrder: number
+  slotLimit?: number
+  isActive: boolean
+}
+
 export type RoomTypeRecord = {
   id: string
   code: string
@@ -19,6 +32,14 @@ export type RoomTypeRecord = {
   serviceType: ServiceType
   tierOrder: number
   isActive: boolean
+  stages?: RoomTypeStage[]
+}
+
+export type RoomStageLink = {
+  id: string
+  stageId: string
+  isPrimary: boolean
+  stage: RoomTypeStage
 }
 
 export type Room = {
@@ -31,6 +52,7 @@ export type Room = {
   createdAt: string
   updatedAt: string
   roomType: RoomTypeRecord | null
+  stageLinks?: RoomStageLink[]
 }
 
 export type RoomState = 'ACTIVE' | 'INACTIVE'
@@ -41,6 +63,7 @@ export type RoomForm = {
   roomTypeId: string | null
   staffCapacity: number | null
   isActive: boolean
+  stageIds?: string[]
 }
 
 export type RoomTypeOption = {

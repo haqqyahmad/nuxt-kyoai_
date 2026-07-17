@@ -73,6 +73,7 @@ type ExamResult = {
       valueNumber?: number | null
       valueSelected?: string | null
       valueCalculated?: number | null
+      grading?: 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC' | null
     }>
   } | null
   workHistory?: Array<{
