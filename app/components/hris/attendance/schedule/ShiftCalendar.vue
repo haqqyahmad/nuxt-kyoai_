@@ -314,7 +314,6 @@ function isHoliday(day: CalendarDay) {
 function isRedDay(day: CalendarDay) {
   return isSunday(day) || isHoliday(day)
 }
-console.log('days', days)
 
 const weeks = computed(() => {
   // DAY / WEEK MODE

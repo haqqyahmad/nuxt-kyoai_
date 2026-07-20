@@ -3,7 +3,6 @@ export default defineNuxtRouteMiddleware(() => {
 
   const { getToken } = useAuth()
 
-  console.log('guest-middleware', getToken())
   // kalau sudah login → redirect ke dashboard
   if (getToken()) {
     return navigateTo('/')

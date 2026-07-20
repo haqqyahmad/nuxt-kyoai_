@@ -162,8 +162,6 @@ async function submit() {
   }
 
   try {
-    console.log('PAYLOAD MONTH TEMPLATE:', payload)
-
     await api.post('/hris/shift/month-templates', payload)
 
     toast.add({

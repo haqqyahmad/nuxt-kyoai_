@@ -126,12 +126,7 @@ function resetForm() {
 function submit() {
   if (!canSave.value) return
 
-  console.log('Manual Attendance Entry:', {
-    employee: form.employee,
-    date: form.date,
-    clockIn: form.clockIn || null,
-    clockOut: form.clockOut || null,
-    status: form.status,
+  await api.post('/hris/attendance/manual', {
     totalHours: totalHours.value,
     notes: form.notes
   })

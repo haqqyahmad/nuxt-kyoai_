@@ -346,10 +346,6 @@ async function submitWeekly() {
     end_date: form.endDate
   }
 
-  console.log('Assign Weekly', payload)
-  console.log('Start Weekly', toIsoDateTime(form.startDate))
-  console.log('End Weekly', toIsoDateTime(form.endDate))
-
   await api.post('/hris/shift/assignments', payload)
   await api.post('/hris/shift/schedules/generate', payload)
 }

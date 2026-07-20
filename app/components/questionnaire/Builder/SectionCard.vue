@@ -242,7 +242,7 @@ watch(
         tag="div"
         v-bind="questionDragOptions"
         :animation="0"
-        @change="console.log(questionsModel)"
+        @change="() => {}"
       >
         <template #item="{ element }: { element: Question }">
           <div class="mb-4">

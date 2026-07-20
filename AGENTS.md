@@ -50,7 +50,7 @@ server/api/            # Nitro mock API
 
 - Instance Axios via `useApi()`.
 - Endpoint di config: `NUXT_PUBLIC_API_BASE`.
-- Auth: JWT token disimpan di localStorage/sessionStorage.
+- Auth: JWT token disimpan di localStorage (selalu, untuk mencegah logout di tab baru).
 - 401 → redirect ke `/login`.
 
 ### Permission System
@@ -122,6 +122,10 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-07-17 — Fix stageLinks + DB sync
+- Generate Prisma Client → `stageLinks` berfungsi.
+- DB sync: isExternal, externalResult (revert), prisma db push FK error.
+
 ### 2026-07-17 — Profile Employee Tabs, Employee↔User Link
 - Employee ↔ User: relasi Prisma (userId di Employee) + Tab User di EditModal + auto-copy data.
 - Profile /settings: tampilkan semua data employee dalam tabs jika ter-link + Leave Balance card.
@@ -137,9 +141,6 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `login.vue`: fix form binding + loading state + redirect berdasarkan role.
 - `TeamsMenu.vue`: tampilkan nama role, bukan "PIC".
 - Backend auth: login response include `roles` array.
-- Employee ↔ User: relasi Prisma (userId di Employee) + Tab User di EditModal + auto-copy data.
-- Profile /settings: tampilkan semua data employee dalam tabs jika ter-link.
-- Profile: Leave Balance card di kanan atas.
 - Room access pre-populate: BE auto-create `UserRoomAccess` dari role mapping saat user buka `/rooms/assignments`.
 - Dokumentasi: `docs/permissions-worklog.md`.
 
