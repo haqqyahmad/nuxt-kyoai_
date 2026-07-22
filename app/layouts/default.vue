@@ -241,7 +241,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/patients'
         },
         {
-          label: 'User',
+          label: 'Users',
           to: '/users'
         }
       ]

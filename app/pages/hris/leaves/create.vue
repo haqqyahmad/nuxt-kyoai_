@@ -17,11 +17,14 @@ type CreateLeavePayload = {
 const router = useRouter()
 const api = useApi()
 const toast = useToast()
+const { user: currentUser } = await useCurrentUser()
 
 const loading = ref(false)
 
+const employeeId = computed(() => (currentUser.value as any)?.employee?.id ?? null)
+
 const form = reactive<CreateLeavePayload>({
-  employee_id: 2,
+  employee_id: employeeId.value,
   leave_type: null,
   start_date: '',
   end_date: '',

@@ -49,8 +49,6 @@ async function fetchUserRoomAccess() {
 
   loadingData.value = true
   try {
-    await api.post(`/room-assignments/sync-room-access/${props.user.id}`)
-
     const res = await api.get(`/users/${props.user.id}/room-access`)
     const data = res.data.data ?? res.data ?? []
 
@@ -136,6 +134,7 @@ async function saveRoomAccess() {
     })
 
     open.value = false
+    clearNuxtData('current-user')
     emit('updated')
   } catch (error: unknown) {
     const response = error as { response?: { data?: { message?: string } } }

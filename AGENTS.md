@@ -143,6 +143,7 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - Backend auth: login response include `roles` array.
 - Room access pre-populate: BE auto-create `UserRoomAccess` dari role mapping saat user buka `/rooms/assignments`.
 - Restruktur menu: Departments (Medical + Non Medical), Results (exam-results), Lab (sample-reception).
+- Room access sync: backend saat login + skip jika sudah ada akses. Cache fix dengan clearNuxtData.
 - Dokumentasi: `docs/permissions-worklog.md`.
 
 ## Workflow

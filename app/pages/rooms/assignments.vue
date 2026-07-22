@@ -33,6 +33,11 @@ async function syncRoomAccess() {
   }
 }
 
+function forceRefresh() {
+  clearNuxtData('current-user')
+  clearNuxtData('room-session-me')
+}
+
 const {
   rooms,
   pending: roomsPending,
@@ -498,6 +503,7 @@ watch(
 
 onMounted(async () => {
   await syncRoomAccess()
+  forceRefresh()
   await refreshUser()
   await refreshMyAssignment()
 })
@@ -1037,7 +1043,7 @@ onMounted(async () => {
                   color="neutral"
                   variant="soft"
                   :loading="pending || roomsPending || roomTypesPending || usersPending"
-                  @click="syncRoomAccess(); refresh(); refreshUser(); refreshRooms()"
+                  @click="syncRoomAccess(); forceRefresh(); refresh(); refreshUser(); refreshRooms()"
                 >
                   Refresh
                 </UButton>
