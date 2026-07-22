@@ -142,6 +142,7 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `TeamsMenu.vue`: tampilkan nama role, bukan "PIC".
 - Backend auth: login response include `roles` array.
 - Room access pre-populate: BE auto-create `UserRoomAccess` dari role mapping saat user buka `/rooms/assignments`.
+- Restruktur menu: Departments (Medical + Non Medical), Results (exam-results), Lab (sample-reception).
 - Dokumentasi: `docs/permissions-worklog.md`.
 
 ## Workflow

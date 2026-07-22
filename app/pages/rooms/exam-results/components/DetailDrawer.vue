@@ -184,7 +184,7 @@ async function loadExternalDoctors() {
     const payload = res.data?.data ?? []
     if (Array.isArray(payload)) {
       externalDoctors.value = payload
-        .filter((u: any) => u.isExternal)
+        .filter((u: any) => (u.roles ?? []).some((r: any) => r.role?.name === 'dokter-external'))
         .map((u: any) => ({ id: u.id, name: u.name }))
     }
   } catch {
@@ -864,8 +864,8 @@ onMounted(() => {
                         <USelectMenu
                           v-model="selectedExternalDoctor"
                           :items="externalDoctors"
-                          value-attribute="id"
-                          label-attribute="name"
+                          value-key="id"
+                          label-key="name"
                           placeholder="Pilih dokter luar"
                           class="min-w-48"
                         />

@@ -96,7 +96,7 @@ const selectedResult = ref<ExamResult | null>(null)
 const isDetailOpen = ref(false)
 
 // Filters
-const departmentFilter = ref<string>('')
+const departmentFilter = ref<string>('all')
 const statusFilter = ref<'pending' | 'completed' | 'all'>('all')
 const resultTypeFilter = ref<'inline' | 'deferred' | 'all'>('all')
 const dateFromFilter = ref<string>('')
@@ -111,6 +111,11 @@ const total = ref(0)
 // Departments list
 const departments = ref<Department[]>([])
 const departmentsLoading = ref(false)
+
+const departmentItems = computed(() => [
+  { label: 'All Departments', value: 'all' },
+  ...departments.value.map((d) => ({ label: d.name, value: d.id })),
+])
 const initialExamId = ref('')
 const initialRegistrationId = ref('')
 const isBootstrapping = ref(true)
@@ -185,7 +190,7 @@ function applyRouteFilters() {
   const examId = getQueryValue(route.query.examId)
   const registrationId = getQueryValue(route.query.registrationId)
 
-  departmentFilter.value = departmentId
+  departmentFilter.value = departmentId || 'all'
   statusFilter.value = status === 'pending' || status === 'completed' ? status : 'all'
   resultTypeFilter.value = resultTiming === 'inline' || resultTiming === 'deferred'
     ? resultTiming
@@ -197,7 +202,7 @@ function applyRouteFilters() {
 function syncRouteFilters() {
   const query: Record<string, string> = {}
 
-  if (departmentFilter.value) query.departmentId = departmentFilter.value
+  if (departmentFilter.value && departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
   if (statusFilter.value !== 'all') query.status = statusFilter.value
   if (resultTypeFilter.value !== 'all') query.resultTiming = resultTypeFilter.value
   if (dateFromFilter.value) query.dateFrom = dateFromFilter.value
@@ -212,7 +217,7 @@ function syncRouteFilters() {
 const filteredResults = computed(() => {
   return (results.value || []).filter(result => {
     // Department filter
-    if (departmentFilter.value && result.item?.department?.id !== departmentFilter.value) {
+    if (departmentFilter.value && departmentFilter.value !== 'all' && result.item?.department?.id !== departmentFilter.value) {
       return false
     }
 
@@ -283,7 +288,7 @@ async function loadResults() {
       limit: limit.value,
     }
 
-    if (departmentFilter.value) {
+    if (departmentFilter.value && departmentFilter.value !== 'all') {
       params.departmentId = departmentFilter.value
     }
 
@@ -305,14 +310,17 @@ async function loadResults() {
 
     const res = await api.get('/mcu/exams/results', { params })
     const payload = res.data?.data ?? res.data
-    
-    if (payload?.data) {
+    const meta = res.data?.meta ?? {}
+
+    if (Array.isArray(payload)) {
+      results.value = payload
+      total.value = meta.total ?? payload.length
+    } else if (payload?.data) {
       results.value = payload.data
       total.value = payload.total || 0
-    } else if (Array.isArray(payload)) {
-      results.value = payload
     } else {
       results.value = []
+      total.value = 0
     }
   } catch (error) {
     toast.add({
@@ -355,7 +363,7 @@ async function handleResultSaved(result: ExamResult) {
 
 // Reset filters
 function resetFilters() {
-  departmentFilter.value = ''
+  departmentFilter.value = 'all'
   statusFilter.value = 'all'
   resultTypeFilter.value = 'all'
   dateFromFilter.value = ''
@@ -420,7 +428,7 @@ onMounted(async () => {
             <div class="flex items-center justify-between gap-3">
               <h3 class="text-base font-semibold">Filters</h3>
               <UButton
-                v-if="departmentFilter || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
+                v-if="departmentFilter !== 'all' || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
                 size="xs"
                 color="neutral"
                 variant="ghost"
@@ -445,12 +453,7 @@ onMounted(async () => {
             <UFormField label="Department">
               <USelect
                 v-model="departmentFilter"
-                :options="[
-                  { id: '', name: 'All Departments' },
-                  ...departments,
-                ]"
-                option-attribute="name"
-                value-attribute="id"
+                :items="departmentItems"
                 :loading="departmentsLoading"
               />
             </UFormField>
@@ -459,13 +462,11 @@ onMounted(async () => {
             <UFormField label="Status">
               <USelect
                 v-model="statusFilter"
-                :options="[
-                  { value: 'all', label: 'All Statuses' },
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'completed', label: 'Completed' },
+                :items="[
+                  { label: 'All Statuses', value: 'all' },
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Completed', value: 'completed' },
                 ]"
-                value-attribute="value"
-                option-attribute="label"
               />
             </UFormField>
 
@@ -473,13 +474,11 @@ onMounted(async () => {
             <UFormField label="Result Type">
               <USelect
                 v-model="resultTypeFilter"
-                :options="[
-                  { value: 'all', label: 'All Types' },
-                  { value: 'inline', label: 'Inline' },
-                  { value: 'deferred', label: 'Deferred' },
+                :items="[
+                  { label: 'All Types', value: 'all' },
+                  { label: 'Inline', value: 'inline' },
+                  { label: 'Deferred', value: 'deferred' },
                 ]"
-                value-attribute="value"
-                option-attribute="label"
               />
             </UFormField>
 

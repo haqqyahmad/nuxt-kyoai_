@@ -12,6 +12,10 @@ const isRestrictedUser = computed(() =>
   roles.value.some(r => restrictedRoles.includes(r))
 )
 
+const isExternalDoctor = computed(() =>
+  roles.value.includes('dokter-external')
+)
+
 const open = ref(false)
 const openPrivacyPolicy = ref(false)
 
@@ -24,6 +28,10 @@ const menuGroups: Record<string, string[]> = {
     '/patients',
     '/users'
   ],
+  'Departments': [
+    '/departments/medical',
+    '/departments'
+  ],
   'Medical': [
     '/questionnaire',
     '/rooms',
@@ -33,8 +41,12 @@ const menuGroups: Record<string, string[]> = {
   'Examination': [
     '/rooms/assignments',
     '/rooms/queue',
-    '/rooms/exam-results',
-    '/rooms/sample-collection',
+    '/rooms/sample-collection'
+  ],
+  'Results': [
+    '/rooms/exam-results'
+  ],
+  'Lab': [
     '/rooms/sample-reception'
   ],
   'Items': [
@@ -67,6 +79,8 @@ const menuGroups: Record<string, string[]> = {
 
 const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/rooms/exam-results', '/rooms/sample-collection', '/rooms/sample-reception', '/settings']
 
+const externalDoctorAllowedRoutes = ['/rooms/exam-results', '/settings']
+
 function collectItemRoutes(item: NavigationMenuItem): string[] {
   if (item.to) return [item.to]
   if (item.children) return (item.children as NavigationMenuItem[]).flatMap(collectItemRoutes)
@@ -75,6 +89,23 @@ function collectItemRoutes(item: NavigationMenuItem): string[] {
 
 function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
+    if (isExternalDoctor.value) {
+      const routes = collectItemRoutes(item)
+      const allowed = routes.some(r => externalDoctorAllowedRoutes.includes(r))
+      if (!allowed) return acc
+
+      if (item.children) {
+        const filtered = filterSidebarItems(item.children as NavigationMenuItem[])
+        if (filtered.length > 0) {
+          acc.push({ ...item, children: filtered })
+        }
+        return acc
+      }
+
+      acc.push(item)
+      return acc
+    }
+
     if (isRestrictedUser.value) {
       const routes = collectItemRoutes(item)
       const allowed = routes.some(r => restrictedAllowedRoutes.includes(r))
@@ -113,7 +144,10 @@ const menuOpenState = ref<Record<string, boolean>>(
 
 const parentMenus: Record<string, string[]> = {
   Attendance: ['HRIS'],
-  Items: ['Medical']
+  Items: ['Medical'],
+  Departments: ['Master Data'],
+  Results: [],
+  Lab: []
 }
 
 const updateActiveMenu = () => {
@@ -186,7 +220,21 @@ const links = computed<NavigationMenuItem[][]>(() => [
         },
         {
           label: 'Departments',
-          to: '/departments'
+          type: 'trigger',
+          open: menuOpenState.value['Departments'],
+          onUpdateOpen: (val: boolean) => updateMenuState('Departments', val),
+          children: [
+            {
+              label: 'Medical',
+              icon: 'i-lucide-stethoscope',
+              to: '/departments/medical'
+            },
+            {
+              label: 'Non Medical',
+              icon: 'i-lucide-building',
+              to: '/departments'
+            }
+          ]
         },
         {
           label: 'Patients',
@@ -261,13 +309,31 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/rooms/queue'
         },
         {
-          label: 'Hasil Exam Lab',
-          to: '/rooms/exam-results'
-        },
-        {
           label: 'Sample Collection',
           to: '/rooms/sample-collection'
-        },
+        }
+      ]
+    },
+    {
+      label: 'Results',
+      icon: 'i-lucide-file-check-2',
+      type: 'trigger',
+      open: menuOpenState.value['Results'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Results', val),
+      children: [
+        {
+          label: 'Hasil Exam Lab',
+          to: '/rooms/exam-results'
+        }
+      ]
+    },
+    {
+      label: 'Lab',
+      icon: 'i-lucide-flask-conical',
+      type: 'trigger',
+      open: menuOpenState.value['Lab'],
+      onUpdateOpen: (val: boolean) => updateMenuState('Lab', val),
+      children: [
         {
           label: 'Sample Reception',
           to: '/rooms/sample-reception'

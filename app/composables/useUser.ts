@@ -8,6 +8,7 @@ export const useUser = () => {
     email: string
     password: string
     confirm_password: string
+    language?: string
   }) => {
     return await api.post('/auth/register', payload)
   }

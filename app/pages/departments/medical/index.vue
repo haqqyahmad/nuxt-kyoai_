@@ -2,86 +2,62 @@
 import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
-import { useClipboard } from '@vueuse/core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import type { Row } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
-const UAvatar = resolveComponent('UAvatar')
+const UBadge = resolveComponent('UBadge')
+
 const api = useApi()
 const toast = useToast()
-const { copy } = useClipboard()
 
-type User = {
-  id: number
+type Department = {
+  id: string
+  code: string
+  type: 'office' | 'medical'
   name: string
-  email: string
   createdAt: string
-  avatar?: {
-    src?: string
-    alt?: string
-  }
+  updatedAt: string
 }
 
-const { data: users, refresh } = await useAsyncData('users', () =>
-  api.get('/users?limit=100').then(res => res.data.data)
+const { data: departments, refresh } = await useAsyncData('departments', () =>
+  api.get('/medical/departments').then(res => res.data.data)
 )
 
-const data = computed(() => users.value ?? [])
+const data = computed(() => departments.value?.data ?? departments.value ?? [])
+const searchQuery = ref('')
 
-const columnFilters = ref([
-  {
-    id: 'email',
-    value: ''
+const displayedData = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+
+  if (!keyword) {
+    return data.value
   }
-])
+
+  return data.value.filter((department: Department) => {
+    return [department.code, department.type, department.name]
+      .filter(Boolean)
+      .some(value => value?.toLowerCase().includes(keyword))
+  })
+})
+
 const columnVisibility = ref()
 const rowSelection = ref({})
-// const pagination = ref({
-//   pageIndex: 0,
-//   pageSize: 10,
-// });
 
-const selectedUser = ref<User | null>(null)
-const isUserRoleModalOpen = ref(false)
-const isUserRoomAccessModalOpen = ref(false)
+const selectedDeleteId = ref<string | null>(null)
+const isDeleteModalOpen = ref(false)
+const selectedEditDepartment = ref<Department | null>(null)
+const isEditModalOpen = ref(false)
 
-// async function userRolePatient(id: string) {
-//   try {
-//     await api.delete(`/patient/${id}`);
-
-//     toast.add({
-//       title: "Berhasil",
-//       description: "Patient berhasil dihapus",
-//       color: "success",
-//     });
-
-//     await refresh();
-//   } catch (err) {
-//     toast.add({
-//       title: "Gagal",
-//       description: "Gagal menghapus patient",
-//       color: "error",
-//     });
-//   }
-// }
-
-// async function handleUserRoleById() {
-//   if (!selectedUser.value) return;
-
-//   await userRolePatient(selectedUser.value);
-//   selectedUser.value = null;
-// }
-
-async function deleteUser(id: number) {
+async function deleteDepartment(id: string) {
   try {
-    await api.delete(`/users/${id}`)
+    await api.delete(`/medical/departments/${id}`)
 
     toast.add({
       title: 'Berhasil',
-      description: 'User berhasil dihapus',
+      description: 'Department berhasil dihapus',
       color: 'success'
     })
 
@@ -89,26 +65,35 @@ async function deleteUser(id: number) {
   } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus user',
+      description: 'Gagal menghapus department',
       color: 'error'
     })
   }
 }
 
-async function deleteSelectedUsers() {
+async function handleDeleteById() {
+  if (!selectedDeleteId.value) return
+
+  await deleteDepartment(selectedDeleteId.value)
+  selectedDeleteId.value = null
+}
+
+async function deleteSelectedDepartments() {
   const selectedRows
-    = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
+    = (table.value?.tableApi?.getFilteredSelectedRowModel().rows || []) as Row<Department>[]
 
   if (!selectedRows.length) return
 
   try {
     await Promise.all(
-      selectedRows.map((row: Row<User>) => api.delete(`/users/${row.original.id}`))
+      selectedRows.map(row =>
+        api.delete(`/medical/departments/${row.original.id}`)
+      )
     )
 
     toast.add({
       title: 'Berhasil',
-      description: 'User berhasil dihapus',
+      description: 'Data department berhasil dihapus',
       color: 'success'
     })
 
@@ -117,83 +102,42 @@ async function deleteSelectedUsers() {
   } catch {
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menghapus user',
+      description: 'Gagal menghapus data department',
       color: 'error'
     })
   }
 }
 
-function getRowItems(row: Row<User>) {
+function getRowItems(row: Row<Department>) {
   return [
     {
       type: 'label',
       label: 'Actions'
     },
     {
-      label: 'Assign role',
-      icon: 'i-lucide-circle-user-round',
-      color: 'success',
+      label: 'Edit department',
+      icon: 'i-lucide-pencil',
       onSelect() {
-        selectedUser.value = row.original
-        isUserRoleModalOpen.value = true
-      }
-    },
-    {
-      label: 'Room access',
-      icon: 'i-lucide-door-open',
-      onSelect() {
-        selectedUser.value = row.original
-        isUserRoomAccessModalOpen.value = true
+        selectedEditDepartment.value = row.original
+        isEditModalOpen.value = true
       }
     },
     {
       type: 'separator'
     },
     {
-      label: 'Edit user',
-      icon: 'i-lucide-edit',
-      to: `/users/${row.original.id}`
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'Copy user ID',
-      icon: 'i-lucide-copy',
-      onSelect() {
-        copy(row.original.id.toString())
-        toast.add({
-          title: 'Copied to clipboard',
-          description: 'User ID copied to clipboard'
-        })
-      }
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'View user details',
-      icon: 'i-lucide-list'
-    },
-    {
-      label: 'View user payments',
-      icon: 'i-lucide-wallet'
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'Delete user',
+      label: 'Delete department',
       icon: 'i-lucide-trash',
       color: 'error',
       onSelect() {
-        deleteUser(row.original.id)
+        selectedDeleteId.value = row.original.id
+        isDeleteModalOpen.value = true
       }
     }
   ]
 }
 
-const columns: TableColumn<User>[] = [
+const columns: TableColumn<Department>[] = [
   {
     id: 'select',
     header: ({ table }) =>
@@ -214,36 +158,14 @@ const columns: TableColumn<User>[] = [
       })
   },
   {
-    accessorKey: 'id',
-    header: 'ID',
-    cell: ({ row }) => `#${row.getValue('id')}`
-  },
-  {
-    accessorKey: 'name',
-    header: 'Name',
-    cell: ({ row }) => {
-      return h('div', { class: 'flex items-center gap-3' }, [
-        h(UAvatar, {
-          src: row.original.avatar?.src,
-          alt: row.original.avatar?.alt || row.original.name,
-          size: 'lg'
-        }),
-        h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, row.original.name),
-          h('p', { class: 'text-muted' }, `@${row.original.name}`)
-        ])
-      ])
-    }
-  },
-  {
-    accessorKey: 'email',
+    accessorKey: 'code',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Email',
+        label: 'Code',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -252,11 +174,80 @@ const columns: TableColumn<User>[] = [
         class: '-mx-2.5',
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
+    },
+    cell: ({ row }) => {
+      return h('p', { class: 'font-medium text-highlighted' }, row.getValue('code'))
+    }
+  },
+  {
+    accessorKey: 'name',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Name',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => row.getValue('name')
+  },
+  {
+    accessorKey: 'type',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Type',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => {
+      const value = row.getValue('type') as Department['type']
+
+      return h(
+        UBadge,
+        {
+          color: value === 'medical' ? 'primary' : 'neutral',
+          variant: 'subtle'
+        },
+        () => value === 'medical' ? 'Medical' : 'Office'
+      )
     }
   },
   {
     accessorKey: 'createdAt',
-    header: 'Created At',
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Created',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
     cell: ({ row }) => {
       return new Date(row.getValue('createdAt')).toLocaleString('id-ID', {
         day: '2-digit',
@@ -296,20 +287,6 @@ const columns: TableColumn<User>[] = [
 
 const table = useTemplateRef('table')
 
-const email = computed({
-  get: (): string => {
-    return (
-      (table.value?.tableApi?.getColumn('email')?.getFilterValue() as string)
-      || ''
-    )
-  },
-  set: (value: string) => {
-    table.value?.tableApi
-      ?.getColumn('email')
-      ?.setFilterValue(value || undefined)
-  }
-})
-
 const currentPage = ref(1)
 
 const currentPageSize = computed({
@@ -334,15 +311,15 @@ watch(currentPage, (page) => {
 </script>
 
 <template>
-  <UDashboardPanel id="users">
+  <UDashboardPanel id="medical-departments">
     <template #header>
-      <UDashboardNavbar title="Users">
+      <UDashboardNavbar title="Departments">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <UsersAddModal @created="refresh" />
+          <DepartmentsAddModal @created="refresh" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -350,17 +327,17 @@ watch(currentPage, (page) => {
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-1.5">
         <UInput
-          v-model="email"
+          v-model="searchQuery"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Filter emails..."
+          placeholder="Search by code, type, or name..."
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="user"
-            @confirm="deleteSelectedUsers"
+            entity="department"
+            @confirm="deleteSelectedDepartments"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -391,10 +368,10 @@ watch(currentPage, (page) => {
                   onUpdateChecked(checked: boolean) {
                     table?.tableApi
                       ?.getColumn(column.id)
-                      ?.toggleVisibility(!!checked);
+                      ?.toggleVisibility(!!checked)
                   },
                   onSelect(e?: Event) {
-                    e?.preventDefault();
+                    e?.preventDefault()
                   }
                 }))
             "
@@ -412,7 +389,6 @@ watch(currentPage, (page) => {
 
       <UTable
         ref="table"
-        v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
         :pagination-options="{
@@ -420,7 +396,7 @@ watch(currentPage, (page) => {
         }"
         sticky
         class="w-full"
-        :data="data"
+        :data="displayedData"
         :columns="columns"
         :ui="{
           base: 'table-fixed border-separate border-spacing-0',
@@ -453,6 +429,7 @@ watch(currentPage, (page) => {
             ]"
             class="w-32"
           />
+
           <UPagination
             v-model:page="currentPage"
             :items-per-page="currentPageSize"
@@ -460,16 +437,18 @@ watch(currentPage, (page) => {
           />
         </div>
       </div>
-      <UsersUserRoleModal
-        v-model:open="isUserRoleModalOpen"
-        :user="selectedUser"
-        @updated="refresh"
+
+      <BaseDeleteModal
+        v-model:open="isDeleteModalOpen"
+        :count="1"
+        entity="department"
+        @confirm="handleDeleteById"
       />
 
-      <UsersUserRoomAccessModal
-        v-model:open="isUserRoomAccessModalOpen"
-        :user="selectedUser"
-        @updated="refresh"
+      <DepartmentsEditModal
+        v-model:open="isEditModalOpen"
+        :department="selectedEditDepartment"
+        @success="refresh"
       />
     </template>
   </UDashboardPanel>
