@@ -4,8 +4,12 @@ import { computed, onBeforeUnmount, watch } from 'vue'
 const props = withDefaults(defineProps<{
   open: boolean
   closeOnOverlay?: boolean
+  embedded?: boolean
+  hideFooter?: boolean
 }>(), {
   closeOnOverlay: true,
+  embedded: false,
+  hideFooter: false
 })
 
 const emit = defineEmits<{
@@ -29,10 +33,10 @@ watch(
   () => props.open,
   (isOpen) => {
     if (import.meta.client) {
-      document.body.style.overflow = isOpen ? 'hidden' : ''
+      document.body.style.overflow = isOpen && !props.embedded ? 'hidden' : ''
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 if (import.meta.client) {
@@ -48,7 +52,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="embedded">
     <Transition
       enter-active-class="transition duration-200 ease-out"
       enter-from-class="opacity-0"
@@ -59,9 +63,11 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="canRender"
-        class="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4"
+        class="flex items-stretch justify-center"
+        :class="embedded ? 'min-h-0 flex-1' : 'fixed inset-0 z-[100] sm:items-center sm:p-4'"
       >
         <div
+          v-if="!embedded"
           class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
           @click="requestClose"
         />
@@ -75,18 +81,32 @@ onBeforeUnmount(() => {
           leave-to-class="opacity-0 scale-[0.98] translate-y-2 sm:translate-y-0"
         >
           <div
-            class="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background ring-1 ring-border sm:h-[calc(100dvh-2rem)] sm:w-[min(1600px,calc(100vw-2rem))] sm:rounded-3xl sm:shadow-2xl"
+            v-if="canRender"
+            class="relative flex w-full flex-col bg-background"
+            :class="embedded
+              ? 'min-h-[calc(100dvh-4rem)] overflow-visible'
+              : 'h-[100dvh] overflow-hidden ring-1 ring-border sm:h-[calc(100dvh-2rem)] sm:w-[min(1600px,calc(100vw-2rem))] sm:rounded-3xl sm:shadow-2xl'"
             @click.stop
           >
-            <div v-if="$slots.header" class="shrink-0 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+            <div
+              v-if="$slots.header"
+              class="shrink-0 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+              :class="embedded ? 'sticky top-0 z-20' : ''"
+            >
               <slot name="header" />
             </div>
 
-            <div class="min-h-0 flex-1 overflow-hidden">
+            <div
+              class="min-h-0 flex-1"
+              :class="embedded ? 'overflow-visible' : 'overflow-hidden'"
+            >
               <slot name="body" />
             </div>
 
-            <div v-if="$slots.footer" class="shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+            <div
+              v-if="$slots.footer && !hideFooter"
+              class="shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+            >
               <slot name="footer" />
             </div>
           </div>
