@@ -31,6 +31,15 @@ type AuthRoomAccess = {
   }
 }
 
+type AuthResultAccess = {
+  departmentId: string
+  department?: {
+    id: string
+    code?: string
+    name?: string
+  }
+}
+
 type AuthUser = {
   id: number
   name: string
@@ -38,6 +47,7 @@ type AuthUser = {
   avatar?: string | null
   roles?: AuthRole[]
   roomAccesses?: AuthRoomAccess[]
+  resultAccesses?: AuthResultAccess[]
 }
 
 export async function useCurrentUser() {
@@ -105,13 +115,25 @@ export async function useCurrentUser() {
       .filter((value): value is NonNullable<AuthRoomAccess['room']> => Boolean(value))
   })
 
-const allowedSelfRoomTypeCodes = computed(() => {
-  return collectSelfAssignableRoomTypeCodes(roles.value)
-})
+  const allowedSelfRoomTypeCodes = computed(() => {
+    return collectSelfAssignableRoomTypeCodes(roles.value)
+  })
 
-const canSelfAssign = computed(() =>
-  isPic.value || allowedSelfRoomIds.value.length > 0
-)
+  const canSelfAssign = computed(() =>
+    isPic.value || allowedSelfRoomIds.value.length > 0
+  )
+
+  const allowedResultDepartments = computed(() =>
+    (user.value?.resultAccesses ?? [])
+      .map(access => access.department)
+      .filter((department): department is NonNullable<AuthResultAccess['department']> => Boolean(department))
+  )
+
+  const allowedResultDepartmentCodes = computed(() =>
+    allowedResultDepartments.value
+      .map(department => department.code?.toUpperCase())
+      .filter((code): code is string => Boolean(code))
+  )
 
   return {
     user,
@@ -122,6 +144,8 @@ const canSelfAssign = computed(() =>
     allowedSelfRoomIds,
     allowedSelfRooms,
     allowedSelfRoomTypeCodes,
+    allowedResultDepartments,
+    allowedResultDepartmentCodes,
     pending,
     refresh
   }

@@ -93,6 +93,7 @@ type ResultDraft = {
 const props = defineProps<{
   open: boolean
   result: ExamResultDetail | null
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -105,22 +106,6 @@ const result = computed(() => props.result)
 const api = useApi()
 const toast = useToast()
 const { loading: auditLoading, entries: auditEntries, fetchAudit, resetAudit } = useAudit()
-
-const gradingColor: Record<string, 'success' | 'warning' | 'error'> = {
-  NORMAL: 'success',
-  ABNORMAL_INC: 'warning',
-  ABNORMAL_DEC: 'error'
-}
-const gradingLabel: Record<string, string> = {
-  NORMAL: 'Normal',
-  ABNORMAL_INC: 'Abnormal ↑',
-  ABNORMAL_DEC: 'Abnormal ↓'
-}
-
-function getItemGrading(inputanId: string) {
-  const found = props.result?.exam?.results?.find((r: any) => r.inputanId === inputanId)
-  return found?.grading ?? null
-}
 
 const groupGradingForm = ref<{ groupId: string, groupName: string, grading: string | null }>({
   groupId: '',
@@ -260,6 +245,7 @@ async function uploadExternalResult() {
 }
 
 const saving = ref(false)
+const submitting = ref(false)
 const resultDrafts = ref<Record<string, ResultDraft>>({})
 
 function formatPatientName(patient?: Patient | null) {
@@ -608,13 +594,12 @@ async function handleSaveResult() {
     await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
 
     toast.add({
-      title: 'Success',
-      description: 'Results saved successfully',
+      title: 'Draft saved',
+      description: 'Results saved without completing the exam',
       color: 'success'
     })
 
     emit('resultSaved', props.result)
-    emit('close')
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     const message = response?.data?.message || 'Failed to save results'
@@ -626,6 +611,53 @@ async function handleSaveResult() {
     })
   } finally {
     saving.value = false
+  }
+}
+
+async function handleSubmitResult() {
+  if (!props.result?.exam?.id) {
+    toast.add({
+      title: 'Error',
+      description: 'Invalid exam ID',
+      color: 'error'
+    })
+    return
+  }
+
+  const results = buildResultsPayload()
+  if (results.length === 0) {
+    toast.add({
+      title: 'No results',
+      description: 'Please fill in at least one result field',
+      color: 'warning'
+    })
+    return
+  }
+
+  submitting.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
+    await api.post(`/mcu/exams/${props.result.exam.id}/results/submit`, {
+      departmentId: props.result.item?.department?.id
+    })
+
+    toast.add({
+      title: 'Results submitted',
+      description: 'Exam has been marked as completed',
+      color: 'success'
+    })
+
+    emit('resultSaved', props.result)
+    emit('close')
+  } catch (error: unknown) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    toast.add({
+      title: 'Submit failed',
+      description: response?.data?.message || 'Failed to submit results',
+      color: 'error'
+    })
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -656,10 +688,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <BaseFullscreenModal :open="open" @close="emit('close')">
+  <BaseFullscreenModal
+    :open="open"
+    :embedded="embedded"
+    :hide-footer="embedded"
+    @close="emit('close')"
+  >
     <template #header>
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
+      <div class="flex flex-wrap items-start gap-3 sm:gap-4">
+        <UButton
+          v-if="embedded"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          aria-label="Kembali ke daftar result"
+          class="mt-0.5 shrink-0"
+          @click="emit('close')"
+        />
+
+        <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
             <UBadge color="primary" variant="soft" :label="result?.queueCode || '-'" />
             <UBadge
@@ -675,31 +723,61 @@ onMounted(() => {
               variant="subtle"
             />
           </div>
-          <h3 class="mt-3 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl">
+          <h1 class="mt-2 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl">
             {{ result?.item?.name || '-' }}
-          </h3>
+          </h1>
           <p class="mt-1 text-sm text-muted">
             {{ formatPatientName(result?.patient) }} · {{ getDepartmentLabel(result?.item?.department) }}
           </p>
         </div>
 
         <UButton
+          v-if="!embedded"
           icon="i-lucide-x"
           color="neutral"
           variant="ghost"
           size="sm"
           @click="emit('close')"
         />
+
+        <div
+          v-if="embedded && result?.status === 'pending'"
+          class="flex w-full items-center justify-end gap-2 sm:w-auto"
+        >
+          <UButton
+            color="neutral"
+            variant="soft"
+            :loading="saving"
+            :disabled="submitting"
+            icon="i-lucide-save"
+            @click="handleSaveResult"
+          >
+            Simpan Draft
+          </UButton>
+          <UButton
+            color="primary"
+            :loading="submitting"
+            :disabled="saving"
+            icon="i-lucide-send"
+            @click="handleSubmitResult"
+          >
+            Submit Hasil
+          </UButton>
+        </div>
       </div>
     </template>
 
     <template #body>
-      <div v-if="result" class="flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-default via-default to-muted/10">
+      <div
+        v-if="result"
+        class="flex min-h-0 flex-col bg-gradient-to-b from-default via-default to-muted/10"
+        :class="embedded ? 'min-h-full overflow-visible' : 'h-full overflow-hidden'"
+      >
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
               <p class="text-xs uppercase tracking-wide text-muted">
-                Queue Code
+                Nomor Antrean
               </p>
               <p class="mt-2 text-lg font-semibold text-highlighted">
                 {{ result.queueCode }}
@@ -719,7 +797,7 @@ onMounted(() => {
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
               <p class="text-xs uppercase tracking-wide text-muted">
-                Type
+                Tipe Hasil
               </p>
               <div class="mt-2">
                 <UBadge
@@ -731,7 +809,7 @@ onMounted(() => {
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
               <p class="text-xs uppercase tracking-wide text-muted">
-                Check-in
+                Waktu Check-in
               </p>
               <p class="mt-2 text-sm font-semibold text-highlighted">
                 {{ formatDateTime(result.checkinAt) }}
@@ -740,14 +818,17 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-          <div class="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <div class="space-y-5">
+        <div
+          class="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-5"
+          :class="embedded ? 'overflow-visible' : 'overflow-y-auto'"
+        >
+          <div class="mx-auto grid w-full max-w-[1500px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div class="space-y-5 lg:sticky lg:top-24 lg:self-start">
               <UCard class="border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                      Patient Summary
+                      Ringkasan Pasien
                     </h4>
                     <UIcon name="i-lucide-user-round" class="size-4 text-muted" />
                   </div>
@@ -756,7 +837,7 @@ onMounted(() => {
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Full Name
+                      Nama Pasien
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatPatientName(result.patient) }}
@@ -764,7 +845,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Patient ID
+                      Nomor Rekam Medis
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.PatientId || '-' }}
@@ -772,7 +853,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Date of Birth
+                      Tanggal Lahir
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDate(result.patient?.dob) }}
@@ -780,7 +861,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Gender
+                      Jenis Kelamin
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.gender === 'MALE' ? 'Male' : result.patient?.gender === 'FEMALE' ? 'Female' : '-' }}
@@ -788,7 +869,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Age at Exam
+                      Usia Saat Pemeriksaan
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getAgeAtExamLabel(result.patient, result.checkinAt) }}
@@ -801,7 +882,7 @@ onMounted(() => {
                 <template #header>
                   <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                      Exam Context
+                      Informasi Pemeriksaan
                     </h4>
                     <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
                   </div>
@@ -810,7 +891,7 @@ onMounted(() => {
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Item
+                      Pemeriksaan
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.item?.name || '-' }}
@@ -826,7 +907,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Queue Entry
+                      ID Antrean
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.queueEntryId }}
@@ -834,7 +915,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Exam Type
+                      Jenis Pemeriksaan
                     </dt>
                     <dd class="mt-1">
                       <UBadge :color="examTypeBadgeColor[result.exam?.examType ?? 'MCU'] ?? 'neutral'" variant="subtle">
@@ -920,7 +1001,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Completed
+                      Waktu Selesai
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDateTime(result.completedAt) }}
@@ -930,16 +1011,16 @@ onMounted(() => {
               </UCard>
             </div>
 
-            <div class="space-y-5">
-              <UCard class="border border-default/80 bg-default/80 shadow-sm">
+            <div class="flex min-w-0 flex-col gap-5">
+              <UCard class="order-2 border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                        Workflow History
+                        Riwayat Proses
                       </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Audit trail of the exam process
+                        Jejak perubahan dan proses pemeriksaan
                       </p>
                     </div>
                     <UIcon name="i-lucide-list-checks" class="size-4 text-muted" />
@@ -947,7 +1028,7 @@ onMounted(() => {
                 </template>
 
                 <div v-if="auditLoading" class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
-                  Loading audit history...
+                  Memuat riwayat proses...
                 </div>
 
                 <div v-else-if="auditEntries.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
@@ -1008,19 +1089,19 @@ onMounted(() => {
                 </div>
 
                 <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
-                  No workflow history available.
+                  Belum ada riwayat proses.
                 </div>
               </UCard>
 
-              <UCard class="border border-default/80 bg-default/80 shadow-sm">
+              <UCard class="order-1 border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                        Result Input
+                        Input Hasil Pemeriksaan
                       </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Backend rule: pilih range dengan `sex` yang sama dan `ageMin` terbesar yang masih &lt;= umur pasien saat exam.
+                        Isi hasil sesuai parameter dan rentang normal pasien.
                       </p>
                     </div>
                     <UIcon name="i-lucide-file-pen-line" class="size-4 text-muted" />
@@ -1029,20 +1110,20 @@ onMounted(() => {
 
                 <div v-if="result.item?.inputans?.length" class="overflow-hidden rounded-2xl border border-default/70">
                   <div class="overflow-x-auto">
-                    <table class="min-w-[980px] w-full divide-y divide-default/70">
+                    <table class="min-w-[720px] w-full table-fixed divide-y divide-default/70">
                       <thead class="bg-muted/40">
                         <tr>
-                          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                            Item
+                          <th class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                            Parameter
                           </th>
-                          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                            Type
+                          <th class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                            Nilai Normal
                           </th>
-                          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                            Normal Range
+                          <th class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                            Hasil
                           </th>
-                          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                            Result
+                          <th class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                            Status
                           </th>
                         </tr>
                       </thead>
@@ -1051,95 +1132,72 @@ onMounted(() => {
                         <tr
                           v-for="inputan in result.item.inputans"
                           :key="inputan.id"
-                          class="align-top transition hover:bg-muted/20"
+                          class="transition hover:bg-muted/20"
                         >
-                          <td class="px-4 py-4">
-                            <div class="space-y-1">
+                          <td class="px-3 py-2.5 align-middle">
+                            <div class="min-w-0">
                               <p class="text-sm font-semibold text-highlighted">
                                 {{ inputan.label }}
                               </p>
-                              <p v-if="inputan.uom" class="text-xs text-muted">
-                                Unit: {{ inputan.uom }}
-                              </p>
-                              <UBadge
-                                v-if="getItemGrading(inputan.id)"
-                                :label="gradingLabel[getItemGrading(inputan.id)]"
-                                :color="gradingColor[getItemGrading(inputan.id)]"
-                                variant="subtle"
-                                class="mt-1"
-                              />
+                              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                <UBadge
+                                  :label="getInputTypeLabel(inputan.inputType)"
+                                  :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
+                                  variant="subtle"
+                                  size="sm"
+                                />
+                                <span v-if="inputan.uom" class="text-xs text-muted">
+                                  {{ inputan.uom }}
+                                </span>
+                              </div>
                             </div>
                           </td>
 
-                          <td class="px-4 py-4">
-                            <UBadge
-                              :label="getInputTypeLabel(inputan.inputType)"
-                              :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
-                              variant="subtle"
-                            />
-                          </td>
-
-                          <td class="px-4 py-4 text-sm text-muted">
-                            <div v-if="getPatientMatchedNormalRanges(inputan).length" class="space-y-2">
+                          <td class="px-3 py-2.5 align-middle text-sm text-muted">
+                            <div v-if="getPatientMatchedNormalRanges(inputan).length" class="space-y-1">
                               <div
                                 v-for="range in getPatientMatchedNormalRanges(inputan)"
                                 :key="range.id"
-                                class="rounded-xl border border-emerald-500/20 bg-emerald-500/8 p-3"
+                                class="leading-tight"
                               >
-                                <p class="text-xs font-medium text-muted">
-                                  {{ formatRangeCriteria(range) }}
-                                </p>
-                                <p class="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                                   {{ formatNormalRange(range, inputan.uom) }}
                                 </p>
+                                <p class="mt-0.5 text-[11px] text-muted">
+                                  {{ formatRangeCriteria(range) }}
+                                </p>
                               </div>
                             </div>
-                            <div v-else class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-                              <div class="flex items-center gap-2">
-                                <UBadge color="warning" variant="soft" label="No match" />
-                                <span class="text-xs font-medium text-muted">
-                                  This item has no normal range that matches sex and age profile.
-                                </span>
-                              </div>
-                            </div>
+                            <span v-else class="text-xs text-amber-600 dark:text-amber-400">
+                              Belum tersedia
+                            </span>
                           </td>
 
-                          <td class="px-4 py-4">
-                            <div class="space-y-3">
-                              <div class="flex flex-wrap items-center gap-2">
-                                <UBadge
-                                  :label="getResultNormalityState(inputan).label"
-                                  :color="getResultNormalityState(inputan).color"
-                                  variant="soft"
-                                />
-                                <span class="text-xs text-muted">
-                                  {{ getResultNormalityState(inputan).tone }}
-                                </span>
-                              </div>
-
+                          <td class="px-3 py-2.5 align-middle">
+                            <div class="max-w-sm">
                               <input
                                 v-if="inputan.inputType === 'number'"
                                 v-model="getInputDraft(inputan.id).valueNumber"
                                 type="number"
                                 :class="getResultInputClass(inputan)"
-                                :placeholder="`Enter ${inputan.label}`"
+                                placeholder="Masukkan hasil"
                               >
 
                               <input
                                 v-else-if="inputan.inputType === 'string'"
                                 v-model="getInputDraft(inputan.id).valueString"
                                 type="text"
-                                class="w-full rounded-xl border border-default bg-default px-3 py-2.5 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
-                                :placeholder="`Enter ${inputan.label}`"
+                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+                                placeholder="Masukkan hasil"
                               >
 
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
                                 v-model="getInputDraft(inputan.id).valueSelected"
-                                class="w-full rounded-xl border border-default bg-default px-3 py-2.5 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
                               >
                                 <option value="">
-                                  Select an option
+                                  Pilih hasil
                                 </option>
                                 <option
                                   v-for="opsi in inputan.opsis"
@@ -1155,16 +1213,24 @@ onMounted(() => {
                                 v-model="getInputDraft(inputan.id).valueCalculated"
                                 type="number"
                                 :class="getResultInputClass(inputan)"
-                                :placeholder="`Enter ${inputan.label}`"
+                                placeholder="Masukkan hasil"
                               >
-
-                              <p v-if="isResultOutsideNormalRange(inputan)" class="text-xs font-semibold text-red-600 dark:text-red-400">
-                                Nilai ini berada di luar rentang normal yang sesuai.
-                              </p>
-                              <p v-else class="text-xs text-muted">
-                                Gunakan input sesuai tipe data di atas. Baris ini mengikuti struktur tabel agar mudah di-scan.
-                              </p>
                             </div>
+                          </td>
+
+                          <td class="px-3 py-2.5 align-middle">
+                            <UBadge
+                              :label="getResultNormalityState(inputan).label"
+                              :color="getResultNormalityState(inputan).color"
+                              variant="soft"
+                              size="sm"
+                            />
+                            <p
+                              v-if="isResultOutsideNormalRange(inputan)"
+                              class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
+                            >
+                              Di luar nilai normal
+                            </p>
                           </td>
                         </tr>
                       </tbody>
@@ -1173,11 +1239,11 @@ onMounted(() => {
                 </div>
 
                 <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
-                  No input fields defined for this item.
+                  Belum ada parameter input untuk pemeriksaan ini.
                 </div>
               </UCard>
 
-              <UCard class="border border-default/80 bg-default/80 shadow-sm">
+              <UCard class="order-3 border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
@@ -1245,24 +1311,40 @@ onMounted(() => {
 
     <template #footer>
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <UButton color="neutral" variant="soft" @click="emit('close')">
-          Cancel
-        </UButton>
         <UButton
-          v-if="result?.status === 'pending'"
-          color="primary"
-          :loading="saving"
-          @click="handleSaveResult"
+          v-if="!embedded"
+          color="neutral"
+          variant="soft"
+          @click="emit('close')"
         >
-          Save Results
+          Kembali
         </UButton>
+        <template v-if="result?.status === 'pending'">
+          <UButton
+            color="neutral"
+            variant="soft"
+            :loading="saving"
+            :disabled="submitting"
+            @click="handleSaveResult"
+          >
+            Simpan Draft
+          </UButton>
+          <UButton
+            color="primary"
+            :loading="submitting"
+            :disabled="saving"
+            @click="handleSubmitResult"
+          >
+            Submit Hasil
+          </UButton>
+        </template>
         <UButton
-          v-else
+          v-else-if="!embedded"
           color="neutral"
           variant="soft"
           disabled
         >
-          Already Completed
+          Hasil Sudah Selesai
         </UButton>
       </div>
     </template>

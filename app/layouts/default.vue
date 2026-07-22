@@ -4,7 +4,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const toast = useToast()
-const { permissions, roles } = await useCurrentUser()
+const { permissions, roles, allowedResultDepartmentCodes } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
 const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
@@ -81,8 +81,12 @@ const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/rooms/e
 
 const externalDoctorAllowedRoutes = ['/rooms/exam-results', '/settings']
 
+function normalizeMenuPath(path: string) {
+  return path.split(/[?#]/, 1)[0] || '/'
+}
+
 function collectItemRoutes(item: NavigationMenuItem): string[] {
-  if (item.to) return [item.to]
+  if (typeof item.to === 'string') return [normalizeMenuPath(item.to)]
   if (item.children) return (item.children as NavigationMenuItem[]).flatMap(collectItemRoutes)
   return []
 }
@@ -120,8 +124,8 @@ function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
       return acc
     }
 
-    if (item.to) {
-      if (hasRouteAccess(item.to, permissions.value)) {
+    if (typeof item.to === 'string') {
+      if (hasRouteAccess(normalizeMenuPath(item.to), permissions.value)) {
         acc.push(item)
       }
       return acc
@@ -149,6 +153,13 @@ const parentMenus: Record<string, string[]> = {
   Results: [],
   Lab: []
 }
+
+const activeResultDepartment = computed(() => {
+  const department = route.query.department
+  const value = Array.isArray(department) ? department[0] : department
+
+  return typeof value === 'string' ? value.toLowerCase() : ''
+})
 
 const updateActiveMenu = () => {
   const currentPath = route.path
@@ -185,10 +196,18 @@ const updateActiveMenu = () => {
 }
 
 watch(
-  () => route.path,
+  () => route.fullPath,
   updateActiveMenu,
   { immediate: true }
 )
+
+const canAccessAllResults = computed(() => roles.value.includes('superadmin'))
+
+function canAccessResultDepartment(code: string) {
+  return canAccessAllResults.value
+    || isExternalDoctor.value
+    || allowedResultDepartmentCodes.value.includes(code.toUpperCase())
+}
 
 // Fungsi untuk update menu state ketika user klik
 const updateMenuState = (menuName: string, isOpen: boolean) => {
@@ -323,9 +342,35 @@ const links = computed<NavigationMenuItem[][]>(() => [
       children: [
         {
           label: 'Hasil Exam Lab',
-          to: '/rooms/exam-results'
+          to: '/rooms/exam-results?department=lab',
+          active: activeResultDepartment.value === 'lab',
+          resultDepartmentCode: 'LAB'
+        },
+        {
+          label: 'Hasil Exam Radiology',
+          to: '/rooms/exam-results?department=radiology',
+          active: activeResultDepartment.value === 'radiology',
+          resultDepartmentCode: 'RAD'
+        },
+        {
+          label: 'Hasil Exam Nurse',
+          to: '/rooms/exam-results?department=nurse',
+          active: activeResultDepartment.value === 'nurse',
+          resultDepartmentCode: 'NURSE'
+        },
+        {
+          label: 'Hasil Exam Dokter',
+          to: '/rooms/exam-results?department=dokter',
+          active: activeResultDepartment.value === 'dokter',
+          resultDepartmentCode: 'DOK'
+        },
+        {
+          label: 'Hasil Exam Dental',
+          to: '/rooms/exam-results?department=dental',
+          active: activeResultDepartment.value === 'dental',
+          resultDepartmentCode: 'DENTAL'
         }
-      ]
+      ].filter(item => canAccessResultDepartment(item.resultDepartmentCode))
     },
     {
       label: 'Lab',

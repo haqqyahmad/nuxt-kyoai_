@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import DetailDrawer from './components/DetailDrawer.vue'
 
 type Department = {
   id: string
@@ -88,12 +87,11 @@ const api = useApi()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
+const { roles, allowedResultDepartments } = await useCurrentUser()
 
 // State
 const loading = ref(false)
 const results = ref<ExamResult[]>([])
-const selectedResult = ref<ExamResult | null>(null)
-const isDetailOpen = ref(false)
 
 // Filters
 const departmentFilter = ref<string>('all')
@@ -119,6 +117,16 @@ const departmentItems = computed(() => [
 const initialExamId = ref('')
 const initialRegistrationId = ref('')
 const isBootstrapping = ref(true)
+const isApplyingMenuDepartment = ref(false)
+const menuDepartmentCode = ref<string | null>(null)
+
+const menuDepartmentCodes: Record<string, string> = {
+  lab: 'LAB',
+  radiology: 'RAD',
+  nurse: 'NURSE',
+  dokter: 'DOK',
+  dental: 'DENTAL'
+}
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -185,12 +193,14 @@ function getQueryValue(value: unknown) {
 
 function applyRouteFilters() {
   const departmentId = getQueryValue(route.query.departmentId)
+  const department = getQueryValue(route.query.department).toLowerCase()
   const status = getQueryValue(route.query.status)
   const resultTiming = getQueryValue(route.query.resultTiming)
   const examId = getQueryValue(route.query.examId)
   const registrationId = getQueryValue(route.query.registrationId)
 
   departmentFilter.value = departmentId || 'all'
+  menuDepartmentCode.value = menuDepartmentCodes[department] || null
   statusFilter.value = status === 'pending' || status === 'completed' ? status : 'all'
   resultTypeFilter.value = resultTiming === 'inline' || resultTiming === 'deferred'
     ? resultTiming
@@ -199,10 +209,23 @@ function applyRouteFilters() {
   initialRegistrationId.value = registrationId
 }
 
+function applyMenuDepartmentSelection() {
+  if (!menuDepartmentCode.value) return
+
+  const matched = departments.value.find(
+    department => department.code.toUpperCase() === menuDepartmentCode.value
+  )
+  departmentFilter.value = matched?.id || 'all'
+}
+
 function syncRouteFilters() {
   const query: Record<string, string> = {}
+  const menuDepartment = Object.entries(menuDepartmentCodes).find(
+    ([, code]) => code === menuDepartmentCode.value
+  )?.[0]
 
-  if (departmentFilter.value && departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
+  if (menuDepartment) query.department = menuDepartment
+  else if (departmentFilter.value && departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
   if (statusFilter.value !== 'all') query.status = statusFilter.value
   if (resultTypeFilter.value !== 'all') query.resultTiming = resultTypeFilter.value
   if (dateFromFilter.value) query.dateFrom = dateFromFilter.value
@@ -215,9 +238,14 @@ function syncRouteFilters() {
 
 // Computed filters
 const filteredResults = computed(() => {
-  return (results.value || []).filter(result => {
+  return (results.value || []).filter((result) => {
     // Department filter
-    if (departmentFilter.value && departmentFilter.value !== 'all' && result.item?.department?.id !== departmentFilter.value) {
+    if (departmentFilter.value && departmentFilter.value !== 'all') {
+      if (result.item?.department?.id !== departmentFilter.value) return false
+    } else if (
+      menuDepartmentCode.value
+      && result.item?.department?.code?.toUpperCase() !== menuDepartmentCode.value
+    ) {
       return false
     }
 
@@ -266,6 +294,14 @@ const filteredResults = computed(() => {
 async function loadDepartments() {
   departmentsLoading.value = true
   try {
+    if (!roles.value.includes('superadmin')) {
+      departments.value = allowedResultDepartments.value
+        .filter((department): department is Department => Boolean(
+          department.id && department.code && department.name
+        ))
+      return
+    }
+
     const res = await api.get('/medical/departments')
     departments.value = res.data?.data || res.data || []
   } catch (error) {
@@ -290,6 +326,8 @@ async function loadResults() {
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {
       params.departmentId = departmentFilter.value
+    } else if (menuDepartmentCode.value) {
+      params.departmentCode = menuDepartmentCode.value
     }
 
     if (statusFilter.value !== 'all') {
@@ -334,35 +372,29 @@ async function loadResults() {
 }
 
 watch(results, () => {
-  if (!initialExamId.value || isDetailOpen.value) return
+  if (!initialExamId.value) return
 
   const matched = results.value.find(result => result.exam?.id === initialExamId.value)
   if (matched) {
-    selectedResult.value = matched
-    isDetailOpen.value = true
+    initialExamId.value = ''
+    void viewDetail(matched)
   }
 }, { immediate: true })
 
 // View detail
 async function viewDetail(result: ExamResult) {
-  selectedResult.value = result
-  isDetailOpen.value = true
-}
-
-// Handle result saved
-async function handleResultSaved(result: ExamResult) {
-  toast.add({
-    title: 'Success',
-    description: 'Result saved successfully',
-    color: 'success',
+  await router.push({
+    path: `/rooms/exam-results/${result.id}`,
+    query: {
+      department: getQueryValue(route.query.department),
+      examId: result.exam?.id || ''
+    }
   })
-  
-  // Refresh results list
-  await loadResults()
 }
 
 // Reset filters
 function resetFilters() {
+  menuDepartmentCode.value = null
   departmentFilter.value = 'all'
   statusFilter.value = 'all'
   resultTypeFilter.value = 'all'
@@ -377,20 +409,44 @@ function resetFilters() {
 
 // Watch filters and reload
 watch([departmentFilter, statusFilter, resultTypeFilter, dateFromFilter, dateToFilter], () => {
-  if (isBootstrapping.value) return
+  if (isBootstrapping.value || isApplyingMenuDepartment.value) return
 
+  const selectedDepartment = departments.value.find(
+    department => department.id === departmentFilter.value
+  )
+  const selectedCode = selectedDepartment?.code.toUpperCase() || null
+  menuDepartmentCode.value = Object.values(menuDepartmentCodes).includes(selectedCode || '')
+    ? selectedCode
+    : null
   page.value = 1
   syncRouteFilters()
   loadResults()
 })
 
+watch(
+  () => getQueryValue(route.query.department),
+  async (department) => {
+    if (isBootstrapping.value) return
+
+    const nextDepartmentCode = menuDepartmentCodes[department.toLowerCase()] || null
+    if (nextDepartmentCode === menuDepartmentCode.value) return
+
+    isApplyingMenuDepartment.value = true
+    menuDepartmentCode.value = nextDepartmentCode
+    applyMenuDepartmentSelection()
+    page.value = 1
+    await nextTick()
+    isApplyingMenuDepartment.value = false
+    await loadResults()
+  }
+)
+
 // Load on mount
 onMounted(async () => {
   applyRouteFilters()
-  await Promise.all([
-    loadDepartments(),
-    loadResults(),
-  ])
+  await loadDepartments()
+  applyMenuDepartmentSelection()
+  await loadResults()
   isBootstrapping.value = false
 })
 </script>
@@ -654,11 +710,4 @@ onMounted(async () => {
     </template>
   </UDashboardPanel>
 
-  <!-- Detail Drawer/Modal -->
-  <DetailDrawer
-    :open="isDetailOpen"
-    :result="selectedResult"
-    @close="isDetailOpen = false"
-    @result-saved="handleResultSaved"
-  />
 </template>

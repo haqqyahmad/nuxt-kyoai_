@@ -47,6 +47,7 @@ const rowSelection = ref({})
 const selectedUser = ref<User | null>(null)
 const isUserRoleModalOpen = ref(false)
 const isUserRoomAccessModalOpen = ref(false)
+const isUserResultAccessModalOpen = ref(false)
 
 // async function userRolePatient(id: string) {
 //   try {
@@ -144,6 +145,14 @@ function getRowItems(row: Row<User>) {
       onSelect() {
         selectedUser.value = row.original
         isUserRoomAccessModalOpen.value = true
+      }
+    },
+    {
+      label: 'Result access',
+      icon: 'i-lucide-file-key-2',
+      onSelect() {
+        selectedUser.value = row.original
+        isUserResultAccessModalOpen.value = true
       }
     },
     {
@@ -468,6 +477,12 @@ watch(currentPage, (page) => {
 
       <UsersUserRoomAccessModal
         v-model:open="isUserRoomAccessModalOpen"
+        :user="selectedUser"
+        @updated="refresh"
+      />
+
+      <UsersUserResultAccessModal
+        v-model:open="isUserResultAccessModalOpen"
         :user="selectedUser"
         @updated="refresh"
       />
