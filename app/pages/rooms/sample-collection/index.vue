@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, toRef } from 'vue'
 import { useRoomSession } from '~/composables/useRoomSession'
 import SampleCollectionPickModal from '~/components/rooms/SampleCollectionPickModal.vue'
 
@@ -37,6 +37,7 @@ type SampleCollectionRow = {
 }
 
 const api = useApi()
+const { user } = await useCurrentUser()
 
 const { session: roomSession, refresh: refreshRoomSession } = await useRoomSession()
 const roomTypeId = computed(() => roomSession.value?.roomTypeId ?? null)
@@ -50,8 +51,43 @@ const statusOptions = [
   { label: 'Reschedule', value: 'RESCHEDULED' }
 ]
 
-const statusFilter = ref('PENDING')
-const dateFilter = ref('')
+type SampleCollectionStatusFilter = 'ALL' | 'PENDING' | 'COLLECTED' | 'RECEIVED' | 'REJECTED' | 'RESCHEDULED'
+type SampleCollectionStoredFilters = {
+  status: SampleCollectionStatusFilter
+  date: string
+}
+
+const sampleStatusValues: SampleCollectionStatusFilter[] = ['ALL', 'PENDING', 'COLLECTED', 'RECEIVED', 'REJECTED', 'RESCHEDULED']
+const datePattern = /^\d{4}-\d{2}-\d{2}$/
+
+function isValidDateFilter(value: unknown): value is string {
+  if (value === '') return true
+  if (typeof value !== 'string' || !datePattern.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day
+}
+
+function sanitizeSampleCollectionFilters(value: unknown): Partial<SampleCollectionStoredFilters> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const stored = value as Record<string, unknown>
+  return {
+    status: sampleStatusValues.includes(stored.status as SampleCollectionStatusFilter)
+      ? stored.status as SampleCollectionStatusFilter
+      : 'PENDING',
+    date: isValidDateFilter(stored.date) ? stored.date : ''
+  }
+}
+
+const sampleFilterState = useSafeLocalStorageState<SampleCollectionStoredFilters>(
+  `erp-kyoai:rooms:sample-collection:filters:user:${user.value?.id ?? 'anonymous'}`,
+  { status: 'PENDING', date: '' },
+  sanitizeSampleCollectionFilters
+)
+const statusFilter = toRef(sampleFilterState, 'status')
+const dateFilter = toRef(sampleFilterState, 'date')
 const search = ref('')
 const loading = ref(false)
 const allRows = ref<SampleCollectionRow[]>([])
@@ -81,8 +117,9 @@ async function load() {
     if (roomTypeId.value) params.roomTypeId = roomTypeId.value
 
     const res = await api.get('/medical/exams/queue/samples', { params })
-    const payload = res.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    const responseBody = res.data
+    const payload = responseBody?.data ?? responseBody
+    const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
     allRows.value = list as SampleCollectionRow[]
     applyClientFilters()
   } catch {
@@ -106,8 +143,9 @@ async function loadCollected() {
     if (roomTypeId.value) params.roomTypeId = roomTypeId.value
 
     const res = await api.get('/medical/exams/queue/samples', { params })
-    const payload = res.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    const responseBody = res.data
+    const payload = responseBody?.data ?? responseBody
+    const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
     collectedRows.value = list as SampleCollectionRow[]
   } catch {
     collectedError.value = 'Gagal memuat data sample collected.'
@@ -359,8 +397,12 @@ onMounted(async () => {
 
         <!-- Section 2: Sample yang sudah diambil (COLLECTED) - untuk Reception -->
         <div class="pt-6 border-t border-default">
-          <h3 class="mb-3 text-sm font-semibold text-highlighted">Sample Sudah Diambil (COLLECTED)</h3>
-          <p class="mb-3 text-xs text-muted">Data ini bisa dilihat oleh Reception untuk menerima sample.</p>
+          <h3 class="mb-3 text-sm font-semibold text-highlighted">
+            Sample Sudah Diambil (COLLECTED)
+          </h3>
+          <p class="mb-3 text-xs text-muted">
+            Data ini bisa dilihat oleh Reception untuk menerima sample.
+          </p>
 
           <div v-if="collectedLoading" class="flex items-center justify-center py-10 text-muted">
             <UIcon name="i-lucide-loader-circle" class="animate-spin size-5" />

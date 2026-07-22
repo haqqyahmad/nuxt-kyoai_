@@ -12,6 +12,7 @@ type Patient = {
 
 type QueueStageItem = {
   id: string
+  stageId: string
   stageOrder: number
   status: string
   roomId: string | null
@@ -68,6 +69,16 @@ type RoomSession = {
     code: string
     name: string
   } | null
+}
+
+type CurrentRoom = {
+  id: string
+  stageLinks?: Array<{
+    stageId: string
+    stage?: {
+      code: string
+    } | null
+  }>
 }
 
 type RoomQueueDetail = {
@@ -265,8 +276,37 @@ const activeRoomSession = computed(() => {
 })
 
 const roomAssignment = computed(() => assignmentData.value ?? null)
+const currentRoomId = computed(() =>
+  activeRoomSession.value?.roomId ?? roomAssignment.value?.roomId ?? null
+)
 const canEnterRoom = computed(() => Boolean(roomAssignment.value?.roomId) && !activeRoomSession.value)
 const canUseAssignShortcut = computed(() => !roomAssignment.value?.roomId)
+
+const { data: currentRoomData } = await useAsyncData<CurrentRoom | null>(
+  'queue-work-current-room',
+  async () => {
+    if (!currentRoomId.value) return null
+
+    try {
+      const res = await api.get(`/medical/rooms/rooms/${currentRoomId.value}`)
+      return (res.data?.data ?? res.data ?? null) as CurrentRoom | null
+    } catch {
+      return null
+    }
+  },
+  {
+    default: () => null,
+    watch: [currentRoomId],
+    server: false
+  }
+)
+
+const currentRoomStageIds = computed(() =>
+  new Set((currentRoomData.value?.stageLinks ?? []).map(link => link.stageId))
+)
+const currentRoomStageCodes = computed(() =>
+  new Set((currentRoomData.value?.stageLinks ?? []).map(link => link.stage?.code).filter(Boolean))
+)
 
 const roomSessionLabel = computed(() => {
   if (!activeRoomSession.value) return 'Sesi room tidak aktif'
@@ -490,13 +530,12 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
 
 const patient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
 const canManageItemActions = computed(() => permissions.value.includes('queue:admin'))
-const currentRoomId = computed(() =>
-  activeRoomSession.value?.roomId ?? roomAssignment.value?.roomId ?? null
-)
-
 const activeStage = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
-    .filter(stage => ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status))
+    .filter(stage =>
+      ['WAITING', 'CALLED', 'IN_PROGRESS'].includes(stage.status)
+      && currentRoomStageIds.value.has(stage.stageId)
+    )
 
   if (stages.length === 0) return null
 
@@ -514,6 +553,17 @@ const activeStage = computed(() => {
   return stages[0] ?? null
 })
 const activeStageCode = computed(() => activeStage.value?.stage?.code ?? null)
+const currentRoomWorkStatus = computed(() => {
+  const stages = (roomQueueDetail.value?.stageItems ?? [])
+    .filter(stage => currentRoomStageIds.value.has(stage.stageId))
+
+  if (stages.length === 0) return roomQueueDetail.value?.status ?? 'WAITING'
+  if (stages.every(stage => ['DONE', 'SKIPPED'].includes(stage.status))) return 'DONE'
+
+  return stages.find(stage => ['IN_PROGRESS', 'CALLED', 'WAITING'].includes(stage.status))?.status
+    ?? roomQueueDetail.value?.status
+    ?? 'WAITING'
+})
 const allItemsFinal = computed(() =>
   roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status))
 )
@@ -524,7 +574,7 @@ function getStageDisplayName(stage?: QueueStageItem | null) {
   const total = (roomQueueDetail.value?.stageItems ?? []).length
   const code = stage.stage?.code
   const name = (code ? `${code} · ` : '') + (stage.stage?.name || `Stage ${stage.stageOrder ?? '-'}`)
-  const otherRoom = stage.roomId && stage.roomId !== roomAssignment.value?.roomId
+  const otherRoom = stage.roomId && stage.roomId !== currentRoomId.value
   const suffix = otherRoom ? ' (ruangan lain)' : ''
   return (total > 1 ? `Stage ${stage.stageOrder} dari ${total}: ` : '') + name + suffix
 }
@@ -564,13 +614,13 @@ function getItemSampleCollection(item: RoomExamItem): SampleCollection | null {
 }
 
 function canCollectSample(item: RoomExamItem) {
-  if (!isCollectStageActive()) return false
+  if (!isCollectStageActive() || !currentRoomStageCodes.value.has('COLLECT')) return false
   const collection = getItemSampleCollection(item)
   return Boolean(collection) && collection?.status === 'PENDING'
 }
 
 function canReceiveSample(item: RoomExamItem) {
-  if (!isReceiveStageActive()) return false
+  if (!isReceiveStageActive() || !currentRoomStageCodes.value.has('RECEIVE')) return false
   const collection = getItemSampleCollection(item)
   return Boolean(collection) && collection?.status === 'COLLECTED'
 }
@@ -882,29 +932,6 @@ function buildResultsPayload(item: RoomExamItem) {
       valueString: getDraftText(draft.valueString)
     }
   }).filter((value): value is Record<string, unknown> => Boolean(value))
-}
-
-async function handleCallPatient() {
-  if (!activeStage.value || stageActionLoading.value) return
-
-  stageActionLoading.value = true
-  try {
-    await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/call`, {})
-    await loadPage(true)
-    toast.add({
-      title: 'Berhasil',
-      description: 'Pasien berhasil diambil dari queue general.',
-      color: 'success'
-    })
-  } catch (error: unknown) {
-    toast.add({
-      title: 'Gagal mengambil pasien',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengambil pasien.'),
-      color: 'error'
-    })
-  } finally {
-    stageActionLoading.value = false
-  }
 }
 
 async function handleReturnPatient() {
@@ -1341,8 +1368,8 @@ async function handleSubmitItemAction() {
                     :label="stageSummary"
                   />
                   <UBadge
-                    :label="`Status room: ${getStatusLabel(roomQueueDetail.status)}`"
-                    :color="getStatusColor(roomQueueDetail.status)"
+                    :label="`Status pekerjaan ruangan: ${getStatusLabel(currentRoomWorkStatus)}`"
+                    :color="getStatusColor(currentRoomWorkStatus)"
                     variant="soft"
                   />
                   <UBadge
@@ -1379,14 +1406,15 @@ async function handleSubmitItemAction() {
               </div>
 
               <div class="flex flex-wrap gap-2 lg:max-w-sm lg:justify-end">
-                <UButton
+                <UAlert
                   v-if="activeStage?.status === 'WAITING'"
-                  icon="i-lucide-bell-ring"
-                  :loading="stageActionLoading"
-                  @click="handleCallPatient"
-                >
-                  Ambil dari Queue General
-                </UButton>
+                  color="info"
+                  variant="soft"
+                  icon="i-lucide-info"
+                  title="Pasien masih di queue general"
+                  description="Pengambilan pasien hanya dilakukan dari modal Pasien di Ruang Tunggu pada halaman Queue."
+                  class="max-w-sm"
+                />
 
                 <UButton
                   v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"

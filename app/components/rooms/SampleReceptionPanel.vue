@@ -52,13 +52,18 @@ const samples = ref<ReceptionSample[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const actionLoading = ref<Record<string, boolean>>({})
+const isReceiveModalOpen = ref(false)
+const selectedSample = ref<ReceptionSample | null>(null)
+const receiveLoading = ref(false)
+const modalLockAcquired = ref(false)
+const releasingModalLock = ref(false)
 
 async function loadSamples() {
   loading.value = true
   error.value = null
   try {
     const params: Record<string, unknown> = {
-      status: 'PENDING,COLLECTED',
+      status: 'COLLECTED',
       limit: 100,
       page: 1,
       _: Date.now()
@@ -68,8 +73,11 @@ async function loadSamples() {
       params.roomTypeId = props.activeRoomSession.roomTypeId
     }
     const res = await api.get('/medical/exams/queue/samples', { params })
-    const payload = res.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    const responseBody = res.data
+    const payload = responseBody?.data ?? responseBody
+    const list = Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload?.data) ? payload.data : [])
     samples.value = list as ReceptionSample[]
   } catch {
     error.value = 'Gagal memuat antrian sample reception.'
@@ -104,76 +112,110 @@ const sessionActive = computed(() => Boolean(roomSession.value?.id) && !roomSess
 const myUserId = computed(() => (roomSession.value as { userId?: number } | null)?.userId ?? null)
 
 function isTakenByMe(s: ReceptionSample) {
-  return s.takenBy != null && (s.takenBy === myUserId.value || isSuperAdmin.value)
+  return s.takenBy != null && s.takenBy === myUserId.value
 }
 
-function canAct(s: ReceptionSample) {
-  return sessionActive.value && (s.takenBy == null || isTakenByMe(s))
+function canReceive(s: ReceptionSample) {
+  return sessionActive.value
+    && s.status === 'COLLECTED'
+    && (s.takenBy == null || isTakenByMe(s))
 }
 
-async function take(s: ReceptionSample) {
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    return response?.data?.message || fallback
+  }
+  return fallback
+}
+
+async function openReceiveModal(s: ReceptionSample) {
   if (!sessionActive.value) {
     toast.add({ title: 'Sesi room belum aktif', description: 'Masuk ke room dulu.', color: 'warning' })
     return
   }
-  actionLoading.value = { ...actionLoading.value, [s.id]: true }
-  try {
-    await api.patch(`/medical/exams/queue/samples/${s.id}/take`)
-    toast.add({ title: 'Berhasil', description: 'Sample collection diambil.', color: 'success' })
-    await loadSamples()
-  } catch {
-    toast.add({ title: 'Gagal mengambil', description: 'Collection mungkin sudah diambil petugas lain.', color: 'error' })
-  } finally {
-    actionLoading.value = { ...actionLoading.value, [s.id]: false }
-  }
-}
 
-async function release(s: ReceptionSample) {
-  actionLoading.value = { ...actionLoading.value, [s.id]: true }
-  try {
-    await api.patch(`/medical/exams/queue/samples/${s.id}/release`)
-    toast.add({ title: 'Berhasil', description: 'Lock dilepas.', color: 'success' })
-    await loadSamples()
-  } catch {
-    toast.add({ title: 'Gagal melepas lock', color: 'error' })
-  } finally {
-    actionLoading.value = { ...actionLoading.value, [s.id]: false }
-  }
-}
-
-async function collect(s: ReceptionSample) {
-  if (!canAct(s)) {
-    toast.add({ title: 'Tidak dapat mengambil sample', description: 'Pastikan Anda mengambil antrian ini dan sesi room aktif.', color: 'warning' })
+  if (!canReceive(s)) {
+    toast.add({
+      title: 'Sample sedang diproses',
+      description: 'Sample ini sedang ditangani petugas reception lain.',
+      color: 'warning'
+    })
     return
   }
+
   actionLoading.value = { ...actionLoading.value, [s.id]: true }
   try {
-    await api.patch(`/medical/exams/queue/samples/${s.id}/collect`, { tubeCount: s.tubeCount ?? 1 })
-    toast.add({ title: 'Berhasil', description: 'Sample diambil petugas.', color: 'success' })
+    modalLockAcquired.value = isTakenByMe(s)
+    if (s.takenBy == null) {
+      await api.patch(`/medical/exams/queue/samples/${s.id}/take`)
+      modalLockAcquired.value = true
+    }
+
+    const detailResponse = await api.get(`/medical/exams/queue/samples/${s.id}`)
+    selectedSample.value = (detailResponse.data?.data ?? detailResponse.data) as ReceptionSample
+    isReceiveModalOpen.value = true
+  } catch (error: unknown) {
+    if (modalLockAcquired.value) {
+      await api.patch(`/medical/exams/queue/samples/${s.id}/release`).catch(() => undefined)
+      modalLockAcquired.value = false
+    }
+    toast.add({
+      title: 'Gagal membuka detail sample',
+      description: getErrorMessage(error, 'Sample mungkin sudah diproses petugas lain.'),
+      color: 'error'
+    })
     await loadSamples()
-  } catch {
-    toast.add({ title: 'Gagal mengambil sample', description: 'Pastikan petugas sudah login (active session).', color: 'error' })
   } finally {
     actionLoading.value = { ...actionLoading.value, [s.id]: false }
   }
 }
 
-async function receive(s: ReceptionSample) {
-  if (!canAct(s)) {
-    toast.add({ title: 'Tidak dapat menerima sample', description: 'Pastikan Anda mengambil antrian ini dan sesi room aktif.', color: 'warning' })
-    return
-  }
-  actionLoading.value = { ...actionLoading.value, [s.id]: true }
+async function releaseModalLock() {
+  if (!modalLockAcquired.value || !selectedSample.value || releasingModalLock.value) return
+
+  releasingModalLock.value = true
+  const sampleId = selectedSample.value.id
   try {
-    await api.patch(`/medical/exams/queue/samples/${s.id}/receive`)
+    await api.patch(`/medical/exams/queue/samples/${sampleId}/release`)
+  } finally {
+    modalLockAcquired.value = false
+    releasingModalLock.value = false
+    await loadSamples()
+  }
+}
+
+async function closeReceiveModal() {
+  isReceiveModalOpen.value = false
+  await releaseModalLock()
+  selectedSample.value = null
+}
+
+async function confirmReceive() {
+  if (!selectedSample.value || receiveLoading.value) return
+
+  receiveLoading.value = true
+  try {
+    await api.patch(`/medical/exams/queue/samples/${selectedSample.value.id}/receive`)
+    modalLockAcquired.value = false
+    isReceiveModalOpen.value = false
+    selectedSample.value = null
     toast.add({ title: 'Berhasil', description: 'Sample diterima Lab.', color: 'success' })
     await loadSamples()
-  } catch {
-    toast.add({ title: 'Gagal menerima sample', color: 'error' })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal menerima sample',
+      description: getErrorMessage(error, 'Sample tidak dapat diterima.'),
+      color: 'error'
+    })
   } finally {
-    actionLoading.value = { ...actionLoading.value, [s.id]: false }
+    receiveLoading.value = false
   }
 }
+
+watch(isReceiveModalOpen, (open) => {
+  if (!open && modalLockAcquired.value) void releaseModalLock()
+})
 
 watch(
   () => props.activeRoomSession?.id,
@@ -216,7 +258,7 @@ watch(
     </div>
 
     <div v-else-if="!samples.length" class="py-10 text-center text-sm text-muted">
-      Tidak ada sample collection yang menunggu diambil.
+      Tidak ada sample yang menunggu diterima.
     </div>
 
     <div v-else class="space-y-3">
@@ -292,55 +334,119 @@ watch(
           </div>
         </div>
 
-        <div class="mt-3 flex flex-wrap gap-2">
-          <template v-if="s.takenBy == null">
-            <UButton
-              color="primary"
-              variant="soft"
-              icon="i-lucide-hand"
-              :loading="actionLoading[s.id]"
-              :disabled="!sessionActive"
-              @click="take(s)"
-            >
-              Ambil Antrian
-            </UButton>
-          </template>
-          <template v-else>
-            <UButton
-              v-if="s.status === 'PENDING'"
-              color="primary"
-              variant="soft"
-              icon="i-lucide-test-tube-diagonal"
-              :loading="actionLoading[s.id]"
-              :disabled="!canAct(s)"
-              @click="collect(s)"
-            >
-              Ambil Sample
-            </UButton>
-            <UButton
-              v-if="s.status === 'COLLECTED'"
-              color="success"
-              variant="soft"
-              icon="i-lucide-check-check"
-              :loading="actionLoading[s.id]"
-              :disabled="!canAct(s)"
-              @click="receive(s)"
-            >
-              Terima Sample
-            </UButton>
-            <UButton
-              v-if="isTakenByMe(s)"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-unlock"
-              :loading="actionLoading[s.id]"
-              @click="release(s)"
-            >
-              Lepas
-            </UButton>
-          </template>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <UButton
+            color="success"
+            variant="soft"
+            icon="i-lucide-package-check"
+            :loading="actionLoading[s.id]"
+            :disabled="!canReceive(s)"
+            @click="openReceiveModal(s)"
+          >
+            Terima Sample
+          </UButton>
+          <span v-if="s.takenBy != null && !isTakenByMe(s)" class="text-xs text-warning">
+            Sedang diproses {{ s.takenByUser?.name || 'petugas lain' }}
+          </span>
         </div>
       </div>
     </div>
   </UCard>
+
+  <UModal
+    v-model:open="isReceiveModalOpen"
+    title="Konfirmasi Penerimaan Sample"
+    :ui="{ content: 'sm:max-w-2xl' }"
+  >
+    <template #body>
+      <div v-if="selectedSample" class="space-y-5">
+        <UAlert
+          color="info"
+          variant="soft"
+          icon="i-lucide-user-round"
+          title="Detail pasien"
+          :description="`${formatPatient(selectedSample.queueEntry)} · ${selectedSample.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${selectedSample.queueEntry?.queueCode || '-'}`"
+        />
+
+        <div class="grid gap-3 rounded-xl border border-default p-4 sm:grid-cols-2">
+          <div>
+            <p class="text-xs text-muted">
+              Jenis sample
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ selectedSample.sampleType?.name || 'Sample' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">
+              Tabung / Barcode
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ selectedSample.tubeCount ?? 1 }} / {{ selectedSample.barcode || '-' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">
+              Dikumpulkan oleh
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ selectedSample.collectedByUser?.name || '-' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">
+              Waktu pengambilan
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ formatDateTime(selectedSample.collectedAt) }}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-2 text-sm font-semibold text-highlighted">
+            Item pemeriksaan terkait
+          </p>
+          <div v-if="selectedSample.items?.length" class="space-y-2">
+            <div
+              v-for="item in selectedSample.items"
+              :key="item.id"
+              class="flex items-center gap-3 rounded-lg border border-default px-3 py-2"
+            >
+              <UBadge color="neutral" variant="soft">
+                {{ item.item?.code || '-' }}
+              </UBadge>
+              <span class="text-sm text-highlighted">
+                {{ item.item?.name || 'Item pemeriksaan' }}
+              </span>
+            </div>
+          </div>
+          <p v-else class="text-sm text-muted">
+            Tidak ada item pemeriksaan terkait.
+          </p>
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="receiveLoading || releasingModalLock"
+          @click="closeReceiveModal"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="success"
+          icon="i-lucide-package-check"
+          :loading="receiveLoading"
+          @click="confirmReceive"
+        >
+          Konfirmasi Terima Sample
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

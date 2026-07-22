@@ -116,7 +116,7 @@ async function handleExitRoom() {
           variant="soft"
           icon="i-lucide-info"
           title="Sesi room belum aktif"
-          description="Masuk ke ruangan sample reception terlebih dahulu untuk mulai mengambil antrian sample. Antrian diambil dari data sample collection, bukan ruang tunggu umum."
+          description="Masuk ke ruangan sample reception terlebih dahulu untuk menerima sample. Sample yang sudah selesai dikumpulkan akan muncul otomatis tanpa memanggil pasien dari ruang tunggu umum."
         />
 
         <UAlert

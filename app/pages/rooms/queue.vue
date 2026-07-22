@@ -187,7 +187,7 @@ type WaitingRow = {
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
-const { roles } = await useCurrentUser()
+const { roles, user } = await useCurrentUser()
 const {
   session: roomSession,
   pending: roomSessionPending,
@@ -207,18 +207,62 @@ const isExitRoomModalOpen = ref(false)
 const roomEnterActionLoading = ref(false)
 const roomExitActionLoading = ref(false)
 const waitingRowActionLoading = ref<Record<string, boolean>>({})
-const selectedWaitingRoomTypeId = ref('')
-const selectedHistoryRoomTypeId = ref('')
-const waitingStatusFilter = ref<'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'>('WAITING')
+type WaitingStatusFilter = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
+type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
+type QueueStoredFilters = {
+  waitingRoomTypeId: string
+  historyRoomTypeId: string
+  waitingStatus: WaitingStatusFilter
+  historyStatus: HistoryStatusFilter
+}
 
-type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'IN_PROGRESS' | 'ALL'
-const historyStatusFilter = ref<HistoryStatusFilter>('DONE')
+const waitingStatusValues: WaitingStatusFilter[] = ['WAITING', 'CALLED', 'IN_PROGRESS', 'ALL']
+const historyStatusValues: HistoryStatusFilter[] = ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'CALLED', 'IN_PROGRESS', 'ALL']
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const stored = value as Record<string, unknown>
+  const waitingRoomTypeId = typeof stored.waitingRoomTypeId === 'string' && uuidPattern.test(stored.waitingRoomTypeId)
+    ? stored.waitingRoomTypeId
+    : ''
+  const historyRoomTypeId = typeof stored.historyRoomTypeId === 'string' && uuidPattern.test(stored.historyRoomTypeId)
+    ? stored.historyRoomTypeId
+    : ''
+
+  return {
+    waitingRoomTypeId,
+    historyRoomTypeId,
+    waitingStatus: waitingStatusValues.includes(stored.waitingStatus as WaitingStatusFilter)
+      ? stored.waitingStatus as WaitingStatusFilter
+      : 'WAITING',
+    historyStatus: historyStatusValues.includes(stored.historyStatus as HistoryStatusFilter)
+      ? stored.historyStatus as HistoryStatusFilter
+      : 'DONE'
+  }
+}
+
+const queueFilterState = useSafeLocalStorageState<QueueStoredFilters>(
+  `erp-kyoai:rooms:queue:filters:user:${user.value?.id ?? 'anonymous'}`,
+  {
+    waitingRoomTypeId: '',
+    historyRoomTypeId: '',
+    waitingStatus: 'WAITING',
+    historyStatus: 'DONE'
+  },
+  sanitizeQueueFilters
+)
+const selectedWaitingRoomTypeId = toRef(queueFilterState, 'waitingRoomTypeId')
+const selectedHistoryRoomTypeId = toRef(queueFilterState, 'historyRoomTypeId')
+const waitingStatusFilter = toRef(queueFilterState, 'waitingStatus')
+const historyStatusFilter = toRef(queueFilterState, 'historyStatus')
 const historyStatusOptions = [
   { label: 'Selesai', value: 'DONE' },
   { label: 'Sedang diproses', value: 'IN_PROGRESS' },
   { label: 'Skip', value: 'SKIPPED' },
   { label: 'Reschedule', value: 'RESCHEDULED' },
   { label: 'Pasien Menolak', value: 'REFUSED' },
+  { label: 'Dipanggil', value: 'CALLED' },
   { label: 'Semua', value: 'ALL' }
 ]
 
@@ -290,7 +334,7 @@ const myStageIds = computed(() =>
 )
 const isSampleReceptionRoom = computed(() =>
   (myRoom.value?.stageLinks ?? []).some(link =>
-    ['COLLECT', 'RECEIVE'].includes(link.stage?.code)
+    link.stage?.code === 'RECEIVE'
   )
 )
 const myRoomId = computed(() => assignment.value?.roomId ?? null)
@@ -315,7 +359,9 @@ const {
   async () => {
     if (!effectiveHistoryRoomTypeId.value) return []
 
-    const status = historyStatusFilter.value === 'ALL' ? undefined : historyStatusFilter.value
+    // Kirim ALL secara eksplisit agar backend dapat membedakannya dari
+    // status kosong yang berarti filter default antrean WAITING/PARTIAL.
+    const status = historyStatusFilter.value
 
     const res = await api.get(`/medical/exams/queue/room/${effectiveHistoryRoomTypeId.value}`, {
       params: {
@@ -578,8 +624,18 @@ async function openSampleDetail(row: QueueHistoryRow) {
   }
 }
 
+async function openQueueWork(roomQueueItemId: string) {
+  isWaitingModalOpen.value = false
+  await router.push(`/rooms/queue-work/${roomQueueItemId}`)
+}
+
 function getHistoryRowActions(row: QueueHistoryRow) {
   const actions = [
+    {
+      label: 'View Queue Work',
+      icon: 'i-lucide-clipboard-list',
+      onSelect: () => openQueueWork(row.id)
+    },
     {
       label: 'Lihat Detail Dokumen',
       icon: 'i-lucide-file-text',
@@ -809,8 +865,13 @@ async function openWaitingPatientsModal() {
     })
   }
 
-  if (isSuperAdmin.value && !selectedWaitingRoomTypeId.value) {
-    selectedWaitingRoomTypeId.value = roomTypeId.value || (roomTypeOptions.value[0]?.value ?? '')
+  if (isSuperAdmin.value) {
+    const availableRoomTypeIds = new Set(roomTypeOptions.value.map(option => option.value))
+    if (!availableRoomTypeIds.has(selectedWaitingRoomTypeId.value)) {
+      selectedWaitingRoomTypeId.value = availableRoomTypeIds.has(roomTypeId.value ?? '')
+        ? roomTypeId.value ?? ''
+        : (roomTypeOptions.value[0]?.value ?? '')
+    }
   }
 
   isWaitingModalOpen.value = true
@@ -828,8 +889,12 @@ watch(
 watch(
   [isSuperAdmin, roomTypeOptions, roomTypeId],
   ([superAdmin, options, assignedRoomTypeId]) => {
-    if (!superAdmin || selectedHistoryRoomTypeId.value) return
-    selectedHistoryRoomTypeId.value = assignedRoomTypeId || (options[0]?.value ?? '')
+    if (!superAdmin) return
+    const availableRoomTypeIds = new Set(options.map(option => option.value))
+    if (availableRoomTypeIds.has(selectedHistoryRoomTypeId.value)) return
+    selectedHistoryRoomTypeId.value = availableRoomTypeIds.has(assignedRoomTypeId ?? '')
+      ? assignedRoomTypeId ?? ''
+      : (options[0]?.value ?? '')
   },
   { immediate: true }
 )
@@ -1304,23 +1369,27 @@ watch(
                       />
                     </td>
                     <td class="border-b border-default px-4 py-4 text-right">
-                      <UButton
-                        v-if="row.stageId"
-                        color="primary"
-                        variant="soft"
-                        icon="i-lucide-log-in"
-                        :loading="waitingRowActionLoading[row.id]"
-                        :disabled="!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
-                        @click="handleWaitingRowCall(row)"
-                      >
-                        Ambil Pasien
-                      </UButton>
-                      <UBadge
-                        v-else
-                        :label="getItemStatusLabel(row.status)"
-                        :color="getQueueBadgeColor(row.status)"
-                        variant="soft"
-                      />
+                      <div class="flex justify-end gap-2">
+                        <UButton
+                          color="neutral"
+                          variant="soft"
+                          icon="i-lucide-clipboard-list"
+                          @click="openQueueWork(row.id)"
+                        >
+                          View Queue Work
+                        </UButton>
+                        <UButton
+                          v-if="row.stageId"
+                          color="primary"
+                          variant="soft"
+                          icon="i-lucide-log-in"
+                          :loading="waitingRowActionLoading[row.id]"
+                          :disabled="!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
+                          @click="handleWaitingRowCall(row)"
+                        >
+                          Ambil Pasien
+                        </UButton>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
