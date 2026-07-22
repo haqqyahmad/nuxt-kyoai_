@@ -32,7 +32,10 @@ const menuGroups: Record<string, string[]> = {
   ],
   'Examination': [
     '/rooms/assignments',
-    '/rooms/queue'
+    '/rooms/queue',
+    '/rooms/exam-results',
+    '/rooms/sample-collection',
+    '/rooms/sample-reception'
   ],
   'Items': [
     '/items/mcu',

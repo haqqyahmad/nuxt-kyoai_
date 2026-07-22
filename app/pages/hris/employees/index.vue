@@ -9,6 +9,8 @@ const api = useApi()
 const toast = useToast()
 
 const openAdd = ref(false)
+const editEmployeeId = ref<number | null>(null)
+const openEdit = ref(false)
 
 const department = ref('Semua Departemen')
 const status = ref('Semua Status')
@@ -38,7 +40,7 @@ async function loadEmployees() {
     const res = await api<EmployeesResponse>('/hris/employees')
 
     employees.value = res.data?.data || []
-    console.log('employees:', employees.value)
+
   } catch (error) {
     console.error(error)
 
@@ -52,7 +54,7 @@ async function loadEmployees() {
 }
 
 function exportCsv() {
-  console.log('Export CSV')
+
 }
 
 onMounted(() => {
@@ -87,10 +89,17 @@ onMounted(() => {
           :loading="loading"
           :department="department"
           :status="status"
+          @edit="(id: number) => { editEmployeeId = id; openEdit = true }"
         />
 
         <HrisEmployeesAddModal
           v-model:open="openAdd"
+          @saved="loadEmployees"
+        />
+
+        <HrisEmployeesEditModal
+          v-model:open="openEdit"
+          :employee-id="editEmployeeId"
           @saved="loadEmployees"
         />
       </div>

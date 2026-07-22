@@ -2,6 +2,7 @@
 
 <script setup lang="ts">
 const api = useApi()
+const { user: currentUser } = await useCurrentUser()
 
 type ViewMode = 'day' | 'week' | 'month'
 
@@ -29,7 +30,7 @@ type FinalShiftResponse = {
 
 const openAssignModal = ref(false)
 
-const selectedDate = ref(new Date('2025-06-02'))
+const selectedDate = ref(new Date())
 const viewMode = ref<ViewMode>('week')
 
 const loading = ref(false)
@@ -51,14 +52,13 @@ async function loadShiftSchedule() {
     const range = getDateRange()
     const response = await api.get<FinalShiftResponse>('/hris/shift/view', {
       params: {
-        employee_id: 3,
+        employee_id: currentUser.value?.id ?? 0,
         start_date: range.start_date,
         end_date: range.end_date
       }
     })
 
     finalShiftResponse.value = response.data
-    console.log('shift-response', response.data)
   } catch (error) {
     console.error(error)
     finalShiftResponse.value = {
@@ -70,21 +70,6 @@ async function loadShiftSchedule() {
     loading.value = false
   }
 }
-
-//     finalShiftResponse.value = response
-//     console.log('shift-response',response)
-//   } catch (error) {
-//     console.error(error)
-
-//     finalShiftResponse.value = {
-//       success: false,
-//       message: 'Failed to load final shift view',
-//       data: []
-//     }
-//   } finally {
-//     loading.value = false
-//   }
-// }
 
 
 onMounted(() => {

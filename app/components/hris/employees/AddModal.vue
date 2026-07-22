@@ -15,7 +15,6 @@ const form = reactive({
 })
 
 function submit() {
-  console.log(form)
   open.value = false
 }
 </script>

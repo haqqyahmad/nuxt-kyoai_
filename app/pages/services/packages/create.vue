@@ -1,4 +1,4 @@
-<!-- app/pages/packages/create.vue -->
+<!-- app/pages/services/packages/create.vue -->
 <script setup lang="ts">
 const api = useApi()
 const toast = useToast()

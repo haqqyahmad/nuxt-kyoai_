@@ -46,7 +46,6 @@ const patientOptions = computed(() => {
   if (!allPatients.value || !Array.isArray(allPatients.value) || allPatients.value.length === 0) {
     return []
   }
-  console.log('allPatients.value:', allPatients.value)
   return allPatients.value.map(patient => ({
     label: `${patient.firstName || ''} ${patient.middleName || ''} ${patient.lastName || ''}`.trim(),
     value: patient.id,
@@ -59,7 +58,6 @@ const fetchAllPatients = async () => {
   isLoadingPatients.value = true
   try {
     const response = await api.get('/patient')
-    console.log('Response:', response)
     let patientsData = response.data?.data?.data || response.data?.data || []
 
     if (!Array.isArray(patientsData)) {
@@ -67,7 +65,6 @@ const fetchAllPatients = async () => {
     }
 
     allPatients.value = patientsData
-    console.log('Total patients fetched:', allPatients.value.length)
   } catch (error) {
     console.error('Error fetching all patients:', error)
     allPatients.value = []

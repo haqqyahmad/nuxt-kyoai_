@@ -171,12 +171,6 @@ async function fetchAttendanceHistory(employeeId: number, leaveStartDate: string
 
   const { start, end } = getMonthRange(leaveStartDate)
 
-  console.log('Attendance params:', {
-    employee_id: employeeId,
-    start,
-    end
-  })
-
   const response = await api.get<ApiResponse<ApiAttendanceReportItem[]>>(
     '/hris/attendance/report',
     {
@@ -219,9 +213,7 @@ async function fetchLeaveDetail() {
         mappedLeave.start_date
       )
 
-      console.log('Attendance history mapped', mappedLeave.attendance_history)
-      console.log('Employee ID untuk attendance:', mappedLeave.employee.id)
-      console.log('Leave start date:', mappedLeave.start_date)
+
     } catch (error) {
       console.error(error)
 
@@ -232,7 +224,7 @@ async function fetchLeaveDetail() {
       })
     }
 
-    console.log('Attendance', mappedLeave.start_date)
+
 
     leave.value = mappedLeave
     adminNotes.value = mappedLeave.admin_notes || ''

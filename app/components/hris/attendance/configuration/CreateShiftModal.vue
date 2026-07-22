@@ -263,8 +263,6 @@ async function submit() {
       days: shiftTemplateDays
     }
 
-    console.log('PAYLOAD SHIFT:', payload)
-
     await api('/hris/shift/templates', {
       method: 'POST',
       data: payload

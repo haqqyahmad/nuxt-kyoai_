@@ -182,7 +182,6 @@ const deleteContact = async (id: number) => {
 const setPrimaryContact = async (contact: Contact) => {
   const parentId = Number(contact.parentId);
   try {
-    console.log('data contact',parentId);
     await api.put(`/contact/isDefault/${parentId}`, {
       ...contact,
       modelType: "Customer",

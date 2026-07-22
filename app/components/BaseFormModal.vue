@@ -26,7 +26,6 @@ async function onSubmit(event: FormSubmitEvent<any>) {
   loading.value = true
   try {
     await props.submit(event.data)
-    console.log(event)
 
     handleSuccessGeneral(
       toast,

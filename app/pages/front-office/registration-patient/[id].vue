@@ -17,6 +17,11 @@ type ExamItem = {
   }
 }
 
+type QueueInfo = {
+  queueCode: string
+  queueNumber: number
+}
+
 type Registration = {
   id: number
   id_reg: string
@@ -28,6 +33,7 @@ type Registration = {
   paymentType: string
   statusRegistration: string
   createdAt: string
+  queue: QueueInfo | null
   patient: {
     id: string
     patientCode: string
@@ -230,7 +236,7 @@ const checkinModalOpen = ref(false)
 const checkinLoading = ref(false)
 const checkinPreviewLoading = ref(false)
 const checkinPreview = ref<CheckinPreview | null>(null)
-const checkinResult = ref<{ queueCode: string, queueNumber: number } | null>(null)
+const activeQueue = computed(() => reg.value?.queue ?? null)
 const checkinSuccessOpen = ref(false)
 
 async function loadCheckinPreview() {
@@ -265,14 +271,11 @@ async function confirmCheckin() {
     })
 
     const entry = res.data.data
-    checkinResult.value = {
-      queueCode: entry.queueCode,
-      queueNumber: entry.queueNumber
-    }
+    await refresh()
 
     checkinModalOpen.value = false
     checkinSuccessOpen.value = true
-    await Promise.all([refresh(), loadCheckinPreview()])
+    await loadCheckinPreview()
 
     toast.add({
       title: 'Check-in berhasil',
@@ -297,6 +300,7 @@ async function undoCheckin() {
 
   try {
     await api.post(`/registration/${reg.value.id}/uncheck`)
+    await refresh()
     toast.add({
       title: 'Berhasil',
       description: 'Check-in pasien berhasil dibatalkan',
@@ -329,7 +333,7 @@ async function cancelRegistration() {
 <template>
   <UDashboardPanel :id="`registration-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar title="Detail Registrasi">
+      <UDashboardNavbar>
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -337,6 +341,9 @@ async function cancelRegistration() {
             variant="ghost"
             to="/front-office/registration-patient"
           />
+          <h1 class="text-lg font-semibold ml-2">
+            Detail Registrasi
+          </h1>
         </template>
         <template #right>
           <div class="flex items-center gap-2">
@@ -384,8 +391,12 @@ async function cancelRegistration() {
       <div v-else class="w-full max-w-7xl mx-auto py-6 px-4 space-y-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p class="text-xs text-muted mb-1">Kembali ke Daftar Registrasi</p>
-            <h1 class="text-2xl font-bold text-default">Registration Detail</h1>
+            <p class="text-xs text-muted mb-1">
+              Kembali ke Daftar Registrasi
+            </p>
+            <h1 class="text-2xl font-bold text-default">
+              Registration Detail
+            </h1>
             <div class="flex items-center gap-3 mt-2">
               <code class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg">
                 {{ reg.id_reg }}
@@ -394,8 +405,23 @@ async function cancelRegistration() {
                 :label="reg.statusRegistration"
                 :color="STATUS_COLOR[reg.statusRegistration] ?? 'neutral'"
                 variant="subtle"
-                size="md"
               />
+            </div>
+          </div>
+
+          <div
+            v-if="activeQueue"
+            class="rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 flex items-center gap-4"
+          >
+            <div class="flex items-center gap-2">
+              <div>
+                <p class="text-xs text-muted">
+                  Queue Number
+                </p>
+                <p class="text-3xl font-bold text-primary">
+                  {{ activeQueue.queueCode }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -412,15 +438,25 @@ async function cancelRegistration() {
             <div v-if="reg.patient" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
                 <div>
-                  <p class="text-xs text-muted mb-1">Full Name</p>
-                  <p class="font-semibold text-base">{{ reg.patient.patientName }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    Full Name
+                  </p>
+                  <p class="font-semibold text-base">
+                    {{ reg.patient.patientName }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Gender</p>
-                  <p class="font-semibold">{{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    Gender
+                  </p>
+                  <p class="font-semibold">
+                    {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Contact Status</p>
+                  <p class="text-xs text-muted mb-1">
+                    Contact Status
+                  </p>
                   <p class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
                     <UIcon name="i-lucide-check-circle-2" class="text-base" /> Verified
                   </p>
@@ -428,20 +464,36 @@ async function cancelRegistration() {
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted mb-1">Nomor HP</p>
-                  <p class="font-medium">{{ reg.patient.phone ?? '-' }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    Nomor HP
+                  </p>
+                  <p class="font-medium">
+                    {{ reg.patient.phone ?? '-' }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Email</p>
-                  <p class="font-medium truncate">{{ reg.patient.email ?? '-' }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    Email
+                  </p>
+                  <p class="font-medium truncate">
+                    {{ reg.patient.email ?? '-' }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">ID Type</p>
-                  <p class="font-medium">{{ reg.patient.idType }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    ID Type
+                  </p>
+                  <p class="font-medium">
+                    {{ reg.patient.idType }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">ID Number</p>
-                  <p class="font-mono text-xs font-medium">{{ reg.patient.idNumber }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    ID Number
+                  </p>
+                  <p class="font-mono text-xs font-medium">
+                    {{ reg.patient.idNumber }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -499,16 +551,18 @@ async function cancelRegistration() {
                     <UIcon
                       :name="reg.paymentType === 'Insurance' ? 'i-lucide-shield-check'
                         : reg.paymentType === 'BillToCompany' ? 'i-lucide-building-2'
-                        : 'i-lucide-wallet'"
+                          : 'i-lucide-wallet'"
                       class="text-primary"
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted">Payment Type</p>
+                    <p class="text-xs text-muted">
+                      Payment Type
+                    </p>
                     <p class="font-bold text-sm">
                       {{ reg.paymentType === 'Personal' ? 'Personal'
                         : reg.paymentType === 'Insurance' ? 'Insurance'
-                        : 'Bill to Company' }}
+                          : 'Bill to Company' }}
                     </p>
                   </div>
                 </div>
@@ -532,9 +586,15 @@ async function cancelRegistration() {
                   <div v-for="(item, i) in statusHistory" :key="i" class="relative flex gap-3 pl-6">
                     <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="item.dot" />
                     <div>
-                      <p class="text-sm font-semibold">{{ item.label }}</p>
-                      <p class="text-xs text-muted mt-0.5">{{ formatDateTime(item.time) }}</p>
-                      <p class="text-xs text-muted italic mt-0.5">{{ item.desc }}</p>
+                      <p class="text-sm font-semibold">
+                        {{ item.label }}
+                      </p>
+                      <p class="text-xs text-muted mt-0.5">
+                        {{ formatDateTime(item.time) }}
+                      </p>
+                      <p class="text-xs text-muted italic mt-0.5">
+                        {{ item.desc }}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -548,32 +608,66 @@ async function cancelRegistration() {
                 <UIcon name="i-lucide-clipboard-check" class="text-primary" />
                 Medical Questionnaires List
               </h3>
-              <UButton icon="i-lucide-printer" color="neutral" variant="outline" size="xs" label="Print All Results" />
+              <UButton
+                icon="i-lucide-printer"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                label="Print All Results"
+              />
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left">
                 <thead>
                   <tr class="border-b border-default">
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">Questionnaire Name</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">Completion Date</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">Status</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right">Action</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                      Questionnaire Name
+                    </th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
+                      Completion Date
+                    </th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
+                      Status
+                    </th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
                   <tr v-for="q in questionnaires" :key="q.name" class="hover:bg-elevated transition-colors">
-                    <td class="px-5 py-3"><span class="text-sm font-semibold">{{ q.name }}</span></td>
+                    <td class="px-5 py-3">
+                      <span class="text-sm font-semibold">{{ q.name }}</span>
+                    </td>
                     <td class="px-5 py-3 text-center">
                       <span v-if="q.completionDate" class="text-sm text-muted">{{ q.completionDate }}</span>
                       <span v-else class="text-sm text-muted italic">Not completed</span>
                     </td>
                     <td class="px-5 py-3 text-center">
-                      <UBadge :label="q.status" :color="q.status === 'Completed' ? 'success' : 'neutral'" variant="subtle" size="sm" />
+                      <UBadge
+                        :label="q.status"
+                        :color="q.status === 'Completed' ? 'success' : 'neutral'"
+                        variant="subtle"
+                        size="sm"
+                      />
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
-                        <UButton icon="i-lucide-eye" color="primary" variant="ghost" size="xs" :disabled="q.status !== 'Completed'" @click="q.status === 'Completed' && openModal(q.name)" />
-                        <UButton icon="i-lucide-printer" color="primary" variant="ghost" size="xs" :disabled="q.status !== 'Completed'" />
+                        <UButton
+                          icon="i-lucide-eye"
+                          color="primary"
+                          variant="ghost"
+                          size="xs"
+                          :disabled="q.status !== 'Completed'"
+                          @click="q.status === 'Completed' && openModal(q.name)"
+                        />
+                        <UButton
+                          icon="i-lucide-printer"
+                          color="primary"
+                          variant="ghost"
+                          size="xs"
+                          :disabled="q.status !== 'Completed'"
+                        />
                       </div>
                     </td>
                   </tr>
@@ -615,14 +709,23 @@ async function cancelRegistration() {
                 <UIcon name="i-lucide-plus-circle" class="text-primary" />
                 Additional Exam Items
               </h3>
-              <UBadge :label="`${additionalItems.length} item`" color="neutral" variant="subtle" size="sm" />
+              <UBadge
+                :label="`${additionalItems.length} item`"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+              />
             </div>
             <div class="p-5">
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div v-for="ei in additionalItems" :key="ei.id" class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3">
                   <div>
-                    <p class="text-sm font-semibold">{{ ei.item.name }}</p>
-                    <p class="text-xs text-muted mt-0.5">{{ ei.item.department?.name ?? '-' }} | {{ ei.item.group?.name ?? '-' }}</p>
+                    <p class="text-sm font-semibold">
+                      {{ ei.item.name }}
+                    </p>
+                    <p class="text-xs text-muted mt-0.5">
+                      {{ ei.item.department?.name ?? '-' }} | {{ ei.item.group?.name ?? '-' }}
+                    </p>
                   </div>
                   <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
                 </div>
@@ -631,15 +734,24 @@ async function cancelRegistration() {
           </div>
 
           <div class="col-span-12 rounded-xl overflow-hidden border border-default relative h-48 bg-elevated group shadow-sm">
-            <iframe class="absolute inset-0 w-full h-full" :src="BRANCH_MAP[reg.branch?.branchId ?? '-']" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
+            <iframe
+              class="absolute inset-0 w-full h-full"
+              :src="BRANCH_MAP[reg.branch?.branchId ?? '-']"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            />
             <div class="absolute inset-0 bg-gradient-to-t from-elevated/80 to-transparent pointer-events-none" />
             <div class="absolute bottom-4 left-4 bg-background border border-default rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
               <div class="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl text-primary flex-shrink-0">
                 <UIcon name="i-lucide-building-2" />
               </div>
               <div>
-                <p class="text-xs text-muted">Current Location</p>
-                <p class="text-sm font-bold">{{ reg.branch?.nameBranch ?? '-' }}</p>
+                <p class="text-xs text-muted">
+                  Current Location
+                </p>
+                <p class="text-sm font-bold">
+                  {{ reg.branch?.nameBranch ?? '-' }}
+                </p>
               </div>
             </div>
           </div>
@@ -658,66 +770,104 @@ async function cancelRegistration() {
                 <UIcon name="i-lucide-user-circle" class="text-primary text-2xl" />
               </div>
               <div>
-                <p class="font-bold text-base">{{ checkinPreview?.patient?.patientName ?? reg?.patient?.patientName ?? '-' }}</p>
-                <p class="text-xs text-muted mt-0.5">{{ checkinPreview?.patient?.idType ?? reg?.patient?.idType }}: {{ checkinPreview?.patient?.idNumber ?? reg?.patient?.idNumber }}</p>
+                <p class="font-bold text-base">
+                  {{ checkinPreview?.patient?.patientName ?? reg?.patient?.patientName ?? '-' }}
+                </p>
+                <p class="text-xs text-muted mt-0.5">
+                  {{ checkinPreview?.patient?.idType ?? reg?.patient?.idType }}: {{ checkinPreview?.patient?.idNumber ?? reg?.patient?.idNumber }}
+                </p>
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">No. Registrasi</p>
+                <p class="text-xs text-muted mb-1">
+                  No. Registrasi
+                </p>
                 <code class="text-sm font-bold text-primary">{{ checkinPreview?.registration.id_reg ?? reg?.id_reg }}</code>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Layanan</p>
-                <p class="text-sm font-semibold">{{ SERVICE_LABEL[checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''] ?? checkinPreview?.registration.serviceType ?? reg?.serviceType }}</p>
+                <p class="text-xs text-muted mb-1">
+                  Layanan
+                </p>
+                <p class="text-sm font-semibold">
+                  {{ SERVICE_LABEL[checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''] ?? checkinPreview?.registration.serviceType ?? reg?.serviceType }}
+                </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Tanggal Periksa</p>
-                <p class="text-sm font-semibold">{{ checkinPreview?.registration.examDate ?? reg?.examDate }}</p>
+                <p class="text-xs text-muted mb-1">
+                  Tanggal Periksa
+                </p>
+                <p class="text-sm font-semibold">
+                  {{ checkinPreview?.registration.examDate ?? reg?.examDate }}
+                </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Branch</p>
-                <p class="text-sm font-semibold">{{ checkinPreview?.branch?.nameBranch ?? reg?.branch?.nameBranch ?? '-' }}</p>
+                <p class="text-xs text-muted mb-1">
+                  Branch
+                </p>
+                <p class="text-sm font-semibold">
+                  {{ checkinPreview?.branch?.nameBranch ?? reg?.branch?.nameBranch ?? '-' }}
+                </p>
               </div>
             </div>
 
             <div class="rounded-xl border border-default bg-elevated/60 p-4">
               <div class="flex items-center justify-between gap-3">
                 <div>
-                  <p class="text-xs text-muted">Paket MCU</p>
-                  <p class="text-sm font-semibold">{{ checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-' }}</p>
+                  <p class="text-xs text-muted">
+                    Paket MCU
+                  </p>
+                  <p class="text-sm font-semibold">
+                    {{ checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-' }}
+                  </p>
                 </div>
                 <UBadge :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`" color="neutral" variant="subtle" />
               </div>
 
               <div class="mt-4 space-y-3">
                 <div>
-                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Item Paket</p>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+                    Item Paket
+                  </p>
                   <div v-if="checkinPaketItems.length" class="space-y-2">
                     <div v-for="item in checkinPaketItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
                       <div>
-                        <p class="text-sm font-medium">{{ item.item.name }}</p>
-                        <p class="text-xs text-muted">{{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}</p>
+                        <p class="text-sm font-medium">
+                          {{ item.item.name }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}
+                        </p>
                       </div>
                       <span class="text-[11px] font-medium text-muted">{{ item.source }}</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">Belum ada item paket.</p>
+                  <p v-else class="text-sm text-muted">
+                    Belum ada item paket.
+                  </p>
                 </div>
 
                 <div>
-                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">Item Additional</p>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+                    Item Additional
+                  </p>
                   <div v-if="checkinAdditionalItems.length" class="space-y-2">
                     <div v-for="item in checkinAdditionalItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
                       <div>
-                        <p class="text-sm font-medium">{{ item.item.name }}</p>
-                        <p class="text-xs text-muted">{{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}</p>
+                        <p class="text-sm font-medium">
+                          {{ item.item.name }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}
+                        </p>
                       </div>
                       <span class="text-[11px] font-medium text-primary">additional</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">Tidak ada item tambahan.</p>
+                  <p v-else class="text-sm text-muted">
+                    Tidak ada item tambahan.
+                  </p>
                 </div>
               </div>
             </div>
@@ -742,7 +892,13 @@ async function cancelRegistration() {
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" label="Batal" :disabled="checkinLoading" @click="checkinModalOpen = false" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Batal"
+              :disabled="checkinLoading"
+              @click="checkinModalOpen = false"
+            />
             <UButton
               color="primary"
               icon="i-lucide-user-check"
@@ -762,9 +918,11 @@ async function cancelRegistration() {
               <UIcon name="i-lucide-check-circle-2" class="text-green-500 text-4xl" />
             </div>
             <div>
-              <p class="text-sm text-muted mb-2">Nomor Antrian</p>
+              <p class="text-sm text-muted mb-2">
+                Nomor Antrian
+              </p>
               <p class="text-5xl font-black text-primary tracking-tight">
-                {{ checkinResult?.queueCode }}
+                {{ reg?.queue?.queueCode }}
               </p>
             </div>
             <p class="text-sm text-muted max-w-xs">
@@ -774,7 +932,12 @@ async function cancelRegistration() {
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton icon="i-lucide-printer" color="neutral" variant="outline" label="Print Tiket" />
+            <UButton
+              icon="i-lucide-printer"
+              color="neutral"
+              variant="outline"
+              label="Print Tiket"
+            />
             <UButton color="primary" label="Selesai" @click="checkinSuccessOpen = false" />
           </div>
         </template>
@@ -784,26 +947,47 @@ async function cancelRegistration() {
         <template #body>
           <div class="space-y-3">
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">Allergies</p>
-              <p class="text-sm font-semibold">None reported</p>
+              <p class="text-xs text-muted mb-1">
+                Allergies
+              </p>
+              <p class="text-sm font-semibold">
+                None reported
+              </p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">Current Medications</p>
-              <p class="text-sm font-semibold">Amoxicillin (500mg, 1x Daily)</p>
+              <p class="text-xs text-muted mb-1">
+                Current Medications
+              </p>
+              <p class="text-sm font-semibold">
+                Amoxicillin (500mg, 1x Daily)
+              </p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">Previous Surgeries</p>
-              <p class="text-sm font-semibold">Appendectomy (2018)</p>
+              <p class="text-xs text-muted mb-1">
+                Previous Surgeries
+              </p>
+              <p class="text-sm font-semibold">
+                Appendectomy (2018)
+              </p>
             </div>
             <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">Family History</p>
-              <p class="text-sm font-semibold">Hypertension (Father), Diabetes Type 2 (Mother)</p>
+              <p class="text-xs text-muted mb-1">
+                Family History
+              </p>
+              <p class="text-sm font-semibold">
+                Hypertension (Father), Diabetes Type 2 (Mother)
+              </p>
             </div>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" label="Close" @click="modalOpen = false" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Close"
+              @click="modalOpen = false"
+            />
             <UButton color="primary" icon="i-lucide-printer" label="Print Answers" />
           </div>
         </template>

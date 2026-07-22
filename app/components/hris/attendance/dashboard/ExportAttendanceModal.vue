@@ -72,16 +72,6 @@ const canExport = computed(() =>
 function submit() {
   if (!canExport.value) return
 
-  console.log('Export Attendance', {
-    dateFrom: form.dateFrom?.toString(),
-    dateTo: form.dateTo?.toString(),
-    department: form.department,
-    status: form.status,
-    format: form.format,
-    includeOvertime: form.includeOvertime,
-    includeEmployeeDetails: form.includeEmployeeDetails
-  })
-
   open.value = false
 }
 </script>

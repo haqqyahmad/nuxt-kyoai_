@@ -36,8 +36,6 @@ onMounted(async () => {
   const { getToken } = useAuth()
   const token = getToken()
 
-  console.log('TOKEN:', token)
-
   if (token) {
     await fetchUser()
   }

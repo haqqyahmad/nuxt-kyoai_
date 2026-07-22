@@ -42,7 +42,6 @@ async function onSubmit(event: FormSubmitEvent<PasswordSchema>) {
   loading.value = true
 
   try {
-    console.log(typeof api.put)
     await api.put('/auth/change-password', {
       currentPassword: event.data.current,
       newPassword: event.data.new
@@ -59,7 +58,7 @@ async function onSubmit(event: FormSubmitEvent<PasswordSchema>) {
   } catch (error: any) {
     toast.add({
       title: 'Gagal',
-      description: error?.data?.message || 'Password gagal diubah',
+      description: error?.response?.data?.message || 'Password gagal diubah',
       color: 'error'
     })
   } finally {
@@ -142,15 +141,5 @@ async function onSubmit(event: FormSubmitEvent<PasswordSchema>) {
         :loading="loading"
       />
     </UForm>
-  </UPageCard>
-
-  <UPageCard
-    title="Account"
-    description="No longer want to use our service? You can delete your account here. This action is not reversible. All information related to this account will be deleted permanently."
-    class="bg-linear-to-tl from-error/10 from-5% to-default"
-  >
-    <template #footer>
-      <UButton label="Delete account" color="error" />
-    </template>
   </UPageCard>
 </template>

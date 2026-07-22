@@ -131,7 +131,7 @@ const { data: reg_temp, refresh } = await useAsyncData(
   async () => {
     try {
       const res = await api.get('/registration-temp')
-      console.log('Registration-temp RESPONSE:', res.data.data)
+
 
       return res.data.data
     } catch (err) {
