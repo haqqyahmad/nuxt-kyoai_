@@ -569,6 +569,28 @@ const allItemsFinal = computed(() =>
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
+const sampleGroups = computed(() => {
+  return sampleCollections.value
+    .filter(c => c.items?.length)
+    .map((collection) => {
+      const collItemIds = new Set((collection.items || []).map(i => i.itemId))
+      return {
+        collection,
+        sampleTypeName: collection.sampleType?.name || 'Sample',
+        status: collection.status,
+        items: roomExamItems.value.filter((item) => {
+          const itemId = item.trxExamItem?.item?.id
+          return itemId && collItemIds.has(itemId)
+        }),
+        allItems: collection.items || []
+      }
+    })
+})
+
+const nonSampleItems = computed(() =>
+  roomExamItems.value.filter(item => !item.sampleImpact)
+)
+
 function getStageDisplayName(stage?: QueueStageItem | null) {
   if (!stage) return '-'
   const total = (roomQueueDetail.value?.stageItems ?? []).length
@@ -607,22 +629,32 @@ function isReceiveStageActive() {
   return activeStageCode.value === 'RECEIVE'
 }
 
-function getItemSampleCollection(item: RoomExamItem): SampleCollection | null {
-  const collectionId = item.sampleImpact?.collectionId
-  if (!collectionId) return null
-  return sampleCollections.value.find(collection => collection.id === collectionId) ?? null
+function getItemCollections(item: RoomExamItem): SampleCollection[] {
+  const itemId = item.trxExamItem?.item?.id
+  if (!itemId) return []
+  return sampleCollections.value.filter(c =>
+    c.items?.some(i => i.itemId === itemId)
+  )
+}
+
+function getPendingCollection(item: RoomExamItem): SampleCollection | null {
+  return getItemCollections(item).find(c => c.status === 'PENDING') ?? null
+}
+
+function getCollectedCollection(item: RoomExamItem): SampleCollection | null {
+  return getItemCollections(item).find(c => c.status === 'COLLECTED') ?? null
 }
 
 function canCollectSample(item: RoomExamItem) {
   if (!isCollectStageActive() || !currentRoomStageCodes.value.has('COLLECT')) return false
-  const collection = getItemSampleCollection(item)
-  return Boolean(collection) && collection?.status === 'PENDING'
+  if (activeStage.value?.status !== 'IN_PROGRESS') return false
+  return !!getPendingCollection(item)
 }
 
 function canReceiveSample(item: RoomExamItem) {
   if (!isReceiveStageActive() || !currentRoomStageCodes.value.has('RECEIVE')) return false
-  const collection = getItemSampleCollection(item)
-  return Boolean(collection) && collection?.status === 'COLLECTED'
+  if (activeStage.value?.status !== 'IN_PROGRESS') return false
+  return !!getCollectedCollection(item)
 }
 
 function isSampleManagedItem(item: RoomExamItem) {
@@ -1062,7 +1094,7 @@ async function handleStartItem(item: RoomExamItem) {
 }
 
 async function handleCollectSample(item: RoomExamItem) {
-  const collection = getItemSampleCollection(item)
+  const collection = getPendingCollection(item)
   if (!collection || itemActionLoading.value[item.id]) return
 
   setItemLoading(item.id, true)
@@ -1086,7 +1118,7 @@ async function handleCollectSample(item: RoomExamItem) {
 }
 
 async function handleReceiveSample(item: RoomExamItem) {
-  const collection = getItemSampleCollection(item)
+  const collection = getCollectedCollection(item)
   if (!collection || itemActionLoading.value[item.id]) return
 
   setItemLoading(item.id, true)
@@ -1470,252 +1502,328 @@ async function handleSubmitItemAction() {
             description="Masih ada item pemeriksaan yang statusnya belum final. Lengkapi hasil atau dokumentasi lalu selesaikan setiap item."
           />
 
-          <div class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+          <div class="space-y-6">
+            <!-- Sample Group Cards -->
             <UCard
-              v-for="item in roomExamItems"
-              :key="item.id"
+              v-for="group in sampleGroups"
+              :key="group.collection.id"
               class="overflow-hidden border border-default/80 shadow-sm"
             >
               <template #header>
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <p class="text-xs text-muted">
-                      {{ item.trxExamItem?.item?.code || '-' }}
-                      <span v-if="item.trxExamItem?.item?.group?.name">
-                        · {{ item.trxExamItem.item.group.name }}
-                      </span>
-                    </p>
-                    <h3 class="mt-1 text-base font-semibold text-highlighted">
-                      {{ item.trxExamItem?.item?.name || '-' }}
-                    </h3>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex size-10 items-center justify-center rounded-xl bg-info/10">
+                      <UIcon name="i-lucide-flask-conical" class="text-info" />
+                    </div>
+                    <div>
+                      <p class="text-xs text-muted uppercase tracking-wide">
+                        Sample {{ group.sampleTypeName }}
+                      </p>
+                      <p class="text-sm font-medium text-highlighted">
+                        {{ group.items.length }} item pemeriksaan
+                      </p>
+                    </div>
                   </div>
-
-                  <UBadge
-                    :label="getOperationalStatusLabel(item)"
-                    :color="getOperationalStatusColor(item)"
-                    variant="subtle"
-                  />
+                  <div class="flex items-center gap-2">
+                    <UBadge
+                      :label="group.status === 'RECEIVED' ? 'Diterima' : group.status === 'COLLECTED' ? 'Diambil' : 'Menunggu'"
+                      :color="group.status === 'RECEIVED' ? 'success' : group.status === 'COLLECTED' ? 'info' : 'warning'"
+                      variant="soft"
+                    />
+                    <UButton
+                      v-if="group.status === 'PENDING' && isCollectStageActive() && activeStage?.status === 'IN_PROGRESS'"
+                      color="info"
+                      variant="soft"
+                      size="sm"
+                      icon="i-lucide-test-tube"
+                      :loading="itemActionLoading[group.items[0]?.id]"
+                      @click="handleCollectSample(group.items[0])"
+                    >
+                      Ambil Sample
+                    </UButton>
+                    <UButton
+                      v-else-if="group.status === 'COLLECTED' && isReceiveStageActive() && activeStage?.status === 'IN_PROGRESS'"
+                      color="info"
+                      variant="soft"
+                      size="sm"
+                      icon="i-lucide-package-check"
+                      :loading="itemActionLoading[group.items[0]?.id]"
+                      @click="handleReceiveSample(group.items[0])"
+                    >
+                      Terima Sample
+                    </UButton>
+                    <UIcon v-else-if="group.status === 'RECEIVED'" name="i-lucide-check-circle-2" class="size-5 text-success" />
+                  </div>
                 </div>
               </template>
-
-              <div class="space-y-4">
-                <UAlert
-                  v-if="isSampleManagedItem(item) && !isExamStageActive()"
-                  color="warning"
-                  title="Belum masuk tahap exam"
-                  :description="`Tahap aktif saat ini ${getStageDisplayName(activeStage)}. Item lab baru bisa diisi setelah sample collect dan receive selesai, lalu stage aktif berpindah ke EXAM.`"
-                />
-
-                <UAlert
-                  v-else-if="getSampleCollectionStatus(item) && getSampleCollectionStatus(item) !== 'RECEIVED'"
-                  :color="getOperationalStatusColor(item)"
-                  :title="getOperationalStatusLabel(item)"
-                  :description="item.blockedReason || getSampleActionDescription(item)"
-                />
-
-                <UAlert
-                  v-else-if="hasStructuredInputs(item) && isDeferredItem(item)"
-                  color="info"
-                  title="Hasil deferred"
-                  description="Item ini tidak memerlukan input hasil. Lakukan pemeriksaan, tulis dokumentasi singkat, lalu selesaikan item."
-                />
-
-                <div
-                  v-if="canRenderExamInputs(item)"
-                  class="space-y-3"
-                >
-                  <div
-                    v-for="inputan in item.trxExamItem?.item?.inputans || []"
-                    :key="inputan.id"
-                    :class="getInputContainerClass(item.id, inputan)"
-                  >
-                    <div class="mb-2 flex items-start justify-between gap-3">
-                      <label class="block text-sm font-medium text-highlighted">
-                        {{ inputan.label }}
-                        <span v-if="inputan.uom" class="text-xs text-muted">({{ inputan.uom }})</span>
-                      </label>
-
-                      <UBadge
-                        v-if="getInputEvaluation(item.id, inputan)"
-                        :color="getEvaluationBadgeColor(getInputEvaluation(item.id, inputan)?.status)"
-                        variant="soft"
-                        :label="getInputEvaluation(item.id, inputan)?.label"
-                      />
-                    </div>
-
-                    <div
-                      v-if="inputan.inputType === 'number' && getNumericNormalRanges(inputan).length > 0"
-                      class="mb-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
-                    >
-                      <p
-                        v-for="range in getNumericNormalRanges(inputan)"
-                        :key="range.id"
-                      >
-                        {{ formatNumericNormalRange(inputan, range) }}
-                      </p>
-                    </div>
-
-                    <div
-                      v-else-if="inputan.inputType === 'selected' && getSelectedNormalRanges(inputan).length > 0"
-                      class="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
-                    >
-                      <p class="font-medium">
-                        Nilai normal
-                      </p>
-                      <p
-                        v-for="range in getSelectedNormalRanges(inputan)"
-                        :key="range.id"
-                      >
-                        {{ formatSelectedNormalRange(range) }}
-                      </p>
-                    </div>
-
-                    <input
-                      v-if="inputan.inputType === 'number'"
-                      v-model="getInputDraft(item.id, inputan.id).valueNumber"
-                      type="number"
-                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                      :placeholder="`Isi ${inputan.label}`"
-                    >
-
-                    <input
-                      v-else-if="inputan.inputType === 'string'"
-                      v-model="getInputDraft(item.id, inputan.id).valueString"
-                      type="text"
-                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                      :placeholder="`Isi ${inputan.label}`"
-                    >
-
-                    <select
-                      v-else-if="inputan.inputType === 'selected'"
-                      v-model="getInputDraft(item.id, inputan.id).valueSelected"
-                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                    >
-                      <option value="">
-                        Pilih hasil
-                      </option>
-                      <option
-                        v-for="opsi in inputan.opsis || []"
-                        :key="opsi.id"
-                        :value="opsi.value"
-                      >
-                        {{ opsi.label }}
-                      </option>
-                    </select>
-
-                    <input
-                      v-else
-                      v-model="getInputDraft(item.id, inputan.id).valueCalculated"
-                      type="number"
-                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                      :placeholder="`Isi ${inputan.label}`"
-                    >
+              <div class="divide-y divide-default/50">
+                <div v-for="it in group.items" :key="it.id" class="flex items-center gap-3 px-1 py-2">
+                  <div class="flex size-7 shrink-0 items-center justify-center rounded-full" :class="it.status === 'DONE' ? 'bg-success/10' : 'bg-muted/30'">
+                    <UIcon :name="it.status === 'DONE' ? 'i-lucide-check' : 'i-lucide-circle'" class="size-3.5" :class="it.status === 'DONE' ? 'text-success' : 'text-muted'" />
                   </div>
-                </div>
-
-                <div v-if="canRenderItemNotes(item)">
-                  <label class="mb-2 block text-sm font-medium text-highlighted">
-                    Dokumentasi hasil pemeriksaan
-                  </label>
-                  <textarea
-                    v-model="itemNotes[item.id]"
-                    rows="4"
-                    class="w-full rounded-xl border border-default bg-default px-3 py-2 text-sm"
-                    placeholder="Tuliskan dokumentasi atau kesimpulan hasil pemeriksaan item ini..."
+                  <span class="flex-1 text-sm font-medium text-highlighted">{{ it.trxExamItem?.item?.name || '-' }}</span>
+                  <UBadge
+                    v-if="it.status"
+                    :label="it.status"
+                    :color="it.status === 'DONE' ? 'success' : 'neutral'"
+                    variant="subtle"
+                    size="xs"
                   />
                 </div>
-
-                <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
-                  <UButton
-                    v-if="canCollectSample(item)"
-                    color="info"
-                    variant="soft"
-                    icon="i-lucide-test-tube"
-                    :loading="itemActionLoading[item.id]"
-                    @click="handleCollectSample(item)"
-                  >
-                    Ambil Sample
-                  </UButton>
-
-                  <UButton
-                    v-else-if="canReceiveSample(item)"
-                    color="info"
-                    variant="soft"
-                    icon="i-lucide-package-check"
-                    :loading="itemActionLoading[item.id]"
-                    @click="handleReceiveSample(item)"
-                  >
-                    Terima Sample
-                  </UButton>
-
-                  <UButton
-                    v-else-if="item.status === 'PENDING' && isExamStageActive()"
-                    color="warning"
-                    variant="soft"
-                    icon="i-lucide-play"
-                    :loading="itemActionLoading[item.id]"
-                    @click="handleStartItem(item)"
-                  >
-                    Mulai Item
-                  </UButton>
-
-                  <UButton
-                    v-if="hasStructuredInputs(item) && !isDeferredItem(item) && item.status === 'IN_PROGRESS'"
-                    color="primary"
-                    variant="soft"
-                    icon="i-lucide-save"
-                    :loading="resultSaveLoading[item.id]"
-                    @click="handleSaveResults(item)"
-                  >
-                    Simpan Hasil
-                  </UButton>
-
-                  <UButton
-                    v-if="item.status === 'IN_PROGRESS'"
-                    color="success"
-                    variant="soft"
-                    icon="i-lucide-check"
-                    :loading="itemActionLoading[item.id]"
-                    @click="handleDoneItem(item)"
-                  >
-                    Selesaikan Item
-                  </UButton>
-
-                  <UButton
-                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(item.status)"
-                    color="error"
-                    variant="soft"
-                    icon="i-lucide-ban"
-                    :loading="itemActionLoading[item.id]"
-                    @click="openItemActionModal(item, 'refuse')"
-                  >
-                    Pasien Menolak
-                  </UButton>
-
-                  <UButton
-                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
-                    color="warning"
-                    variant="soft"
-                    icon="i-lucide-calendar-clock"
-                    :loading="itemActionLoading[item.id]"
-                    @click="openItemActionModal(item, 'reschedule')"
-                  >
-                    Reschedule
-                  </UButton>
-
-                  <UButton
-                    v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
-                    color="primary"
-                    variant="soft"
-                    icon="i-lucide-refresh-cw"
-                    :loading="itemActionLoading[item.id]"
-                    @click="openItemActionModal(item, 'retest')"
-                  >
-                    Retest
-                  </UButton>
-                </div>
+                <p v-if="!group.items.length" class="px-1 py-3 text-sm text-muted">
+                  Tidak ada item.
+                </p>
               </div>
             </UCard>
+
+            <!-- Item Cards (non-sample + sample items in EXAM stage) -->
+            <div class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+              <UCard
+                v-for="item in roomExamItems"
+                :key="item.id"
+                class="overflow-hidden border border-default/80 shadow-sm"
+              >
+                <template #header>
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-xs text-muted">
+                        {{ item.trxExamItem?.item?.code || '-' }}
+                        <span v-if="item.trxExamItem?.item?.group?.name">
+                          · {{ item.trxExamItem.item.group.name }}
+                        </span>
+                      </p>
+                      <h3 class="mt-1 text-base font-semibold text-highlighted">
+                        {{ item.trxExamItem?.item?.name || '-' }}
+                      </h3>
+                    </div>
+
+                    <UBadge
+                      :label="getOperationalStatusLabel(item)"
+                      :color="getOperationalStatusColor(item)"
+                      variant="subtle"
+                    />
+                  </div>
+                </template>
+
+                <div class="space-y-4">
+                  <UAlert
+                    v-if="isSampleManagedItem(item) && !isExamStageActive()"
+                    color="warning"
+                    title="Belum masuk tahap exam"
+                    :description="`Tahap aktif saat ini ${getStageDisplayName(activeStage)}. Item lab baru bisa diisi setelah sample collect dan receive selesai, lalu stage aktif berpindah ke EXAM.`"
+                  />
+
+                  <UAlert
+                    v-else-if="getSampleCollectionStatus(item) && getSampleCollectionStatus(item) !== 'RECEIVED'"
+                    :color="getOperationalStatusColor(item)"
+                    :title="getOperationalStatusLabel(item)"
+                    :description="item.blockedReason || getSampleActionDescription(item)"
+                  />
+
+                  <UAlert
+                    v-else-if="hasStructuredInputs(item) && isDeferredItem(item)"
+                    color="info"
+                    title="Hasil deferred"
+                    description="Item ini tidak memerlukan input hasil. Lakukan pemeriksaan, tulis dokumentasi singkat, lalu selesaikan item."
+                  />
+
+                  <div
+                    v-if="canRenderExamInputs(item)"
+                    class="space-y-3"
+                  >
+                    <div
+                      v-for="inputan in item.trxExamItem?.item?.inputans || []"
+                      :key="inputan.id"
+                      :class="getInputContainerClass(item.id, inputan)"
+                    >
+                      <div class="mb-2 flex items-start justify-between gap-3">
+                        <label class="block text-sm font-medium text-highlighted">
+                          {{ inputan.label }}
+                          <span v-if="inputan.uom" class="text-xs text-muted">({{ inputan.uom }})</span>
+                        </label>
+
+                        <UBadge
+                          v-if="getInputEvaluation(item.id, inputan)"
+                          :color="getEvaluationBadgeColor(getInputEvaluation(item.id, inputan)?.status)"
+                          variant="soft"
+                          :label="getInputEvaluation(item.id, inputan)?.label"
+                        />
+                      </div>
+
+                      <div
+                        v-if="inputan.inputType === 'number' && getNumericNormalRanges(inputan).length > 0"
+                        class="mb-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                      >
+                        <p
+                          v-for="range in getNumericNormalRanges(inputan)"
+                          :key="range.id"
+                        >
+                          {{ formatNumericNormalRange(inputan, range) }}
+                        </p>
+                      </div>
+
+                      <div
+                        v-else-if="inputan.inputType === 'selected' && getSelectedNormalRanges(inputan).length > 0"
+                        class="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
+                      >
+                        <p class="font-medium">
+                          Nilai normal
+                        </p>
+                        <p
+                          v-for="range in getSelectedNormalRanges(inputan)"
+                          :key="range.id"
+                        >
+                          {{ formatSelectedNormalRange(range) }}
+                        </p>
+                      </div>
+
+                      <input
+                        v-if="inputan.inputType === 'number'"
+                        v-model="getInputDraft(item.id, inputan.id).valueNumber"
+                        type="number"
+                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                        :placeholder="`Isi ${inputan.label}`"
+                      >
+
+                      <input
+                        v-else-if="inputan.inputType === 'string'"
+                        v-model="getInputDraft(item.id, inputan.id).valueString"
+                        type="text"
+                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                        :placeholder="`Isi ${inputan.label}`"
+                      >
+
+                      <select
+                        v-else-if="inputan.inputType === 'selected'"
+                        v-model="getInputDraft(item.id, inputan.id).valueSelected"
+                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                      >
+                        <option value="">
+                          Pilih hasil
+                        </option>
+                        <option
+                          v-for="opsi in inputan.opsis || []"
+                          :key="opsi.id"
+                          :value="opsi.value"
+                        >
+                          {{ opsi.label }}
+                        </option>
+                      </select>
+
+                      <input
+                        v-else
+                        v-model="getInputDraft(item.id, inputan.id).valueCalculated"
+                        type="number"
+                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                        :placeholder="`Isi ${inputan.label}`"
+                      >
+                    </div>
+                  </div>
+
+                  <div v-if="canRenderItemNotes(item)">
+                    <label class="mb-2 block text-sm font-medium text-highlighted">
+                      Dokumentasi hasil pemeriksaan
+                    </label>
+                    <textarea
+                      v-model="itemNotes[item.id]"
+                      rows="4"
+                      class="w-full rounded-xl border border-default bg-default px-3 py-2 text-sm"
+                      placeholder="Tuliskan dokumentasi atau kesimpulan hasil pemeriksaan item ini..."
+                    />
+                  </div>
+
+                  <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
+                    <UButton
+                      v-if="canCollectSample(item)"
+                      color="info"
+                      variant="soft"
+                      icon="i-lucide-test-tube"
+                      :loading="itemActionLoading[item.id]"
+                      @click="handleCollectSample(item)"
+                    >
+                      Ambil Sample
+                    </UButton>
+
+                    <UButton
+                      v-else-if="canReceiveSample(item)"
+                      color="info"
+                      variant="soft"
+                      icon="i-lucide-package-check"
+                      :loading="itemActionLoading[item.id]"
+                      @click="handleReceiveSample(item)"
+                    >
+                      Terima Sample
+                    </UButton>
+
+                    <UButton
+                      v-else-if="item.status === 'PENDING' && isExamStageActive()"
+                      color="warning"
+                      variant="soft"
+                      icon="i-lucide-play"
+                      :loading="itemActionLoading[item.id]"
+                      @click="handleStartItem(item)"
+                    >
+                      Mulai Item
+                    </UButton>
+
+                    <UButton
+                      v-if="hasStructuredInputs(item) && !isDeferredItem(item) && item.status === 'IN_PROGRESS'"
+                      color="primary"
+                      variant="soft"
+                      icon="i-lucide-save"
+                      :loading="resultSaveLoading[item.id]"
+                      @click="handleSaveResults(item)"
+                    >
+                      Simpan Hasil
+                    </UButton>
+
+                    <UButton
+                      v-if="item.status === 'IN_PROGRESS'"
+                      color="success"
+                      variant="soft"
+                      icon="i-lucide-check"
+                      :loading="itemActionLoading[item.id]"
+                      @click="handleDoneItem(item)"
+                    >
+                      Selesaikan Item
+                    </UButton>
+
+                    <UButton
+                      v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(item.status)"
+                      color="error"
+                      variant="soft"
+                      icon="i-lucide-ban"
+                      :loading="itemActionLoading[item.id]"
+                      @click="openItemActionModal(item, 'refuse')"
+                    >
+                      Pasien Menolak
+                    </UButton>
+
+                    <UButton
+                      v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                      color="warning"
+                      variant="soft"
+                      icon="i-lucide-calendar-clock"
+                      :loading="itemActionLoading[item.id]"
+                      @click="openItemActionModal(item, 'reschedule')"
+                    >
+                      Reschedule
+                    </UButton>
+
+                    <UButton
+                      v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status)"
+                      color="primary"
+                      variant="soft"
+                      icon="i-lucide-refresh-cw"
+                      :loading="itemActionLoading[item.id]"
+                      @click="openItemActionModal(item, 'retest')"
+                    >
+                      Retest
+                    </UButton>
+                  </div>
+                </div>
+              </UCard>
+            </div>
           </div>
         </template>
       </div>
