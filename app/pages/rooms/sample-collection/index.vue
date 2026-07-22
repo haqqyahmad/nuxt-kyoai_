@@ -249,7 +249,7 @@ onBeforeUnmount(() => {
             color="primary"
             variant="soft"
             :disabled="!activeRoomSession"
-            :click="pickModalOpen = true"
+            @click="pickModalOpen = true"
           >
             Ambil Pasien
           </UButton>
@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
             variant="soft"
             color="neutral"
             :loading="loading"
-            :click="loadHistory"
+            @click="loadHistory"
           >
             Refresh
           </UButton>
@@ -316,10 +316,12 @@ onBeforeUnmount(() => {
 
         <UAlert
           v-if="error"
+          :title="error === 'Masuk ke room Sample Collection terlebih dahulu.' ? 'Belum ada sesi aktif' : 'Error'"
           color="warning"
           variant="soft"
           class="mb-4"
-          :description="error"
+          :description="error === 'Masuk ke room Sample Collection terlebih dahulu.' ? 'Silakan buka /rooms/queue, pilih room Sample Collection, lalu klik Enter Room.' : ''"
+          icon="i-lucide-alert-triangle"
         />
 
         <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-default">
@@ -350,108 +352,32 @@ onBeforeUnmount(() => {
         </div>
       </UCard>
     </template>
-
-    <UModal
-      v-model:open="detailOpen"
-      title="Detail History Sample Collection"
-      :ui="{ content: 'sm:max-w-3xl' }"
-    >
-      <template #body>
-        <div v-if="detailRow" class="space-y-4">
-          <UAlert
-            color="info"
-            variant="soft"
-            title="Detail pasien"
-            :description="`${formatPatient(detailRow.queueEntry)} · ${detailRow.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${detailRow.queueEntry?.queueCode || '-'}`"
-          />
-
-          <div class="grid gap-3 rounded-lg border border-default p-4 sm:grid-cols-2">
-            <div>
-              <p class="text-xs text-muted">
-                Jenis Sample
-              </p>
-              <p class="font-medium text-highlighted">
-                {{ detailRow.sampleType?.name || '-' }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">
-                Status
-              </p>
-              <UBadge :color="statusColor(detailRow.status)" variant="soft">
-                {{ statusLabel(detailRow.status) }}
-              </UBadge>
-            </div>
-            <div>
-              <p class="text-xs text-muted">
-                Barcode / Tabung
-              </p>
-              <p class="font-medium text-highlighted">
-                {{ detailRow.barcode || '-' }} / {{ detailRow.tubeCount ?? 1 }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">
-                Tanggal Exam
-              </p>
-              <p class="font-medium text-highlighted">
-                {{ detailRow.queueEntry?.registration?.examDate || '-' }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">
-                Collection
-              </p>
-              <p class="font-medium text-highlighted">
-                {{ detailRow.collectedByUser?.name || '-' }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ formatDateTime(detailRow.collectedAt) }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">
-                Receive
-              </p>
-              <p class="font-medium text-highlighted">
-                {{ detailRow.receivedByUser?.name || '-' }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ formatDateTime(detailRow.receivedAt) }}
-              </p>
-            </div>
-          </div>
-
-          <div v-if="detailRow.items?.length">
-            <p class="mb-2 text-sm font-semibold text-highlighted">
-              Item pemeriksaan
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <UBadge
-                v-for="item in detailRow.items"
-                :key="item.id"
-                color="neutral"
-                variant="soft"
-              >
-                {{ item.item?.name || item.item?.code || 'Item' }}
-              </UBadge>
-            </div>
-          </div>
-
-          <UAlert
-            v-if="detailRow.status === 'REJECTED'"
-            color="error"
-            variant="soft"
-            title="Alasan ditolak"
-            :description="detailRow.rejectReason || '-'"
-          />
-        </div>
-      </template>
-    </UModal>
-
-    <SampleCollectionPickModal
-      v-model:open="pickModalOpen"
-      @collect="loadHistory"
-    />
   </UDashboardPanel>
+
+  <UModal
+    v-model:open="detailOpen"
+    title="Detail History Sample Collection"
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div v-if="detailRow" class="space-y-4">
+        <UAlert color="info" variant="soft" title="Detail pasien" :description="`${formatPatient(detailRow.queueEntry)} · ${detailRow.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${detailRow.queueEntry?.queueCode || '-'}`" />
+        <div class="grid gap-3 rounded-lg border border-default p-4 sm:grid-cols-2">
+          <div><p class="text-xs text-muted">Jenis Sample</p><p class="font-medium text-highlighted">{{ detailRow.sampleType?.name || '-' }}</p></div>
+          <div><p class="text-xs text-muted">Status</p><UBadge :color="statusColor(detailRow.status)" variant="soft">{{ statusLabel(detailRow.status) }}</UBadge></div>
+          <div><p class="text-xs text-muted">Barcode / Tabung</p><p class="font-medium text-highlighted">{{ detailRow.barcode || '-' }} / {{ detailRow.tubeCount ?? 1 }}</p></div>
+          <div><p class="text-xs text-muted">Tanggal Exam</p><p class="font-medium text-highlighted">{{ detailRow.queueEntry?.registration?.examDate || '-' }}</p></div>
+          <div><p class="text-xs text-muted">Collection</p><p class="font-medium text-highlighted">{{ detailRow.collectedByUser?.name || '-' }}</p><p class="text-xs text-muted">{{ formatDateTime(detailRow.collectedAt) }}</p></div>
+          <div><p class="text-xs text-muted">Receive</p><p class="font-medium text-highlighted">{{ detailRow.receivedByUser?.name || '-' }}</p><p class="text-xs text-muted">{{ formatDateTime(detailRow.receivedAt) }}</p></div>
+        </div>
+        <div v-if="detailRow.items?.length"><p class="mb-2 text-sm font-semibold">Item pemeriksaan</p><div class="flex flex-wrap gap-2"><UBadge v-for="item in detailRow.items" :key="item.id" color="neutral" variant="soft">{{ item.item?.name || item.item?.code || 'Item' }}</UBadge></div></div>
+        <UAlert v-if="detailRow.status === 'REJECTED'" color="error" variant="soft" title="Alasan ditolak" :description="detailRow.rejectReason || '-'" />
+      </div>
+    </template>
+  </UModal>
+
+  <SampleCollectionPickModal
+    v-model:open="pickModalOpen"
+    @collect="loadHistory"
+  />
 </template>

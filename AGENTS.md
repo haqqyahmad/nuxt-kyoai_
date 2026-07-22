@@ -144,6 +144,8 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - Room access pre-populate: BE auto-create `UserRoomAccess` dari role mapping saat user buka `/rooms/assignments`.
 - Restruktur menu: Departments (Medical + Non Medical), Results (exam-results), Lab (sample-reception).
 - Room access sync: backend saat login + skip jika sudah ada akses. Cache fix dengan clearNuxtData.
+- Buat docs/project-flow.md — alur lengkap ERP.
+- Fix hardcoded employee_id di leaves/create — pakai useCurrentUser.
 - Dokumentasi: `docs/permissions-worklog.md`.
 
 ## Workflow

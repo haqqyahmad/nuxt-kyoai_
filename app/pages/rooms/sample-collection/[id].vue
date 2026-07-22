@@ -1,157 +1,156 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useApi } from "~/composables/useApi";
-import { useRoomSession } from "~/composables/useRoomSession";
-import { useToast } from "~/composables/useToast";
+import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useApi } from '~/composables/useApi'
+import { useRoomSession } from '~/composables/useRoomSession'
 
-type SampleUser = { id: number; name: string; email?: string | null };
+type SampleUser = { id: number, name: string, email?: string | null }
 type SampleCollectionRow = {
-  id: string;
-  status: string;
-  tubeCount?: number | null;
-  barcode?: string | null;
-  collectedAt?: string | null;
-  receivedAt?: string | null;
-  rescheduledAt?: string | null;
-  rejectReason?: string | null;
-  takenBy?: number | null;
-  sampleType?: { id: string; name?: string | null } | null;
-  collectedByUser?: SampleUser | null;
-  receivedByUser?: SampleUser | null;
-  takenByUser?: SampleUser | null;
+  id: string
+  status: string
+  tubeCount?: number | null
+  barcode?: string | null
+  collectedAt?: string | null
+  receivedAt?: string | null
+  rescheduledAt?: string | null
+  rejectReason?: string | null
+  takenBy?: number | null
+  sampleType?: { id: string, name?: string | null } | null
+  collectedByUser?: SampleUser | null
+  receivedByUser?: SampleUser | null
+  takenByUser?: SampleUser | null
   queueEntry?: {
-    id: string;
-    queueCode?: string | null;
+    id: string
+    queueCode?: string | null
     registration?: {
-      id: number;
-      id_reg?: string | null;
+      id: number
+      id_reg?: string | null
       patient?: {
-        id: number;
-        PatientId?: string | null;
-        firstName?: string | null;
-        middleName?: string | null;
-        lastName?: string | null;
-        gender?: string | null;
-        dob?: string | null;
-      } | null;
-    } | null;
-  } | null;
+        id: number
+        PatientId?: string | null
+        firstName?: string | null
+        middleName?: string | null
+        lastName?: string | null
+        gender?: string | null
+        dob?: string | null
+      } | null
+    } | null
+  } | null
   items?: Array<{
-    id: string;
-    item?: { id: string; code?: string | null; name?: string | null } | null;
-  }>;
-};
+    id: string
+    item?: { id: string, code?: string | null, name?: string | null } | null
+  }>
+}
 
-const route = useRoute();
-const router = useRouter();
-const api = useApi();
-const toast = useToast();
-const { session: roomSession } = await useRoomSession();
+const route = useRoute()
+const router = useRouter()
+const api = useApi()
+const toast = useToast()
+const { session: roomSession } = await useRoomSession()
 
-const roomTypeId = computed(() => roomSession.value?.roomTypeId ?? null);
+const roomTypeId = computed(() => roomSession.value?.roomTypeId ?? null)
 
-const queueEntryId = computed(() => route.params.id as string);
-const loading = ref(false);
-const samples = ref<SampleCollectionRow[]>([]);
-const error = ref<string | null>(null);
-const collecting = ref<Record<string, boolean>>({});
+const queueEntryId = computed(() => route.params.id as string)
+const loading = ref(false)
+const samples = ref<SampleCollectionRow[]>([])
+const error = ref<string | null>(null)
+const collecting = ref<Record<string, boolean>>({})
 
-function formatPatient(p?: SampleCollectionRow["queueEntry"]): string {
-  const pt = p?.registration?.patient;
-  if (!pt) return "-";
+function formatPatient(p?: SampleCollectionRow['queueEntry']): string {
+  const pt = p?.registration?.patient
+  if (!pt) return '-'
   return (
-    [pt.firstName, pt.middleName, pt.lastName].filter(Boolean).join(" ") || "-"
-  );
+    [pt.firstName, pt.middleName, pt.lastName].filter(Boolean).join(' ') || '-'
+  )
 }
 
 function formatDateTime(s?: string | null) {
-  if (!s) return "-";
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
+  if (!s) return '-'
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return '-'
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(d)
 }
 
 function statusLabel(status: string) {
-  if (status === "PENDING") return "Belum diambil";
-  if (status === "COLLECTED") return "Sudah diambil";
-  if (status === "RECEIVED") return "Diterima Lab";
-  if (status === "REJECTED") return "Ditolak";
-  if (status === "RESCHEDULED") return "Reschedule";
-  return status;
+  if (status === 'PENDING') return 'Belum diambil'
+  if (status === 'COLLECTED') return 'Sudah diambil'
+  if (status === 'RECEIVED') return 'Diterima Lab'
+  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  return status
 }
 
 function statusColor(status: string) {
-  if (status === "RECEIVED") return "success";
-  if (status === "COLLECTED") return "info";
-  if (status === "REJECTED") return "error";
-  if (status === "RESCHEDULED") return "warning";
-  return "warning";
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'warning'
+  return 'warning'
 }
 
 async function load() {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = null
   try {
     const params: Record<string, unknown> = {
       queueEntryId: queueEntryId.value,
       limit: 200,
       page: 1,
-      _: Date.now(),
-    };
-    if (roomTypeId.value) params.roomTypeId = roomTypeId.value;
+      _: Date.now()
+    }
+    if (roomTypeId.value) params.roomTypeId = roomTypeId.value
 
-    const res = await api.get("/medical/exams/queue/samples", { params });
-    const payload = res.data;
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
-    samples.value = list as SampleCollectionRow[];
+    const res = await api.get('/medical/exams/queue/samples', { params })
+    const payload = res.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    samples.value = list as SampleCollectionRow[]
   } catch {
-    error.value = "Gagal memuat detail sample collection.";
+    error.value = 'Gagal memuat detail sample collection.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 async function startCollection() {
-  if (!samples.value.length) return;
+  if (!samples.value.length) return
 
-  const pendingSamples = samples.value.filter((s) => s.status === "PENDING");
+  const pendingSamples = samples.value.filter(s => s.status === 'PENDING')
   if (!pendingSamples.length) {
-    toast.add({ title: "Semua sample sudah diambil", color: "info" });
-    return;
+    toast.add({ title: 'Semua sample sudah diambil', color: 'info' })
+    return
   }
 
   try {
     for (const sample of pendingSamples) {
-      collecting.value = { ...collecting.value, [sample.id]: true };
+      collecting.value = { ...collecting.value, [sample.id]: true }
       try {
         await api.patch(`/medical/exams/queue/samples/${sample.id}/collect`, {
-          tubeCount: sample.tubeCount ?? 1,
-        });
+          tubeCount: sample.tubeCount ?? 1
+        })
       } catch (e) {
-        console.error(`Gagal collect sample ${sample.id}:`, e);
-        throw e;
+        console.error(`Gagal collect sample ${sample.id}:`, e)
+        throw e
       } finally {
-        collecting.value = { ...collecting.value, [sample.id]: false };
+        collecting.value = { ...collecting.value, [sample.id]: false }
       }
     }
-    toast.add({ title: "Semua sample berhasil diambil", color: "success" });
-    await router.push("/rooms/sample-collection");
+    toast.add({ title: 'Semua sample berhasil diambil', color: 'success' })
+    await router.push('/rooms/sample-collection')
   } catch {
-    toast.add({ title: "Gagal mengambil sample", color: "error" });
+    toast.add({ title: 'Gagal mengambil sample', color: 'error' })
   }
 }
 
 function goBack() {
-  router.push("/rooms/sample-collection");
+  router.push('/rooms/sample-collection')
 }
 
 onMounted(() => {
-  load();
-});
+  load()
+})
 </script>
 
 <template>
@@ -222,8 +221,7 @@ onMounted(() => {
                     v-for="it in row.items"
                     :key="it.id"
                     class="mr-1 inline-block rounded bg-muted/40 px-1.5 py-0.5"
-                    >{{ it.item?.name || it.item?.code || "Item" }}</span
-                  >
+                  >{{ it.item?.name || it.item?.code || "Item" }}</span>
                 </p>
               </div>
               <div class="flex items-center gap-3">
@@ -237,7 +235,9 @@ onMounted(() => {
               class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4"
             >
               <div>
-                <p class="text-xs text-muted">Diambil (COLLECT)</p>
+                <p class="text-xs text-muted">
+                  Diambil (COLLECT)
+                </p>
                 <p class="text-highlighted">
                   {{ row.collectedByUser?.name || "-" }}
                 </p>
@@ -246,7 +246,9 @@ onMounted(() => {
                 </p>
               </div>
               <div>
-                <p class="text-xs text-muted">Diterima (RECEIVE)</p>
+                <p class="text-xs text-muted">
+                  Diterima (RECEIVE)
+                </p>
                 <p class="text-highlighted">
                   {{ row.receivedByUser?.name || "-" }}
                 </p>
@@ -255,13 +257,17 @@ onMounted(() => {
                 </p>
               </div>
               <div>
-                <p class="text-xs text-muted">Lock petugas</p>
+                <p class="text-xs text-muted">
+                  Lock petugas
+                </p>
                 <p class="text-highlighted">
                   {{ row.takenByUser?.name || "Bebas" }}
                 </p>
               </div>
               <div>
-                <p class="text-xs text-muted">Tabung / Barcode</p>
+                <p class="text-xs text-muted">
+                  Tabung / Barcode
+                </p>
                 <p class="text-highlighted">
                   {{ row.tubeCount ?? 1 }} / {{ row.barcode || "-" }}
                 </p>
