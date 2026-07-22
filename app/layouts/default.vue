@@ -333,12 +333,14 @@ const links = computed<NavigationMenuItem[][]>(() => [
       type: 'trigger',
       open: menuOpenState.value['Lab'],
       onUpdateOpen: (val: boolean) => updateMenuState('Lab', val),
-      children: [
-        {
-          label: 'Sample Reception',
-          to: '/rooms/sample-reception'
-        }
-      ]
+      children: permissions.value.includes('sample:receive')
+        ? [
+            {
+              label: 'Sample Receive',
+              to: '/rooms/sample-reception'
+            }
+          ]
+        : []
     },
     {
       label: 'Front Office',
