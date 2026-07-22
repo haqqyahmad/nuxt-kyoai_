@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, toRef } from 'vue'
-import { useRoomSession } from '~/composables/useRoomSession'
 import SampleCollectionPickModal from '~/components/rooms/SampleCollectionPickModal.vue'
+import SampleCollectionHistoryTable from '~/components/rooms/SampleCollectionHistoryTable.vue'
 
 type SampleUser = { id: number, name: string, email?: string | null }
 type SampleCollectionRow = {
@@ -13,17 +12,16 @@ type SampleCollectionRow = {
   receivedAt?: string | null
   rescheduledAt?: string | null
   rejectReason?: string | null
-  takenBy?: number | null
-  sampleType?: { id: string, name?: string | null } | null
   collectedByUser?: SampleUser | null
   receivedByUser?: SampleUser | null
-  takenByUser?: SampleUser | null
+  sampleType?: { id: string, name?: string | null } | null
   queueEntry?: {
     id: string
     queueCode?: string | null
     registration?: {
       id: number
       id_reg?: string | null
+      examDate?: string | null
       patient?: {
         id: number
         PatientId?: string | null
@@ -33,197 +31,161 @@ type SampleCollectionRow = {
       } | null
     } | null
   } | null
-  items?: Array<{ id: string, item?: { id: string, code?: string | null, name?: string | null } | null }>
+  items?: Array<{
+    id: string
+    item?: { id: string, code?: string | null, name?: string | null } | null
+  }>
 }
+
+type BadgeColor = 'success' | 'info' | 'error' | 'warning' | 'neutral'
 
 const api = useApi()
-const { user } = await useCurrentUser()
+const { session: roomSession } = await useRoomSession()
 
-const { session: roomSession, refresh: refreshRoomSession } = await useRoomSession()
-const roomTypeId = computed(() => roomSession.value?.roomTypeId ?? null)
+const rows = ref<SampleCollectionRow[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const detailOpen = ref(false)
+const detailRow = ref<SampleCollectionRow | null>(null)
+const pickModalOpen = ref(false)
+
+const statusFilter = ref('ALL')
+const today = new Date().toISOString().slice(0, 10)
+const examDateFrom = ref(today)
+const examDateTo = ref(today)
+const searchInput = ref('')
+const search = ref('')
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalRows = ref(0)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+let loadRequestId = 0
+
+const activeRoomSession = computed(() => {
+  if (!roomSession.value?.id || roomSession.value.endedAt) return null
+  return roomSession.value
+})
 
 const statusOptions = [
-  { label: 'Semua', value: 'ALL' },
-  { label: 'Belum diambil', value: 'PENDING' },
-  { label: 'Sudah diambil', value: 'COLLECTED' },
+  { label: 'Semua Status', value: 'ALL' },
+  { label: 'Belum Diambil', value: 'PENDING' },
+  { label: 'Sudah Diambil', value: 'COLLECTED' },
   { label: 'Diterima Lab', value: 'RECEIVED' },
   { label: 'Ditolak', value: 'REJECTED' },
-  { label: 'Reschedule', value: 'RESCHEDULED' }
+  { label: 'Dijadwalkan Ulang', value: 'RESCHEDULED' }
 ]
 
-type SampleCollectionStatusFilter = 'ALL' | 'PENDING' | 'COLLECTED' | 'RECEIVED' | 'REJECTED' | 'RESCHEDULED'
-type SampleCollectionStoredFilters = {
-  status: SampleCollectionStatusFilter
-  date: string
+const pageSizeOptions = [
+  { label: '10 data', value: 10 },
+  { label: '20 data', value: 20 },
+  { label: '50 data', value: 50 },
+  { label: '100 data', value: 100 }
+]
+
+function extractPaginatedPayload(value: unknown) {
+  const body = value && typeof value === 'object'
+    ? value as Record<string, unknown>
+    : {}
+  const firstData = body.data
+  const nested = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+    ? firstData as Record<string, unknown>
+    : null
+  const data = Array.isArray(firstData)
+    ? firstData
+    : Array.isArray(nested?.data)
+      ? nested.data
+      : Array.isArray(value)
+        ? value
+        : []
+  const meta = body.meta && typeof body.meta === 'object'
+    ? body.meta as Record<string, unknown>
+    : nested?.meta && typeof nested.meta === 'object'
+      ? nested.meta as Record<string, unknown>
+      : {}
+
+  return { data, meta }
 }
 
-const sampleStatusValues: SampleCollectionStatusFilter[] = ['ALL', 'PENDING', 'COLLECTED', 'RECEIVED', 'REJECTED', 'RESCHEDULED']
-const datePattern = /^\d{4}-\d{2}-\d{2}$/
-
-function isValidDateFilter(value: unknown): value is string {
-  if (value === '') return true
-  if (typeof value !== 'string' || !datePattern.test(value)) return false
-  const [year, month, day] = value.split('-').map(Number)
-  const parsed = new Date(Date.UTC(year, month - 1, day))
-  return parsed.getUTCFullYear() === year
-    && parsed.getUTCMonth() === month - 1
-    && parsed.getUTCDate() === day
-}
-
-function sanitizeSampleCollectionFilters(value: unknown): Partial<SampleCollectionStoredFilters> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-  const stored = value as Record<string, unknown>
-  return {
-    status: sampleStatusValues.includes(stored.status as SampleCollectionStatusFilter)
-      ? stored.status as SampleCollectionStatusFilter
-      : 'PENDING',
-    date: isValidDateFilter(stored.date) ? stored.date : ''
+async function loadHistory() {
+  if (!activeRoomSession.value) {
+    rows.value = []
+    totalRows.value = 0
+    error.value = 'Masuk ke room Sample Collection terlebih dahulu.'
+    return
   }
-}
 
-const sampleFilterState = useSafeLocalStorageState<SampleCollectionStoredFilters>(
-  `erp-kyoai:rooms:sample-collection:filters:user:${user.value?.id ?? 'anonymous'}`,
-  { status: 'PENDING', date: '' },
-  sanitizeSampleCollectionFilters
-)
-const statusFilter = toRef(sampleFilterState, 'status')
-const dateFilter = toRef(sampleFilterState, 'date')
-const search = ref('')
-const loading = ref(false)
-const allRows = ref<SampleCollectionRow[]>([])
-const rows = ref<SampleCollectionRow[]>([])
-const error = ref<string | null>(null)
-
-// Collected samples (for reception view)
-const collectedLoading = ref(false)
-const collectedRows = ref<SampleCollectionRow[]>([])
-const collectedError = ref<string | null>(null)
-
-const detailOpen = ref(false)
-const pickModalOpen = ref(false)
-const detailRow = ref<SampleCollectionRow | null>(null)
-
-async function load() {
+  const requestId = ++loadRequestId
   loading.value = true
   error.value = null
+
   try {
     const params: Record<string, unknown> = {
-      limit: 200,
-      page: 1,
+      page: currentPage.value,
+      limit: pageSize.value,
       _: Date.now()
     }
     if (statusFilter.value !== 'ALL') params.status = statusFilter.value
-    if (dateFilter.value) params.queueDate = dateFilter.value
-    if (roomTypeId.value) params.roomTypeId = roomTypeId.value
+    if (examDateFrom.value) params.examDateFrom = examDateFrom.value
+    if (examDateTo.value) params.examDateTo = examDateTo.value
+    if (search.value) params.search = search.value
 
-    const res = await api.get('/medical/exams/queue/samples', { params })
-    const responseBody = res.data
-    const payload = responseBody?.data ?? responseBody
-    const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
-    allRows.value = list as SampleCollectionRow[]
-    applyClientFilters()
-  } catch {
-    error.value = 'Gagal memuat data sample collection.'
-  } finally {
-    loading.value = false
-  }
-}
+    const response = await api.get(
+      '/medical/exams/queue/samples/collection-history',
+      { params }
+    )
+    const { data, meta } = extractPaginatedPayload(response.data)
 
-async function loadCollected() {
-  collectedLoading.value = true
-  collectedError.value = null
-  try {
-    const params: Record<string, unknown> = {
-      status: 'COLLECTED',
-      limit: 200,
-      page: 1,
-      _: Date.now()
+    if (requestId === loadRequestId) {
+      rows.value = data as SampleCollectionRow[]
+      totalRows.value = Number(meta.total ?? data.length)
     }
-    if (dateFilter.value) params.queueDate = dateFilter.value
-    if (roomTypeId.value) params.roomTypeId = roomTypeId.value
-
-    const res = await api.get('/medical/exams/queue/samples', { params })
-    const responseBody = res.data
-    const payload = responseBody?.data ?? responseBody
-    const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : [])
-    collectedRows.value = list as SampleCollectionRow[]
-  } catch {
-    collectedError.value = 'Gagal memuat data sample collected.'
+  } catch (value: unknown) {
+    if (requestId === loadRequestId) {
+      const response = typeof value === 'object' && value && 'response' in value
+        ? (value as { response?: { data?: { message?: string } } }).response
+        : undefined
+      error.value = response?.data?.message || 'Gagal memuat history sample collection.'
+      rows.value = []
+      totalRows.value = 0
+    }
   } finally {
-    collectedLoading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
-function normalize(s?: string | null) {
-  return (s ?? '').toString().toLowerCase().trim()
+function formatPatient(queueEntry?: SampleCollectionRow['queueEntry']) {
+  const patient = queueEntry?.registration?.patient
+  if (!patient) return '-'
+  return [patient.firstName, patient.middleName, patient.lastName]
+    .filter(Boolean)
+    .join(' ') || '-'
 }
 
-function applyClientFilters() {
-  const q = normalize(search.value)
-  if (!q) {
-    rows.value = allRows.value
-    return
-  }
-  rows.value = allRows.value.filter((row) => {
-    const patient = row.queueEntry?.registration?.patient
-    const patientName = normalize(
-      [patient?.firstName, patient?.middleName, patient?.lastName].filter(Boolean).join(' ')
-    )
-    const patientId = normalize(row.queueEntry?.registration?.patient?.PatientId)
-    const barcode = normalize(row.barcode)
-    const queueCode = normalize(row.queueEntry?.queueCode)
-    const sampleType = normalize(row.sampleType?.name)
-    return (
-      patientName.includes(q)
-      || patientId.includes(q)
-      || barcode.includes(q)
-      || queueCode.includes(q)
-      || sampleType.includes(q)
-    )
-  })
-}
-
-function onSearchInput() {
-  applyClientFilters()
-}
-
-function onDateChange() {
-  load()
-  loadCollected()
-}
-
-function onStatusChange() {
-  load()
-}
-
-function formatPatient(p?: SampleCollectionRow['queueEntry']): string {
-  const pt = p?.registration?.patient
-  if (!pt) return '-'
-  return [pt.firstName, pt.middleName, pt.lastName].filter(Boolean).join(' ') || '-'
-}
-
-function formatDateTime(s?: string | null) {
-  if (!s) return '-'
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return '-'
-  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(d)
+function formatDateTime(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date)
 }
 
 function statusLabel(status: string) {
-  if (status === 'PENDING') return 'Belum diambil'
-  if (status === 'COLLECTED') return 'Sudah diambil'
+  if (status === 'PENDING') return 'Belum Diambil'
+  if (status === 'COLLECTED') return 'Sudah Diambil'
   if (status === 'RECEIVED') return 'Diterima Lab'
   if (status === 'REJECTED') return 'Ditolak'
-  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'RESCHEDULED') return 'Dijadwalkan Ulang'
   return status
 }
 
-function statusColor(status: string) {
+function statusColor(status: string): BadgeColor {
   if (status === 'RECEIVED') return 'success'
   if (status === 'COLLECTED') return 'info'
   if (status === 'REJECTED') return 'error'
   if (status === 'RESCHEDULED') return 'warning'
-  return 'warning'
+  return 'neutral'
 }
 
 function openDetail(row: SampleCollectionRow) {
@@ -231,45 +193,63 @@ function openDetail(row: SampleCollectionRow) {
   detailOpen.value = true
 }
 
-onMounted(async () => {
-  await refreshRoomSession()
-  await load()
-  await loadCollected()
+watch([statusFilter, examDateFrom, examDateTo], () => {
+  if (currentPage.value !== 1) currentPage.value = 1
+  else void loadHistory()
+})
+
+watch(currentPage, () => {
+  void loadHistory()
+})
+
+watch(pageSize, () => {
+  if (currentPage.value !== 1) currentPage.value = 1
+  else void loadHistory()
+})
+
+watch(searchInput, (value) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    search.value = value.trim()
+    if (currentPage.value !== 1) currentPage.value = 1
+    else void loadHistory()
+  }, 350)
+})
+
+watch(
+  () => activeRoomSession.value?.id,
+  () => {
+    void loadHistory()
+  }
+)
+
+onMounted(() => {
+  void loadHistory()
+})
+
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
 })
 </script>
 
 <template>
   <UDashboardPanel id="sample-collection">
     <template #header>
-      <UDashboardNavbar title="Sample Collection">
+      <UDashboardNavbar title="History Sample Collection">
         <template #right>
-          <UInput
-            v-model="search"
-            type="search"
-            placeholder="Cari pasien / RM / barcode / queue"
-            icon="i-lucide-search"
-            class="w-56"
-            @update:model-value="onSearchInput"
-          />
-          <UInput
-            v-model="dateFilter"
-            type="date"
-            placeholder="Tanggal"
-            icon="i-lucide-calendar"
-            class="w-44"
-            @update:model-value="onDateChange"
-          />
-          <USelect
-            v-model="statusFilter"
-            :items="statusOptions"
-            class="w-44"
-            @update:model-value="onStatusChange"
-          />
+          <UBadge
+            v-if="activeRoomSession"
+            color="success"
+            variant="soft"
+          >
+            {{ activeRoomSession.room?.name || activeRoomSession.roomType?.name || 'Room aktif' }}
+          </UBadge>
           <UButton
             icon="i-lucide-user-plus"
             color="primary"
             variant="soft"
-            @click="pickModalOpen = true"
+            :disabled="!activeRoomSession"
+            :click="pickModalOpen = true"
           >
             Ambil Pasien
           </UButton>
@@ -278,7 +258,7 @@ onMounted(async () => {
             variant="soft"
             color="neutral"
             :loading="loading"
-            @click="load"
+            :click="loadHistory"
           >
             Refresh
           </UButton>
@@ -287,340 +267,191 @@ onMounted(async () => {
     </template>
 
     <template #body>
-      <div class="space-y-4">
+      <UCard class="w-full max-w-none border border-default/80 shadow-sm">
+        <template #header>
+          <div>
+            <h3 class="font-semibold text-highlighted">
+              History Sample Collection
+            </h3>
+            <p class="text-sm text-muted">
+              Riwayat sample dari proses pengambilan sampai diterima LAB.
+            </p>
+          </div>
+        </template>
+
+        <div class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <UFormField label="Cari">
+            <UInput
+              v-model="searchInput"
+              icon="i-lucide-search"
+              placeholder="Pasien, RM, queue, barcode..."
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status">
+            <USelect
+              v-model="statusFilter"
+              :items="statusOptions"
+              value-key="value"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Tanggal Exam Dari">
+            <UInput
+              v-model="examDateFrom"
+              type="date"
+              :max="examDateTo || undefined"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Tanggal Exam Sampai">
+            <UInput
+              v-model="examDateTo"
+              type="date"
+              :min="examDateFrom || undefined"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
         <UAlert
-          color="info"
+          v-if="error"
+          color="warning"
           variant="soft"
-          icon="i-lucide-info"
-          title="Data Sample Collection"
-          description="Daftar seluruh pengambilan sample per kunjungan pasien. Difilter berdasarkan room sesi petugas aktif."
+          class="mb-4"
+          :description="error"
         />
 
-        <!-- Section 1: Sample yang belum diambil (PENDING dll) -->
-        <div v-if="loading" class="flex items-center justify-center py-10 text-muted">
-          <UIcon name="i-lucide-loader-circle" class="animate-spin size-5" />
-          <span class="ml-2 text-sm">Memuat data…</span>
+        <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-default">
+          <SampleCollectionHistoryTable
+            :data="rows"
+            :loading="loading"
+            @detail="openDetail"
+          />
         </div>
 
-        <div v-else-if="error" class="py-8 text-center text-sm text-muted">
-          {{ error }}
-        </div>
-
-        <div v-else-if="!rows.length" class="py-10 text-center text-sm text-muted">
-          Tidak ada data sample collection untuk filter ini.
-        </div>
-
-        <div v-else class="space-y-3">
-          <UCard
-            v-for="row in rows"
-            :key="row.id"
-            class="overflow-hidden"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-highlighted">
-                  {{ formatPatient(row.queueEntry) }}
-                  <span class="ml-1 font-normal text-muted">
-                    ({{ row.queueEntry?.registration?.patient?.PatientId || '-' }})
-                  </span>
-                </p>
-                <p class="text-xs text-muted">
-                  {{ row.sampleType?.name || 'Sample' }} ·
-                  Queue {{ row.queueEntry?.queueCode || '-' }}
-                </p>
-                <p v-if="row.items?.length" class="mt-1 text-xs text-muted">
-                  Item:
-                  <span
-                    v-for="it in row.items"
-                    :key="it.id"
-                    class="mr-1 inline-block rounded bg-muted/40 px-1.5 py-0.5"
-                  >{{ it.item?.name || it.item?.code || 'Item' }}</span>
-                </p>
-              </div>
-              <div class="flex items-center gap-3">
-                <UBadge :color="statusColor(row.status)">
-                  {{ statusLabel(row.status) }}
-                </UBadge>
-                <UButton
-                  color="primary"
-                  variant="soft"
-                  icon="i-lucide-eye"
-                  @click="openDetail(row)"
-                >
-                  Detail
-                </UButton>
-              </div>
-            </div>
-
-            <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-              <div>
-                <p class="text-xs text-muted">
-                  Diambil (COLLECT)
-                </p>
-                <p class="text-highlighted">
-                  {{ row.collectedByUser?.name || '-' }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ formatDateTime(row.collectedAt) }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs text-muted">
-                  Diterima (RECEIVE)
-                </p>
-                <p class="text-highlighted">
-                  {{ row.receivedByUser?.name || '-' }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ formatDateTime(row.receivedAt) }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs text-muted">
-                  Lock petugas
-                </p>
-                <p class="text-highlighted">
-                  {{ row.takenByUser?.name || 'Bebas' }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs text-muted">
-                  Tabung / Barcode
-                </p>
-                <p class="text-highlighted">
-                  {{ row.tubeCount ?? 1 }} / {{ row.barcode || '-' }}
-                </p>
-              </div>
-            </div>
-          </UCard>
-        </div>
-
-        <!-- Section 2: Sample yang sudah diambil (COLLECTED) - untuk Reception -->
-        <div class="pt-6 border-t border-default">
-          <h3 class="mb-3 text-sm font-semibold text-highlighted">
-            Sample Sudah Diambil (COLLECTED)
-          </h3>
-          <p class="mb-3 text-xs text-muted">
-            Data ini bisa dilihat oleh Reception untuk menerima sample.
+        <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-muted">
+            Menampilkan {{ rows.length }} dari {{ totalRows }} data
           </p>
-
-          <div v-if="collectedLoading" class="flex items-center justify-center py-10 text-muted">
-            <UIcon name="i-lucide-loader-circle" class="animate-spin size-5" />
-            <span class="ml-2 text-sm">Memuat data collected…</span>
-          </div>
-
-          <div v-else-if="collectedError" class="py-8 text-center text-sm text-muted">
-            {{ collectedError }}
-          </div>
-
-          <div v-else-if="!collectedRows.length" class="py-10 text-center text-sm text-muted">
-            Belum ada sample dengan status COLLECTED.
-          </div>
-
-          <div v-else class="space-y-3">
-            <UCard
-              v-for="row in collectedRows"
-              :key="row.id"
-              class="overflow-hidden border-info/30"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-highlighted">
-                    {{ formatPatient(row.queueEntry) }}
-                    <span class="ml-1 font-normal text-muted">
-                      ({{ row.queueEntry?.registration?.patient?.PatientId || '-' }})
-                    </span>
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ row.sampleType?.name || 'Sample' }} ·
-                    Queue {{ row.queueEntry?.queueCode || '-' }}
-                  </p>
-                  <p v-if="row.items?.length" class="mt-1 text-xs text-muted">
-                    Item:
-                    <span
-                      v-for="it in row.items"
-                      :key="it.id"
-                      class="mr-1 inline-block rounded bg-muted/40 px-1.5 py-0.5"
-                    >{{ it.item?.name || it.item?.code || 'Item' }}</span>
-                  </p>
-                </div>
-                <div class="flex items-center gap-3">
-                  <UBadge color="info">
-                    {{ statusLabel(row.status) }}
-                  </UBadge>
-                  <UButton
-                    color="primary"
-                    variant="soft"
-                    icon="i-lucide-eye"
-                    @click="openDetail(row)"
-                  >
-                    Detail
-                  </UButton>
-                </div>
-              </div>
-
-              <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-                <div>
-                  <p class="text-xs text-muted">
-                    Diambil (COLLECT)
-                  </p>
-                  <p class="text-highlighted">
-                    {{ row.collectedByUser?.name || '-' }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ formatDateTime(row.collectedAt) }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs text-muted">
-                    Diterima (RECEIVE)
-                  </p>
-                  <p class="text-highlighted">
-                    {{ row.receivedByUser?.name || '-' }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ formatDateTime(row.receivedAt) }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs text-muted">
-                    Lock petugas
-                  </p>
-                  <p class="text-highlighted">
-                    {{ row.takenByUser?.name || 'Bebas' }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs text-muted">
-                    Tabung / Barcode
-                  </p>
-                  <p class="text-highlighted">
-                    {{ row.tubeCount ?? 1 }} / {{ row.barcode || '-' }}
-                  </p>
-                </div>
-              </div>
-            </UCard>
+          <div class="flex items-center gap-2">
+            <USelect
+              v-model="pageSize"
+              :items="pageSizeOptions"
+              value-key="value"
+              class="w-32"
+            />
+            <UPagination
+              v-model:page="currentPage"
+              :items-per-page="pageSize"
+              :total="totalRows"
+            />
           </div>
         </div>
-      </div>
+      </UCard>
     </template>
 
     <UModal
       v-model:open="detailOpen"
-      title="Detail Sample Collection"
+      title="Detail History Sample Collection"
       :ui="{ content: 'sm:max-w-3xl' }"
     >
       <template #body>
-        <div v-if="detailRow">
-          <p class="mb-4 text-sm text-muted">
-            Pasien: <span class="font-semibold text-highlighted">{{ formatPatient(detailRow.queueEntry) }}</span>
-          </p>
+        <div v-if="detailRow" class="space-y-4">
+          <UAlert
+            color="info"
+            variant="soft"
+            title="Detail pasien"
+            :description="`${formatPatient(detailRow.queueEntry)} · ${detailRow.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${detailRow.queueEntry?.queueCode || '-'}`"
+          />
 
-          <div class="mb-4 rounded-lg border border-default p-4 dark:border-gray-700">
-            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div class="text-base font-semibold text-highlighted dark:text-gray-50">
-                {{ detailRow.sampleType?.name || 'Sample' }}
-              </div>
-              <UBadge :color="statusColor(detailRow.status)">
+          <div class="grid gap-3 rounded-lg border border-default p-4 sm:grid-cols-2">
+            <div>
+              <p class="text-xs text-muted">
+                Jenis Sample
+              </p>
+              <p class="font-medium text-highlighted">
+                {{ detailRow.sampleType?.name || '-' }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted">
+                Status
+              </p>
+              <UBadge :color="statusColor(detailRow.status)" variant="soft">
                 {{ statusLabel(detailRow.status) }}
               </UBadge>
             </div>
-
-            <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Jenis Sample
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.sampleType?.name || '-' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Barcode
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.barcode || '-' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Jumlah Tabung
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.tubeCount ?? 1 }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Waktu Pengambilan
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ formatDateTime(detailRow.collectedAt) }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Petugas Pengambil (COLLECT)
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.collectedByUser?.name || (detailRow.collectedAt ? 'Tidak diketahui' : '-') }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Waktu Diterima Lab (RECEIVE)
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ formatDateTime(detailRow.receivedAt) }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Petugas Penerima (RECEIVE)
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.receivedByUser?.name || (detailRow.receivedAt ? 'Tidak diketahui' : '-') }}
-                </dd>
-              </div>
-              <div v-if="detailRow.status === 'REJECTED'">
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Alasan Ditolak
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ detailRow.rejectReason || '-' }}
-                </dd>
-              </div>
-              <div v-if="detailRow.status === 'RESCHEDULED'">
-                <dt class="text-xs text-muted dark:text-gray-400">
-                  Jadwal Ulang
-                </dt>
-                <dd class="text-sm text-highlighted dark:text-gray-50">
-                  {{ formatDateTime(detailRow.rescheduledAt) }}
-                </dd>
-              </div>
-            </dl>
-
-            <div v-if="detailRow.items?.length" class="mt-3">
-              <p class="mb-1 text-xs text-muted dark:text-gray-400">
-                Item terkait:
+            <div>
+              <p class="text-xs text-muted">
+                Barcode / Tabung
               </p>
-              <div class="flex flex-wrap gap-1">
-                <UBadge
-                  v-for="sampleItem in detailRow.items"
-                  :key="sampleItem.id"
-                  variant="subtle"
-                  color="neutral"
-                >
-                  {{ sampleItem.item?.name || sampleItem.item?.code || 'Item' }}
-                </UBadge>
-              </div>
+              <p class="font-medium text-highlighted">
+                {{ detailRow.barcode || '-' }} / {{ detailRow.tubeCount ?? 1 }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted">
+                Tanggal Exam
+              </p>
+              <p class="font-medium text-highlighted">
+                {{ detailRow.queueEntry?.registration?.examDate || '-' }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted">
+                Collection
+              </p>
+              <p class="font-medium text-highlighted">
+                {{ detailRow.collectedByUser?.name || '-' }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ formatDateTime(detailRow.collectedAt) }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted">
+                Receive
+              </p>
+              <p class="font-medium text-highlighted">
+                {{ detailRow.receivedByUser?.name || '-' }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ formatDateTime(detailRow.receivedAt) }}
+              </p>
             </div>
           </div>
+
+          <div v-if="detailRow.items?.length">
+            <p class="mb-2 text-sm font-semibold text-highlighted">
+              Item pemeriksaan
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <UBadge
+                v-for="item in detailRow.items"
+                :key="item.id"
+                color="neutral"
+                variant="soft"
+              >
+                {{ item.item?.name || item.item?.code || 'Item' }}
+              </UBadge>
+            </div>
+          </div>
+
+          <UAlert
+            v-if="detailRow.status === 'REJECTED'"
+            color="error"
+            variant="soft"
+            title="Alasan ditolak"
+            :description="detailRow.rejectReason || '-'"
+          />
         </div>
       </template>
     </UModal>
 
-    <SampleCollectionPickModal v-model:open="pickModalOpen" @collect="load" />
+    <SampleCollectionPickModal
+      v-model:open="pickModalOpen"
+      @collect="loadHistory"
+    />
   </UDashboardPanel>
 </template>

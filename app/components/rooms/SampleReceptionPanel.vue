@@ -1,18 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-
-const props = defineProps<{
-  activeRoomSession: {
-    id: string
-    roomId?: string | null
-    roomTypeId?: string | null
-  } | null
-  isSuperAdmin?: boolean
-}>()
+import type { TableColumn } from '@nuxt/ui'
 
 const api = useApi()
 const toast = useToast()
-const { session: roomSession } = await useRoomSession()
+const { user } = await useCurrentUser()
 
 type SampleUser = { id: number, name: string, email?: string | null }
 type ReceptionSample = {
@@ -34,18 +25,20 @@ type ReceptionSample = {
     registration?: {
       id: number
       id_reg?: string | null
+      examDate?: string | null
       patient?: {
         id: number
         PatientId?: string | null
         firstName?: string | null
         middleName?: string | null
         lastName?: string | null
-        gender?: string | null
-        dob?: string | null
       } | null
     } | null
   } | null
-  items?: Array<{ id: string, item?: { id: string, code?: string | null, name?: string | null } | null }>
+  items?: Array<{
+    id: string
+    item?: { id: string, code?: string | null, name?: string | null } | null
+  }>
 }
 
 const samples = ref<ReceptionSample[]>([])
@@ -58,116 +51,157 @@ const receiveLoading = ref(false)
 const modalLockAcquired = ref(false)
 const releasingModalLock = ref(false)
 
+const statusFilter = ref('ALL')
+const today = new Date().toISOString().slice(0, 10)
+const examDateFrom = ref(today)
+const examDateTo = ref(today)
+const searchInput = ref('')
+const search = ref('')
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalRows = ref(0)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+let loadRequestId = 0
+
+const statusOptions = [
+  { label: 'Semua Status', value: 'ALL' },
+  { label: 'Belum Diproses', value: 'COLLECTED' },
+  { label: 'Sudah Diterima', value: 'RECEIVED' },
+  { label: 'Ditolak', value: 'REJECTED' },
+  { label: 'Dijadwalkan Ulang', value: 'RESCHEDULED' }
+]
+
+const pageSizeOptions = [
+  { label: '10 data', value: 10 },
+  { label: '20 data', value: 20 },
+  { label: '50 data', value: 50 },
+  { label: '100 data', value: 100 }
+]
+
+const columns: TableColumn<ReceptionSample>[] = [
+  { id: 'patient', header: 'Pasien' },
+  { id: 'examDate', header: 'Tanggal Exam' },
+  { id: 'sample', header: 'Sample / Item' },
+  { id: 'collection', header: 'Collection' },
+  { id: 'receive', header: 'Receive' },
+  { accessorKey: 'status', header: 'Status' },
+  { id: 'action', header: 'Aksi' }
+]
+
+const myUserId = computed(() => user.value?.id ?? null)
+
 async function loadSamples() {
+  const requestId = ++loadRequestId
   loading.value = true
   error.value = null
+
   try {
     const params: Record<string, unknown> = {
-      status: 'COLLECTED',
-      limit: 100,
-      page: 1,
+      page: currentPage.value,
+      limit: pageSize.value,
       _: Date.now()
     }
-    // Filter by roomTypeId from active room session
-    if (props.activeRoomSession?.roomTypeId) {
-      params.roomTypeId = props.activeRoomSession.roomTypeId
+    if (statusFilter.value !== 'ALL') params.status = statusFilter.value
+    if (examDateFrom.value) params.examDateFrom = examDateFrom.value
+    if (examDateTo.value) params.examDateTo = examDateTo.value
+    if (search.value) params.search = search.value
+
+    const response = await api.get('/medical/exams/queue/samples/receive', { params })
+    const body = response.data
+    const list = Array.isArray(body?.data) ? body.data : []
+
+    if (requestId === loadRequestId) {
+      samples.value = list as ReceptionSample[]
+      totalRows.value = Number(body?.meta?.total ?? list.length)
     }
-    const res = await api.get('/medical/exams/queue/samples', { params })
-    const responseBody = res.data
-    const payload = responseBody?.data ?? responseBody
-    const list = Array.isArray(payload)
-      ? payload
-      : (Array.isArray(payload?.data) ? payload.data : [])
-    samples.value = list as ReceptionSample[]
   } catch {
-    error.value = 'Gagal memuat antrian sample reception.'
+    if (requestId === loadRequestId) {
+      error.value = 'Gagal memuat data sample receive.'
+      samples.value = []
+      totalRows.value = 0
+    }
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
-function formatPatient(p?: ReceptionSample['queueEntry']): string {
-  const pt = p?.registration?.patient
-  if (!pt) return '-'
-  return [pt.firstName, pt.middleName, pt.lastName].filter(Boolean).join(' ') || '-'
+function formatPatient(queueEntry?: ReceptionSample['queueEntry']) {
+  const patient = queueEntry?.registration?.patient
+  if (!patient) return '-'
+  return [patient.firstName, patient.middleName, patient.lastName]
+    .filter(Boolean)
+    .join(' ') || '-'
 }
 
-function formatDateTime(s?: string | null) {
-  if (!s) return '-'
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return '-'
-  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(d)
+function formatDateTime(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date)
 }
 
 function getSampleStatusLabel(status: string) {
-  if (status === 'PENDING') return 'Belum diambil'
-  if (status === 'COLLECTED') return 'Sudah diambil'
-  if (status === 'RECEIVED') return 'Diterima & diverifikasi'
+  if (status === 'COLLECTED') return 'Belum Diproses'
+  if (status === 'RECEIVED') return 'Diterima & Diverifikasi'
   if (status === 'REJECTED') return 'Ditolak'
-  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'RESCHEDULED') return 'Dijadwalkan Ulang'
   return status
 }
 
-const sessionActive = computed(() => Boolean(roomSession.value?.id) && !roomSession.value?.endedAt)
-const myUserId = computed(() => (roomSession.value as { userId?: number } | null)?.userId ?? null)
-
-function isTakenByMe(s: ReceptionSample) {
-  return s.takenBy != null && s.takenBy === myUserId.value
+function isTakenByMe(sample: ReceptionSample) {
+  return sample.takenBy != null && sample.takenBy === myUserId.value
 }
 
-function canReceive(s: ReceptionSample) {
-  return sessionActive.value
-    && s.status === 'COLLECTED'
-    && (s.takenBy == null || isTakenByMe(s))
+function canReceive(sample: ReceptionSample) {
+  return sample.status === 'COLLECTED'
+    && (sample.takenBy == null || isTakenByMe(sample))
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (typeof error === 'object' && error && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response
+function getErrorMessage(value: unknown, fallback: string) {
+  if (typeof value === 'object' && value && 'response' in value) {
+    const response = (value as { response?: { data?: { message?: string } } }).response
     return response?.data?.message || fallback
   }
   return fallback
 }
 
-async function openReceiveModal(s: ReceptionSample) {
-  if (!sessionActive.value) {
-    toast.add({ title: 'Sesi room belum aktif', description: 'Masuk ke room dulu.', color: 'warning' })
-    return
-  }
-
-  if (!canReceive(s)) {
+async function openReceiveModal(sample: ReceptionSample) {
+  if (!canReceive(sample)) {
     toast.add({
       title: 'Sample sedang diproses',
-      description: 'Sample ini sedang ditangani petugas reception lain.',
+      description: 'Sample ini sedang ditangani petugas lain.',
       color: 'warning'
     })
     return
   }
 
-  actionLoading.value = { ...actionLoading.value, [s.id]: true }
+  actionLoading.value = { ...actionLoading.value, [sample.id]: true }
   try {
-    modalLockAcquired.value = isTakenByMe(s)
-    if (s.takenBy == null) {
-      await api.patch(`/medical/exams/queue/samples/${s.id}/take`)
+    modalLockAcquired.value = isTakenByMe(sample)
+    if (sample.takenBy == null) {
+      await api.patch(`/medical/exams/queue/samples/${sample.id}/take`)
       modalLockAcquired.value = true
     }
 
-    const detailResponse = await api.get(`/medical/exams/queue/samples/${s.id}`)
-    selectedSample.value = (detailResponse.data?.data ?? detailResponse.data) as ReceptionSample
+    const response = await api.get(`/medical/exams/queue/samples/receive/${sample.id}`)
+    selectedSample.value = (response.data?.data ?? response.data) as ReceptionSample
     isReceiveModalOpen.value = true
-  } catch (error: unknown) {
+  } catch (value: unknown) {
     if (modalLockAcquired.value) {
-      await api.patch(`/medical/exams/queue/samples/${s.id}/release`).catch(() => undefined)
+      await api.patch(`/medical/exams/queue/samples/${sample.id}/release`).catch(() => undefined)
       modalLockAcquired.value = false
     }
     toast.add({
       title: 'Gagal membuka detail sample',
-      description: getErrorMessage(error, 'Sample mungkin sudah diproses petugas lain.'),
+      description: getErrorMessage(value, 'Sample mungkin sudah diproses petugas lain.'),
       color: 'error'
     })
     await loadSamples()
   } finally {
-    actionLoading.value = { ...actionLoading.value, [s.id]: false }
+    actionLoading.value = { ...actionLoading.value, [sample.id]: false }
   }
 }
 
@@ -175,9 +209,8 @@ async function releaseModalLock() {
   if (!modalLockAcquired.value || !selectedSample.value || releasingModalLock.value) return
 
   releasingModalLock.value = true
-  const sampleId = selectedSample.value.id
   try {
-    await api.patch(`/medical/exams/queue/samples/${sampleId}/release`)
+    await api.patch(`/medical/exams/queue/samples/${selectedSample.value.id}/release`)
   } finally {
     modalLockAcquired.value = false
     releasingModalLock.value = false
@@ -200,12 +233,16 @@ async function confirmReceive() {
     modalLockAcquired.value = false
     isReceiveModalOpen.value = false
     selectedSample.value = null
-    toast.add({ title: 'Berhasil', description: 'Sample diterima Lab.', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Sample diterima dan diverifikasi.',
+      color: 'success'
+    })
     await loadSamples()
-  } catch (error: unknown) {
+  } catch (value: unknown) {
     toast.add({
       title: 'Gagal menerima sample',
-      description: getErrorMessage(error, 'Sample tidak dapat diterima.'),
+      description: getErrorMessage(value, 'Sample tidak dapat diterima.'),
       color: 'error'
     })
   } finally {
@@ -217,23 +254,48 @@ watch(isReceiveModalOpen, (open) => {
   if (!open && modalLockAcquired.value) void releaseModalLock()
 })
 
-watch(
-  () => props.activeRoomSession?.id,
-  () => { if (props.activeRoomSession) loadSamples() },
-  { immediate: true }
-)
+watch([statusFilter, examDateFrom, examDateTo], () => {
+  if (currentPage.value !== 1) currentPage.value = 1
+  else void loadSamples()
+})
+
+watch(currentPage, () => {
+  void loadSamples()
+})
+
+watch(pageSize, () => {
+  if (currentPage.value !== 1) currentPage.value = 1
+  else void loadSamples()
+})
+
+watch(searchInput, (value) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    search.value = value.trim()
+    if (currentPage.value !== 1) currentPage.value = 1
+    else void loadSamples()
+  }, 350)
+})
+
+onMounted(() => {
+  void loadSamples()
+})
+
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
 </script>
 
 <template>
-  <UCard class="overflow-hidden border border-default/80 shadow-sm">
+  <UCard class="w-full max-w-none border border-default/80 shadow-sm">
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-semibold text-highlighted">
-            Sample Reception
+            Sample Receive
           </h3>
           <p class="text-sm text-muted">
-            Antrian diambil dari data sample collection (bukan ruang tunggu umum).
+            Daftar sample yang belum maupun sudah diproses oleh LAB.
           </p>
         </div>
         <UButton
@@ -248,107 +310,163 @@ watch(
       </div>
     </template>
 
-    <div v-if="loading" class="flex items-center justify-center py-10 text-muted">
-      <UIcon name="i-lucide-loader-circle" class="animate-spin size-5" />
-      <span class="ml-2 text-sm">Memuat antrian sample…</span>
+    <div class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <UFormField label="Cari">
+        <UInput
+          v-model="searchInput"
+          icon="i-lucide-search"
+          placeholder="Pasien, RM, queue, barcode..."
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField label="Status">
+        <USelect
+          v-model="statusFilter"
+          :items="statusOptions"
+          value-key="value"
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField label="Tanggal Exam Dari">
+        <UInput
+          v-model="examDateFrom"
+          type="date"
+          :max="examDateTo || undefined"
+          class="w-full"
+        />
+      </UFormField>
+      <UFormField label="Tanggal Exam Sampai">
+        <UInput
+          v-model="examDateTo"
+          type="date"
+          :min="examDateFrom || undefined"
+          class="w-full"
+        />
+      </UFormField>
     </div>
 
-    <div v-else-if="error" class="py-8 text-center text-sm text-muted">
-      {{ error }}
-    </div>
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="soft"
+      class="mb-4"
+      :description="error"
+    />
 
-    <div v-else-if="!samples.length" class="py-10 text-center text-sm text-muted">
-      Tidak ada sample yang menunggu diterima.
-    </div>
-
-    <div v-else class="space-y-3">
-      <div
-        v-for="s in samples"
-        :key="s.id"
-        class="rounded-lg border border-default p-4"
+    <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-default">
+      <UTable
+        :data="samples"
+        :columns="columns"
+        :loading="loading"
+        sticky
+        class="w-full"
+        :ui="{
+          base: 'w-full table-fixed',
+          thead: 'sticky top-0 z-10 [&>tr]:bg-elevated',
+          th: 'whitespace-nowrap',
+          td: 'align-top'
+        }"
       >
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p class="text-sm font-semibold text-highlighted">
-              {{ formatPatient(s.queueEntry) }}
-              <span class="ml-1 font-normal text-muted">
-                ({{ s.queueEntry?.registration?.patient?.PatientId || '-' }})
-              </span>
+        <template #patient-cell="{ row }">
+          <div class="break-words">
+            <p class="font-medium text-highlighted">
+              {{ formatPatient(row.original.queueEntry) }}
             </p>
             <p class="text-xs text-muted">
-              {{ s.sampleType?.name || 'Sample' }} ·
-              Queue {{ s.queueEntry?.queueCode || '-' }}
-            </p>
-            <p v-if="s.items?.length" class="mt-1 text-xs text-muted">
-              Item:
-              <span
-                v-for="it in s.items"
-                :key="it.id"
-                class="mr-1 inline-block rounded bg-muted/40 px-1.5 py-0.5"
-              >{{ it.item?.name || it.item?.code || 'Item' }}</span>
+              {{ row.original.queueEntry?.registration?.patient?.PatientId || '-' }}
+              · {{ row.original.queueEntry?.queueCode || '-' }}
             </p>
           </div>
-          <UBadge :color="s.status === 'RECEIVED' ? 'success' : (s.status === 'COLLECTED' ? 'info' : 'warning')">
-            {{ getSampleStatusLabel(s.status) }}
-          </UBadge>
-        </div>
+        </template>
 
-        <div class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-          <div>
-            <p class="text-xs text-muted">
-              Diambil (COLLECT)
-            </p>
-            <p class="text-highlighted">
-              {{ s.collectedByUser?.name || '-' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(s.collectedAt) }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Diterima (RECEIVE)
-            </p>
-            <p class="text-highlighted">
-              {{ s.receivedByUser?.name || '-' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(s.receivedAt) }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Lock petugas
-            </p>
-            <p class="text-highlighted">
-              {{ s.takenByUser?.name || 'Bebas' }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Tabung / Barcode
-            </p>
-            <p class="text-highlighted">
-              {{ s.tubeCount ?? 1 }} / {{ s.barcode || '-' }}
-            </p>
-          </div>
-        </div>
+        <template #examDate-cell="{ row }">
+          {{ row.original.queueEntry?.registration?.examDate || '-' }}
+        </template>
 
-        <div class="mt-3 flex flex-wrap items-center gap-2">
-          <UButton
-            color="success"
+        <template #sample-cell="{ row }">
+          <div class="break-words">
+            <p class="font-medium text-highlighted">
+              {{ row.original.sampleType?.name || 'Sample' }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ row.original.items?.map(item => item.item?.name || item.item?.code).filter(Boolean).join(', ') || '-' }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ row.original.tubeCount ?? 1 }} tabung · {{ row.original.barcode || 'Tanpa barcode' }}
+            </p>
+          </div>
+        </template>
+
+        <template #collection-cell="{ row }">
+          <p>{{ row.original.collectedByUser?.name || '-' }}</p>
+          <p class="text-xs text-muted">
+            {{ formatDateTime(row.original.collectedAt) }}
+          </p>
+        </template>
+
+        <template #receive-cell="{ row }">
+          <p>{{ row.original.receivedByUser?.name || '-' }}</p>
+          <p class="text-xs text-muted">
+            {{ formatDateTime(row.original.receivedAt) }}
+          </p>
+        </template>
+
+        <template #status-cell="{ row }">
+          <UBadge
+            :color="row.original.status === 'RECEIVED' ? 'success' : (row.original.status === 'COLLECTED' ? 'info' : 'warning')"
             variant="soft"
-            icon="i-lucide-package-check"
-            :loading="actionLoading[s.id]"
-            :disabled="!canReceive(s)"
-            @click="openReceiveModal(s)"
           >
-            Terima Sample
-          </UButton>
-          <span v-if="s.takenBy != null && !isTakenByMe(s)" class="text-xs text-warning">
-            Sedang diproses {{ s.takenByUser?.name || 'petugas lain' }}
-          </span>
-        </div>
+            {{ getSampleStatusLabel(row.original.status) }}
+          </UBadge>
+        </template>
+
+        <template #action-cell="{ row }">
+          <div v-if="row.original.status === 'COLLECTED'">
+            <UButton
+              color="success"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-package-check"
+              :loading="actionLoading[row.original.id]"
+              :disabled="!canReceive(row.original)"
+              @click="openReceiveModal(row.original)"
+            >
+              Terima Sample
+            </UButton>
+            <p
+              v-if="row.original.takenBy != null && !isTakenByMe(row.original)"
+              class="mt-1 text-xs text-warning"
+            >
+              Diproses petugas lain
+            </p>
+          </div>
+          <span v-else class="text-xs text-muted">-</span>
+        </template>
+
+        <template #empty>
+          <div class="py-10 text-center text-sm text-muted">
+            Tidak ada data sample.
+          </div>
+        </template>
+      </UTable>
+    </div>
+
+    <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-sm text-muted">
+        Menampilkan {{ samples.length }} dari {{ totalRows }} data
+      </p>
+      <div class="flex items-center gap-2">
+        <USelect
+          v-model="pageSize"
+          :items="pageSizeOptions"
+          value-key="value"
+          class="w-32"
+        />
+        <UPagination
+          v-model:page="currentPage"
+          :items-per-page="pageSize"
+          :total="totalRows"
+        />
       </div>
     </div>
   </UCard>
