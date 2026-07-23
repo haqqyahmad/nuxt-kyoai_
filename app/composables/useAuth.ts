@@ -1,3 +1,20 @@
+function base64UrlDecode(str: string): string {
+  str = str.replace(/-/g, '+').replace(/_/g, '/')
+  while (str.length % 4) str += '='
+  return atob(str)
+}
+
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return true
+    const decoded = JSON.parse(base64UrlDecode(payload))
+    return decoded.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
 export const useAuth = () => {
   const getToken = () => {
     if (!import.meta.client) return null
@@ -30,6 +47,7 @@ export const useAuth = () => {
   return {
     getToken,
     setToken,
-    removeToken
+    removeToken,
+    isJwtExpired
   }
 }

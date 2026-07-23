@@ -1,10 +1,15 @@
 export default defineNuxtRouteMiddleware(() => {
   if (import.meta.server) return
 
-  const { getToken } = useAuth()
+  const { getToken, removeToken, isJwtExpired } = useAuth()
 
-  // kalau sudah login → redirect ke dashboard
-  if (getToken()) {
-    return navigateTo('/')
+  const token = getToken()
+
+  if (token) {
+    if (isJwtExpired(token)) {
+      removeToken()
+    } else {
+      return navigateTo('/')
+    }
   }
 })

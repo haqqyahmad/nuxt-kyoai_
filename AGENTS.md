@@ -51,6 +51,7 @@ server/api/            # Nitro mock API
 - Instance Axios via `useApi()`.
 - Endpoint di config: `NUXT_PUBLIC_API_BASE`.
 - Auth: JWT token disimpan di localStorage (selalu, untuk mencegah logout di tab baru).
+- Auth: Middleware `auth.ts` cek JWT expiry — redirect ke login jika expired.
 - 401 → redirect ke `/login`.
 
 ### Permission System
