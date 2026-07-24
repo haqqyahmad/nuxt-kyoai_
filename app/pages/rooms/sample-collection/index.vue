@@ -389,55 +389,55 @@ onBeforeUnmount(() => {
           <div
             v-for="s in detailSamples"
             :key="s.id"
-            class="py-3 first:pt-0 last:pb-0"
+            class="py-4 first:pt-0 last:pb-0"
           >
             <div class="flex items-start justify-between gap-3">
-              <div class="space-y-2">
+              <div class="space-y-3">
                 <div class="flex items-center gap-2">
-                  <p class="font-medium text-highlighted">
+                  <p class="text-base font-semibold text-highlighted">
                     {{ s.sampleType?.name || 'Sample' }}
                   </p>
-                  <UBadge :color="statusColor(s.status)" variant="soft" size="xs">
+                  <UBadge :color="statusColor(s.status)" variant="soft" size="sm">
                     {{ statusLabel(s.status) }}
                   </UBadge>
                 </div>
 
-                <div class="grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
+                <div class="grid gap-x-8 gap-y-2 sm:grid-cols-2">
                   <div>
-                    <p class="text-xs text-muted">
+                    <p class="text-sm text-muted">
                       Tanggal Exam
                     </p>
-                    <p class="text-highlighted">
+                    <p class="text-sm font-medium text-highlighted">
                       {{ s.queueEntry?.registration?.examDate || '-' }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-xs text-muted">
+                    <p class="text-sm text-muted">
                       Barcode / Tabung
                     </p>
-                    <p class="text-highlighted">
+                    <p class="text-sm font-medium text-highlighted">
                       {{ s.barcode || '-' }} / {{ s.tubeCount ?? 1 }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-xs text-muted">
+                    <p class="text-sm text-muted">
                       Diambil oleh
                     </p>
-                    <p class="text-highlighted">
+                    <p class="text-sm font-medium text-highlighted">
                       {{ s.collectedByUser?.name || '-' }}
                     </p>
-                    <p v-if="s.collectedAt" class="text-xs text-muted">
+                    <p v-if="s.collectedAt" class="text-sm text-muted">
                       {{ formatDateTime(s.collectedAt) }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-xs text-muted">
+                    <p class="text-sm text-muted">
                       Diterima oleh
                     </p>
-                    <p class="text-highlighted">
+                    <p class="text-sm font-medium text-highlighted">
                       {{ s.receivedByUser?.name || '-' }}
                     </p>
-                    <p v-if="s.receivedAt" class="text-xs text-muted">
+                    <p v-if="s.receivedAt" class="text-sm text-muted">
                       {{ formatDateTime(s.receivedAt) }}
                     </p>
                   </div>
@@ -455,13 +455,13 @@ onBeforeUnmount(() => {
               class="mt-2"
             />
 
-            <div v-if="s.items?.length" class="mt-2 flex flex-wrap gap-1">
+            <div v-if="s.items?.length" class="mt-3 flex flex-wrap gap-1.5">
               <UBadge
                 v-for="item in s.items"
                 :key="item.id"
                 color="neutral"
                 variant="subtle"
-                size="xs"
+                size="sm"
               >
                 {{ item.item?.name || item.item?.code || 'Item' }}
               </UBadge>
