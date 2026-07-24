@@ -161,7 +161,7 @@ function statusLabel(status: string) {
   if (status === 'PENDING') return 'Belum Diambil'
   if (status === 'COLLECTED') return 'Sudah Diambil'
   if (status === 'RECEIVED') return 'Diterima Lab'
-  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'REJECTED') return 'Pasien Menolak'
   if (status === 'RESCHEDULED') return 'Reschedule'
   return status
 }
@@ -172,6 +172,11 @@ function statusColor(status: string) {
   if (status === 'REJECTED') return 'error'
   if (status === 'RESCHEDULED') return 'warning'
   return 'warning'
+}
+
+const sampleTypeColors = ['info', 'primary', 'success', 'warning', 'error', 'neutral'] as const
+function sampleTypeColor(index: number) {
+  return sampleTypeColors[index % sampleTypeColors.length]
 }
 
 async function handleGetPatient(row: GroupedRow) {
@@ -361,16 +366,28 @@ watch(
                   <td class="px-4 py-3 text-sm text-muted">
                     {{ row.queueCode }}
                   </td>
-                  <td class="px-4 py-3">
+                   <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-1">
-                      <UBadge v-for="t in row.sampleTypes" :key="t" color="info" variant="soft" size="xs">
+                      <UBadge
+                        v-for="(t, idx) in row.sampleTypes"
+                        :key="t"
+                        :color="sampleTypeColor(idx)"
+                        variant="soft"
+                        size="sm"
+                      >
                         {{ t }}
                       </UBadge>
                     </div>
                   </td>
                   <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-1">
-                      <UBadge v-for="s in row.statuses" :key="s" :color="statusColor(s)" variant="soft" size="xs">
+                      <UBadge
+                        v-for="s in row.statuses"
+                        :key="s"
+                        :color="statusColor(s)"
+                        variant="soft"
+                        size="sm"
+                      >
                         {{ statusLabel(s) }}
                       </UBadge>
                     </div>
