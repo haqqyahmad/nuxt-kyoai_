@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-24 11:15
+Last updated: 2026-07-24 12:00
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -56,13 +56,15 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - PRD frontend sudah diselaraskan dengan backend docs `docs/bmad`.
 - FE: Dokumentasi lengkap — update `02-fe-be-mapping.md` (tambah inbox, services, sample flow, exam-results, audit, questionnaire builder endpoints), `03-fe-components.md` (tambah 21 questionnaire components, HRIS leaves detail/create, attendance sub-components, stores, types, utils, constants, plugins, middleware, server mocks), `04-fe-todo.md` (update status services, exam-results, sample flow, leaves detail, reimbursement/recruitment), `system-flow.md` (tambah sample flow, exam-results flow, inbox/services/audit flows, perbarui endpoint map 40+ entries), `task-status.md`.
 - FE: Self-assign redirect — `assignments.vue` redirect ke `/rooms/sample-collection` jika room type code `LAB` atau `LAB-MCU`, selainnya tetap.
-- FE: Sample Collection enhance — `sample-collection/[id].vue` tambah room session management (enter/exit), "Mulai Pemeriksaan" button (stage start), "Selesaikan" button (stage done saat semua sample final), sidebar collapse, hapus duplicate UAlert.
-- FE: Hapus modal "Ambil Pasien" duplikat dari `sample-collection/[id].vue` — sudah ada di index.
-- FE: Tambah filter Date Between (dari/sampai) di `SampleCollectionPickModal.vue` untuk filter sample berdasarkan tanggal exam.
-- FE: Fix `SampleCollectionPickModal.vue` — fetch queue detail + call stage endpoint (`PATCH /stage/:stageId/call`) sebelum navigate ke [id]. Sebelumnya hanya navigate tanpa call, sehingga stage tetap WAITING dan tombol "Mulai Pemeriksaan" tidak muncul. Fix pakai `waitingStage.id` (bukan `waitingStage.stageId`) — API butuh QueueStageItem.id.
-- Flow: self-assign → redirect → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
-- FE: `canReject`/`canReschedule` harus cek `activeStage?.status === 'IN_PROGRESS'` — semua tombol aksi hanya muncul setelah "Mulai Pemeriksaan".
-- FE/BE: Fix reject sample — backend `rejectSample` izinkan status `PENDING` (sebelumnya hanya `COLLECTED`/`RECEIVED`). Fix pakai `payload.userId` (dari controller `req.user.id`), bukan `payload.rejectedBy`. Frontend hapus `rejectedBy` dari payload.
+- FE: Sample Collection enhance — `sample-collection/[id].vue` tambah room session management (enter/exit), "Mulai Pemeriksaan" (stage start), "Selesaikan" (stage done saat semua sample final), sidebar collapse, hapus duplicate UAlert. Hapus modal "Ambil Pasien" duplikat (sudah ada di index).
+- FE: `SampleCollectionPickModal.vue` — tambah filter Date Between (dari/sampai), fix call stage endpoint sebelum navigate — fetch queue detail → `PATCH /stage/:stageId/call` → navigate ke [id]. Fix pakai `waitingStage.id` (bukan `waitingStage.stageId`).
+- Documentation audit: compare seluruh kode FE dengan docs — update `02-fe-be-mapping.md`, `03-fe-components.md`, `04-fe-todo.md`, `system-flow.md`, `task-status.md`. Tambah 15+ section baru (inbox, services, sample flow, exam-results, audit, questionnaire builder, stores, types, utils, constants, plugins, middleware, server mocks).
+- FE/BE: Fix reject sample — backend `rejectSample` izinkan status `PENDING` + fix `sampleStageForStatus()`. FE `canReject`/`canReschedule` cek `IN_PROGRESS` stage.
+- Flow: self-assign ke LAB/LAB-MCU → redirect sample-collection → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
+- FE: History table — group by patient, sample type badges dengan warna, dropdown aksi (Lanjutkan/Detail). Hapus kolom Collection/Receive/Status.
+- FE: Modal detail — tampilkan semua sample pasien dengan Jenis Sample (Status), Tanggal Exam, Diambil oleh, Diterima oleh. Perbesar font.
+- BE: `excludeCalled` filter — exclude queue entries dengan stage CALLED/IN_PROGRESS dari daftar sample pick modal.
+- FE: `SampleCollectionPickModal` — group by patient, sample type & status badges, warna spesifik per sample type.
 
 ## Current Priority
 
