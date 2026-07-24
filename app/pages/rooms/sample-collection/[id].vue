@@ -288,7 +288,6 @@ async function confirmReject() {
   rejectSubmitting.value = true
   try {
     await api.patch(`/medical/exams/queue/samples/${rejectTarget.value.id}/reject`, {
-      rejectedBy: currentUserId.value,
       rejectReason: rejectReason.value.trim()
     })
     toast.add({ title: 'Berhasil', description: 'Sample ditolak.', color: 'success' })
