@@ -87,6 +87,8 @@ type ExamResultDetail = {
       valueNumber?: number | null
       valueSelected?: string | null
       valueCalculated?: number | null
+      flag?: 'normal' | 'abnormal' | null
+      grading?: 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC' | null
     }>
   } | null
   workHistory?: WorkHistoryEvent[]
@@ -413,8 +415,22 @@ function getDraftText(value: unknown) {
   return String(value ?? '').trim()
 }
 
+function getStoredInputResult(inputanId: string) {
+  return props.result?.exam?.results?.find(result => result.inputanId === inputanId)
+}
+
+function hasInputDraftValue(inputanId: string) {
+  const draft = resultDrafts.value[inputanId] || {}
+  return Boolean(
+    getDraftText(draft.valueNumber)
+    || getDraftText(draft.valueCalculated)
+    || getDraftText(draft.valueString)
+    || getDraftText(draft.valueSelected)
+  )
+}
+
 function getInputResultValue(inputanId: string) {
-  const existing = props.result?.exam?.results?.find(result => result.inputanId === inputanId)
+  const existing = getStoredInputResult(inputanId)
   const draft = resultDrafts.value[inputanId] || {}
 
   if (getDraftText(draft.valueNumber)) {
@@ -446,7 +462,15 @@ function getInputResultValue(inputanId: string) {
   return { raw: '', numeric: null }
 }
 
+function getStoredResultFlag(inputanId: string) {
+  if (hasInputDraftValue(inputanId)) return null
+  return getStoredInputResult(inputanId)?.flag ?? null
+}
+
 function isResultOutsideNormalRange(inputan: ExamInput) {
+  const storedFlag = getStoredResultFlag(inputan.id)
+  if (storedFlag) return storedFlag === 'abnormal'
+
   const ranges = getPatientMatchedDisplayNormalRanges(inputan)
   if (!ranges.length) return false
 
@@ -483,6 +507,22 @@ function getResultInputClass(inputan: ExamInput) {
 }
 
 function getResultNormalityState(inputan: ExamInput) {
+  const storedFlag = getStoredResultFlag(inputan.id)
+  if (storedFlag === 'abnormal') {
+    return {
+      label: 'Abnormal',
+      color: 'error' as const,
+      tone: 'Outside the normal range'
+    }
+  }
+  if (storedFlag === 'normal') {
+    return {
+      label: 'Normal',
+      color: 'success' as const,
+      tone: 'Inside the normal range'
+    }
+  }
+
   const ranges = getPatientMatchedDisplayNormalRanges(inputan)
   const resultValue = getInputResultValue(inputan.id)
 
