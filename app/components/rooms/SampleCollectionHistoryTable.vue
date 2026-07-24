@@ -240,7 +240,7 @@ const table = useVueTable({
           <template v-else-if="cell.column.id === 'action'">
             <UDropdownMenu
               :items="[[
-                ...(tableRow.original.queueEntry?.id ? [{
+                ...(tableRow.original.status === 'PENDING' && tableRow.original.queueEntry?.id ? [{
                   label: 'Lanjutkan',
                   icon: 'i-lucide-arrow-right',
                   onSelect: () => emit('navigate', tableRow.original)
