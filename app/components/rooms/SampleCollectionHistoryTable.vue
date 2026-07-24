@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import type { ColumnDef } from '@tanstack/vue-table'
-import { FlexRender, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
+import { FlexRender, getCoreRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table'
 import { computed } from 'vue'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table/exports'
 
 type SampleUser = { id: number, name: string, email?: string | null }
 
@@ -28,6 +20,7 @@ export type SampleCollectionHistoryRow = {
     queueCode?: string | null
     registration?: {
       examDate?: string | null
+      id_reg?: string | null
       patient?: {
         PatientId?: string | null
         firstName?: string | null
@@ -42,6 +35,8 @@ export type SampleCollectionHistoryRow = {
   }>
 }
 
+type BadgeColor = 'success' | 'info' | 'error' | 'warning' | 'neutral'
+
 const props = defineProps<{
   data: SampleCollectionHistoryRow[]
   loading?: boolean
@@ -50,24 +45,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   detail: [row: SampleCollectionHistoryRow]
 }>()
-
-const columns: ColumnDef<SampleCollectionHistoryRow>[] = [
-  { id: 'patient', header: 'Pasien' },
-  { id: 'examDate', header: 'Tanggal Exam' },
-  { id: 'sample', header: 'Sample / Item' },
-  { id: 'collection', header: 'Collection' },
-  { id: 'receive', header: 'Receive' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'action', header: 'Aksi' }
-]
-
-const tableData = computed(() => props.data)
-
-const table = useVueTable({
-  data: tableData,
-  columns,
-  getCoreRowModel: getCoreRowModel()
-})
 
 function patientName(row: SampleCollectionHistoryRow) {
   const patient = row.queueEntry?.registration?.patient
@@ -95,29 +72,82 @@ function statusLabel(status: string) {
   return status
 }
 
-function statusClass(status: string) {
-  if (status === 'RECEIVED') return 'bg-success/15 text-success'
-  if (status === 'COLLECTED') return 'bg-info/15 text-info'
-  if (status === 'REJECTED') return 'bg-error/15 text-error'
-  if (status === 'RESCHEDULED') return 'bg-warning/15 text-warning'
-  return 'bg-muted text-muted'
+function statusColor(status: string): BadgeColor {
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'warning'
+  return 'neutral'
 }
+
+const columns: ColumnDef<SampleCollectionHistoryRow>[] = [
+  {
+    id: 'patient',
+    header: 'Pasien',
+    accessorFn: row => patientName(row),
+    enableSorting: true
+  },
+  {
+    id: 'examDate',
+    header: 'Tanggal Exam',
+    accessorFn: row => row.queueEntry?.registration?.examDate || '',
+    enableSorting: true
+  },
+  {
+    id: 'sample',
+    header: 'Sample / Item',
+    accessorFn: row => row.sampleType?.name || '',
+    enableSorting: true
+  },
+  {
+    id: 'collection',
+    header: 'Collection',
+    accessorFn: row => row.collectedByUser?.name || '',
+    enableSorting: true
+  },
+  {
+    id: 'receive',
+    header: 'Receive',
+    accessorFn: row => row.receivedByUser?.name || '',
+    enableSorting: true
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    enableSorting: true
+  },
+  {
+    id: 'action',
+    header: 'Aksi',
+    enableSorting: false
+  }
+]
+
+const tableData = computed(() => props.data)
+
+const table = useVueTable({
+  data: tableData,
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel()
+})
 </script>
 
 <template>
-  <Table class="table-fixed">
-    <TableHeader class="sticky top-0 z-10 bg-elevated">
-      <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-        <TableHead
-          v-for="header in headerGroup.headers"
+  <table class="w-full text-sm">
+    <thead class="sticky top-0 z-10 bg-elevated/95 backdrop-blur-sm">
+      <tr class="border-b border-default">
+        <th
+          v-for="header in table.getHeaderGroups()[0]?.headers ?? []"
           :key="header.id"
+          class="px-4 py-3 text-left text-xs font-medium text-muted"
           :class="{
-            'w-[19%]': header.column.id === 'patient',
-            'w-[11%]': header.column.id === 'examDate',
+            'w-[22%]': header.column.id === 'patient',
+            'w-[12%]': header.column.id === 'examDate',
             'w-[20%]': header.column.id === 'sample',
             'w-[14%]': ['collection', 'receive'].includes(header.column.id),
             'w-[12%]': header.column.id === 'status',
-            'w-[10%]': header.column.id === 'action'
+            'w-[8%]': header.column.id === 'action'
           }"
         >
           <FlexRender
@@ -125,40 +155,47 @@ function statusClass(status: string) {
             :render="header.column.columnDef.header"
             :props="header.getContext()"
           />
-        </TableHead>
-      </TableRow>
-    </TableHeader>
+        </th>
+      </tr>
+    </thead>
 
-    <TableBody>
-      <TableRow v-if="loading">
-        <TableCell :colspan="columns.length" class="h-64 text-center text-muted">
-          Memuat history sample collection...
-        </TableCell>
-      </TableRow>
+    <tbody>
+      <tr v-if="loading">
+        <td :colspan="columns.length" class="h-64 text-center text-muted">
+          <div class="flex items-center justify-center gap-2">
+            <UIcon name="i-lucide-loader-circle" class="animate-spin size-4" />
+            <span>Memuat data...</span>
+          </div>
+        </td>
+      </tr>
 
-      <TableRow v-else-if="!table.getRowModel().rows.length">
-        <TableCell :colspan="columns.length" class="h-64 text-center text-muted">
-          Tidak ada history sample collection.
-        </TableCell>
-      </TableRow>
+      <tr v-else-if="!table.getRowModel().rows.length">
+        <td :colspan="columns.length" class="h-64 text-center text-muted">
+          <div class="flex flex-col items-center gap-2">
+            <UIcon name="i-lucide-inbox" class="size-8 text-muted/50" />
+            <span>Tidak ada data sample collection.</span>
+          </div>
+        </td>
+      </tr>
 
-      <TableRow
+      <tr
         v-for="tableRow in table.getRowModel().rows"
         v-else
         :key="tableRow.id"
+        class="border-b border-default/50 transition-colors hover:bg-muted/30"
       >
-        <TableCell
+        <td
           v-for="cell in tableRow.getVisibleCells()"
           :key="cell.id"
-          class="break-words align-top"
+          class="px-4 py-3 align-top"
         >
           <template v-if="cell.column.id === 'patient'">
             <p class="font-medium text-highlighted">
               {{ patientName(tableRow.original) }}
             </p>
             <p class="text-xs text-muted">
-              {{ tableRow.original.queueEntry?.registration?.patient?.PatientId || '-' }}
-              · {{ tableRow.original.queueEntry?.queueCode || '-' }}
+              {{ tableRow.original.queueEntry?.registration?.id_reg || '-' }}
+              · Queue {{ tableRow.original.queueEntry?.queueCode || '-' }}
             </p>
           </template>
 
@@ -192,24 +229,25 @@ function statusClass(status: string) {
             </p>
           </template>
 
-          <span
+          <UBadge
             v-else-if="cell.column.id === 'status'"
-            class="inline-flex rounded-full px-2 py-1 text-xs font-medium"
-            :class="statusClass(tableRow.original.status)"
+            :color="statusColor(tableRow.original.status)"
+            variant="soft"
           >
             {{ statusLabel(tableRow.original.status) }}
-          </span>
+          </UBadge>
 
-          <button
+          <UButton
             v-else-if="cell.column.id === 'action'"
-            type="button"
-            class="inline-flex cursor-pointer items-center rounded-md border border-default bg-elevated px-2.5 py-1.5 text-xs font-medium text-highlighted hover:bg-muted"
+            size="xs"
+            color="neutral"
+            variant="soft"
             @click="emit('detail', tableRow.original)"
           >
             Detail
-          </button>
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  </Table>
+          </UButton>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </template>
