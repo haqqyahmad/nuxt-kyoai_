@@ -37,6 +37,16 @@ export type SampleCollectionHistoryRow = {
 
 type BadgeColor = 'success' | 'info' | 'error' | 'warning' | 'neutral'
 
+type GroupedRow = {
+  queueEntryId: string
+  queueCode: string
+  idReg: string
+  patientName: string
+  patientId: string
+  examDate: string
+  samples: SampleCollectionHistoryRow[]
+}
+
 const props = defineProps<{
   data: SampleCollectionHistoryRow[]
   loading?: boolean
@@ -52,16 +62,6 @@ function patientName(row: SampleCollectionHistoryRow) {
   return [patient?.firstName, patient?.middleName, patient?.lastName]
     .filter(Boolean)
     .join(' ') || '-'
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(date)
 }
 
 function statusLabel(status: string) {
@@ -81,41 +81,61 @@ function statusColor(status: string): BadgeColor {
   return 'neutral'
 }
 
-const columns: ColumnDef<SampleCollectionHistoryRow>[] = [
+const sampleTypeColorMap: Record<string, string> = {
+  'Darah': 'error',
+  'Serum': 'warning',
+  'Plasma': 'info',
+  'Urine': 'success',
+  'Feses': 'neutral',
+  'Sputum': 'primary',
+  'Swab': 'info',
+  'Semen': 'warning',
+  'Aspirat': 'error',
+  'Jaringan': 'primary'
+}
+const defaultSampleColor = 'neutral'
+function sampleTypeColor(name: string) {
+  return sampleTypeColorMap[name] ?? defaultSampleColor
+}
+
+function groupByPatient(rows: SampleCollectionHistoryRow[]): GroupedRow[] {
+  const map = new Map<string, GroupedRow>()
+  for (const row of rows) {
+    const key = row.queueEntry?.id ?? row.id
+    if (!map.has(key)) {
+      const p = row.queueEntry?.registration?.patient
+      map.set(key, {
+        queueEntryId: row.queueEntry?.id ?? '',
+        queueCode: row.queueEntry?.queueCode || '-',
+        idReg: row.queueEntry?.registration?.id_reg || '-',
+        patientName: [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-',
+        patientId: p?.PatientId || '-',
+        examDate: row.queueEntry?.registration?.examDate || '-',
+        samples: []
+      })
+    }
+    map.get(key)!.samples.push(row)
+  }
+  return Array.from(map.values())
+}
+
+const groupedData = computed(() => groupByPatient(props.data))
+
+const columns: ColumnDef<GroupedRow>[] = [
   {
     id: 'patient',
     header: 'Pasien',
-    accessorFn: row => patientName(row),
-    enableSorting: true
+    enableSorting: false
   },
   {
     id: 'examDate',
     header: 'Tanggal Exam',
-    accessorFn: row => row.queueEntry?.registration?.examDate || '',
-    enableSorting: true
+    enableSorting: false
   },
   {
     id: 'sample',
     header: 'Sample / Item',
-    accessorFn: row => row.sampleType?.name || '',
-    enableSorting: true
-  },
-  {
-    id: 'collection',
-    header: 'Collection',
-    accessorFn: row => row.collectedByUser?.name || '',
-    enableSorting: true
-  },
-  {
-    id: 'receive',
-    header: 'Receive',
-    accessorFn: row => row.receivedByUser?.name || '',
-    enableSorting: true
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    enableSorting: true
+    enableSorting: false
   },
   {
     id: 'action',
@@ -124,10 +144,8 @@ const columns: ColumnDef<SampleCollectionHistoryRow>[] = [
   }
 ]
 
-const tableData = computed(() => props.data)
-
 const table = useVueTable({
-  data: tableData,
+  data: groupedData,
   columns,
   getCoreRowModel: getCoreRowModel(),
   getSortedRowModel: getSortedRowModel()
@@ -143,11 +161,10 @@ const table = useVueTable({
           :key="header.id"
           class="px-4 py-3 text-left text-xs font-medium text-muted"
           :class="{
-            'w-[22%]': header.column.id === 'patient',
+            'w-[30%]': header.column.id === 'patient',
             'w-[12%]': header.column.id === 'examDate',
-            'w-[20%]': header.column.id === 'sample',
-            'w-[14%]': ['collection', 'receive', 'action'].includes(header.column.id),
-            'w-[10%]': header.column.id === 'status'
+            'w-[43%]': header.column.id === 'sample',
+            'w-[15%]': header.column.id === 'action'
           }"
         >
           <FlexRender
@@ -181,74 +198,65 @@ const table = useVueTable({
       <tr
         v-for="tableRow in table.getRowModel().rows"
         v-else
-        :key="tableRow.id"
+        :key="tableRow.original.queueEntryId"
         class="border-b border-default/50 transition-colors hover:bg-muted/30"
       >
         <td
           v-for="cell in tableRow.getVisibleCells()"
           :key="cell.id"
-          class="px-4 py-3 align-top"
+          class="px-4 py-3"
         >
           <template v-if="cell.column.id === 'patient'">
             <p class="font-medium text-highlighted">
-              {{ patientName(tableRow.original) }}
+              {{ tableRow.original.patientName }}
             </p>
             <p class="text-xs text-muted">
-              {{ tableRow.original.queueEntry?.registration?.id_reg || '-' }}
-              · Queue {{ tableRow.original.queueEntry?.queueCode || '-' }}
+              {{ tableRow.original.idReg }}
+              · Queue {{ tableRow.original.queueCode }}
             </p>
           </template>
 
           <template v-else-if="cell.column.id === 'examDate'">
-            {{ tableRow.original.queueEntry?.registration?.examDate || '-' }}
+            {{ tableRow.original.examDate }}
           </template>
 
           <template v-else-if="cell.column.id === 'sample'">
-            <p class="font-medium text-highlighted">
-              {{ tableRow.original.sampleType?.name || 'Sample' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ tableRow.original.items?.map(item => item.item?.name || item.item?.code).filter(Boolean).join(', ') || '-' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ tableRow.original.tubeCount ?? 1 }} tabung · {{ tableRow.original.barcode || 'Tanpa barcode' }}
-            </p>
+            <div class="flex flex-wrap gap-2">
+              <div
+                v-for="s in tableRow.original.samples"
+                :key="s.id"
+                class="flex items-center gap-2 rounded-lg border border-default/60 bg-muted/10 px-2.5 py-1.5"
+              >
+                <span class="font-medium text-highlighted">{{ s.sampleType?.name || 'Sample' }}</span>
+                <UBadge
+                  :color="statusColor(s.status)"
+                  variant="soft"
+                  size="xs"
+                >
+                  {{ statusLabel(s.status) }}
+                </UBadge>
+              </div>
+            </div>
           </template>
-
-          <template v-else-if="cell.column.id === 'collection'">
-            <p>{{ tableRow.original.collectedByUser?.name || '-' }}</p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(tableRow.original.collectedAt) }}
-            </p>
-          </template>
-
-          <template v-else-if="cell.column.id === 'receive'">
-            <p>{{ tableRow.original.receivedByUser?.name || '-' }}</p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(tableRow.original.receivedAt) }}
-            </p>
-          </template>
-
-          <UBadge
-            v-else-if="cell.column.id === 'status'"
-            :color="statusColor(tableRow.original.status)"
-            variant="soft"
-          >
-            {{ statusLabel(tableRow.original.status) }}
-          </UBadge>
 
           <template v-else-if="cell.column.id === 'action'">
             <UDropdownMenu
               :items="[[
-                ...(tableRow.original.status === 'PENDING' && tableRow.original.queueEntry?.id ? [{
+                ...(tableRow.original.samples.some(s => s.status === 'PENDING') && tableRow.original.queueEntryId ? [{
                   label: 'Lanjutkan',
                   icon: 'i-lucide-arrow-right',
-                  onSelect: () => emit('navigate', tableRow.original)
+                  onSelect: () => {
+                    const first = tableRow.original.samples[0]
+                    if (first) emit('navigate', first)
+                  }
                 }] : []),
                 {
                   label: 'Detail',
                   icon: 'i-lucide-eye',
-                  onSelect: () => emit('detail', tableRow.original)
+                  onSelect: () => {
+                    const first = tableRow.original.samples[0]
+                    if (first) emit('detail', first)
+                  }
                 }
               ]]"
               :content="{ align: 'end' }"

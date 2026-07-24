@@ -44,7 +44,8 @@ const rows = ref<SampleCollectionRow[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const detailOpen = ref(false)
-const detailRow = ref<SampleCollectionRow | null>(null)
+const detailSamples = ref<SampleCollectionRow[]>([])
+const detailPatient = ref<{ name: string, patientId: string, idReg: string, queueCode: string } | null>(null)
 const pickModalOpen = ref(false)
 
 const statusFilter = ref('ALL')
@@ -187,7 +188,27 @@ function statusColor(status: string): BadgeColor {
 }
 
 function openDetail(row: SampleCollectionRow) {
-  detailRow.value = row
+  const p = row.queueEntry?.registration?.patient
+  detailPatient.value = {
+    name: [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-',
+    patientId: p?.PatientId || '-',
+    idReg: row.queueEntry?.registration?.id_reg || '-',
+    queueCode: row.queueEntry?.queueCode || '-'
+  }
+  detailSamples.value = [row]
+  detailOpen.value = true
+}
+
+function openDetailGroup(samples: SampleCollectionRow[]) {
+  const first = samples[0]
+  const p = first?.queueEntry?.registration?.patient
+  detailPatient.value = {
+    name: [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-',
+    patientId: p?.PatientId || '-',
+    idReg: first?.queueEntry?.registration?.id_reg || '-',
+    queueCode: first?.queueEntry?.queueCode || '-'
+  }
+  detailSamples.value = samples
   detailOpen.value = true
 }
 
@@ -349,102 +370,104 @@ onBeforeUnmount(() => {
     :ui="{ content: 'sm:max-w-2xl' }"
   >
     <template #body>
-      <div v-if="detailRow" class="space-y-4">
+      <div v-if="detailPatient" class="space-y-4">
         <div class="flex items-center gap-3 rounded-lg bg-muted p-3">
           <UIcon name="i-lucide-user" class="size-5 text-muted" />
           <div>
             <p class="font-medium text-highlighted">
-              {{ formatPatient(detailRow.queueEntry) }}
+              {{ detailPatient.name }}
             </p>
             <p class="text-xs text-muted">
-              {{ detailRow.queueEntry?.registration?.patient?.PatientId || '-' }}
-              · Reg. {{ detailRow.queueEntry?.registration?.id_reg || '-' }}
-              · Queue {{ detailRow.queueEntry?.queueCode || '-' }}
+              {{ detailPatient.patientId }}
+              · Reg. {{ detailPatient.idReg }}
+              · Queue {{ detailPatient.queueCode }}
             </p>
           </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Jenis Sample
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ detailRow.sampleType?.name || '-' }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Status
-            </p>
-            <UBadge :color="statusColor(detailRow.status)" variant="soft">
-              {{ statusLabel(detailRow.status) }}
-            </UBadge>
-          </div>
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Barcode / Tabung
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ detailRow.barcode || '-' }} / {{ detailRow.tubeCount ?? 1 }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Tanggal Exam
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ detailRow.queueEntry?.registration?.examDate || '-' }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Diambil oleh
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ detailRow.collectedByUser?.name || '-' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(detailRow.collectedAt) }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <p class="text-xs text-muted">
-              Diterima oleh
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ detailRow.receivedByUser?.name || '-' }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ formatDateTime(detailRow.receivedAt) }}
-            </p>
-          </div>
-        </div>
+        <div class="divide-y divide-default/60">
+          <div
+            v-for="s in detailSamples"
+            :key="s.id"
+            class="py-3 first:pt-0 last:pb-0"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <p class="font-medium text-highlighted">
+                    {{ s.sampleType?.name || 'Sample' }}
+                  </p>
+                  <UBadge :color="statusColor(s.status)" variant="soft" size="xs">
+                    {{ statusLabel(s.status) }}
+                  </UBadge>
+                </div>
 
-        <div v-if="detailRow.items?.length" class="border-t border-default pt-4">
-          <p class="mb-2 text-xs font-medium text-muted">
-            Item Pemeriksaan
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <UBadge
-              v-for="item in detailRow.items"
-              :key="item.id"
-              color="neutral"
+                <div class="grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
+                  <div>
+                    <p class="text-xs text-muted">
+                      Tanggal Exam
+                    </p>
+                    <p class="text-highlighted">
+                      {{ s.queueEntry?.registration?.examDate || '-' }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted">
+                      Barcode / Tabung
+                    </p>
+                    <p class="text-highlighted">
+                      {{ s.barcode || '-' }} / {{ s.tubeCount ?? 1 }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted">
+                      Diambil oleh
+                    </p>
+                    <p class="text-highlighted">
+                      {{ s.collectedByUser?.name || '-' }}
+                    </p>
+                    <p v-if="s.collectedAt" class="text-xs text-muted">
+                      {{ formatDateTime(s.collectedAt) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted">
+                      Diterima oleh
+                    </p>
+                    <p class="text-highlighted">
+                      {{ s.receivedByUser?.name || '-' }}
+                    </p>
+                    <p v-if="s.receivedAt" class="text-xs text-muted">
+                      {{ formatDateTime(s.receivedAt) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <UAlert
+              v-if="s.status === 'REJECTED'"
+              color="error"
               variant="soft"
-            >
-              {{ item.item?.name || item.item?.code || 'Item' }}
-            </UBadge>
+              icon="i-lucide-x-circle"
+              title="Alasan Ditolak"
+              :description="s.rejectReason || '-'"
+              class="mt-2"
+            />
+
+            <div v-if="s.items?.length" class="mt-2 flex flex-wrap gap-1">
+              <UBadge
+                v-for="item in s.items"
+                :key="item.id"
+                color="neutral"
+                variant="subtle"
+                size="xs"
+              >
+                {{ item.item?.name || item.item?.code || 'Item' }}
+              </UBadge>
+            </div>
           </div>
         </div>
-
-        <UAlert
-          v-if="detailRow.status === 'REJECTED'"
-          color="error"
-          variant="soft"
-          icon="i-lucide-x-circle"
-          title="Alasan Ditolak"
-          :description="detailRow.rejectReason || '-'"
-        />
       </div>
     </template>
   </UModal>
