@@ -23,6 +23,26 @@ interface SampleCollectionRow {
   } | null
 }
 
+type StageQueueItem = {
+  id: string
+  stageId: string
+  stageOrder: number
+  status: string
+  roomId: string | null
+  stage?: { id: string, code: string, name: string } | null
+}
+
+type QueueDetail = {
+  id: string
+  queueCode?: string | null
+  roomItems?: Array<{
+    id: string
+    roomTypeId: string
+    status: string
+    stageItems?: StageQueueItem[]
+  }>
+}
+
 const props = defineProps<{
   open: boolean
 }>()
@@ -43,6 +63,8 @@ const rows = ref<SampleCollectionRow[]>([])
 const today = new Date().toISOString().slice(0, 10)
 const dateFrom = ref(today)
 const dateTo = ref(today)
+const callLoading = ref<Record<string, boolean>>({})
+const toast = useToast()
 
 const isOpen = computed({
   get: () => props.open,
@@ -106,9 +128,66 @@ function patientName(row: SampleCollectionRow) {
 
 async function handleGetPatient(row: SampleCollectionRow) {
   const queueEntryId = row.queueEntry?.id
-  if (!queueEntryId) return
-  await router.push(`/rooms/sample-collection/${queueEntryId}`)
-  isOpen.value = false
+  if (!queueEntryId || callLoading.value[queueEntryId]) return
+
+  callLoading.value = { ...callLoading.value, [queueEntryId]: true }
+  try {
+    const detailRes = await api.get(`/medical/exams/queue/${queueEntryId}`)
+    const detailPayload = detailRes.data?.data ?? detailRes.data ?? null
+    const queueDetail = detailPayload as QueueDetail | null
+
+    const roomItems = queueDetail?.roomItems ?? []
+    let stageId: string | null = null
+    for (const item of roomItems) {
+      const waitingStage = item.stageItems?.find(
+        (s: StageQueueItem) => s.status === 'WAITING'
+      )
+      if (waitingStage) {
+        stageId = waitingStage.stageId
+        break
+      }
+    }
+
+    if (!stageId) {
+      toast.add({
+        title: 'Tidak ada stage waiting',
+        description: 'Pasien ini tidak memiliki stage yang bisa dipanggil.',
+        color: 'warning'
+      })
+      return
+    }
+
+    await api.patch(`/medical/exams/queue/stage/${stageId}/call`, {
+      roomId: roomSession.value?.roomId ?? undefined,
+      roomTypeId: roomSession.value?.roomTypeId ?? undefined
+    })
+
+    await router.push(`/rooms/sample-collection/${queueEntryId}`)
+    isOpen.value = false
+
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien berhasil diambil dari waiting list.',
+      color: 'success'
+    })
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 409) {
+      toast.add({
+        title: 'Sudah diambil ruangan lain',
+        description: 'Pasien ini sudah dipanggil oleh ruangan lain.',
+        color: 'warning'
+      })
+    } else {
+      toast.add({
+        title: 'Gagal mengambil pasien',
+        description: 'Terjadi kesalahan saat mengambil pasien.',
+        color: 'error'
+      })
+    }
+  } finally {
+    callLoading.value = { ...callLoading.value, [queueEntryId]: false }
+  }
 }
 
 watch(
@@ -250,6 +329,8 @@ watch(
                       color="primary"
                       variant="soft"
                       icon="i-lucide-user-check"
+                      :loading="row.queueEntry?.id ? callLoading[row.queueEntry.id] : false"
+                      :disabled="!roomSession"
                       @click="handleGetPatient(row)"
                     >
                       Pilih
