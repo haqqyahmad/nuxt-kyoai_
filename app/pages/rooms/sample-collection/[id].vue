@@ -259,7 +259,7 @@ async function receiveSample(sample: SampleCollectionRow) {
 const currentUserId = computed(() => user.value?.id ?? null)
 
 function canReject(sample: SampleCollectionRow) {
-  return sample.status !== 'REJECTED' && sample.status !== 'RESCHEDULED' && activeStage.value?.status === 'IN_PROGRESS'
+  return (sample.status === 'COLLECTED' || sample.status === 'RECEIVED') && activeStage.value?.status === 'IN_PROGRESS'
 }
 
 function canReschedule(sample: SampleCollectionRow) {
