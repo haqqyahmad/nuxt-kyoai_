@@ -199,13 +199,16 @@ async function saveGroup() {
     return
   }
 
+  // Validasi defensif: parentId boleh string non-empty apa pun (backend validasi UUID/ID existing)
+  const parentId = form.parentId && form.parentId.trim() ? form.parentId.trim() : null
+
   saving.value = true
   try {
     const payload = {
       departmentId: form.departmentId,
       name: form.name.trim(),
       code: form.code.trim() || null,
-      parentId: form.parentId || null,
+      parentId,
       sortOrder: Number(form.sortOrder || 0)
     }
 
