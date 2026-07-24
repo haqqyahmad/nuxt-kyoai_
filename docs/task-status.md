@@ -59,7 +59,7 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: Sample Collection enhance — `sample-collection/[id].vue` tambah room session management (enter/exit), "Mulai Pemeriksaan" button (stage start), "Selesaikan" button (stage done saat semua sample final), sidebar collapse, hapus duplicate UAlert.
 - FE: Hapus modal "Ambil Pasien" duplikat dari `sample-collection/[id].vue` — sudah ada di index.
 - FE: Tambah filter Date Between (dari/sampai) di `SampleCollectionPickModal.vue` untuk filter sample berdasarkan tanggal exam.
-- FE: Fix `SampleCollectionPickModal.vue` — fetch queue detail + call stage endpoint (`PATCH /stage/:stageId/call`) sebelum navigate ke [id]. Sebelumnya hanya navigate tanpa call, sehingga stage tetap WAITING dan tombol "Mulai Pemeriksaan" tidak muncul.
+- FE: Fix `SampleCollectionPickModal.vue` — fetch queue detail + call stage endpoint (`PATCH /stage/:stageId/call`) sebelum navigate ke [id]. Sebelumnya hanya navigate tanpa call, sehingga stage tetap WAITING dan tombol "Mulai Pemeriksaan" tidak muncul. Fix pakai `waitingStage.id` (bukan `waitingStage.stageId`) — API butuh QueueStageItem.id.
 - Flow: self-assign → redirect → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
 
 ## Current Priority
