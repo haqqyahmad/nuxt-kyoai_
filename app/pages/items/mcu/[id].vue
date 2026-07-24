@@ -69,6 +69,11 @@ type ItemDetail = {
     code: string
     name: string
   } | null
+  roomType?: {
+    id: string
+    code: string
+    name: string
+  } | null
   group?: ItemGroup | null
   inputans?: ItemInputan[]
   sampleTypes?: Array<{
@@ -188,6 +193,12 @@ const summaryCards = computed(() => [
   {
     label: 'Department',
     value: item.value?.department?.name ?? '-'
+  },
+  {
+    label: 'Room',
+    value: item.value?.roomType
+      ? `${item.value.roomType.code} - ${item.value.roomType.name}`
+      : '-'
   },
   {
     label: 'Group',

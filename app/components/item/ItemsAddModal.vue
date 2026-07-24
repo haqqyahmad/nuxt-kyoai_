@@ -1,9 +1,25 @@
 <script setup lang="ts">
 import { reactive, computed, watch, ref } from 'vue'
 import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
+import { useRoomTypes } from '~/composables/useRoomTypes'
 
 const emit = defineEmits<{
   success: []
+}>()
+
+const props = defineProps<{
+  item?: {
+    id: string
+    code: string
+    name: string
+    resultTiming: 'inline' | 'deferred'
+    departmentId: string | null
+    roomTypeId: string
+    groupId: string | null
+    price: number
+    description: string | null
+    isActive: boolean
+  } | null
 }>()
 
 const open = defineModel<boolean>('open', {
@@ -12,12 +28,13 @@ const open = defineModel<boolean>('open', {
 
 const api = useApi()
 const toast = useToast()
+const { roomTypeOptions } = await useRoomTypes()
 
 const loading = ref(false)
-const activeTab = ref('info') // 'info' | 'template'
+const activeTab = ref('info')
 const createdItemId = ref<string | null>(null)
-const itemCreated = ref(false) // track if item has been created
-const creatingItem = ref(false) // track background item creation
+const itemCreated = ref(false)
+const creatingItem = ref(false)
 
 type ItemGroup = {
   id: string
@@ -53,12 +70,31 @@ const form = reactive({
   name: '',
   resultTiming: 'inline',
   departmentId: '',
+  roomTypeId: '',
   groupId: '',
   subgroupId: '',
   price: 0,
   description: '',
   isActive: true
 })
+
+// Populate form when editing
+watch(() => props.item, (item) => {
+  if (item) {
+    form.code = item.code
+    form.name = item.name
+    form.resultTiming = item.resultTiming
+    form.departmentId = item.departmentId || ''
+    form.roomTypeId = item.roomTypeId
+    form.groupId = item.groupId || ''
+    form.price = item.price || 0
+    form.description = item.description || ''
+    form.isActive = item.isActive
+    // For edit mode, item is already created
+    createdItemId.value = item.id
+    itemCreated.value = true
+  }
+}, { immediate: true, deep: true })
 
 const rootGroups = computed(() =>
   groups.value
@@ -137,7 +173,7 @@ watch(
   }
 )
 
-const isValid = computed(() => form.code.trim() && form.name.trim() && form.departmentId)
+const isValid = computed(() => form.code.trim() && form.name.trim() && form.departmentId && form.roomTypeId)
 
 const resultTimingOptions = [
   { label: 'Inline', value: 'inline' },
@@ -163,6 +199,7 @@ function resetAll() {
   form.name = ''
   form.resultTiming = 'inline'
   form.departmentId = ''
+  form.roomTypeId = ''
   form.groupId = ''
   form.subgroupId = ''
   form.price = 0
@@ -175,16 +212,40 @@ function resetAll() {
 }
 
 watch(open, (val) => {
-  if (!val) resetAll()
+  if (!val) {
+    if (!props.item) {
+      resetAll()
+    } else {
+      // In edit mode, just reset to original item data
+      const item = props.item
+      form.code = item.code
+      form.name = item.name
+      form.resultTiming = item.resultTiming
+      form.departmentId = item.departmentId || ''
+      form.roomTypeId = item.roomTypeId
+      form.groupId = item.groupId || ''
+      form.price = item.price || 0
+      form.description = item.description || ''
+      form.isActive = item.isActive
+      createdItemId.value = item.id
+      itemCreated.value = true
+      activeTab.value = 'info'
+    }
+  }
 })
 
 // Auto-create item when switching to template tab (like edit mode)
 async function ensureItemCreated() {
   if (itemCreated.value || creatingItem.value) return
+  if (props.item) {
+    // Already in edit mode, item exists
+    itemCreated.value = true
+    return
+  }
   if (!isValid.value) {
     toast.add({
       title: 'Validasi gagal',
-      description: 'Isi kode, nama, dan department terlebih dahulu',
+      description: 'Isi kode, nama, department, dan room type terlebih dahulu',
       color: 'error'
     })
     activeTab.value = 'info'
@@ -198,6 +259,7 @@ async function ensureItemCreated() {
       name: form.name,
       resultTiming: form.resultTiming,
       departmentId: form.departmentId || null,
+      roomTypeId: form.roomTypeId,
       groupId: form.subgroupId || form.groupId || null,
       price: form.price,
       description: form.description,
@@ -297,7 +359,7 @@ async function submit() {
         color: 'success'
       })
     }
-    emit('success')
+emit('success')
   } catch (error: any) {
     toast.add({
       title: 'Gagal',
@@ -329,10 +391,10 @@ function handleDone() {
           <div class="flex items-center justify-between">
             <div>
               <h2 class="text-lg font-semibold">
-                {{ activeTab === 'info' ? 'Add Item' : 'Template Exam' }}
+                {{ props.item ? 'Edit Item' : activeTab === 'info' ? 'Add Item' : 'Template Exam' }}
               </h2>
               <p class="text-sm text-muted">
-                {{ activeTab === 'info' ? 'Tambahkan item layanan baru' : `Konfigurasi komponen pemeriksaan untuk item` }}
+                {{ props.item ? 'Perbarui data item' : activeTab === 'info' ? 'Tambahkan item layanan baru' : `Konfigurasi komponen pemeriksaan untuk item` }}
               </p>
             </div>
             <UButton
@@ -396,6 +458,25 @@ function handleDone() {
                   placeholder="Select department"
                   class="w-full"
                 />
+              </UFormField>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <UFormField label="Room Type" required>
+                <USelectMenu
+                  v-model="form.roomTypeId"
+                  :items="roomTypeOptions"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Select room type"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Info">
+                <div class="flex h-10 items-center text-sm text-muted">
+                  Item wajib tahu room type yang boleh dimasuki saat check-in.
+                </div>
               </UFormField>
             </div>
 

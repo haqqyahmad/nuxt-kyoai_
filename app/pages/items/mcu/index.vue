@@ -7,6 +7,7 @@ import type { Row } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
 import ItemExamTemplateModal from '~/components/item/itemExamTemplateModal.vue'
+import type { ItemDetail } from './[id].vue'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -25,6 +26,11 @@ type Item = {
   department?: {
     id: string,
     code?: string | null
+    name: string
+  } | null
+  roomType?: {
+    id: string
+    code: string
     name: string
   } | null
   group?: {
@@ -167,6 +173,10 @@ const isDeleteModalOpen = ref(false)
 const isExamTemplateModalOpen = ref(false)
 const selectedTemplateItem = ref<{ id: string; name: string } | null>(null)
 
+// ─── Edit Item Modal ───────────────────────────────────────────────────────────
+const isEditModalOpen = ref(false)
+const editItemData = ref<Item | null>(null)
+
 function getGroupBreadcrumb(item: Item) {
   const parts = []
 
@@ -223,6 +233,12 @@ async function deleteSelectedItems() {
   }
 }
 
+// ─── Edit Item ──────────────────────────────────────────────────────────────────
+function editItem(item: ItemDetail) {
+  editItemData.value = item
+  isEditModalOpen.value = true
+}
+
 function sortableHeader(label: string, column: SortableColumn) {
   const isSorted = column.getIsSorted()
   return h(UButton, {
@@ -246,6 +262,13 @@ function getRowItems(row: Row<Item>): DropdownMenuItem[][] {
         label: 'View detail',
         icon: 'i-lucide-eye',
         to: `/items/mcu/${row.original.id}`
+      },
+      {
+        label: 'Edit',
+        icon: 'i-lucide-edit',
+        onSelect() {
+          editItem(row.original)
+        }
       },
       {
         label: 'Edit Template Exam',
@@ -329,6 +352,13 @@ const columns: TableColumn<Item>[] = [
         variant: 'subtle'
       })
     }
+  },
+  {
+    id: 'roomType',
+    header: ({ column }) => sortableHeader('Room', column),
+    cell: ({ row }) => row.original.roomType
+      ? `${row.original.roomType.code} - ${row.original.roomType.name}`
+      : '-'
   },
   {
     accessorKey: 'isActive',
@@ -550,6 +580,13 @@ watch(currentPage, (page) => {
       <!-- Add item modal -->
       <ItemsAddModal
         v-model:open="isAddModalOpen"
+        @success="refresh()"
+      />
+
+      <!-- Edit item modal -->
+      <ItemsAddModal
+        v-model:open="isEditModalOpen"
+        :item="editItemData"
         @success="refresh()"
       />
 
