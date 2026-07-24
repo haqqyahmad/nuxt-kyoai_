@@ -404,6 +404,13 @@ async function submitSelfAssignment() {
     })
 
     await refreshMyAssignment()
+
+    const assignedRoom = rooms.value.find(r => r.id === selfForm.roomId)
+    const roomTypeCode = assignedRoom?.roomType?.code
+
+    if (roomTypeCode === 'LAB' || roomTypeCode === 'LAB-MCU') {
+      await navigateTo('/rooms/sample-collection')
+    }
   } catch (error: unknown) {
     toast.add({
       title: 'Gagal',

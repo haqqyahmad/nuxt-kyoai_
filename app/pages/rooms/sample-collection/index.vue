@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import SampleCollectionPickModal from '~/components/rooms/SampleCollectionPickModal.vue'
-import SampleCollectionHistoryTable from '~/components/rooms/SampleCollectionHistoryTable.vue'
-
 type SampleUser = { id: number, name: string, email?: string | null }
 type SampleCollectionRow = {
   id: string
@@ -235,7 +232,7 @@ onBeforeUnmount(() => {
 <template>
   <UDashboardPanel id="sample-collection">
     <template #header>
-      <UDashboardNavbar title="History Sample Collection">
+      <UDashboardNavbar title="Sample Collection">
         <template #right>
           <UBadge
             v-if="activeRoomSession"
@@ -259,33 +256,19 @@ onBeforeUnmount(() => {
             color="neutral"
             :loading="loading"
             @click="loadHistory"
-          >
-            Refresh
-          </UButton>
+          />
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <UCard class="w-full max-w-none border border-default/80 shadow-sm">
-        <template #header>
-          <div>
-            <h3 class="font-semibold text-highlighted">
-              History Sample Collection
-            </h3>
-            <p class="text-sm text-muted">
-              Riwayat sample dari proses pengambilan sampai diterima LAB.
-            </p>
-          </div>
-        </template>
-
+      <UCard>
         <div class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <UFormField label="Cari">
             <UInput
               v-model="searchInput"
               icon="i-lucide-search"
               placeholder="Pasien, RM, queue, barcode..."
-              class="w-full"
             />
           </UFormField>
           <UFormField label="Status">
@@ -293,7 +276,6 @@ onBeforeUnmount(() => {
               v-model="statusFilter"
               :items="statusOptions"
               value-key="value"
-              class="w-full"
             />
           </UFormField>
           <UFormField label="Tanggal Exam Dari">
@@ -301,7 +283,6 @@ onBeforeUnmount(() => {
               v-model="examDateFrom"
               type="date"
               :max="examDateTo || undefined"
-              class="w-full"
             />
           </UFormField>
           <UFormField label="Tanggal Exam Sampai">
@@ -309,7 +290,6 @@ onBeforeUnmount(() => {
               v-model="examDateTo"
               type="date"
               :min="examDateFrom || undefined"
-              class="w-full"
             />
           </UFormField>
         </div>
@@ -324,15 +304,15 @@ onBeforeUnmount(() => {
           icon="i-lucide-alert-triangle"
         />
 
-        <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-default">
-          <SampleCollectionHistoryTable
+        <div class="max-h-[calc(100vh-24rem)] min-h-[20rem] overflow-auto rounded-lg border border-default">
+          <RoomsSampleCollectionHistoryTable
             :data="rows"
             :loading="loading"
             @detail="openDetail"
           />
         </div>
 
-        <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="mt-4 flex items-center justify-between border-t border-default pt-4">
           <p class="text-sm text-muted">
             Menampilkan {{ rows.length }} dari {{ totalRows }} data
           </p>
@@ -356,69 +336,87 @@ onBeforeUnmount(() => {
 
   <UModal
     v-model:open="detailOpen"
-    title="Detail History Sample Collection"
-    :ui="{ content: 'sm:max-w-3xl' }"
+    title="Detail Sample Collection"
+    :ui="{ content: 'sm:max-w-2xl' }"
   >
     <template #body>
       <div v-if="detailRow" class="space-y-4">
-        <UAlert
-          color="info"
-          variant="soft"
-          title="Detail pasien"
-          :description="`${formatPatient(detailRow.queueEntry)} · ${detailRow.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${detailRow.queueEntry?.queueCode || '-'}`"
-        />
-        <div class="grid gap-3 rounded-lg border border-default p-4 sm:grid-cols-2">
+        <div class="flex items-center gap-3 rounded-lg bg-muted p-3">
+          <UIcon name="i-lucide-user" class="size-5 text-muted" />
           <div>
+            <p class="font-medium text-highlighted">
+              {{ formatPatient(detailRow.queueEntry) }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ detailRow.queueEntry?.registration?.patient?.PatientId || '-' }}
+              · Reg. {{ detailRow.queueEntry?.registration?.id_reg || '-' }}
+              · Queue {{ detailRow.queueEntry?.queueCode || '-' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-1">
             <p class="text-xs text-muted">
               Jenis Sample
-            </p><p class="font-medium text-highlighted">
+            </p>
+            <p class="font-medium text-highlighted">
               {{ detailRow.sampleType?.name || '-' }}
             </p>
           </div>
-          <div>
+          <div class="space-y-1">
             <p class="text-xs text-muted">
               Status
-            </p><UBadge :color="statusColor(detailRow.status)" variant="soft">
+            </p>
+            <UBadge :color="statusColor(detailRow.status)" variant="soft">
               {{ statusLabel(detailRow.status) }}
             </UBadge>
           </div>
-          <div>
+          <div class="space-y-1">
             <p class="text-xs text-muted">
               Barcode / Tabung
-            </p><p class="font-medium text-highlighted">
+            </p>
+            <p class="font-medium text-highlighted">
               {{ detailRow.barcode || '-' }} / {{ detailRow.tubeCount ?? 1 }}
             </p>
           </div>
-          <div>
+          <div class="space-y-1">
             <p class="text-xs text-muted">
               Tanggal Exam
-            </p><p class="font-medium text-highlighted">
+            </p>
+            <p class="font-medium text-highlighted">
               {{ detailRow.queueEntry?.registration?.examDate || '-' }}
             </p>
           </div>
-          <div>
+          <div class="space-y-1">
             <p class="text-xs text-muted">
-              Collection
-            </p><p class="font-medium text-highlighted">
+              Diambil oleh
+            </p>
+            <p class="font-medium text-highlighted">
               {{ detailRow.collectedByUser?.name || '-' }}
-            </p><p class="text-xs text-muted">
+            </p>
+            <p class="text-xs text-muted">
               {{ formatDateTime(detailRow.collectedAt) }}
             </p>
           </div>
-          <div>
+          <div class="space-y-1">
             <p class="text-xs text-muted">
-              Receive
-            </p><p class="font-medium text-highlighted">
+              Diterima oleh
+            </p>
+            <p class="font-medium text-highlighted">
               {{ detailRow.receivedByUser?.name || '-' }}
-            </p><p class="text-xs text-muted">
+            </p>
+            <p class="text-xs text-muted">
               {{ formatDateTime(detailRow.receivedAt) }}
             </p>
           </div>
         </div>
-        <div v-if="detailRow.items?.length">
-          <p class="mb-2 text-sm font-semibold">
-            Item pemeriksaan
-          </p><div class="flex flex-wrap gap-2">
+
+        <div v-if="detailRow.items?.length" class="border-t border-default pt-4">
+          <p class="mb-2 text-xs font-medium text-muted">
+            Item Pemeriksaan
+          </p>
+          <div class="flex flex-wrap gap-1.5">
             <UBadge
               v-for="item in detailRow.items"
               :key="item.id"
@@ -429,18 +427,20 @@ onBeforeUnmount(() => {
             </UBadge>
           </div>
         </div>
+
         <UAlert
           v-if="detailRow.status === 'REJECTED'"
           color="error"
           variant="soft"
-          title="Alasan ditolak"
+          icon="i-lucide-x-circle"
+          title="Alasan Ditolak"
           :description="detailRow.rejectReason || '-'"
         />
       </div>
     </template>
   </UModal>
 
-  <SampleCollectionPickModal
+  <RoomsSampleCollectionPickModal
     v-model:open="pickModalOpen"
     @collect="loadHistory"
   />

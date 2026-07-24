@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
               {{ formatPatient(row.original.queueEntry) }}
             </p>
             <p class="text-xs text-muted">
-              {{ row.original.queueEntry?.registration?.patient?.PatientId || '-' }}
+              {{ row.original.queueEntry?.registration?.id_reg || '-' }}
               · {{ row.original.queueEntry?.queueCode || '-' }}
             </p>
           </div>
@@ -483,7 +483,7 @@ onBeforeUnmount(() => {
           variant="soft"
           icon="i-lucide-user-round"
           title="Detail pasien"
-          :description="`${formatPatient(selectedSample.queueEntry)} · ${selectedSample.queueEntry?.registration?.patient?.PatientId || '-'} · Queue ${selectedSample.queueEntry?.queueCode || '-'}`"
+          :description="`${formatPatient(selectedSample.queueEntry)} · ${selectedSample.queueEntry?.registration?.patient?.PatientId || '-'} · ${selectedSample.queueEntry?.registration?.id_reg || '-'} · Queue ${selectedSample.queueEntry?.queueCode || '-'}`"
         />
 
         <div class="grid gap-3 rounded-xl border border-default p-4 sm:grid-cols-2">
