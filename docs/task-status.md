@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-24 10:30
+Last updated: 2026-07-24 11:15
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -61,6 +61,8 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: Tambah filter Date Between (dari/sampai) di `SampleCollectionPickModal.vue` untuk filter sample berdasarkan tanggal exam.
 - FE: Fix `SampleCollectionPickModal.vue` — fetch queue detail + call stage endpoint (`PATCH /stage/:stageId/call`) sebelum navigate ke [id]. Sebelumnya hanya navigate tanpa call, sehingga stage tetap WAITING dan tombol "Mulai Pemeriksaan" tidak muncul. Fix pakai `waitingStage.id` (bukan `waitingStage.stageId`) — API butuh QueueStageItem.id.
 - Flow: self-assign → redirect → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
+- FE: `canReject`/`canReschedule` harus cek `activeStage?.status === 'IN_PROGRESS'` — semua tombol aksi hanya muncul setelah "Mulai Pemeriksaan".
+- FE/BE: Fix reject sample — backend `rejectSample` izinkan status `PENDING` (sebelumnya hanya `COLLECTED`/`RECEIVED`). Fix pakai `payload.userId` (dari controller `req.user.id`), bukan `payload.rejectedBy`. Frontend hapus `rejectedBy` dari payload.
 
 ## Current Priority
 
