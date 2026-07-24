@@ -40,6 +40,9 @@ const loading = ref(false)
 const search = ref('')
 const allRows = ref<SampleCollectionRow[]>([])
 const rows = ref<SampleCollectionRow[]>([])
+const today = new Date().toISOString().slice(0, 10)
+const dateFrom = ref(today)
+const dateTo = ref(today)
 
 const isOpen = computed({
   get: () => props.open,
@@ -63,6 +66,8 @@ async function load() {
       page: 1
     }
     if (roomTypeId.value) params.roomTypeId = roomTypeId.value
+    if (dateFrom.value) params.examDateFrom = dateFrom.value
+    if (dateTo.value) params.examDateTo = dateTo.value
 
     const res = await api.get('/medical/exams/queue/samples', { params })
     const payload = res.data
@@ -148,6 +153,25 @@ watch(
             @update:model-value="filterRows"
           />
           <UBadge :label="`${rows.length} pasien`" color="neutral" variant="subtle" />
+        </div>
+
+        <div class="flex items-center gap-3">
+          <UFormField label="Dari" class="flex-1">
+            <UInput
+              v-model="dateFrom"
+              type="date"
+              :max="dateTo || undefined"
+              @change="load"
+            />
+          </UFormField>
+          <UFormField label="Sampai" class="flex-1">
+            <UInput
+              v-model="dateTo"
+              type="date"
+              :min="dateFrom || undefined"
+              @change="load"
+            />
+          </UFormField>
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-12">
