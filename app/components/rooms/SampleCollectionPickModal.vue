@@ -123,7 +123,8 @@ async function load() {
     const params: Record<string, unknown> = {
       status: 'PENDING',
       limit: 200,
-      page: 1
+      page: 1,
+      excludeCalled: true
     }
     if (roomTypeId.value) params.roomTypeId = roomTypeId.value
     if (dateFrom.value) params.examDateFrom = dateFrom.value
