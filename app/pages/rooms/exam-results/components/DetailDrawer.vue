@@ -60,6 +60,15 @@ type WorkHistoryEvent = {
   details?: string | null
 }
 
+type SampleImpact = {
+  collectionId: string
+  sampleTypeId?: string | null
+  sampleTypeName?: string | null
+  collectionStatus: string
+  rejectReason?: string | null
+  rescheduledAt?: string | null
+}
+
 type ExamResultDetail = {
   id: string
   queueCode: string
@@ -91,6 +100,10 @@ type ExamResultDetail = {
       grading?: 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC' | null
     }>
   } | null
+  sampleImpact?: SampleImpact | null
+  sampleImpacts?: SampleImpact[]
+  sampleBlocked?: boolean
+  sampleBlockedReason?: string | null
   workHistory?: WorkHistoryEvent[]
   checkinAt?: string | null
   completedAt?: string | null
@@ -143,6 +156,17 @@ const groupGradingForm = ref<{ groupId: string, groupName: string, grading?: Gra
 })
 const autoComment = ref<string | null>(null)
 const groupGradingSaving = ref(false)
+
+const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
+const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
+
+function getSampleImpactLabel(impact: SampleImpact) {
+  const name = impact.sampleTypeName || 'Sample'
+  if (impact.collectionStatus === 'REJECTED') return `${name} ditolak`
+  if (impact.collectionStatus === 'RESCHEDULED') return `${name} dijadwalkan ulang`
+  if (impact.collectionStatus !== 'RECEIVED') return `${name} belum diterima`
+  return `${name} diterima`
+}
 
 async function loadGroupResults() {
   if (!props.result?.exam?.id) return
@@ -880,6 +904,15 @@ async function handleSaveResult() {
     return
   }
 
+  if (isResultBlockedBySample.value) {
+    toast.add({
+      title: 'Result terkunci',
+      description: sampleBlockedDescription.value,
+      color: 'warning'
+    })
+    return
+  }
+
   const results = buildResultsPayload()
   if (results.length === 0) {
     toast.add({
@@ -921,6 +954,15 @@ async function handleSubmitResult() {
       title: 'Error',
       description: 'Invalid exam ID',
       color: 'error'
+    })
+    return
+  }
+
+  if (isResultBlockedBySample.value) {
+    toast.add({
+      title: 'Result terkunci',
+      description: sampleBlockedDescription.value,
+      color: 'warning'
     })
     return
   }
@@ -1049,7 +1091,7 @@ onMounted(() => {
             color="neutral"
             variant="soft"
             :loading="saving"
-            :disabled="submitting"
+            :disabled="submitting || isResultBlockedBySample"
             icon="i-lucide-save"
             @click="handleSaveResult"
           >
@@ -1058,7 +1100,7 @@ onMounted(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving"
+            :disabled="saving || isResultBlockedBySample"
             icon="i-lucide-send"
             @click="handleSubmitResult"
           >
@@ -1074,6 +1116,25 @@ onMounted(() => {
         class="flex min-h-0 flex-col bg-gradient-to-b from-default via-default to-muted/10"
         :class="embedded ? 'min-h-full overflow-visible' : 'h-full overflow-hidden'"
       >
+        <div v-if="isResultBlockedBySample" class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          <div class="flex items-start gap-2">
+            <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0" />
+            <div class="min-w-0">
+              <p class="text-sm font-semibold">Result dikunci karena sample</p>
+              <p class="text-xs">{{ sampleBlockedDescription }}</p>
+              <div v-if="result?.sampleImpacts?.length" class="mt-2 flex flex-wrap gap-2 text-[11px]">
+                <UBadge
+                  v-for="impact in result.sampleImpacts"
+                  :key="impact.collectionId"
+                  color="warning"
+                  variant="soft"
+                  :label="getSampleImpactLabel(impact)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
@@ -1480,7 +1541,7 @@ onMounted(() => {
                                 v-if="inputan.inputType === 'number'"
                                 v-model="getInputDraft(inputan.id).valueNumber"
                                 type="number"
-                                :disabled="result.status !== 'pending'"
+                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Masukkan hasil"
                                 @input="recomputeCalculatedDrafts(true)"
@@ -1490,7 +1551,7 @@ onMounted(() => {
                                 v-else-if="inputan.inputType === 'string'"
                                 v-model="getInputDraft(inputan.id).valueString"
                                 type="text"
-                                :disabled="result.status !== 'pending'"
+                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                                 placeholder="Masukkan hasil"
                               >
@@ -1498,7 +1559,7 @@ onMounted(() => {
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
                                 v-model="getInputDraft(inputan.id).valueSelected"
-                                :disabled="result.status !== 'pending'"
+                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
                                 <option value="">
@@ -1633,7 +1694,7 @@ onMounted(() => {
             color="neutral"
             variant="soft"
             :loading="saving"
-            :disabled="submitting"
+            :disabled="submitting || isResultBlockedBySample"
             @click="handleSaveResult"
           >
             Simpan Draft
@@ -1641,7 +1702,7 @@ onMounted(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving"
+            :disabled="saving || isResultBlockedBySample"
             @click="handleSubmitResult"
           >
             Submit Hasil
