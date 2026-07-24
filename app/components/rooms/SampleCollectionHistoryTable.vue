@@ -238,26 +238,28 @@ const table = useVueTable({
           </UBadge>
 
           <template v-else-if="cell.column.id === 'action'">
-            <div class="flex items-center gap-2">
+            <UDropdownMenu
+              :items="[[
+                ...(tableRow.original.queueEntry?.id ? [{
+                  label: 'Lanjutkan',
+                  icon: 'i-lucide-arrow-right',
+                  onSelect: () => emit('navigate', tableRow.original)
+                }] : []),
+                {
+                  label: 'Detail',
+                  icon: 'i-lucide-eye',
+                  onSelect: () => emit('detail', tableRow.original)
+                }
+              ]]"
+              :content="{ align: 'end' }"
+            >
               <UButton
-                v-if="tableRow.original.queueEntry?.id"
-                size="xs"
-                color="primary"
-                variant="soft"
-                icon="i-lucide-arrow-right"
-                @click="emit('navigate', tableRow.original)"
-              >
-                Lanjutkan
-              </UButton>
-              <UButton
-                size="xs"
+                icon="i-lucide-ellipsis-vertical"
                 color="neutral"
-                variant="soft"
-                @click="emit('detail', tableRow.original)"
-              >
-                Detail
-              </UButton>
-            </div>
+                variant="ghost"
+                size="xs"
+              />
+            </UDropdownMenu>
           </template>
         </td>
       </tr>
