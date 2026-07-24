@@ -288,14 +288,16 @@ async function confirmReject() {
   rejectSubmitting.value = true
   try {
     await api.patch(`/medical/exams/queue/samples/${rejectTarget.value.id}/reject`, {
+      rejectedBy: currentUserId.value,
       rejectReason: rejectReason.value.trim()
     })
     toast.add({ title: 'Berhasil', description: 'Sample ditolak.', color: 'success' })
     isRejectModalOpen.value = false
     rejectTarget.value = null
     await load()
-  } catch {
-    toast.add({ title: 'Gagal menolak sample', color: 'error' })
+  } catch (err: unknown) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal menolak sample'
+    toast.add({ title: 'Gagal menolak sample', description: message, color: 'error' })
   } finally {
     rejectSubmitting.value = false
   }
