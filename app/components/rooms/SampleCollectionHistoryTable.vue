@@ -44,6 +44,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   detail: [row: SampleCollectionHistoryRow]
+  navigate: [row: SampleCollectionHistoryRow]
 }>()
 
 function patientName(row: SampleCollectionHistoryRow) {
@@ -145,9 +146,8 @@ const table = useVueTable({
             'w-[22%]': header.column.id === 'patient',
             'w-[12%]': header.column.id === 'examDate',
             'w-[20%]': header.column.id === 'sample',
-            'w-[14%]': ['collection', 'receive'].includes(header.column.id),
-            'w-[12%]': header.column.id === 'status',
-            'w-[8%]': header.column.id === 'action'
+            'w-[14%]': ['collection', 'receive', 'action'].includes(header.column.id),
+            'w-[10%]': header.column.id === 'status'
           }"
         >
           <FlexRender
@@ -237,15 +237,28 @@ const table = useVueTable({
             {{ statusLabel(tableRow.original.status) }}
           </UBadge>
 
-          <UButton
-            v-else-if="cell.column.id === 'action'"
-            size="xs"
-            color="neutral"
-            variant="soft"
-            @click="emit('detail', tableRow.original)"
-          >
-            Detail
-          </UButton>
+          <template v-else-if="cell.column.id === 'action'">
+            <div class="flex items-center gap-2">
+              <UButton
+                v-if="tableRow.original.status !== 'PENDING' && tableRow.original.queueEntry?.id"
+                size="xs"
+                color="primary"
+                variant="soft"
+                icon="i-lucide-arrow-right"
+                @click="emit('navigate', tableRow.original)"
+              >
+                Lanjutkan
+              </UButton>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="soft"
+                @click="emit('detail', tableRow.original)"
+              >
+                Detail
+              </UButton>
+            </div>
+          </template>
         </td>
       </tr>
     </tbody>

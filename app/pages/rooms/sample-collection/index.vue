@@ -37,6 +37,7 @@ type SampleCollectionRow = {
 type BadgeColor = 'success' | 'info' | 'error' | 'warning' | 'neutral'
 
 const api = useApi()
+const router = useRouter()
 const { session: roomSession } = await useRoomSession()
 
 const rows = ref<SampleCollectionRow[]>([])
@@ -190,6 +191,13 @@ function openDetail(row: SampleCollectionRow) {
   detailOpen.value = true
 }
 
+function navigateToDetail(row: SampleCollectionRow) {
+  const queueEntryId = (row as { queueEntry?: { id?: string } }).queueEntry?.id
+  if (queueEntryId) {
+    router.push(`/rooms/sample-collection/${queueEntryId}`)
+  }
+}
+
 watch([statusFilter, examDateFrom, examDateTo], () => {
   if (currentPage.value !== 1) currentPage.value = 1
   else void loadHistory()
@@ -308,7 +316,8 @@ onBeforeUnmount(() => {
           <RoomsSampleCollectionHistoryTable
             :data="rows"
             :loading="loading"
-            @detail="openDetail"
+            @detail="(row: any) => openDetail(row)"
+            @navigate="(row: any) => navigateToDetail(row)"
           />
         </div>
 
