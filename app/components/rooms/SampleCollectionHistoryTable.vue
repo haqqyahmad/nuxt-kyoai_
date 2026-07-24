@@ -44,6 +44,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   detail: [row: SampleCollectionHistoryRow]
+  navigate: [row: SampleCollectionHistoryRow]
 }>()
 
 function patientName(row: SampleCollectionHistoryRow) {
@@ -145,9 +146,8 @@ const table = useVueTable({
             'w-[22%]': header.column.id === 'patient',
             'w-[12%]': header.column.id === 'examDate',
             'w-[20%]': header.column.id === 'sample',
-            'w-[14%]': ['collection', 'receive'].includes(header.column.id),
-            'w-[12%]': header.column.id === 'status',
-            'w-[8%]': header.column.id === 'action'
+            'w-[14%]': ['collection', 'receive', 'action'].includes(header.column.id),
+            'w-[10%]': header.column.id === 'status'
           }"
         >
           <FlexRender
@@ -237,15 +237,30 @@ const table = useVueTable({
             {{ statusLabel(tableRow.original.status) }}
           </UBadge>
 
-          <UButton
-            v-else-if="cell.column.id === 'action'"
-            size="xs"
-            color="neutral"
-            variant="soft"
-            @click="emit('detail', tableRow.original)"
-          >
-            Detail
-          </UButton>
+          <template v-else-if="cell.column.id === 'action'">
+            <UDropdownMenu
+              :items="[[
+                ...(tableRow.original.queueEntry?.id ? [{
+                  label: 'Lanjutkan',
+                  icon: 'i-lucide-arrow-right',
+                  onSelect: () => emit('navigate', tableRow.original)
+                }] : []),
+                {
+                  label: 'Detail',
+                  icon: 'i-lucide-eye',
+                  onSelect: () => emit('detail', tableRow.original)
+                }
+              ]]"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+              />
+            </UDropdownMenu>
+          </template>
         </td>
       </tr>
     </tbody>

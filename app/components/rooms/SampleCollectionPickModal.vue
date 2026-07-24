@@ -174,9 +174,21 @@ function statusColor(status: string) {
   return 'warning'
 }
 
-const sampleTypeColors = ['info', 'primary', 'success', 'warning', 'error', 'neutral'] as const
-function sampleTypeColor(index: number) {
-  return sampleTypeColors[index % sampleTypeColors.length]
+const sampleTypeColorMap: Record<string, string> = {
+  'Darah': 'error',
+  'Serum': 'warning',
+  'Plasma': 'info',
+  'Urine': 'success',
+  'Feses': 'neutral',
+  'Sputum': 'primary',
+  'Swab': 'info',
+  'Semen': 'warning',
+  'Aspirat': 'error',
+  'Jaringan': 'primary'
+}
+const defaultSampleColor = 'neutral'
+function sampleTypeColor(name: string) {
+  return sampleTypeColorMap[name] ?? defaultSampleColor
 }
 
 async function handleGetPatient(row: GroupedRow) {
@@ -369,9 +381,9 @@ watch(
                    <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-1">
                       <UBadge
-                        v-for="(t, idx) in row.sampleTypes"
+                        v-for="t in row.sampleTypes"
                         :key="t"
-                        :color="sampleTypeColor(idx)"
+                        :color="sampleTypeColor(t)"
                         variant="soft"
                         size="sm"
                       >
