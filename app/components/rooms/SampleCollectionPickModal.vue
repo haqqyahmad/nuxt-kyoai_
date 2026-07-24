@@ -23,6 +23,17 @@ interface SampleCollectionRow {
   } | null
 }
 
+type GroupedRow = {
+  queueEntryId: string
+  queueCode: string
+  idReg: string
+  patientName: string
+  patientId: string
+  samples: SampleCollectionRow[]
+  sampleTypes: string[]
+  statuses: string[]
+}
+
 type StageQueueItem = {
   id: string
   stageId: string
@@ -59,7 +70,8 @@ const { session: roomSession } = await useRoomSession()
 const loading = ref(false)
 const search = ref('')
 const allRows = ref<SampleCollectionRow[]>([])
-const rows = ref<SampleCollectionRow[]>([])
+const groupedRows = ref<GroupedRow[]>([])
+const filteredRows = ref<GroupedRow[]>([])
 const today = new Date().toISOString().slice(0, 10)
 const dateFrom = ref(today)
 const dateTo = ref(today)
@@ -76,8 +88,34 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return rows.value.slice(start, start + pageSize.value)
+  return filteredRows.value.slice(start, start + pageSize.value)
 })
+
+function groupByPatient(rows: SampleCollectionRow[]): GroupedRow[] {
+  const map = new Map<string, GroupedRow>()
+  for (const row of rows) {
+    const key = row.queueEntry?.id ?? row.id
+    if (!map.has(key)) {
+      const p = row.queueEntry?.registration?.patient
+      map.set(key, {
+        queueEntryId: row.queueEntry?.id ?? '',
+        queueCode: row.queueEntry?.queueCode || '-',
+        idReg: row.queueEntry?.registration?.id_reg || '-',
+        patientName: [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-',
+        patientId: p?.PatientId || '-',
+        samples: [],
+        sampleTypes: [],
+        statuses: []
+      })
+    }
+    const group = map.get(key)!
+    group.samples.push(row)
+    const typeName = row.sampleType?.name || 'Sample'
+    if (!group.sampleTypes.includes(typeName)) group.sampleTypes.push(typeName)
+    if (!group.statuses.includes(row.status)) group.statuses.push(row.status)
+  }
+  return Array.from(map.values())
+}
 
 async function load() {
   loading.value = true
@@ -95,6 +133,7 @@ async function load() {
     const payload = res.data
     const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
     allRows.value = list as SampleCollectionRow[]
+    groupedRows.value = groupByPatient(allRows.value)
     filterRows()
   } catch {
     // error handled by global interceptor
@@ -106,28 +145,37 @@ async function load() {
 function filterRows() {
   const q = (search.value ?? '').toLowerCase().trim()
   if (!q) {
-    rows.value = allRows.value
+    filteredRows.value = groupedRows.value
     return
   }
-  rows.value = allRows.value.filter((row) => {
-    const patient = row.queueEntry?.registration?.patient
-    const name = [patient?.firstName, patient?.middleName, patient?.lastName].filter(Boolean).join(' ').toLowerCase()
-    const rm = (row.queueEntry?.registration?.patient?.PatientId ?? '').toLowerCase()
-    const idReg = (row.queueEntry?.registration?.id_reg ?? '').toLowerCase()
-    const barcode = (row.barcode ?? '').toLowerCase()
-    const queueCode = (row.queueEntry?.queueCode ?? '').toLowerCase()
-    const sampleType = (row.sampleType?.name ?? '').toLowerCase()
-    return name.includes(q) || rm.includes(q) || idReg.includes(q) || barcode.includes(q) || queueCode.includes(q) || sampleType.includes(q)
+  filteredRows.value = groupedRows.value.filter((row) => {
+    return row.patientName.toLowerCase().includes(q)
+      || row.patientId.toLowerCase().includes(q)
+      || row.idReg.toLowerCase().includes(q)
+      || row.queueCode.toLowerCase().includes(q)
+      || row.sampleTypes.some(t => t.toLowerCase().includes(q))
   })
 }
 
-function patientName(row: SampleCollectionRow) {
-  const p = row.queueEntry?.registration?.patient
-  return [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-'
+function statusLabel(status: string) {
+  if (status === 'PENDING') return 'Belum Diambil'
+  if (status === 'COLLECTED') return 'Sudah Diambil'
+  if (status === 'RECEIVED') return 'Diterima Lab'
+  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  return status
 }
 
-async function handleGetPatient(row: SampleCollectionRow) {
-  const queueEntryId = row.queueEntry?.id
+function statusColor(status: string) {
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'warning'
+  return 'warning'
+}
+
+async function handleGetPatient(row: GroupedRow) {
+  const queueEntryId = row.queueEntryId
   if (!queueEntryId || callLoading.value[queueEntryId]) return
 
   callLoading.value = { ...callLoading.value, [queueEntryId]: true }
@@ -231,7 +279,7 @@ watch(
             class="flex-1"
             @update:model-value="filterRows"
           />
-          <UBadge :label="`${rows.length} pasien`" color="neutral" variant="subtle" />
+          <UBadge :label="`${groupedRows.length} pasien`" color="neutral" variant="subtle" />
         </div>
 
         <div class="flex items-center gap-3">
@@ -258,7 +306,7 @@ watch(
           <span class="ml-2 text-sm text-muted">Memuat data...</span>
         </div>
 
-        <div v-else-if="!rows.length" class="rounded-lg border border-dashed border-default py-12 text-center">
+        <div v-else-if="!filteredRows.length" class="rounded-lg border border-dashed border-default py-12 text-center">
           <UIcon name="i-lucide-inbox" class="mx-auto mb-2 size-8 text-muted/50" />
           <p class="font-medium text-highlighted">
             Tidak ada sample yang perlu diambil
@@ -273,19 +321,19 @@ watch(
             <table class="w-full">
               <thead class="sticky top-0 z-10 bg-elevated">
                 <tr>
-                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[28%]">
+                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[24%]">
                     Pasien
                   </th>
-                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[14%]">
+                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[12%]">
                     Reg. No
                   </th>
-                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[12%]">
+                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[10%]">
                     Queue
                   </th>
-                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[18%]">
+                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[22%]">
                     Sample Type
                   </th>
-                  <th class="border-b border-default px-4 py-2.5 text-center text-xs font-medium text-muted w-[14%]">
+                  <th class="border-b border-default px-4 py-2.5 text-left text-xs font-medium text-muted w-[18%]">
                     Status
                   </th>
                   <th class="border-b border-default px-4 py-2.5 text-center text-xs font-medium text-muted w-[14%]">
@@ -296,32 +344,36 @@ watch(
               <tbody>
                 <tr
                   v-for="row in paginatedRows"
-                  :key="row.id"
+                  :key="row.queueEntryId"
                   class="border-b border-default/50 hover:bg-muted/30 transition-colors"
                 >
                   <td class="px-4 py-3">
                     <p class="font-medium text-highlighted">
-                      {{ patientName(row) }}
+                      {{ row.patientName }}
                     </p>
                     <p class="text-xs text-muted">
-                      {{ row.queueEntry?.registration?.patient?.PatientId || '-' }}
+                      {{ row.patientId }}
                     </p>
                   </td>
                   <td class="px-4 py-3 text-sm text-muted">
-                    {{ row.queueEntry?.registration?.id_reg || '-' }}
+                    {{ row.idReg }}
                   </td>
                   <td class="px-4 py-3 text-sm text-muted">
-                    {{ row.queueEntry?.queueCode || '-' }}
+                    {{ row.queueCode }}
                   </td>
                   <td class="px-4 py-3">
-                    <UBadge color="info" variant="soft">
-                      {{ row.sampleType?.name || '-' }}
-                    </UBadge>
+                    <div class="flex flex-wrap gap-1">
+                      <UBadge v-for="t in row.sampleTypes" :key="t" color="info" variant="soft" size="xs">
+                        {{ t }}
+                      </UBadge>
+                    </div>
                   </td>
                   <td class="px-4 py-3">
-                    <UBadge color="warning" variant="soft">
-                      {{ row.status }}
-                    </UBadge>
+                    <div class="flex flex-wrap gap-1">
+                      <UBadge v-for="s in row.statuses" :key="s" :color="statusColor(s)" variant="soft" size="xs">
+                        {{ statusLabel(s) }}
+                      </UBadge>
+                    </div>
                   </td>
                   <td class="px-4 py-3 text-center">
                     <UButton
@@ -329,7 +381,7 @@ watch(
                       color="primary"
                       variant="soft"
                       icon="i-lucide-user-check"
-                      :loading="row.queueEntry?.id ? callLoading[row.queueEntry.id] : false"
+                      :loading="row.queueEntryId ? callLoading[row.queueEntryId] : false"
                       :disabled="!roomSession"
                       @click="handleGetPatient(row)"
                     >
@@ -343,9 +395,9 @@ watch(
 
           <div class="flex items-center justify-between border-t border-default px-4 py-3 text-sm">
             <p class="text-muted">
-              Menampilkan {{ paginatedRows.length }} dari {{ rows.length }}
+              Menampilkan {{ paginatedRows.length }} dari {{ filteredRows.length }} pasien
             </p>
-            <UPagination v-model:page="currentPage" :total="rows.length" :items-per-page="pageSize" />
+            <UPagination v-model:page="currentPage" :total="filteredRows.length" :items-per-page="pageSize" />
           </div>
         </div>
       </div>
