@@ -240,7 +240,7 @@ const table = useVueTable({
           <template v-else-if="cell.column.id === 'action'">
             <div class="flex items-center gap-2">
               <UButton
-                v-if="tableRow.original.status !== 'PENDING' && tableRow.original.queueEntry?.id"
+                v-if="tableRow.original.queueEntry?.id"
                 size="xs"
                 color="primary"
                 variant="soft"
