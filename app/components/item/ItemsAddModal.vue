@@ -16,6 +16,8 @@ const toast = useToast()
 const loading = ref(false)
 const activeTab = ref('info') // 'info' | 'template'
 const createdItemId = ref<string | null>(null)
+const itemCreated = ref(false) // track if item has been created
+const creatingItem = ref(false) // track background item creation
 
 type ItemGroup = {
   id: string
@@ -152,7 +154,7 @@ const tabs = computed(() => [
     key: 'template',
     label: 'Template Exam',
     icon: 'i-lucide-test-tube',
-    disabled: !createdItemId.value
+    disabled: false // Always enabled, but will auto-save if needed
   }
 ])
 
@@ -168,12 +170,76 @@ function resetAll() {
   form.isActive = true
   groups.value = []
   createdItemId.value = null
+  itemCreated.value = false
   activeTab.value = 'info'
 }
 
 watch(open, (val) => {
   if (!val) resetAll()
 })
+
+// Auto-create item when switching to template tab (like edit mode)
+async function ensureItemCreated() {
+  if (itemCreated.value || creatingItem.value) return
+  if (!isValid.value) {
+    toast.add({
+      title: 'Validasi gagal',
+      description: 'Isi kode, nama, dan department terlebih dahulu',
+      color: 'error'
+    })
+    activeTab.value = 'info'
+    return
+  }
+
+  creatingItem.value = true
+  try {
+    const res = await api.post('/mcu/items', {
+      code: form.code,
+      name: form.name,
+      resultTiming: form.resultTiming,
+      departmentId: form.departmentId || null,
+      groupId: form.subgroupId || form.groupId || null,
+      price: form.price,
+      description: form.description,
+      isActive: form.isActive
+    })
+
+    createdItemId.value = res.data.data?.id ?? res.data.id ?? null
+    itemCreated.value = true
+
+    toast.add({
+      title: 'Item dibuat',
+      description: 'Silakan konfigurasi template exam',
+      color: 'success'
+    })
+  } catch (error: any) {
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Gagal membuat item',
+      color: 'error'
+    })
+    activeTab.value = 'info'
+  } finally {
+    creatingItem.value = false
+  }
+}
+
+// Watch for tab change to template - auto create item
+watch(() => activeTab.value, async (newTab) => {
+  if (newTab === 'template' && !itemCreated.value) {
+    await ensureItemCreated()
+  }
+})
+
+// Handle tab click - for template tab, ensure item is created
+function handleTabClick(tab: { key: string; disabled: boolean }) {
+  if (tab.disabled) return
+  if (tab.key === 'template' && !itemCreated.value) {
+    ensureItemCreated()
+  } else {
+    activeTab.value = tab.key
+  }
+}
 
 async function submit() {
   if (!isValid.value || loading.value) return
@@ -188,32 +254,54 @@ async function submit() {
 
   loading.value = true
   try {
-    const res = await api.post('/mcu/items', {
-      code: form.code,
-      name: form.name,
-      resultTiming: form.resultTiming,
-      departmentId: form.departmentId || null,
-      groupId: form.subgroupId || form.groupId || null,
-      price: form.price,
-      description: form.description,
-      isActive: form.isActive
-    })
+    if (!itemCreated.value) {
+      // First time save - create item
+      const res = await api.post('/mcu/items', {
+        code: form.code,
+        name: form.name,
+        resultTiming: form.resultTiming,
+        departmentId: form.departmentId || null,
+        groupId: form.subgroupId || form.groupId || null,
+        price: form.price,
+        description: form.description,
+        isActive: form.isActive
+      })
 
-    createdItemId.value = res.data.data?.id ?? res.data.id ?? null
+      createdItemId.value = res.data.data?.id ?? res.data.id ?? null
+      itemCreated.value = true
 
-    toast.add({
-      title: 'Berhasil',
-      description: 'Item berhasil ditambahkan. Lanjutkan konfigurasi template exam.',
-      color: 'success'
-    })
+      toast.add({
+        title: 'Berhasil',
+        description: 'Item berhasil ditambahkan. Lanjutkan konfigurasi template exam.',
+        color: 'success'
+      })
 
-    // Auto switch to template tab
-    activeTab.value = 'template'
+      // Auto switch to template tab
+      activeTab.value = 'template'
+    } else {
+      // Item already exists - update it
+      await api.put(`/mcu/items/${createdItemId.value}`, {
+        code: form.code,
+        name: form.name,
+        resultTiming: form.resultTiming,
+        departmentId: form.departmentId || null,
+        groupId: form.subgroupId || form.groupId || null,
+        price: form.price,
+        description: form.description,
+        isActive: form.isActive
+      })
+
+      toast.add({
+        title: 'Berhasil',
+        description: 'Item berhasil diperbarui',
+        color: 'success'
+      })
+    }
     emit('success')
   } catch (error: any) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menambahkan item',
+      description: error?.response?.data?.message || 'Gagal menyimpan item',
       color: 'error'
     })
   } finally {
@@ -229,10 +317,13 @@ function handleDone() {
 <template>
   <UModal
     v-model:open="open"
-    :ui="{ content: 'sm:max-w-3xl' }"
+    :ui="{ content: 'sm:max-w-5xl h-[90vh]' }"
   >
     <template #content>
-      <UCard :ui="{ body: 'p-0' }">
+      <UCard
+        class="h-full flex flex-col"
+        :ui="{ body: 'p-0 flex-1 min-h-0 overflow-hidden' }"
+      >
         <!-- Header -->
         <template #header>
           <div class="flex items-center justify-between">
@@ -266,13 +357,13 @@ function handleDone() {
                     : 'border-transparent text-muted hover:text-default hover:border-default cursor-pointer'
               ]"
               :disabled="tab.disabled"
-              @click="!tab.disabled && (activeTab = tab.key)"
+              @click="handleTabClick(tab)"
             >
               <UIcon :name="tab.icon" class="size-4" />
               {{ tab.label }}
               <UBadge
-                v-if="tab.key === 'template' && !createdItemId"
-                label="Simpan item dulu"
+                v-if="tab.key === 'template' && !itemCreated"
+                label="Auto-save dulu"
                 color="neutral"
                 variant="subtle"
                 size="xs"
@@ -281,9 +372,12 @@ function handleDone() {
           </div>
         </template>
 
+        <!-- BODY -->
+        <div class="overflow-y-auto h-full px-6 py-4">
+
         <!-- Tab: Info Item -->
-        <div v-if="activeTab === 'info'" class="p-6">
-          <form class="space-y-5" @submit.prevent="submit">
+        <div v-if="activeTab === 'info'" class="space-y-5">
+          <form @submit.prevent="submit">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <UFormField label="Item Code" required>
                 <UInput
@@ -404,20 +498,29 @@ function handleDone() {
                 type="submit"
                 :loading="loading"
                 :disabled="!isValid"
-                icon="i-lucide-plus"
+                :icon="itemCreated ? 'i-lucide-save' : 'i-lucide-plus'"
               >
-                Simpan & Lanjut ke Template
+                {{ itemCreated ? 'Simpan Perubahan' : 'Simpan & Lanjut ke Template' }}
               </UButton>
             </div>
           </form>
         </div>
 
         <!-- Tab: Template Exam -->
-        <div v-else-if="activeTab === 'template'" class="p-6">
+        <div v-else-if="activeTab === 'template'" class="space-y-4">
+          <div v-if="creatingItem" class="flex items-center justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
+            <span class="ml-2 text-sm text-muted">Membuat item...</span>
+          </div>
           <ItemExamTemplate
-            v-if="createdItemId"
+            v-else-if="createdItemId"
             :item-id="createdItemId"
           />
+          <div v-else class="flex flex-col items-center justify-center py-12 border border-dashed border-default rounded-lg text-center">
+            <UIcon name="i-lucide-test-tube-diagonal" class="size-10 text-muted mb-3" />
+            <p class="font-medium text-sm">Klik tab Info Item dan isi data terlebih dahulu</p>
+            <p class="text-xs text-muted mt-1">Item akan otomatis dibuat saat Anda beralih ke tab ini</p>
+          </div>
 
           <div class="flex items-center justify-end gap-2 border-t border-default pt-4 mt-4">
             <UButton color="neutral" variant="soft" @click="activeTab = 'info'">
@@ -428,6 +531,17 @@ function handleDone() {
             </UButton>
           </div>
         </div>
+
+        </div>
+
+        <!-- FOOTER -->
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton color="neutral" variant="soft" icon="i-lucide-check" @click="handleDone">
+              Tutup
+            </UButton>
+          </div>
+        </template>
       </UCard>
     </template>
   </UModal>

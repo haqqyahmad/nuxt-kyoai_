@@ -23,12 +23,26 @@ async function loadResult() {
   error.value = null
 
   try {
+    const examId = getQueryValue(route.query.examId)
+    const department = getQueryValue(route.query.department)
+    const params: Record<string, string | number> = {
+      page: 1,
+      limit: 1,
+      groupBy: 'exam'
+    }
+
+    if (examId) {
+      params.examId = examId
+    } else {
+      params.examItemId = String(route.params.id)
+    }
+
+    if (department) {
+      params.department = department
+    }
+
     const response = await api.get('/mcu/exams/results', {
-      params: {
-        examItemId: String(route.params.id),
-        page: 1,
-        limit: 1
-      }
+      params
     })
     const payload = response.data?.data ?? response.data
     const rows = Array.isArray(payload)

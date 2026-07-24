@@ -322,6 +322,7 @@ async function loadResults() {
     const params: Record<string, any> = {
       page: page.value,
       limit: limit.value,
+      groupBy: 'exam',
     }
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {

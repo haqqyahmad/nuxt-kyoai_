@@ -33,12 +33,23 @@ type ExamInput = {
   uom?: string | null
   allowBlank?: boolean
   opsis?: ExamInputOption[]
+  formula?: {
+    id?: string
+    formula?: string | null
+  } | null
   nilaiNormalNum?: Array<{
     id: string
     sex?: 'MALE' | 'FEMALE' | null
     ageMin?: number | null
     minValue?: number | null
     maxValue?: number | null
+  }>
+  nilaiNormalSel?: Array<{
+    id: string
+    sex?: 'MALE' | 'FEMALE' | null
+    ageMin?: number | null
+    opsiId?: string
+    opsi?: ExamInputOption | null
   }>
 }
 
@@ -90,6 +101,16 @@ type ResultDraft = {
   valueCalculated?: string
 }
 
+type BadgeColor = 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'
+type GradingValue = 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC'
+type ResultPayload = {
+  inputanId: string
+  valueString?: string
+  valueNumber?: number
+  valueSelected?: string
+  valueCalculated?: number
+}
+
 const props = defineProps<{
   open: boolean
   result: ExamResultDetail | null
@@ -107,10 +128,16 @@ const api = useApi()
 const toast = useToast()
 const { loading: auditLoading, entries: auditEntries, fetchAudit, resetAudit } = useAudit()
 
-const groupGradingForm = ref<{ groupId: string, groupName: string, grading: string | null }>({
+const groupGradingItems: Array<{ label: string, value: GradingValue }> = [
+  { label: 'Normal', value: 'NORMAL' },
+  { label: 'Abnormal (meningkat)', value: 'ABNORMAL_INC' },
+  { label: 'Abnormal (menurun)', value: 'ABNORMAL_DEC' }
+]
+
+const groupGradingForm = ref<{ groupId: string, groupName: string, grading?: GradingValue }>({
   groupId: '',
   groupName: '',
-  grading: null
+  grading: undefined
 })
 const autoComment = ref<string | null>(null)
 const groupGradingSaving = ref(false)
@@ -122,7 +149,7 @@ async function loadGroupResults() {
     const list = data?.data ?? []
     if (Array.isArray(list) && list.length > 0) {
       const g = list[0]
-      groupGradingForm.value = { groupId: g.groupId, groupName: g.groupName ?? '', grading: g.grading ?? null }
+      groupGradingForm.value = { groupId: g.groupId, groupName: g.groupName ?? '', grading: g.grading ?? undefined }
       autoComment.value = g.autoComment ?? null
     }
   } catch {
@@ -159,7 +186,7 @@ function inputanLabel(inputanId: string) {
 }
 
 const externalDoctors = ref<Array<{ id: number, name: string }>>([])
-const selectedExternalDoctor = ref<number | null>(null)
+const selectedExternalDoctor = ref<number | undefined>(undefined)
 const externalSaving = ref(false)
 const externalFile = ref<File | null>(null)
 
@@ -187,10 +214,14 @@ function getErrorMessage(error: unknown, fallback = 'Terjadi kesalahan'): string
   return fallback
 }
 
-const externalStatusColor: Record<string, string> = {
+const externalStatusColor: Record<string, BadgeColor> = {
   ASSIGNED: 'warning',
   CANCELLED: 'neutral',
   FILLED: 'success'
+}
+
+function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
+  return (examTypeBadgeColor[type ?? 'MCU'] ?? 'neutral') as BadgeColor
 }
 
 async function assignExternalDoctor() {
@@ -304,16 +335,12 @@ function isRangeMatchPatient(
   patientGenderKey: string | null,
   patientAge: number | null
 ) {
-  if (range.sex == null || range.ageMin == null) {
-    return false
-  }
-
-  if (!patientGenderKey || patientAge == null) {
-    return false
-  }
-
   const rangeGender = getPatientGenderKey(range.sex)
-  if (rangeGender && patientGenderKey && rangeGender !== patientGenderKey) {
+  if (rangeGender && !patientGenderKey) {
+    return false
+  }
+
+  if (rangeGender && rangeGender !== patientGenderKey) {
     return false
   }
 
@@ -321,11 +348,14 @@ function isRangeMatchPatient(
     return false
   }
 
+  if (range.ageMin != null && patientAge == null && range.ageMin > 0) {
+    return false
+  }
+
   return true
 }
 
-function getPatientMatchedNormalRanges(inputan: ExamInput) {
-  const ranges = inputan.nilaiNormalNum || []
+function filterPatientMatchedRanges<T extends { sex?: string | null, ageMin?: number | null }>(ranges: T[]) {
   if (!ranges.length) return []
 
   const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
@@ -335,7 +365,7 @@ function getPatientMatchedNormalRanges(inputan: ExamInput) {
     isRangeMatchPatient(range, patientGenderKey, patientAge)
   )
 
-  if (!matched.length || patientAge == null || !patientGenderKey) {
+  if (!matched.length) {
     return []
   }
 
@@ -343,8 +373,40 @@ function getPatientMatchedNormalRanges(inputan: ExamInput) {
   return matched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
 }
 
+function getPatientMatchedNormalRanges(inputan: ExamInput) {
+  return filterPatientMatchedRanges(inputan.nilaiNormalNum || [])
+}
+
+function getPatientMatchedSelectedNormalRanges(inputan: ExamInput) {
+  return filterPatientMatchedRanges(inputan.nilaiNormalSel || [])
+}
+
+function getPatientMatchedDisplayNormalRanges(inputan: ExamInput) {
+  if (inputan.inputType === 'selected') return getPatientMatchedSelectedNormalRanges(inputan)
+  return getPatientMatchedNormalRanges(inputan)
+}
+
+function getVisibleNormalRanges(inputan: ExamInput) {
+  const matched = getPatientMatchedDisplayNormalRanges(inputan)
+  if (matched.length) return matched
+
+  const ranges = inputan.inputType === 'selected'
+    ? inputan.nilaiNormalSel || []
+    : inputan.nilaiNormalNum || []
+  if (!ranges.length) return []
+
+  const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
+  if (patientAge == null) return ranges.slice(0, 3)
+
+  const ageMatched = ranges.filter(range => range.ageMin == null || patientAge >= range.ageMin)
+  if (!ageMatched.length) return ranges.slice(0, 3)
+
+  const bestAgeMin = Math.max(...ageMatched.map(range => range.ageMin ?? -1))
+  return ageMatched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
+}
+
 function getMatchedNormalRange(inputan: ExamInput) {
-  return getPatientMatchedNormalRanges(inputan)[0] || null
+  return getPatientMatchedDisplayNormalRanges(inputan)[0] || null
 }
 
 function getDraftText(value: unknown) {
@@ -385,10 +447,20 @@ function getInputResultValue(inputanId: string) {
 }
 
 function isResultOutsideNormalRange(inputan: ExamInput) {
-  const range = getMatchedNormalRange(inputan)
-  if (!range) return false
+  const ranges = getPatientMatchedDisplayNormalRanges(inputan)
+  if (!ranges.length) return false
 
   const resultValue = getInputResultValue(inputan.id)
+
+  if (inputan.inputType === 'selected') {
+    if (!resultValue.raw) return false
+    return !getPatientMatchedSelectedNormalRanges(inputan)
+      .some(range => range.opsi?.value === resultValue.raw)
+  }
+
+  const range = ranges[0]
+  if (!range || !('minValue' in range)) return false
+
   if (resultValue.numeric == null || Number.isNaN(resultValue.numeric)) return false
 
   const min = range.minValue
@@ -400,7 +472,7 @@ function isResultOutsideNormalRange(inputan: ExamInput) {
 }
 
 function getResultInputClass(inputan: ExamInput) {
-  const base = 'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2'
+  const base = 'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70'
   const outside = isResultOutsideNormalRange(inputan)
 
   if (!outside) {
@@ -411,10 +483,10 @@ function getResultInputClass(inputan: ExamInput) {
 }
 
 function getResultNormalityState(inputan: ExamInput) {
-  const range = getMatchedNormalRange(inputan)
+  const ranges = getPatientMatchedDisplayNormalRanges(inputan)
   const resultValue = getInputResultValue(inputan.id)
 
-  if (!range) {
+  if (!ranges.length) {
     return {
       label: 'No normal range',
       color: 'neutral' as const,
@@ -422,11 +494,15 @@ function getResultNormalityState(inputan: ExamInput) {
     }
   }
 
-  if (resultValue.numeric == null || Number.isNaN(resultValue.numeric)) {
+  const hasValue = inputan.inputType === 'selected'
+    ? Boolean(resultValue.raw)
+    : resultValue.numeric != null && !Number.isNaN(resultValue.numeric)
+
+  if (!hasValue) {
     return {
       label: 'Pending',
       color: 'neutral' as const,
-      tone: 'Enter a numeric value to evaluate'
+      tone: 'Enter a value to evaluate'
     }
   }
 
@@ -448,7 +524,12 @@ function getResultNormalityState(inputan: ExamInput) {
 function formatNormalRange(range: {
   minValue?: number | null
   maxValue?: number | null
+  opsi?: ExamInputOption | null
 }, unit?: string | null) {
+  if (range.opsi) {
+    return range.opsi.label || range.opsi.value
+  }
+
   const low = range.minValue ?? 'min'
   const high = range.maxValue ?? 'max'
 
@@ -514,6 +595,172 @@ function getInputDraft(inputId: string) {
   return resultDrafts.value[inputId]
 }
 
+function parseDraftNumber(value?: string) {
+  const text = getDraftText(value)
+  if (!text) return null
+
+  const parsed = Number(text)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function normalizeFormulaKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function toFormulaIdentifier(value: string) {
+  const identifier = value.trim().replace(/[^A-Za-z0-9_$]+/g, '_')
+  if (!identifier) return null
+  return /^[A-Za-z_$]/.test(identifier) ? identifier : `_${identifier}`
+}
+
+function getInputNumericValue(inputan: ExamInput) {
+  const draft = resultDrafts.value[inputan.id] ?? {}
+
+  if (inputan.inputType === 'number') {
+    const draftValue = parseDraftNumber(draft.valueNumber)
+    if (draftValue != null) return draftValue
+  }
+
+  if (inputan.inputType === 'calculated') {
+    const draftValue = parseDraftNumber(draft.valueCalculated)
+    if (draftValue != null) return draftValue
+  }
+
+  const existing = props.result?.exam?.results?.find(result => result.inputanId === inputan.id)
+  if (existing?.valueNumber != null) return existing.valueNumber
+  if (existing?.valueCalculated != null) return existing.valueCalculated
+
+  return null
+}
+
+function buildFormulaScope(targetInputId: string) {
+  const scope = new Map<string, number>()
+
+  for (const inputan of props.result?.item?.inputans || []) {
+    if (inputan.id === targetInputId) continue
+    if (!['number', 'calculated'].includes(inputan.inputType)) continue
+
+    const value = getInputNumericValue(inputan)
+    if (value == null) continue
+
+    scope.set(normalizeFormulaKey(inputan.label), value)
+
+    const identifier = toFormulaIdentifier(inputan.label)
+    if (identifier) scope.set(identifier, value)
+  }
+
+  return scope
+}
+
+function evaluateCalculatedFormula(inputan: ExamInput) {
+  const formula = inputan.formula?.formula?.trim()
+  if (!formula) return null
+
+  const scope = buildFormulaScope(inputan.id)
+  const args: string[] = []
+  const values: number[] = []
+  const usedNames = new Set<string>()
+
+  function bindValue(name: string, value: number) {
+    let safeName = name
+    let suffix = 1
+    while (usedNames.has(safeName)) {
+      safeName = `${name}_${suffix}`
+      suffix += 1
+    }
+    usedNames.add(safeName)
+    args.push(safeName)
+    values.push(value)
+    return safeName
+  }
+
+  let expression = formula
+
+  try {
+    expression = formula.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, label: string) => {
+      const value = scope.get(normalizeFormulaKey(label))
+      if (value == null) throw new Error('Formula dependency is incomplete')
+      return bindValue(`v${args.length}`, value)
+    })
+  } catch {
+    return null
+  }
+
+  for (const [key, value] of scope.entries()) {
+    if (!/^[A-Za-z_$][\w$]*$/.test(key)) continue
+    if (['round', 'abs', 'min', 'max', 'pow', 'sqrt', 'ceil', 'floor'].includes(key)) continue
+    bindValue(key, value)
+  }
+
+  if (!/^[\w$+\-*/%().,\s]+$/.test(expression)) return null
+
+  const fn = new Function(
+    'round',
+    'abs',
+    'min',
+    'max',
+    'pow',
+    'sqrt',
+    'ceil',
+    'floor',
+    ...args,
+    `"use strict"; return (${expression});`
+  )
+
+  try {
+    const round = (value: number, precision = 0) => {
+      const factor = 10 ** precision
+      return Math.round(value * factor) / factor
+    }
+    const result = Number(fn(
+      round,
+      Math.abs,
+      Math.min,
+      Math.max,
+      Math.pow,
+      Math.sqrt,
+      Math.ceil,
+      Math.floor,
+      ...values
+    ))
+
+    if (!Number.isFinite(result)) return null
+    return Math.round(result * 10000) / 10000
+  } catch {
+    return null
+  }
+}
+
+function recomputeCalculatedDrafts(clearIncomplete = false) {
+  const calculatedInputs = (props.result?.item?.inputans || [])
+    .filter(inputan => inputan.inputType === 'calculated')
+
+  for (let pass = 0; pass < calculatedInputs.length; pass += 1) {
+    let changed = false
+
+    for (const inputan of calculatedInputs) {
+      const draft = getInputDraft(inputan.id)
+      const calculated = evaluateCalculatedFormula(inputan)
+
+      if (calculated == null) {
+        if (clearIncomplete && getDraftText(draft.valueCalculated)) {
+          draft.valueCalculated = ''
+          changed = true
+        }
+        continue
+      }
+
+      const nextValue = String(calculated)
+      if (draft.valueCalculated !== nextValue) {
+        draft.valueCalculated = nextValue
+        changed = true
+      }
+    }
+
+    if (!changed) break
+  }
+}
+
 function seedDraftsFromExistingResults() {
   if (!props.result?.exam?.results) return
 
@@ -538,35 +785,49 @@ function seedDraftsFromExistingResults() {
       draft.valueCalculated = String(existing.valueCalculated)
     }
   }
+
+  recomputeCalculatedDrafts(false)
 }
 
 function buildResultsPayload() {
+  recomputeCalculatedDrafts(true)
+
   const inputs = props.result?.item?.inputans || []
+  const payload: ResultPayload[] = []
 
-  return inputs
-    .map((inputan) => {
-      const draft = resultDrafts.value[inputan.id] ?? {}
-      const base = { inputanId: inputan.id }
+  for (const inputan of inputs) {
+    const draft = resultDrafts.value[inputan.id] ?? {}
+    const base: ResultPayload = { inputanId: inputan.id }
 
-      if (inputan.inputType === 'number') {
-        if (!getDraftText(draft.valueNumber)) return null
-        return { ...base, valueNumber: Number(draft.valueNumber) }
+    if (inputan.inputType === 'number') {
+      if (getDraftText(draft.valueNumber)) {
+        payload.push({ ...base, valueNumber: Number(draft.valueNumber) })
       }
+      continue
+    }
 
-      if (inputan.inputType === 'selected') {
-        if (!getDraftText(draft.valueSelected)) return null
-        return { ...base, valueSelected: draft.valueSelected }
+    if (inputan.inputType === 'selected') {
+      const valueSelected = getDraftText(draft.valueSelected)
+      if (valueSelected) {
+        payload.push({ ...base, valueSelected })
       }
+      continue
+    }
 
-      if (inputan.inputType === 'calculated') {
-        if (!getDraftText(draft.valueCalculated)) return null
-        return { ...base, valueCalculated: Number(draft.valueCalculated) }
+    if (inputan.inputType === 'calculated') {
+      if (getDraftText(draft.valueCalculated)) {
+        payload.push({ ...base, valueCalculated: Number(draft.valueCalculated) })
       }
+      continue
+    }
 
-      if (!getDraftText(draft.valueString)) return null
-      return { ...base, valueString: getDraftText(draft.valueString) }
-    })
-    .filter((value): value is Record<string, unknown> => Boolean(value))
+    const valueString = getDraftText(draft.valueString)
+    if (valueString) {
+      payload.push({ ...base, valueString })
+    }
+  }
+
+  return payload
 }
 
 async function handleSaveResult() {
@@ -918,7 +1179,7 @@ onMounted(() => {
                       Jenis Pemeriksaan
                     </dt>
                     <dd class="mt-1">
-                      <UBadge :color="examTypeBadgeColor[result.exam?.examType ?? 'MCU'] ?? 'neutral'" variant="subtle">
+                      <UBadge :color="getExamTypeColor(result.exam?.examType)" variant="subtle">
                         {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Rawat Jalan' : 'MCU' }}
                       </UBadge>
                     </dd>
@@ -1154,9 +1415,9 @@ onMounted(() => {
                           </td>
 
                           <td class="px-3 py-2.5 align-middle text-sm text-muted">
-                            <div v-if="getPatientMatchedNormalRanges(inputan).length" class="space-y-1">
+                            <div v-if="getVisibleNormalRanges(inputan).length" class="space-y-1">
                               <div
-                                v-for="range in getPatientMatchedNormalRanges(inputan)"
+                                v-for="range in getVisibleNormalRanges(inputan)"
                                 :key="range.id"
                                 class="leading-tight"
                               >
@@ -1179,22 +1440,26 @@ onMounted(() => {
                                 v-if="inputan.inputType === 'number'"
                                 v-model="getInputDraft(inputan.id).valueNumber"
                                 type="number"
+                                :disabled="result.status !== 'pending'"
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Masukkan hasil"
+                                @input="recomputeCalculatedDrafts(true)"
                               >
 
                               <input
                                 v-else-if="inputan.inputType === 'string'"
                                 v-model="getInputDraft(inputan.id).valueString"
                                 type="text"
-                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+                                :disabled="result.status !== 'pending'"
+                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                                 placeholder="Masukkan hasil"
                               >
 
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
                                 v-model="getInputDraft(inputan.id).valueSelected"
-                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+                                :disabled="result.status !== 'pending'"
+                                class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
                                 <option value="">
                                   Pilih hasil
@@ -1212,9 +1477,16 @@ onMounted(() => {
                                 v-else-if="inputan.inputType === 'calculated'"
                                 v-model="getInputDraft(inputan.id).valueCalculated"
                                 type="number"
+                                disabled
                                 :class="getResultInputClass(inputan)"
-                                placeholder="Masukkan hasil"
+                                placeholder="Dihitung otomatis"
                               >
+                              <p
+                                v-if="inputan.formula?.formula"
+                                class="mt-1 truncate text-[11px] text-muted"
+                              >
+                                {{ inputan.formula.formula }}
+                              </p>
                             </div>
                           </td>
 
@@ -1271,11 +1543,7 @@ onMounted(() => {
                   <UFormField label="Grading Group (manual)">
                     <USelect
                       v-model="groupGradingForm.grading"
-                      :items="[
-                        { label: 'Normal', value: 'NORMAL' },
-                        { label: 'Abnormal (meningkat)', value: 'ABNORMAL_INC' },
-                        { label: 'Abnormal (menurun)', value: 'ABNORMAL_DEC' }
-                      ]"
+                      :items="groupGradingItems"
                       :placeholder="'Pilih grading group'"
                       class="w-full sm:w-72"
                     />
@@ -1295,6 +1563,7 @@ onMounted(() => {
                   </div>
 
                   <UButton
+                    v-if="result.status === 'pending'"
                     :loading="groupGradingSaving"
                     icon="i-lucide-save"
                     @click="saveGroupGrading"
