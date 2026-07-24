@@ -259,11 +259,11 @@ async function receiveSample(sample: SampleCollectionRow) {
 const currentUserId = computed(() => user.value?.id ?? null)
 
 function canReject(sample: SampleCollectionRow) {
-  return sample.status === 'COLLECTED' || sample.status === 'RECEIVED'
+  return (sample.status === 'COLLECTED' || sample.status === 'RECEIVED') && activeStage.value?.status === 'IN_PROGRESS'
 }
 
 function canReschedule(sample: SampleCollectionRow) {
-  return sample.status === 'PENDING' || sample.status === 'COLLECTED' || sample.status === 'REJECTED'
+  return (sample.status === 'PENDING' || sample.status === 'COLLECTED' || sample.status === 'REJECTED') && activeStage.value?.status === 'IN_PROGRESS'
 }
 
 function openRejectModal(sample: SampleCollectionRow) {
