@@ -143,7 +143,7 @@ async function handleGetPatient(row: SampleCollectionRow) {
         (s: StageQueueItem) => s.status === 'WAITING'
       )
       if (waitingStage) {
-        stageId = waitingStage.stageId
+        stageId = waitingStage.id
         break
       }
     }
