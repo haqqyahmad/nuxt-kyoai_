@@ -133,8 +133,11 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - BE: endpoint `/users/auth/employee` + `/users/profile` untuk self-update.
 - Perbaikan date fields di EditModal + Profile.
 
-### 2026-07-25 — Role Nurse Restriction + PRD Update
+### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + PRD Update
 - `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings).
+- `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor.
+- `components/settings/MenuPreviewModal.vue`: modal preview menu tree untuk role tertentu — menampilkan menu yang terlihat berdasarkan permissions.
+- `pages/settings/roles.vue`: tambah tombol Preview di kolom aksi untuk setiap role.
 - PRD v1.2 → v1.3: tambah Sample Collection flow, Room Queue Work, Room Assignments, External Doctor, Exam Results, Permission System detail, 100+ endpoints, 3 user flows baru, 15+ entitas baru, permission matrix 8 role.
 
 ### 2026-07-24 — Sample Collection Flow + Documentation Audit
