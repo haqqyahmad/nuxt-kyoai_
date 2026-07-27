@@ -4,7 +4,7 @@ export const SELF_ASSIGNABLE_ROOM_TYPE_CODES_BY_ROLE: Record<string, string[]> =
   'petugas-lab': ['LAB', 'LAB-MCU'],
   'petugas-radiologi': ['RAD'],
   'dokter': ['DOK'],
-  'nurse': ['LAB', 'RAD', 'DOK', 'VIS'],
+  'nurse': ['LAB', 'RAD', 'DOK', 'VIS', 'NUS'],
   'perawat': ['LAB', 'RAD', 'DOK', 'VIS'],
   'petugas': ['LAB', 'RAD', 'DOK', 'VIS']
 }
