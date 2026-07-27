@@ -99,6 +99,72 @@ const actionForm = reactive({
 })
 const editingActionId = ref<number | null>(null)
 
+// Recommended permissions per role
+const recommendedPermissions: Record<string, string[]> = {
+  'superadmin': ['*:*'],
+  'admin': ['*:*'],
+  'petugas-lab': [
+    'branch:read', 'customer:read', 'patient:read', 'user:read',
+    'mcu-item:read', 'sample-type:read', 'questionnaire:read',
+    'room:read', 'room-type:read', 'room-assignment:read',
+    'queue:read', 'queue:update', 'queue:call', 'queue:admin',
+    'sample:collect', 'sample:receive',
+    'registration:read',
+    'exam:read', 'exam:update'
+  ],
+  'petugas-radiologi': [
+    'branch:read', 'customer:read', 'patient:read', 'user:read',
+    'mcu-item:read', 'sample-type:read', 'questionnaire:read',
+    'room:read', 'room-type:read', 'room-assignment:read',
+    'queue:read', 'queue:update', 'queue:call',
+    'exam:read', 'exam:update'
+  ],
+  'dokter': [
+    'branch:read', 'customer:read', 'patient:read', 'user:read',
+    'mcu-item:read', 'sample-type:read', 'questionnaire:read',
+    'room:read', 'room-type:read', 'room-assignment:read',
+    'queue:read', 'queue:update', 'queue:call',
+    'exam:read', 'exam:update'
+  ],
+  'nurse': [
+    'branch:read', 'customer:read', 'patient:read', 'user:read',
+    'mcu-item:read', 'sample-type:read', 'questionnaire:read',
+    'room:read', 'room-type:read', 'room-assignment:read',
+    'queue:read', 'queue:update', 'queue:call',
+    'sample:collect',
+    'exam:read', 'exam:update'
+  ],
+  'dokter-external': [
+    'patient:read',
+    'exam:read'
+  ],
+  'front-office': [
+    'branch:read', 'customer:read', 'customer:create', 'customer:update', 'customer:delete',
+    'patient:read', 'patient:create', 'patient:update', 'patient:delete',
+    'user:read',
+    'registration:read', 'registration:create', 'registration:update', 'registration:delete',
+    'registration-temp:read', 'registration-temp:create'
+  ],
+  'medical-admin': [
+    'branch:read', 'customer:read', 'patient:read', 'user:read',
+    'mcu-item:read', 'mcu-item:create', 'mcu-item:update', 'mcu-item:delete',
+    'sample-type:read', 'sample-type:create', 'sample-type:update', 'sample-type:delete',
+    'questionnaire:read', 'questionnaire:create', 'questionnaire:update', 'questionnaire:delete',
+    'room:read', 'room:create', 'room:update', 'room:delete',
+    'room-type:read', 'room-type:create', 'room-type:update', 'room-type:delete',
+    'service:read', 'service:create', 'service:update', 'service:delete',
+    'registration:read'
+  ],
+  'hr-admin': [
+    'branch:read', 'user:read',
+    'employee:read', 'employee:create', 'employee:update', 'employee:delete',
+    'attendance:read', 'attendance:create', 'attendance:update', 'attendance:delete',
+    'shift:read', 'shift:create', 'shift:update', 'shift:delete',
+    'leave:read', 'leave:create', 'leave:update', 'leave:delete',
+    'national-holiday:read', 'national-holiday:create', 'national-holiday:update', 'national-holiday:delete'
+  ]
+}
+
 const { data: actionsData, refresh: refreshActions } = await useAsyncData<PermissionAction[]>(
   'permission-actions',
   async () => {
@@ -394,6 +460,49 @@ async function deleteAction(id: number) {
   }
 }
 
+async function applyRecommendedPermissions() {
+  if (!selectedRole.value || saving.value) return
+
+  const roleName = selectedRole.value.name.toLowerCase()
+  const recommended = recommendedPermissions[roleName]
+
+  if (!recommended) {
+    toast.add({
+      title: 'Tidak ada rekomendasi',
+      description: `Tidak ada rekomendasi permission untuk role "${selectedRole.value.name}"`,
+      color: 'warning'
+    })
+    return
+  }
+
+  saving.value = true
+  try {
+    const permissionIds: number[] = []
+    for (const permName of recommended) {
+      const permission = await ensurePermission(permName)
+      if (permission) permissionIds.push(permission.id)
+    }
+
+    await updateSelectedRolePermissionIds(permissionIds)
+    await refreshRoles()
+
+    toast.add({
+      title: 'Berhasil',
+      description: `Permission untuk role "${selectedRole.value.name}" berhasil di-reset ke rekomendasi`,
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menerapkan rekomendasi'
+    toast.add({
+      title: 'Gagal',
+      description: message,
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
 async function syncActions() {
   if (saving.value) return
 
@@ -659,6 +768,16 @@ async function submitAddPermission() {
               label-key="label"
               class="lg:w-72"
               placeholder="Role"
+            />
+
+            <UButton
+              v-if="isRoleSelected && selectedRole && recommendedPermissions[selectedRole.name.toLowerCase()]"
+              label="Set Recommended"
+              color="primary"
+              variant="soft"
+              icon="i-lucide-sparkles"
+              :loading="saving"
+              @click="applyRecommendedPermissions"
             />
 
             <div class="ml-auto flex items-center gap-2 text-sm text-muted">
