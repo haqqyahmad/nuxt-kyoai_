@@ -135,10 +135,11 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + Permission Cleanup + Menu Refactor + PRD Update
 - `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings). Filter Results by role→department mapping. Filter Sample Collection by `sample:collect` permission.
+- `constants/menu.ts`: shared menu definition — extract menu structure, route constants, role lists ke file bersama antara `default.vue` dan `useMenuPreview.ts`. Tambah `'front-office'` ke restrictedRoles + allowed routes (`/front-office/*`).
 - `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor. Refactor: gunakan `useRoutePermission().hasRouteAccess` langsung (hapus duplikasi logika).
-- `constants/menu.ts`: shared menu definition — extract menu structure, route constants, role lists ke file bersama antara `default.vue` dan `useMenuPreview.ts`.
-- `components/settings/MenuPreviewModal.vue`: modal preview menu tree untuk role tertentu — menampilkan menu yang terlihat berdasarkan permissions.
+- `components/settings/MenuPreviewModal.vue`: modal preview menu tree untuk role tertentu — menampilkan menu yang terlihat berdasarkan permissions. Import restrictedRoles dari constants/menu.ts.
 - `components/settings/PermissionCleanupModal.vue`: modal bulk cleanup permission — reset permission multiple role sekaligus ke rekomendasi.
+- `pages/login.vue`: redirect front-office ke `/front-office/registration-temp`.
 - `pages/settings/roles.vue`: tambah tombol Preview di kolom aksi untuk setiap role.
 - `pages/settings/permissions.vue`: tambah "Set Recommended Permissions" button — reset permission ke rekomendasi per role (8 role matrices: superadmin, admin, petugas-lab, petugas-radiologi, dokter, nurse, dokter-external, front-office, medical-admin, hr-admin). Tambah "Bulk Cleanup" button.
 - Fix: `useMenuPreview` filter Results by role→department mapping, filter Sample Collection by sample:collect permission.
