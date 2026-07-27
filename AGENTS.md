@@ -137,8 +137,9 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings).
 - `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor. Refactor: gunakan `useRoutePermission().hasRouteAccess` langsung (hapus duplikasi logika).
 - `components/settings/MenuPreviewModal.vue`: modal preview menu tree untuk role tertentu — menampilkan menu yang terlihat berdasarkan permissions.
+- `components/settings/PermissionCleanupModal.vue`: modal bulk cleanup permission — reset permission multiple role sekaligus ke rekomendasi.
 - `pages/settings/roles.vue`: tambah tombol Preview di kolom aksi untuk setiap role.
-- `pages/settings/permissions.vue`: tambah "Set Recommended Permissions" button — reset permission ke rekomendasi per role (8 role matrices: superadmin, admin, petugas-lab, petugas-radiologi, dokter, nurse, dokter-external, front-office, medical-admin, hr-admin).
+- `pages/settings/permissions.vue`: tambah "Set Recommended Permissions" button — reset permission ke rekomendasi per role (8 role matrices: superadmin, admin, petugas-lab, petugas-radiologi, dokter, nurse, dokter-external, front-office, medical-admin, hr-admin). Tambah "Bulk Cleanup" button.
 - PRD v1.2 → v1.3: tambah Sample Collection flow, Room Queue Work, Room Assignments, External Doctor, Exam Results, Permission System detail, 100+ endpoints, 3 user flows baru, 15+ entitas baru, permission matrix 8 role.
 
 ### 2026-07-24 — Sample Collection Flow + Documentation Audit

@@ -16,7 +16,7 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: `permissions.vue` — tombol "Add Role Permission" modal.
 - FE: Sidebar petugas-lab/radiologi/dokter/nurse — hanya Dashboard, Examination, Settings.
 - FE: Preview Menu UI — `useMenuPreview` composable + `MenuPreviewModal` component di `/settings/roles`.
-- FE: Permission Cleanup — "Set Recommended Permissions" button di `/settings/permissions` dengan 8 role matrices.
+- FE: Permission Cleanup — "Set Recommended Permissions" button di `/settings/permissions` dengan 8 role matrices + "Bulk Cleanup" modal untuk reset semua role sekaligus.
 - BE: Login response include `roles` array.
 - BE/FE: Pre-populate UserRoomAccess dari role mapping saat load `/rooms/assignments`.
 - BE/FE: Employee ↔ User link — Tab User di EditModal + API link/unlink + auto-copy data.
