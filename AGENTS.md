@@ -133,6 +133,10 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - BE: endpoint `/users/auth/employee` + `/users/profile` untuk self-update.
 - Perbaikan date fields di EditModal + Profile.
 
+### 2026-07-25 — Role Nurse Restriction + PRD Update
+- `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings).
+- PRD v1.2 → v1.3: tambah Sample Collection flow, Room Queue Work, Room Assignments, External Doctor, Exam Results, Permission System detail, 100+ endpoints, 3 user flows baru, 15+ entitas baru, permission matrix 8 role.
+
 ### 2026-07-24 — Sample Collection Flow + Documentation Audit
 - `assignments.vue`: self-assign redirect ke `/rooms/sample-collection` jika room type code `LAB` atau `LAB-MCU`.
 - `sample-collection/[id].vue`: enhance major — tambah room session management (enter/exit), "Mulai Pemeriksaan" (stage start), "Selesaikan" (stage done saat semua sample final), sidebar collapse, hapus duplicate UAlert. Hapus modal "Ambil Pasien" duplikat (sudah ada di index).

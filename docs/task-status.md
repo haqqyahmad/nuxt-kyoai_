@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-24 12:00
+Last updated: 2026-07-25 09:00
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -14,7 +14,7 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: `TeamsMenu.vue` — tampilkan nama role dari `useCurrentUser`.
 - FE: `settings.vue` — tab Roles & Permission filter langsung dari permissions user.
 - FE: `permissions.vue` — tombol "Add Role Permission" modal.
-- FE: Sidebar petugas-lab/radiologi/dokter — hanya Dashboard, Examination, Settings.
+- FE: Sidebar petugas-lab/radiologi/dokter/nurse — hanya Dashboard, Examination, Settings.
 - BE: Login response include `roles` array.
 - BE/FE: Pre-populate UserRoomAccess dari role mapping saat load `/rooms/assignments`.
 - BE/FE: Employee ↔ User link — Tab User di EditModal + API link/unlink + auto-copy data.

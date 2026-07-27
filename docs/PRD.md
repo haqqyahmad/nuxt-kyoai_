@@ -747,7 +747,7 @@ Permission system menggunakan format `{documentType}:{action}` (contoh: `patient
 
 - Sidebar difilter berdasarkan permissions user login.
 - Matching route ke document type secara dinamis dari API.
-- Restricted roles (`petugas-lab`, `petugas-radiologi`, `dokter`): hanya Dashboard, Examination, Settings.
+- Restricted roles (`petugas-lab`, `petugas-radiologi`, `dokter`, `nurse`): hanya Dashboard, Examination, Settings.
 - Role `dokter-external`: hanya Hasil Exam Lab dan Settings.
 
 ### Requirement
