@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 type Patient = {
   id: string
   PatientId?: string | null
@@ -122,14 +122,17 @@ type ExamInput = {
   id: string
   label: string
   inputType: 'number' | 'string' | 'selected' | 'calculated'
+  formula?: { formula?: string | null } | null
   uom?: string | null
   allowBlank?: boolean
   opsis?: ExamInputOption[]
   nilaiNormalNum?: Array<{
     id: string
-    gender?: string | null
+    sex?: string | null
     ageMin?: number | null
     ageMax?: number | null
+    minValue?: number | null
+    maxValue?: number | null
     normalLow?: number | null
     normalHigh?: number | null
     criticalLow?: number | null
@@ -137,7 +140,7 @@ type ExamInput = {
   }>
   nilaiNormalSel?: Array<{
     id: string
-    gender?: string | null
+    sex?: string | null
     ageMin?: number | null
     ageMax?: number | null
     opsi?: {
@@ -342,39 +345,49 @@ function getStatusLabel(status: string) {
   return 'Menunggu'
 }
 
-function getPatientAge(dob?: string | null) {
+function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null) {
   if (!dob) return null
 
   const birthDate = new Date(dob)
+  const targetDate = referenceDate ? new Date(referenceDate) : new Date()
   if (Number.isNaN(birthDate.getTime())) return null
+  if (Number.isNaN(targetDate.getTime())) return null
 
-  const today = new Date()
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const monthDiff = today.getMonth() - birthDate.getMonth()
+  let age = targetDate.getFullYear() - birthDate.getFullYear()
+  const monthDiff = targetDate.getMonth() - birthDate.getMonth()
 
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+  if (monthDiff < 0 || (monthDiff === 0 && targetDate.getDate() < birthDate.getDate())) {
     age -= 1
   }
 
   return age
 }
 
-function matchesPatientProfile(gender?: string | null, ageMin?: number | null, ageMax?: number | null) {
-  const patientGender = patient.value?.gender ?? null
-  const patientAge = getPatientAge(patient.value?.dob)
+function getPatientGenderKey(gender?: string | null) {
+  const normalized = (gender || '').trim().toUpperCase()
+  if (!normalized) return null
+  if (['M', 'MALE', 'L', 'LAKI-LAKI', 'PRIA'].includes(normalized)) return 'M'
+  if (['F', 'FEMALE', 'P', 'PEREMPUAN', 'WANITA'].includes(normalized)) return 'F'
+  return normalized
+}
 
-  const genderMatches = !gender || gender === patientGender
+function matchesPatientProfile(sex?: string | null, ageMin?: number | null, ageMax?: number | null) {
+  const patientGender = getPatientGenderKey(patient.value?.gender)
+  const rangeGender = getPatientGenderKey(sex)
+  const patientAge = getPatientAgeAtDate(patient.value?.dob, roomQueueDetail.value?.queueEntry?.checkinAt)
+
+  const genderMatches = !rangeGender || !patientGender || rangeGender === patientGender
   const ageMinMatches = ageMin == null || patientAge == null || patientAge >= ageMin
   const ageMaxMatches = ageMax == null || patientAge == null || patientAge <= ageMax
 
   return genderMatches && ageMinMatches && ageMaxMatches
 }
 
-function formatProfileSuffix(gender?: string | null, ageMin?: number | null, ageMax?: number | null) {
+function formatProfileSuffix(sex?: string | null, ageMin?: number | null, ageMax?: number | null) {
   const parts: string[] = []
 
-  if (gender === 'MALE') parts.push('Laki-laki')
-  if (gender === 'FEMALE') parts.push('Perempuan')
+  if (sex === 'MALE') parts.push('Laki-laki')
+  if (sex === 'FEMALE') parts.push('Perempuan')
 
   if (ageMin != null && ageMax != null) {
     parts.push(`${ageMin}-${ageMax} th`)
@@ -388,23 +401,32 @@ function formatProfileSuffix(gender?: string | null, ageMin?: number | null, age
 }
 
 function getNumericNormalRanges(inputan: ExamInput) {
-  return (inputan.nilaiNormalNum ?? []).filter(range =>
-    matchesPatientProfile(range.gender, range.ageMin, range.ageMax)
+  const ranges = inputan.nilaiNormalNum ?? []
+  const matched = ranges.filter(range =>
+    matchesPatientProfile(range.sex, range.ageMin, range.ageMax)
   )
+
+  return matched.length ? matched : ranges
 }
 
 function getSelectedNormalRanges(inputan: ExamInput) {
-  return (inputan.nilaiNormalSel ?? []).filter(range =>
-    matchesPatientProfile(range.gender, range.ageMin, range.ageMax)
+  const ranges = inputan.nilaiNormalSel ?? []
+  const matched = ranges.filter(range =>
+    matchesPatientProfile(range.sex, range.ageMin, range.ageMax)
   )
+
+  return matched.length ? matched : ranges
 }
 
 function formatNumericNormalRange(inputan: ExamInput, range: NumericNormalRange) {
   const parts: string[] = []
 
-  if (range.normalLow != null || range.normalHigh != null) {
-    const low = range.normalLow != null ? String(range.normalLow) : '-∞'
-    const high = range.normalHigh != null ? String(range.normalHigh) : '∞'
+  const lowValue = range.minValue ?? range.normalLow
+  const highValue = range.maxValue ?? range.normalHigh
+
+  if (lowValue != null || highValue != null) {
+    const low = lowValue != null ? String(lowValue) : '-∞'
+    const high = highValue != null ? String(highValue) : '∞'
     parts.push(`Normal ${low} - ${high}${inputan.uom ? ` ${inputan.uom}` : ''}`)
   }
 
@@ -415,17 +437,20 @@ function formatNumericNormalRange(inputan: ExamInput, range: NumericNormalRange)
     parts.push(criticalParts.join(' · '))
   }
 
-  return `${parts.join(' | ')}${formatProfileSuffix(range.gender, range.ageMin, range.ageMax)}`
+  return `${parts.join(' | ')}${formatProfileSuffix(range.sex, range.ageMin, range.ageMax)}`
 }
 
 function formatSelectedNormalRange(range: SelectedNormalRange) {
-  return `${range.opsi?.label ?? range.opsi?.value ?? '-'}${formatProfileSuffix(range.gender, range.ageMin, range.ageMax)}`
+  return `${range.opsi?.label ?? range.opsi?.value ?? '-'}${formatProfileSuffix(range.sex, range.ageMin, range.ageMax)}`
 }
 
-function parseDraftNumber(value?: string) {
-  if (!value?.trim()) return null
+function parseDraftNumber(value?: string | number | null) {
+  if (value == null) return null
 
-  const parsed = Number(value)
+  const text = String(value).trim()
+  if (!text) return null
+
+  const parsed = Number(text)
   return Number.isFinite(parsed) ? parsed : null
 }
 
@@ -437,15 +462,17 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
   if (ranges.length === 0) return null
 
   const matchedNormal = ranges.find((range) => {
-    const lowOk = range.normalLow == null || value >= range.normalLow
-    const highOk = range.normalHigh == null || value <= range.normalHigh
+    const lowValue = range.minValue ?? range.normalLow
+    const highValue = range.maxValue ?? range.normalHigh
+    const lowOk = lowValue == null || value >= lowValue
+    const highOk = highValue == null || value <= highValue
     return lowOk && highOk
   })
 
   if (matchedNormal) {
     return {
       status: 'normal' as const,
-      label: `Dalam batas normal${formatProfileSuffix(matchedNormal.gender, matchedNormal.ageMin, matchedNormal.ageMax)}`
+      label: `Dalam batas normal${formatProfileSuffix(matchedNormal.sex, matchedNormal.ageMin, matchedNormal.ageMax)}`
     }
   }
 
@@ -458,7 +485,7 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
   if (matchedCritical) {
     return {
       status: 'critical' as const,
-      label: `Di luar batas kritikal${formatProfileSuffix(matchedCritical.gender, matchedCritical.ageMin, matchedCritical.ageMax)}`
+      label: `Di luar batas kritikal${formatProfileSuffix(matchedCritical.sex, matchedCritical.ageMin, matchedCritical.ageMax)}`
     }
   }
 
@@ -479,7 +506,7 @@ function getSelectedEvaluation(inputan: ExamInput, draftValue?: string) {
   if (matched) {
     return {
       status: 'normal' as const,
-      label: `Sesuai nilai normal${formatProfileSuffix(matched.gender, matched.ageMin, matched.ageMax)}`
+      label: `Sesuai nilai normal${formatProfileSuffix(matched.sex, matched.ageMin, matched.ageMax)}`
     }
   }
 
@@ -506,7 +533,7 @@ function getInputEvaluation(itemId: string, inputan: ExamInput) {
 function getEvaluationBadgeColor(status?: 'normal' | 'out-of-range' | 'critical') {
   if (status === 'normal') return 'success'
   if (status === 'critical') return 'error'
-  if (status === 'out-of-range') return 'warning'
+  if (status === 'out-of-range') return 'error'
   return 'neutral'
 }
 
@@ -518,7 +545,7 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
   }
 
   if (evaluation?.status === 'out-of-range') {
-    return 'rounded-xl border border-warning/40 bg-warning/5 p-3'
+    return 'rounded-xl border border-error/40 bg-error/5 p-3'
   }
 
   if (evaluation?.status === 'normal') {
@@ -526,6 +553,24 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
   }
 
   return 'rounded-xl border border-default bg-muted/20 p-3'
+}
+function getInputValueClass(itemId: string, inputan: ExamInput) {
+  const base = 'w-full rounded-lg border bg-default px-3 py-2 text-sm outline-none transition focus:ring-2'
+  const evaluation = getInputEvaluation(itemId, inputan)
+
+  if (evaluation?.status === 'normal') {
+    return `${base} border-success/50 text-success focus:border-success focus:ring-success/20`
+  }
+
+  if (evaluation?.status === 'critical') {
+    return `${base} border-error/70 font-semibold text-error focus:border-error focus:ring-error/25`
+  }
+
+  if (evaluation?.status === 'out-of-range') {
+    return `${base} border-error/50 text-error focus:border-error focus:ring-error/20`
+  }
+
+  return `${base} border-default text-highlighted focus:border-primary/60 focus:ring-primary/15`
 }
 
 const patient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
@@ -571,25 +616,23 @@ const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.samp
 
 const sampleGroups = computed(() => {
   return sampleCollections.value
-    .filter(c => c.items?.length)
     .map((collection) => {
       const collItemIds = new Set((collection.items || []).map(i => i.itemId))
+      const items = roomExamItems.value.filter((item) => {
+        const itemId = item.trxExamItem?.item?.id
+        return itemId && collItemIds.has(itemId)
+      })
+
       return {
         collection,
         sampleTypeName: collection.sampleType?.name || 'Sample',
         status: collection.status,
-        items: roomExamItems.value.filter((item) => {
-          const itemId = item.trxExamItem?.item?.id
-          return itemId && collItemIds.has(itemId)
-        }),
+        items,
         allItems: collection.items || []
       }
     })
+    .filter(group => group.items.length > 0)
 })
-
-const nonSampleItems = computed(() =>
-  roomExamItems.value.filter(item => !item.sampleImpact)
-)
 
 function getStageDisplayName(stage?: QueueStageItem | null) {
   if (!stage) return '-'
@@ -661,10 +704,6 @@ function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
 }
 
-function isDeferredItem(item: RoomExamItem) {
-  return item.trxExamItem?.item?.resultTiming === 'deferred'
-}
-
 function getSampleCollectionStatus(item: RoomExamItem) {
   return item.sampleImpact?.collectionStatus ?? null
 }
@@ -682,11 +721,21 @@ function canInteractWithItem(item: RoomExamItem) {
 }
 
 function canRenderExamInputs(item: RoomExamItem) {
-  return hasStructuredInputs(item) && !isDeferredItem(item) && canInteractWithItem(item)
+  return hasStructuredInputs(item) && canInteractWithItem(item)
 }
 
 function canRenderItemNotes(item: RoomExamItem) {
-  return canInteractWithItem(item) && (isDeferredItem(item) || !hasStructuredInputs(item))
+  return canInteractWithItem(item) && !hasStructuredInputs(item)
+}
+
+function isExamResultSubmitted(item: RoomExamItem) {
+  return item.trxExamItem?.exam?.status === 'completed'
+}
+
+function canDoneItem(item: RoomExamItem) {
+  if (item.status !== 'IN_PROGRESS') return false
+  if (!hasStructuredInputs(item)) return true
+  return isExamResultSubmitted(item)
 }
 
 function getOperationalStatusLabel(item: RoomExamItem) {
@@ -747,6 +796,163 @@ function getInputDraft(itemId: string, inputId: string) {
   return resultDrafts[itemId][inputId]
 }
 
+function normalizeFormulaKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function toFormulaIdentifier(value: string) {
+  const identifier = value.trim().replace(/[^A-Za-z0-9_$]+/g, '_')
+  if (!identifier) return null
+  return /^[A-Za-z_$]/.test(identifier) ? identifier : `_${identifier}`
+}
+
+function getInputNumericValue(item: RoomExamItem, inputan: ExamInput) {
+  const draft = resultDrafts[item.id]?.[inputan.id] ?? {}
+
+  if (inputan.inputType === 'number') {
+    const draftValue = parseDraftNumber(draft.valueNumber)
+    if (draftValue != null) return draftValue
+  }
+
+  if (inputan.inputType === 'calculated') {
+    const draftValue = parseDraftNumber(draft.valueCalculated)
+    if (draftValue != null) return draftValue
+  }
+
+  const existing = item.trxExamItem?.exam?.results?.find(result => result.inputanId === inputan.id)
+  if (existing?.valueNumber != null) return existing.valueNumber
+  if (existing?.valueCalculated != null) return existing.valueCalculated
+
+  return null
+}
+
+function addFormulaScopeValue(scope: Map<string, number>, inputan: ExamInput, value: number) {
+  scope.set(normalizeFormulaKey(inputan.label), value)
+
+  const identifier = toFormulaIdentifier(inputan.label)
+  if (identifier) scope.set(identifier, value)
+}
+
+function buildFormulaScope(currentItem: RoomExamItem, targetInputId: string) {
+  const scope = new Map<string, number>()
+
+  for (const item of roomExamItems.value) {
+    for (const inputan of item.trxExamItem?.item?.inputans || []) {
+      if (inputan.id === targetInputId) continue
+      if (!['number', 'calculated'].includes(inputan.inputType)) continue
+
+      const value = getInputNumericValue(item, inputan)
+      if (value == null) continue
+
+      addFormulaScopeValue(scope, inputan, value)
+    }
+  }
+
+  for (const inputan of currentItem.trxExamItem?.item?.inputans || []) {
+    if (inputan.id === targetInputId) continue
+    if (!['number', 'calculated'].includes(inputan.inputType)) continue
+
+    const value = getInputNumericValue(currentItem, inputan)
+    if (value == null) continue
+
+    addFormulaScopeValue(scope, inputan, value)
+  }
+
+  return scope
+}
+
+function evaluateCalculatedFormula(item: RoomExamItem, inputan: ExamInput) {
+  const formula = inputan.formula?.formula?.trim()
+  if (!formula) return null
+
+  const scope = buildFormulaScope(item, inputan.id)
+  const args: string[] = []
+  const values: number[] = []
+  const usedNames = new Set<string>()
+
+  function bindValue(name: string, value: number) {
+    let safeName = name
+    let suffix = 1
+    while (usedNames.has(safeName)) {
+      safeName = `${name}_${suffix}`
+      suffix += 1
+    }
+    usedNames.add(safeName)
+    args.push(safeName)
+    values.push(value)
+    return safeName
+  }
+
+  let expression = formula
+
+  try {
+    expression = formula.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, label: string) => {
+      const value = scope.get(normalizeFormulaKey(label))
+      if (value == null) throw new Error('Formula dependency is incomplete')
+      return bindValue(`v${args.length}`, value)
+    })
+  } catch {
+    return null
+  }
+
+  for (const [key, value] of scope.entries()) {
+    if (!/^[A-Za-z_$][\w$]*$/.test(key)) continue
+    if (['round', 'abs', 'min', 'max', 'pow', 'sqrt', 'ceil', 'floor'].includes(key)) continue
+    bindValue(key, value)
+  }
+
+  if (!/^[\w$+\-*/%().,\s]+$/.test(expression)) return null
+
+  const fn = new Function('round', 'abs', 'min', 'max', 'pow', 'sqrt', 'ceil', 'floor', ...args, `"use strict"; return (${expression});`)
+
+  try {
+    const round = (value: number, precision = 0) => {
+      const factor = 10 ** precision
+      return Math.round(value * factor) / factor
+    }
+    const result = Number(fn(round, Math.abs, Math.min, Math.max, Math.pow, Math.sqrt, Math.ceil, Math.floor, ...values))
+    if (!Number.isFinite(result)) return null
+    return Math.round(result * 10000) / 10000
+  } catch {
+    return null
+  }
+}
+
+function recomputeCalculatedDrafts(item: RoomExamItem, clearIncomplete = false) {
+  const calculatedInputs = (item.trxExamItem?.item?.inputans || [])
+    .filter(inputan => inputan.inputType === 'calculated')
+
+  for (let pass = 0; pass < calculatedInputs.length; pass += 1) {
+    let changed = false
+
+    for (const inputan of calculatedInputs) {
+      const draft = getInputDraft(item.id, inputan.id)
+      const calculated = evaluateCalculatedFormula(item, inputan)
+
+      if (calculated == null) {
+        if (clearIncomplete && getDraftText(draft.valueCalculated)) {
+          draft.valueCalculated = ''
+          changed = true
+        }
+        continue
+      }
+
+      const nextValue = String(calculated)
+      if (draft.valueCalculated !== nextValue) {
+        draft.valueCalculated = nextValue
+        changed = true
+      }
+    }
+
+    if (!changed) break
+  }
+}
+
+function recomputeAllCalculatedDrafts(clearIncomplete = false) {
+  for (const item of roomExamItems.value) {
+    recomputeCalculatedDrafts(item, clearIncomplete)
+  }
+}
 function openItemActionModal(item: RoomExamItem, action: 'skip' | 'reschedule' | 'retest' | 'refuse') {
   selectedItemAction.value = item
   selectedItemActionType.value = action
@@ -873,9 +1079,12 @@ function seedLocalState() {
       }
     }
   }
+
+  recomputeAllCalculatedDrafts()
 }
 
 watch(roomExamItems, seedLocalState, { immediate: true })
+watch(resultDrafts, () => recomputeAllCalculatedDrafts(true), { deep: true })
 
 async function loadPage(showRefreshState = false) {
   if (!roomQueueItemId.value) return
@@ -1141,9 +1350,9 @@ async function handleReceiveSample(item: RoomExamItem) {
   }
 }
 
-async function handleSaveResults(item: RoomExamItem) {
+async function saveResultsDraft(item: RoomExamItem, showToast = true) {
   const examId = item.trxExamItem?.exam?.id
-  if (!examId) return
+  if (!examId) return false
 
   const results = buildResultsPayload(item)
   if (results.length === 0) {
@@ -1152,22 +1361,29 @@ async function handleSaveResults(item: RoomExamItem) {
       description: 'Isi minimal satu hasil exam sebelum disimpan.',
       color: 'warning'
     })
-    return
+    return false
   }
 
-  setResultSaving(item.id, true)
-  try {
-    await api.post(`/mcu/exams/${examId}/results`, { results })
-    await loadPage(true)
+  await api.post(`/mcu/exams/${examId}/results`, { results })
+  if (showToast) {
     toast.add({
       title: 'Berhasil',
-      description: 'Hasil exam item berhasil disimpan.',
+      description: 'Draft hasil berhasil disimpan.',
       color: 'success'
     })
+  }
+  return true
+}
+
+async function handleSaveResults(item: RoomExamItem) {
+  setResultSaving(item.id, true)
+  try {
+    const saved = await saveResultsDraft(item)
+    if (saved) await loadPage(true)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menyimpan hasil',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menyimpan hasil exam.'),
+      title: 'Gagal menyimpan draft',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat menyimpan draft hasil.'),
       color: 'error'
     })
   } finally {
@@ -1175,6 +1391,34 @@ async function handleSaveResults(item: RoomExamItem) {
   }
 }
 
+async function handleSubmitResults(item: RoomExamItem) {
+  const examId = item.trxExamItem?.exam?.id
+  if (!examId) return
+
+  setResultSaving(item.id, true)
+  try {
+    const saved = await saveResultsDraft(item, false)
+    if (!saved) return
+
+    await api.post(`/mcu/exams/${examId}/results/submit`, {
+      departmentId: item.trxExamItem?.item?.department?.id ?? undefined
+    })
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: 'Hasil berhasil disubmit. Item sekarang bisa diselesaikan.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal submit hasil',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat submit hasil.'),
+      color: 'error'
+    })
+  } finally {
+    setResultSaving(item.id, false)
+  }
+}
 async function handleDoneItem(item: RoomExamItem) {
   if (itemActionLoading.value[item.id]) return
   if (!currentUserId.value) {
@@ -1412,7 +1656,7 @@ async function handleSubmitItemAction() {
                 </div>
 
                 <p class="max-w-2xl text-sm text-muted">
-                  Selesaikan item pemeriksaan satu per satu. Input hasil hanya aktif saat item sudah <code>IN_PROGRESS</code>. Untuk item dengan <code>resultTiming</code> deferred, lakukan pemeriksaan tanpa input lalu isi dokumentasi sebelum item ditandai selesai.
+                  Selesaikan item pemeriksaan satu per satu. Untuk item dengan input hasil, isi hasil, simpan draft, submit hasil, lalu selesaikan item.
                 </p>
 
                 <div
@@ -1577,7 +1821,7 @@ async function handleSubmitItemAction() {
             </UCard>
 
             <!-- Item Cards (non-sample + sample items in EXAM stage) -->
-            <div class="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <UCard
                 v-for="item in roomExamItems"
                 :key="item.id"
@@ -1618,13 +1862,6 @@ async function handleSubmitItemAction() {
                     :color="getOperationalStatusColor(item)"
                     :title="getOperationalStatusLabel(item)"
                     :description="item.blockedReason || getSampleActionDescription(item)"
-                  />
-
-                  <UAlert
-                    v-else-if="hasStructuredInputs(item) && isDeferredItem(item)"
-                    color="info"
-                    title="Hasil deferred"
-                    description="Item ini tidak memerlukan input hasil. Lakukan pemeriksaan, tulis dokumentasi singkat, lalu selesaikan item."
                   />
 
                   <div
@@ -1681,7 +1918,7 @@ async function handleSubmitItemAction() {
                         v-if="inputan.inputType === 'number'"
                         v-model="getInputDraft(item.id, inputan.id).valueNumber"
                         type="number"
-                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                        :class="getInputValueClass(item.id, inputan)"
                         :placeholder="`Isi ${inputan.label}`"
                       >
 
@@ -1710,13 +1947,18 @@ async function handleSubmitItemAction() {
                         </option>
                       </select>
 
-                      <input
-                        v-else
-                        v-model="getInputDraft(item.id, inputan.id).valueCalculated"
-                        type="number"
-                        class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                        :placeholder="`Isi ${inputan.label}`"
-                      >
+                      <div v-else>
+                        <input
+                          v-model="getInputDraft(item.id, inputan.id).valueCalculated"
+                          type="number"
+                          disabled
+                          class="w-full rounded-lg border border-default bg-muted/40 px-3 py-2 text-sm text-muted"
+                          placeholder="Dihitung otomatis"
+                        >
+                        <p v-if="inputan.formula?.formula" class="mt-1 truncate text-[11px] text-muted">
+                          {{ inputan.formula.formula }}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1767,14 +2009,26 @@ async function handleSubmitItemAction() {
                     </UButton>
 
                     <UButton
-                      v-if="hasStructuredInputs(item) && !isDeferredItem(item) && item.status === 'IN_PROGRESS'"
+                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS'"
                       color="primary"
                       variant="soft"
                       icon="i-lucide-save"
                       :loading="resultSaveLoading[item.id]"
                       @click="handleSaveResults(item)"
                     >
-                      Simpan Hasil
+                      Simpan Draft
+                    </UButton>
+
+                    <UButton
+                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS'"
+                      color="primary"
+                      variant="soft"
+                      icon="i-lucide-send"
+                      :loading="resultSaveLoading[item.id]"
+                      :disabled="isExamResultSubmitted(item)"
+                      @click="handleSubmitResults(item)"
+                    >
+                      Submit Hasil
                     </UButton>
 
                     <UButton
@@ -1783,6 +2037,7 @@ async function handleSubmitItemAction() {
                       variant="soft"
                       icon="i-lucide-check"
                       :loading="itemActionLoading[item.id]"
+                      :disabled="!canDoneItem(item)"
                       @click="handleDoneItem(item)"
                     >
                       Selesaikan Item
