@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const { getMenuPreview } = useMenuPreview()
-const { docTypeKeys } = useRoutePermission()
+const { hasRouteAccess } = useRoutePermission()
 
 const isOpen = computed({
   get: () => props.open,
@@ -38,7 +38,7 @@ const previewMenu = computed<NavigationMenuItem[]>(() => {
   const isRestricted = restrictedRoles.includes(roleName)
   const isExternal = externalRoles.includes(roleName)
 
-  return getMenuPreview(permissions, docTypeKeys.value, {
+  return getMenuPreview(permissions, hasRouteAccess, {
     isRestricted,
     isExternal
   })

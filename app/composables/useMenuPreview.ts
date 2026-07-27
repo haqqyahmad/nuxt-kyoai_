@@ -38,38 +38,10 @@ function collectRoutes(item: NavigationMenuItem): string[] {
   return []
 }
 
-function checkRouteAccess(path: string, permissions: string[], docTypeKeys: string[]): boolean {
-  const parts = path.split('/').filter(Boolean)
-  if (parts.length === 0) return true
-
-  const candidates = new Set<string>()
-  candidates.add(parts.join('-'))
-  if (parts.length > 0) {
-    candidates.add(parts[parts.length - 1]!)
-  }
-  if (parts.length >= 2) {
-    candidates.add(parts.slice(-2).reverse().join('-'))
-  }
-  for (const part of parts) {
-    candidates.add(part)
-  }
-
-  for (const candidate of candidates) {
-    if (docTypeKeys.includes(candidate)) {
-      return permissions.some(p => p.startsWith(`${candidate}:`))
-    }
-    if (candidate.endsWith('s') && docTypeKeys.includes(candidate.slice(0, -1))) {
-      return permissions.some(p => p.startsWith(`${candidate.slice(0, -1)}:`))
-    }
-  }
-
-  return true
-}
-
 function filterMenuItems(
   items: NavigationMenuItem[],
   permissions: string[],
-  docTypeKeys: string[],
+  hasRouteAccess: (path: string, perms: string[]) => boolean,
   options: PreviewOptions
 ): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
@@ -79,7 +51,7 @@ function filterMenuItems(
       if (!allowed) return acc
 
       if (item.children) {
-        const filtered = filterMenuItems(item.children as NavigationMenuItem[], permissions, docTypeKeys, options)
+        const filtered = filterMenuItems(item.children as NavigationMenuItem[], permissions, hasRouteAccess, options)
         if (filtered.length > 0) {
           acc.push({ ...item, children: filtered })
         }
@@ -96,7 +68,7 @@ function filterMenuItems(
     }
 
     if (item.children) {
-      const filtered = filterMenuItems(item.children as NavigationMenuItem[], permissions, docTypeKeys, options)
+      const filtered = filterMenuItems(item.children as NavigationMenuItem[], permissions, hasRouteAccess, options)
       if (filtered.length > 0) {
         acc.push({ ...item, children: filtered })
       }
@@ -104,7 +76,7 @@ function filterMenuItems(
     }
 
     if (typeof item.to === 'string') {
-      if (checkRouteAccess(normalizePath(item.to), permissions, docTypeKeys)) {
+      if (hasRouteAccess(normalizePath(item.to), permissions)) {
         acc.push(item)
       }
       return acc
@@ -223,19 +195,19 @@ export function useMenuPreview() {
 
   function getMenuPreview(
     permissions: string[],
-    docTypeKeys: string[],
+    hasRouteAccess: (path: string, perms: string[]) => boolean,
     options: PreviewOptions = {}
   ): NavigationMenuItem[] {
-    return filterMenuItems(allMenuItems, permissions, docTypeKeys, options)
+    return filterMenuItems(allMenuItems, permissions, hasRouteAccess, options)
   }
 
   function isMenuVisible(
     menuPath: string,
     permissions: string[],
-    docTypeKeys: string[],
+    hasRouteAccess: (path: string, perms: string[]) => boolean,
     options: PreviewOptions = {}
   ): boolean {
-    const preview = filterMenuItems(allMenuItems, permissions, docTypeKeys, options)
+    const preview = filterMenuItems(allMenuItems, permissions, hasRouteAccess, options)
     const routes = preview.flatMap(collectRoutes)
     return routes.includes(normalizePath(menuPath))
   }
