@@ -88,117 +88,122 @@ function filterMenuItems(
 }
 
 export function useMenuPreview() {
-  const allMenuItems: NavigationMenuItem[] = [
-    {
-      label: 'Dashboard',
-      icon: 'i-lucide-house',
-      to: '/'
-    },
-    {
-      label: 'Master Data',
-      icon: 'i-lucide-hard-drive',
-      children: [
-        { label: 'Branches', to: '/branches' },
-        { label: 'Customers', to: '/customer' },
-        {
-          label: 'Departments',
-          children: [
-            { label: 'Medical', to: '/departments/medical' },
-            { label: 'Non Medical', to: '/departments' }
-          ]
-        },
-        { label: 'Patients', to: '/patients' },
-        { label: 'Users', to: '/users' }
-      ]
-    },
-    {
-      label: 'Medical',
-      icon: 'i-lucide-briefcase-medical',
-      children: [
-        {
-          label: 'Items',
-          children: [
-            { label: 'List Items', to: '/items/mcu' },
-            { label: 'Master Group', to: '/items/groups' },
-            { label: 'Sample Types', to: '/items/sample-types' }
-          ]
-        },
-        { label: 'Questionnaire', to: '/questionnaire' },
-        { label: 'Rooms', to: '/rooms' },
-        { label: 'Room Types', to: '/rooms/types' },
-        { label: 'Services', to: '/services' }
-      ]
-    },
-    {
-      label: 'Examination',
-      icon: 'i-lucide-stethoscope',
-      children: [
-        { label: 'Room Assignment', to: '/rooms/assignments' },
-        { label: 'Room Queue', to: '/rooms/queue' },
-        { label: 'Sample Collection', to: '/rooms/sample-collection' }
-      ]
-    },
-    {
-      label: 'Results',
-      icon: 'i-lucide-file-check-2',
-      children: [
-        { label: 'Hasil Exam Lab', to: '/rooms/exam-results?department=lab' },
-        { label: 'Hasil Exam Radiology', to: '/rooms/exam-results?department=radiology' },
-        { label: 'Hasil Exam Nurse', to: '/rooms/exam-results?department=nurse' },
-        { label: 'Hasil Exam Dokter', to: '/rooms/exam-results?department=dokter' },
-        { label: 'Hasil Exam Dental', to: '/rooms/exam-results?department=dental' }
-      ]
-    },
-    {
-      label: 'Lab',
-      icon: 'i-lucide-flask-conical',
-      children: [
-        { label: 'Sample Receive', to: '/rooms/sample-reception' }
-      ]
-    },
-    {
-      label: 'Front Office',
-      icon: 'i-lucide-users',
-      children: [
-        { label: 'Temp Registration', to: '/front-office/registration-temp' },
-        { label: 'Patient Appointment', to: '/front-office/registration-patient' }
-      ]
-    },
-    {
-      label: 'HRIS',
-      icon: 'i-lucide-file-user',
-      children: [
-        { label: 'Dashboard HRIS', to: '/hris' },
-        { label: 'Employees', to: '/hris/employees' },
-        {
-          label: 'Attendance',
-          children: [
-            { label: 'Dashboard Attendance', to: '/hris/attendance' },
-            { label: 'Attendance Analytics', to: '/hris/attendance/analytics' },
-            { label: 'Attendance Report', to: '/hris/attendance/tracking' },
-            { label: 'Shift Configuration', to: '/hris/attendance/shift-configuration' },
-            { label: 'Shift Schedule', to: '/hris/attendance/shift-schedule' }
-          ]
-        },
-        { label: 'National Holidays', to: '/hris/national-holidays' },
-        { label: 'Leave Management', to: '/hris/leaves' },
-        { label: 'Reimbursement', to: '/hris/reimbursement' },
-        { label: 'Recruitment', to: '/hris/recruitment' }
-      ]
-    },
-    {
-      label: 'Settings',
-      icon: 'i-lucide-settings',
-      to: '/settings'
-    }
-  ]
+  function buildMenuItems(permissions: string[], options: PreviewOptions): NavigationMenuItem[] {
+    const hasSampleReceive = permissions.some(p => p.includes('sample:receive'))
+
+    return [
+      {
+        label: 'Dashboard',
+        icon: 'i-lucide-house',
+        to: '/'
+      },
+      {
+        label: 'Master Data',
+        icon: 'i-lucide-hard-drive',
+        children: [
+          { label: 'Branches', to: '/branches' },
+          { label: 'Customers', to: '/customer' },
+          {
+            label: 'Departments',
+            children: [
+              { label: 'Medical', to: '/departments/medical' },
+              { label: 'Non Medical', to: '/departments' }
+            ]
+          },
+          { label: 'Patients', to: '/patients' },
+          { label: 'Users', to: '/users' }
+        ]
+      },
+      {
+        label: 'Medical',
+        icon: 'i-lucide-briefcase-medical',
+        children: [
+          {
+            label: 'Items',
+            children: [
+              { label: 'List Items', to: '/items/mcu' },
+              { label: 'Master Group', to: '/items/groups' },
+              { label: 'Sample Types', to: '/items/sample-types' }
+            ]
+          },
+          { label: 'Questionnaire', to: '/questionnaire' },
+          { label: 'Rooms', to: '/rooms' },
+          { label: 'Room Types', to: '/rooms/types' },
+          { label: 'Services', to: '/services' }
+        ]
+      },
+      {
+        label: 'Examination',
+        icon: 'i-lucide-stethoscope',
+        children: [
+          { label: 'Room Assignment', to: '/rooms/assignments' },
+          { label: 'Room Queue', to: '/rooms/queue' },
+          { label: 'Sample Collection', to: '/rooms/sample-collection' }
+        ]
+      },
+      {
+        label: 'Results',
+        icon: 'i-lucide-file-check-2',
+        children: [
+          { label: 'Hasil Exam Lab', to: '/rooms/exam-results?department=lab' },
+          { label: 'Hasil Exam Radiology', to: '/rooms/exam-results?department=radiology' },
+          { label: 'Hasil Exam Nurse', to: '/rooms/exam-results?department=nurse' },
+          { label: 'Hasil Exam Dokter', to: '/rooms/exam-results?department=dokter' },
+          { label: 'Hasil Exam Dental', to: '/rooms/exam-results?department=dental' }
+        ]
+      },
+      {
+        label: 'Lab',
+        icon: 'i-lucide-flask-conical',
+        children: options.isRestricted || permissions.some(p => p.includes('sample:receive'))
+          ? [{ label: 'Sample Receive', to: '/rooms/sample-reception' }]
+          : []
+      },
+      {
+        label: 'Front Office',
+        icon: 'i-lucide-users',
+        children: [
+          { label: 'Temp Registration', to: '/front-office/registration-temp' },
+          { label: 'Patient Appointment', to: '/front-office/registration-patient' }
+        ]
+      },
+      {
+        label: 'HRIS',
+        icon: 'i-lucide-file-user',
+        children: [
+          { label: 'Dashboard HRIS', to: '/hris' },
+          { label: 'Employees', to: '/hris/employees' },
+          {
+            label: 'Attendance',
+            children: [
+              { label: 'Dashboard Attendance', to: '/hris/attendance' },
+              { label: 'Attendance Analytics', to: '/hris/attendance/analytics' },
+              { label: 'Attendance Report', to: '/hris/attendance/tracking' },
+              { label: 'Shift Configuration', to: '/hris/attendance/shift-configuration' },
+              { label: 'Shift Schedule', to: '/hris/attendance/shift-schedule' }
+            ]
+          },
+          { label: 'National Holidays', to: '/hris/national-holidays' },
+          { label: 'Leave Management', to: '/hris/leaves' },
+          { label: 'Reimbursement', to: '/hris/reimbursement' },
+          { label: 'Recruitment', to: '/hris/recruitment' }
+        ]
+      },
+      {
+        label: 'Settings',
+        icon: 'i-lucide-settings',
+        to: '/settings'
+      }
+    ]
+  }
 
   function getMenuPreview(
     permissions: string[],
     hasRouteAccess: (path: string, perms: string[]) => boolean,
     options: PreviewOptions = {}
   ): NavigationMenuItem[] {
-    return filterMenuItems(allMenuItems, permissions, hasRouteAccess, options)
+    const menuItems = buildMenuItems(permissions, options)
+    return filterMenuItems(menuItems, permissions, hasRouteAccess, options)
   }
 
   function isMenuVisible(
@@ -207,7 +212,8 @@ export function useMenuPreview() {
     hasRouteAccess: (path: string, perms: string[]) => boolean,
     options: PreviewOptions = {}
   ): boolean {
-    const preview = filterMenuItems(allMenuItems, permissions, hasRouteAccess, options)
+    const menuItems = buildMenuItems(permissions, options)
+    const preview = filterMenuItems(menuItems, permissions, hasRouteAccess, options)
     const routes = preview.flatMap(collectRoutes)
     return routes.includes(normalizePath(menuPath))
   }
@@ -215,6 +221,6 @@ export function useMenuPreview() {
   return {
     getMenuPreview,
     isMenuVisible,
-    allMenuItems
+    buildMenuItems
   }
 }
