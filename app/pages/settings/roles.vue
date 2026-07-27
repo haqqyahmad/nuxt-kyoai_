@@ -42,6 +42,8 @@ const columnFilters = ref([{ id: 'name', value: '' }])
 const selectedDeleteRoleId = ref<number | null>(null)
 const isDeleteModalOpen = ref(false)
 const editingRoleId = ref<number | null>(null)
+const isPreviewOpen = ref(false)
+const previewRole = ref<Role | null>(null)
 const form = reactive({
   name: ''
 })
@@ -171,6 +173,11 @@ async function handleDeleteById() {
   selectedDeleteRoleId.value = null
   isDeleteModalOpen.value = false
 }
+
+function openPreview(role: Role) {
+  previewRole.value = role
+  isPreviewOpen.value = true
+}
 </script>
 
 <template>
@@ -242,6 +249,13 @@ async function handleDeleteById() {
 
         <template #actions-cell="{ row }">
           <div class="flex items-center justify-end gap-1.5">
+            <UButton
+              icon="i-lucide-eye"
+              color="primary"
+              variant="ghost"
+              size="xs"
+              @click="openPreview(row.original)"
+            />
             <UButton
               icon="i-lucide-pencil"
               color="neutral"
@@ -333,6 +347,11 @@ async function handleDeleteById() {
       :count="1"
       entity="role"
       @confirm="handleDeleteById"
+    />
+
+    <SettingsMenuPreviewModal
+      v-model:open="isPreviewOpen"
+      :role="previewRole"
     />
   </div>
 </template>
