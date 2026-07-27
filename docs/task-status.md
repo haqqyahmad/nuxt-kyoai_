@@ -91,6 +91,45 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - BE: Hapus stale file `src/routers/user.route.js` (root level) dan `error.middleware.js`/`ErrorHandlingMidd.js` duplikat.
 - QA Engineer: turunkan tiap prioritas menjadi smoke test minimal sebelum status dipindah ke completed.
 
+## Future Plan: Database Menu System
+
+**Status:** Planned (menunggu stabilisasi fitur lain)
+**Effort:** 9-12 hari (Database 0.5h, BE 3-4h, FE 4-5h, Testing 1-2h, Docs 0.25h)
+
+### Deskripsi
+Simpan struktur menu di database agar bisa diatur via UI dan preview menu 100% sync dengan sidebar.
+
+### Database Changes
+- Tabel `MenuItem` (id, label, icon, to, parentId, sortOrder, isActive)
+- Tabel `MenuItemPermission` (menuItemId, permission)
+- Migration + seed data
+
+### Backend Changes
+- Route: `GET/POST/PUT/DELETE /settings/menu-items`
+- Service: tree builder + permission filter
+- Cache: Redis cache invalidation
+
+### Frontend Changes
+- New page: `pages/settings/menus.vue` (CRUD + drag-drop tree)
+- Update: `layouts/default.vue` (fetch menu dari API)
+- Update: `composables/useMenuPreview.ts` (fetch menu dari API yang sama)
+- New composable: `composables/useMenuItems.ts`
+
+### Benefits
+- Menu bisa diubah via UI tanpa deploy
+- Preview menu 100% sync dengan sidebar
+- Permission per menu item (lebih granular)
+
+### Risiko
+- Sidebar loading state saat fetch
+- API failure → sidebar tidak muncul
+- Menu nesting complexity
+- Migration downtime
+
+### Kapan Dieksekusi
+- Setelah core operations stabil
+- Setelah fitur lain yang lebih prioritas selesai
+
 ## Working Rules
 
 - Satu prioritas aktif dalam satu waktu.
