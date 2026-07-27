@@ -7,7 +7,7 @@ const toast = useToast()
 const { permissions, roles, allowedResultDepartmentCodes } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
-const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse']
 const isRestrictedUser = computed(() =>
   roles.value.some(r => restrictedRoles.includes(r))
 )
