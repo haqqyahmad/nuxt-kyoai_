@@ -9,8 +9,6 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/sample-collection',
   '/rooms/exam-results',
   '/rooms/queue-work',
-  '/front-office/registration-temp',
-  '/front-office/registration-patient',
   '/settings',
   '/settings/roles',
   '/settings/permissions',
@@ -18,6 +16,20 @@ export const restrictedAllowedRoutes: string[] = [
   '/settings/members',
   '/settings/notifications'
 ]
+
+export const frontOfficeAllowedRoutes: string[] = [
+  '/',
+  '/front-office/registration-temp',
+  '/front-office/registration-patient',
+  '/settings',
+  '/settings/security',
+  '/settings/notifications'
+]
+
+export function getAllowedRoutes(roleName: string): string[] {
+  if (roleName === 'front-office') return frontOfficeAllowedRoutes
+  return restrictedAllowedRoutes
+}
 
 export const externalDoctorAllowedRoutes: string[] = [
   '/rooms/exam-results',

@@ -1,5 +1,5 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { restrictedAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
+import { getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
 
 type PreviewOptions = {
   isRestricted?: boolean
@@ -42,8 +42,9 @@ function filterMenuItems(
     }
 
     if (options.isRestricted) {
+      const allowedRoutes = getAllowedRoutes(options.roleName ?? '')
       const routes = collectRoutes(item)
-      const allowed = routes.some(r => restrictedAllowedRoutes.includes(r))
+      const allowed = routes.some(r => allowedRoutes.includes(r))
       if (!allowed) return acc
     }
 
