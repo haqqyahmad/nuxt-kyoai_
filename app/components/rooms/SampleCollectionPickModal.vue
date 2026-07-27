@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Room } from '~/types/room'
+
 interface SampleCollectionRow {
   id: string
   status: string
@@ -84,6 +86,11 @@ const isOpen = computed({
 })
 
 const roomTypeId = computed(() => roomSession.value?.roomTypeId ?? null)
+const roomId = computed(() => roomSession.value?.roomId ?? null)
+const activeRoom = ref<Room | null>(null)
+const activeRoomStageIds = computed(() =>
+  (activeRoom.value?.stageLinks ?? []).map(link => link.stageId)
+)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const paginatedRows = computed(() => {
@@ -176,20 +183,50 @@ function statusColor(status: string) {
 }
 
 const sampleTypeColorMap: Record<string, string> = {
-  'Darah': 'error',
-  'Serum': 'warning',
-  'Plasma': 'info',
-  'Urine': 'success',
-  'Feses': 'neutral',
-  'Sputum': 'primary',
-  'Swab': 'info',
-  'Semen': 'warning',
-  'Aspirat': 'error',
-  'Jaringan': 'primary'
+  Darah: 'error',
+  Serum: 'warning',
+  Plasma: 'info',
+  Urine: 'success',
+  Feses: 'neutral',
+  Sputum: 'primary',
+  Swab: 'info',
+  Semen: 'warning',
+  Aspirat: 'error',
+  Jaringan: 'primary'
 }
 const defaultSampleColor = 'neutral'
 function sampleTypeColor(name: string) {
   return sampleTypeColorMap[name] ?? defaultSampleColor
+}
+
+async function refreshActiveRoom() {
+  if (!roomId.value) {
+    activeRoom.value = null
+    return
+  }
+
+  const res = await api.get(`/medical/rooms/rooms/${roomId.value}`)
+  activeRoom.value = (res.data?.data ?? res.data ?? null) as Room | null
+}
+
+function findCallableStageId(queueDetail: QueueDetail | null) {
+  if (!roomTypeId.value || !roomId.value) return null
+
+  const allowedStageIds = new Set(activeRoomStageIds.value)
+  if (!allowedStageIds.size) return null
+
+  for (const item of queueDetail?.roomItems ?? []) {
+    if (item.roomTypeId !== roomTypeId.value) continue
+
+    const waitingStage = item.stageItems?.find(
+      (s: StageQueueItem) => s.status === 'WAITING'
+        && allowedStageIds.has(s.stageId)
+        && (!s.roomId || s.roomId === roomId.value)
+    )
+    if (waitingStage) return waitingStage.id
+  }
+
+  return null
 }
 
 async function handleGetPatient(row: GroupedRow) {
@@ -198,36 +235,26 @@ async function handleGetPatient(row: GroupedRow) {
 
   callLoading.value = { ...callLoading.value, [queueEntryId]: true }
   try {
+    await refreshActiveRoom()
+
     const detailRes = await api.get(`/medical/exams/queue/${queueEntryId}`)
     const detailPayload = detailRes.data?.data ?? detailRes.data ?? null
     const queueDetail = detailPayload as QueueDetail | null
-
-    const roomItems = queueDetail?.roomItems ?? []
-    let stageId: string | null = null
-    for (const item of roomItems) {
-      const waitingStage = item.stageItems?.find(
-        (s: StageQueueItem) => s.status === 'WAITING'
-      )
-      if (waitingStage) {
-        stageId = waitingStage.id
-        break
-      }
-    }
+    const stageId = findCallableStageId(queueDetail)
 
     if (!stageId) {
       toast.add({
-        title: 'Tidak ada stage waiting',
-        description: 'Pasien ini tidak memiliki stage yang bisa dipanggil.',
+        title: 'Tidak ada stage sample',
+        description: 'Pasien ini tidak memiliki stage sample yang bisa dipanggil dari room aktif.',
         color: 'warning'
       })
       return
     }
 
     await api.patch(`/medical/exams/queue/stage/${stageId}/call`, {
-      roomId: roomSession.value?.roomId ?? undefined,
-      roomTypeId: roomSession.value?.roomTypeId ?? undefined
+      roomId: roomId.value ?? undefined,
+      roomTypeId: roomTypeId.value ?? undefined
     })
-
     await router.push(`/rooms/sample-collection/${queueEntryId}`)
     isOpen.value = false
 
@@ -379,7 +406,7 @@ watch(
                   <td class="px-4 py-3 text-sm text-muted">
                     {{ row.queueCode }}
                   </td>
-                   <td class="px-4 py-3">
+                  <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-1">
                       <UBadge
                         v-for="t in row.sampleTypes"
