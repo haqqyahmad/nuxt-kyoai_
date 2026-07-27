@@ -134,7 +134,7 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - Perbaikan date fields di EditModal + Profile.
 
 ### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + Permission Cleanup + Menu Refactor + PRD Update
-- `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings).
+- `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings). Filter Results by role→department mapping. Filter Sample Collection by `sample:collect` permission.
 - `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor. Refactor: gunakan `useRoutePermission().hasRouteAccess` langsung (hapus duplikasi logika).
 - `constants/menu.ts`: shared menu definition — extract menu structure, route constants, role lists ke file bersama antara `default.vue` dan `useMenuPreview.ts`.
 - `components/settings/MenuPreviewModal.vue`: modal preview menu tree untuk role tertentu — menampilkan menu yang terlihat berdasarkan permissions.
