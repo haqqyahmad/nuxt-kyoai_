@@ -34,6 +34,14 @@ export const externalRoles: string[] = [
   'dokter-external'
 ]
 
+export const roleDefaultDepartment: Record<string, string> = {
+  'petugas-lab': 'LAB',
+  'petugas-radiologi': 'RAD',
+  'nurse': 'NURSE',
+  'dokter': 'DOK',
+  'dokter-gigi': 'DENTAL'
+}
+
 export function buildMenuTree(): MenuItem[] {
   return [
     {

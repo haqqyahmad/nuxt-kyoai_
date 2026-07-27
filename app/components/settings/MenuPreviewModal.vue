@@ -40,7 +40,8 @@ const previewMenu = computed<NavigationMenuItem[]>(() => {
 
   return getMenuPreview(permissions, hasRouteAccess, {
     isRestricted,
-    isExternal
+    isExternal,
+    roleName: props.role.name
   })
 })
 

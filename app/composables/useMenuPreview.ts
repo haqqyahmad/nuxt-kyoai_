@@ -1,10 +1,11 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { restrictedAllowedRoutes, externalDoctorAllowedRoutes, buildMenuTree } from '~/constants/menu'
+import { restrictedAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
 
 type PreviewOptions = {
   isRestricted?: boolean
   isExternal?: boolean
   allowedResultDepartments?: string[]
+  roleName?: string
 }
 
 function normalizePath(path: string): string {
@@ -75,8 +76,11 @@ export function useMenuPreview() {
     const menuItems = buildMenuTree()
     const filtered = filterMenuItems(menuItems, permissions, hasRouteAccess, options)
 
-    // Lab menu: hanya tampilkan jika ada permission sample:receive
+    // Filter Results berdasarkan role → department mapping
+    const defaultDept = options.roleName ? roleDefaultDepartment[options.roleName.toLowerCase()] : null
+
     return filtered.map(item => {
+      // Lab menu: hanya tampilkan jika ada permission sample:receive
       if (item.label === 'Lab') {
         const hasSampleReceive = permissions.some(p => p.includes('sample:receive'))
         return {
@@ -84,6 +88,29 @@ export function useMenuPreview() {
           children: hasSampleReceive ? (item.children as NavigationMenuItem[]) : []
         }
       }
+
+      // Examination menu: hanya tampilkan Sample Collection jika ada permission sample:collect
+      if (item.label === 'Examination') {
+        const hasSampleCollect = permissions.some(p => p.includes('sample:collect'))
+        return {
+          ...item,
+          children: (item.children as NavigationMenuItem[]).filter(
+            child => child.label !== 'Sample Collection' || hasSampleCollect
+          )
+        }
+      }
+
+      // Results menu: filter berdasarkan department
+      if (item.label === 'Results' && defaultDept) {
+        return {
+          ...item,
+          children: (item.children as NavigationMenuItem[]).filter(child => {
+            const code = (child as Record<string, unknown>).resultDepartmentCode
+            return code === defaultDept
+          })
+        }
+      }
+
       return item
     })
   }

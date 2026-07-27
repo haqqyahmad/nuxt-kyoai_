@@ -118,6 +118,7 @@ const recommendedPermissions: Record<string, string[]> = {
     'mcu-item:read', 'sample-type:read', 'questionnaire:read',
     'room:read', 'room-type:read', 'room-assignment:read',
     'queue:read', 'queue:update', 'queue:call',
+    'sample:collect',
     'exam:read', 'exam:update'
   ],
   'dokter': [
