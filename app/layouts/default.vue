@@ -1,19 +1,20 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList, restrictedAllowedRoutes, externalDoctorAllowedRoutes } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
 const { permissions, roles, allowedResultDepartmentCodes } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
-const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse']
+const restrictedRoles = restrictedRolesList
 const isRestrictedUser = computed(() =>
   roles.value.some(r => restrictedRoles.includes(r))
 )
 
 const isExternalDoctor = computed(() =>
-  roles.value.includes('dokter-external')
+  externalRolesList.includes(roles.value[0] ?? '')
 )
 
 const open = ref(false)
@@ -76,10 +77,6 @@ const menuGroups: Record<string, string[]> = {
     '/hris/attendance/shift-schedule'
   ]
 }
-
-const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/rooms/exam-results', '/rooms/sample-collection', '/rooms/sample-reception', '/settings']
-
-const externalDoctorAllowedRoutes = ['/rooms/exam-results', '/settings']
 
 function normalizeMenuPath(path: string) {
   return path.split(/[?#]/, 1)[0] || '/'
