@@ -141,7 +141,8 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `components/settings/PermissionCleanupModal.vue`: modal bulk cleanup permission — reset permission multiple role sekaligus ke rekomendasi.
 - `pages/settings/roles.vue`: tambah tombol Preview di kolom aksi untuk setiap role.
 - `pages/settings/permissions.vue`: tambah "Set Recommended Permissions" button — reset permission ke rekomendasi per role (8 role matrices: superadmin, admin, petugas-lab, petugas-radiologi, dokter, nurse, dokter-external, front-office, medical-admin, hr-admin). Tambah "Bulk Cleanup" button.
-- PRD v1.2 → v1.3: tambah Sample Collection flow, Room Queue Work, Room Assignments, External Doctor, Exam Results, Permission System detail, 100+ endpoints, 3 user flows baru, 15+ entitas baru, permission matrix 8 role.
+- Fix: `useMenuPreview` filter Results by role→department mapping, filter Sample Collection by sample:collect permission.
+- Flow: self-assign ke LAB/LAB-MCU → redirect sample-collection → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
 
 ### 2026-07-24 — Sample Collection Flow + Documentation Audit
 - `assignments.vue`: self-assign redirect ke `/rooms/sample-collection` jika room type code `LAB` atau `LAB-MCU`.
