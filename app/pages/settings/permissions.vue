@@ -81,6 +81,7 @@ const selectedDocumentType = ref('all')
 const documentTypeModalOpen = ref(false)
 const actionManagerOpen = ref(false)
 const addPermissionModalOpen = ref(false)
+const cleanupModalOpen = ref(false)
 const saving = ref(false)
 
 const addPermissionForm = reactive({
@@ -503,6 +504,21 @@ async function applyRecommendedPermissions() {
   }
 }
 
+async function applyRecommendedPermissionsForRole(roleId: number, roleName: string) {
+  const recommended = recommendedPermissions[roleName.toLowerCase()]
+  if (!recommended) return
+
+  const permissionIds: number[] = []
+  for (const permName of recommended) {
+    const permission = await ensurePermission(permName)
+    if (permission) permissionIds.push(permission.id)
+  }
+
+  await api.post(`/settings/roles/${roleId}/permissions`, {
+    permissionIds
+  })
+}
+
 async function syncActions() {
   if (saving.value) return
 
@@ -746,6 +762,14 @@ async function submitAddPermission() {
               to="/users"
             >
               Set User Role
+            </UButton>
+            <UButton
+              color="warning"
+              variant="soft"
+              icon="i-lucide-broom"
+              @click="cleanupModalOpen = true"
+            >
+              Bulk Cleanup
             </UButton>
           </div>
         </div>
@@ -1145,4 +1169,12 @@ async function submitAddPermission() {
       </UModal>
     </template>
   </UDashboardPanel>
+
+  <SettingsPermissionCleanupModal
+    v-model:open="cleanupModalOpen"
+    :roles="roles"
+    :recommended-permissions="recommendedPermissions"
+    :on-apply="applyRecommendedPermissionsForRole"
+    @applied="refreshRoles"
+  />
 </template>
