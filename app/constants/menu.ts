@@ -9,6 +9,8 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/sample-collection',
   '/rooms/exam-results',
   '/rooms/queue-work',
+  '/front-office/registration-temp',
+  '/front-office/registration-patient',
   '/settings',
   '/settings/roles',
   '/settings/permissions',
@@ -27,7 +29,8 @@ export const restrictedRoles: string[] = [
   'petugas-lab',
   'petugas-radiologi',
   'dokter',
-  'nurse'
+  'nurse',
+  'front-office'
 ]
 
 export const externalRoles: string[] = [

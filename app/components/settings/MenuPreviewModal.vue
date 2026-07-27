@@ -9,6 +9,8 @@ type Role = {
   }>
 }
 
+import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList } from '~/constants/menu'
+
 const props = defineProps<{
   open: boolean
   role: Role | null
@@ -26,8 +28,8 @@ const isOpen = computed({
   set: (value: boolean) => emit('update:open', value)
 })
 
-const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse']
-const externalRoles = ['dokter-external']
+const restrictedRoles = restrictedRolesList
+const externalRoles = externalRolesList
 
 const previewMenu = computed<NavigationMenuItem[]>(() => {
   if (!props.role) return []
