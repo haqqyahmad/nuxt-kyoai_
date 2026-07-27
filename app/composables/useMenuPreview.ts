@@ -11,7 +11,6 @@ const restrictedAllowedRoutes = [
   '/rooms/assignments',
   '/rooms/queue',
   '/rooms/sample-collection',
-  '/rooms/sample-reception',
   '/rooms/exam-results',
   '/rooms/queue-work',
   '/settings',
@@ -155,7 +154,7 @@ export function useMenuPreview() {
       {
         label: 'Lab',
         icon: 'i-lucide-flask-conical',
-        children: options.isRestricted || permissions.some(p => p.includes('sample:receive'))
+        children: permissions.some(p => p.includes('sample:receive'))
           ? [{ label: 'Sample Receive', to: '/rooms/sample-reception' }]
           : []
       },
