@@ -15,28 +15,28 @@ const loading = ref(false)
 
 const fields = computed<AuthFormField[]>(() => [
   {
-    name: 'email',
-    type: 'email',
-    label: 'Email',
-    placeholder: 'Enter your email',
-    required: true,
-    autofocus: true,
+    'name': 'email',
+    'type': 'email',
+    'label': 'Email',
+    'placeholder': 'Enter your email',
+    'required': true,
+    'autofocus': true,
     'modelValue': loginState.email,
     'onUpdate:modelValue': (val: string) => { loginState.email = val }
   },
   {
-    name: 'password',
-    label: 'Password',
-    type: 'password',
-    placeholder: 'Enter your password',
-    required: true,
+    'name': 'password',
+    'label': 'Password',
+    'type': 'password',
+    'placeholder': 'Enter your password',
+    'required': true,
     'modelValue': loginState.password,
     'onUpdate:modelValue': (val: string) => { loginState.password = val }
   },
   {
-    name: 'remember',
-    label: 'Remember me',
-    type: 'checkbox',
+    'name': 'remember',
+    'label': 'Remember me',
+    'type': 'checkbox',
     'modelValue': loginState.remember,
     'onUpdate:modelValue': (val: boolean) => { loginState.remember = val }
   }
@@ -71,7 +71,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     const roles: string[] = res.data.data.roles ?? []
     const externalRole = 'dokter-external'
-    const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+    const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
     const target = roles.includes(externalRole)
       ? '/rooms/exam-results'
@@ -81,8 +81,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     await navigateTo(target)
   } catch (err: unknown) {
-    const message =
-      err && typeof err === 'object' && 'response' in err
+    const message
+      = err && typeof err === 'object' && 'response' in err
         ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
         : 'Koneksi gagal. Periksa jaringan Anda.'
     toast.add({
