@@ -1,7 +1,7 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList, restrictedAllowedRoutes, externalDoctorAllowedRoutes } from '~/constants/menu'
+import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList, restrictedAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
@@ -16,6 +16,9 @@ const isRestrictedUser = computed(() =>
 const isExternalDoctor = computed(() =>
   externalRolesList.includes(roles.value[0] ?? '')
 )
+
+const currentRoleName = computed(() => roles.value[0] ?? '')
+const userDefaultDepartment = computed(() => roleDefaultDepartment[currentRoleName.value.toLowerCase()] || null)
 
 const open = ref(false)
 const openPrivacyPolicy = ref(false)
@@ -324,10 +327,9 @@ const links = computed<NavigationMenuItem[][]>(() => [
           label: 'Room Queue',
           to: '/rooms/queue'
         },
-        {
-          label: 'Sample Collection',
-          to: '/rooms/sample-collection'
-        }
+        ...(permissions.value.includes('sample:collect')
+          ? [{ label: 'Sample Collection', to: '/rooms/sample-collection' }]
+          : [])
       ]
     },
     {
@@ -367,7 +369,17 @@ const links = computed<NavigationMenuItem[][]>(() => [
           active: activeResultDepartment.value === 'dental',
           resultDepartmentCode: 'DENTAL'
         }
-      ].filter(item => canAccessResultDepartment(item.resultDepartmentCode))
+      ].filter(item => {
+        // Superadmin dan external doctor: akses semua
+        if (canAccessAllResults.value || isExternalDoctor.value) {
+          return canAccessResultDepartment(item.resultDepartmentCode)
+        }
+        // Role lain: hanya akses departemen default
+        if (userDefaultDepartment.value) {
+          return item.resultDepartmentCode === userDefaultDepartment.value
+        }
+        return canAccessResultDepartment(item.resultDepartmentCode)
+      })
     },
     {
       label: 'Lab',
