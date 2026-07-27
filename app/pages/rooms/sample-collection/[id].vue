@@ -161,10 +161,22 @@ const { data: queueDetail, refresh: refreshQueueDetail } = await useAsyncData<Qu
 
 const activeRoomItem = computed(() => {
   const items = queueDetail.value?.roomItems ?? []
-  if (!currentRoomId.value) return null
-  return items.find(r => r.id === currentRoomId.value) ?? items[0] ?? null
-})
+  if (!items.length) return null
 
+  if (currentRoomId.value) {
+    const itemForCurrentRoom = items.find(item =>
+      item.stageItems?.some(stage => stage.roomId === currentRoomId.value)
+    )
+    if (itemForCurrentRoom) return itemForCurrentRoom
+  }
+
+  if (roomTypeId.value) {
+    const itemForRoomType = items.find(item => item.roomTypeId === roomTypeId.value)
+    if (itemForRoomType) return itemForRoomType
+  }
+
+  return items[0] ?? null
+})
 const stageItems = computed(() => activeRoomItem.value?.stageItems ?? [])
 
 const activeStage = computed(() => {
@@ -464,10 +476,6 @@ function getStatusColor(status: string): BadgeColor {
   return 'neutral'
 }
 
-function formatPatientName(firstName?: string | null, middleName?: string | null, lastName?: string | null) {
-  return [firstName, middleName, lastName].filter(Boolean).join(' ') || '-'
-}
-
 function openEnterRoomModal() {
   if (!assignment.value?.roomId) {
     toast.add({ title: 'Belum ada assignment room', description: 'Tidak ada room assignment yang bisa dipakai.', color: 'warning' })
@@ -484,7 +492,7 @@ async function handleEnterRoom() {
     await refreshRoomSession()
     isEnterRoomModalOpen.value = false
     toast.add({ title: 'Berhasil', description: 'Berhasil masuk ke room aktif.', color: 'success' })
-  } catch (err: unknown) {
+  } catch {
     toast.add({ title: 'Gagal masuk room', description: 'Terjadi kesalahan saat masuk ke room aktif.', color: 'error' })
   } finally {
     roomEnterActionLoading.value = false
@@ -508,7 +516,7 @@ async function handleExitRoom() {
     isExitRoomModalOpen.value = false
     toast.add({ title: 'Berhasil', description: 'Berhasil keluar dari room aktif.', color: 'success' })
     await router.push('/rooms/assignments')
-  } catch (err: unknown) {
+  } catch {
     toast.add({ title: 'Gagal keluar room', description: 'Terjadi kesalahan saat keluar dari room aktif.', color: 'error' })
   } finally {
     roomExitActionLoading.value = false
@@ -533,7 +541,7 @@ async function handleFinishStage() {
     await load()
     toast.add({ title: 'Berhasil', description: 'Pemeriksaan sample selesai.', color: 'success' })
     await router.push('/rooms/sample-collection')
-  } catch (err: unknown) {
+  } catch {
     toast.add({ title: 'Gagal menyelesaikan', description: 'Terjadi kesalahan saat menyelesaikan pemeriksaan.', color: 'error' })
   } finally {
     stageActionLoading.value = false
@@ -1039,10 +1047,19 @@ onMounted(() => {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="soft" :disabled="roomEnterActionLoading" @click="isEnterRoomModalOpen = false">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomEnterActionLoading"
+          @click="isEnterRoomModalOpen = false"
+        >
           Batal
         </UButton>
-        <UButton color="primary" :loading="roomEnterActionLoading" @click="handleEnterRoom">
+        <UButton
+          color="primary"
+          :loading="roomEnterActionLoading"
+          @click="handleEnterRoom"
+        >
           Masuk Room
         </UButton>
       </div>
@@ -1061,10 +1078,19 @@ onMounted(() => {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="soft" :disabled="roomExitActionLoading" @click="isExitRoomModalOpen = false">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomExitActionLoading"
+          @click="isExitRoomModalOpen = false"
+        >
           Batal
         </UButton>
-        <UButton color="warning" :loading="roomExitActionLoading" @click="handleExitRoom">
+        <UButton
+          color="warning"
+          :loading="roomExitActionLoading"
+          @click="handleExitRoom"
+        >
           Keluar Room
         </UButton>
       </div>
