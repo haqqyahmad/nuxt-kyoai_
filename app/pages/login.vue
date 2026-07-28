@@ -71,13 +71,16 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     const roles: string[] = res.data.data.roles ?? []
     const externalRole = 'dokter-external'
+    const frontOfficeRole = 'front-office'
     const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
     const target = roles.includes(externalRole)
       ? '/rooms/exam-results'
-      : roles.some(r => staffRoles.includes(r))
-        ? '/rooms/assignments'
-        : '/'
+      : roles.includes(frontOfficeRole)
+        ? '/front-office/registration-temp'
+        : roles.some(r => staffRoles.includes(r))
+          ? '/rooms/assignments'
+          : '/'
 
     await navigateTo(target)
   } catch (err: unknown) {

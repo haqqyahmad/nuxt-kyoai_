@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-24 12:00
+Last updated: 2026-07-25 11:00
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -14,7 +14,9 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: `TeamsMenu.vue` — tampilkan nama role dari `useCurrentUser`.
 - FE: `settings.vue` — tab Roles & Permission filter langsung dari permissions user.
 - FE: `permissions.vue` — tombol "Add Role Permission" modal.
-- FE: Sidebar petugas-lab/radiologi/dokter — hanya Dashboard, Examination, Settings.
+- FE: Sidebar petugas-lab/radiologi/dokter/nurse — hanya Dashboard, Examination, Settings.
+- FE: Preview Menu UI — `useMenuPreview` composable + `MenuPreviewModal` component di `/settings/roles`.
+- FE: Permission Cleanup — "Set Recommended Permissions" button di `/settings/permissions` dengan 8 role matrices + "Bulk Cleanup" modal untuk reset semua role sekaligus.
 - BE: Login response include `roles` array.
 - BE/FE: Pre-populate UserRoomAccess dari role mapping saat load `/rooms/assignments`.
 - BE/FE: Employee ↔ User link — Tab User di EditModal + API link/unlink + auto-copy data.
@@ -88,6 +90,45 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: Buat halaman `/hris/reimbursement` & `/hris/recruitment` atau hapus dari sidebar.
 - BE: Hapus stale file `src/routers/user.route.js` (root level) dan `error.middleware.js`/`ErrorHandlingMidd.js` duplikat.
 - QA Engineer: turunkan tiap prioritas menjadi smoke test minimal sebelum status dipindah ke completed.
+
+## Future Plan: Database Menu System
+
+**Status:** Planned (menunggu stabilisasi fitur lain)
+**Effort:** 9-12 hari (Database 0.5h, BE 3-4h, FE 4-5h, Testing 1-2h, Docs 0.25h)
+
+### Deskripsi
+Simpan struktur menu di database agar bisa diatur via UI dan preview menu 100% sync dengan sidebar.
+
+### Database Changes
+- Tabel `MenuItem` (id, label, icon, to, parentId, sortOrder, isActive)
+- Tabel `MenuItemPermission` (menuItemId, permission)
+- Migration + seed data
+
+### Backend Changes
+- Route: `GET/POST/PUT/DELETE /settings/menu-items`
+- Service: tree builder + permission filter
+- Cache: Redis cache invalidation
+
+### Frontend Changes
+- New page: `pages/settings/menus.vue` (CRUD + drag-drop tree)
+- Update: `layouts/default.vue` (fetch menu dari API)
+- Update: `composables/useMenuPreview.ts` (fetch menu dari API yang sama)
+- New composable: `composables/useMenuItems.ts`
+
+### Benefits
+- Menu bisa diubah via UI tanpa deploy
+- Preview menu 100% sync dengan sidebar
+- Permission per menu item (lebih granular)
+
+### Risiko
+- Sidebar loading state saat fetch
+- API failure → sidebar tidak muncul
+- Menu nesting complexity
+- Migration downtime
+
+### Kapan Dieksekusi
+- Setelah core operations stabil
+- Setelah fitur lain yang lebih prioritas selesai
 
 ## Working Rules
 

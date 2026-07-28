@@ -1,20 +1,24 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
 const { permissions, roles, allowedResultDepartmentCodes } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
-const restrictedRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
+const restrictedRoles = restrictedRolesList
 const isRestrictedUser = computed(() =>
   roles.value.some(r => restrictedRoles.includes(r))
 )
 
 const isExternalDoctor = computed(() =>
-  roles.value.includes('dokter-external')
+  externalRolesList.includes(roles.value[0] ?? '')
 )
+
+const currentRoleName = computed(() => roles.value[0] ?? '')
+const userDefaultDepartment = computed(() => roleDefaultDepartment[currentRoleName.value.toLowerCase()] || null)
 
 const open = ref(false)
 const openPrivacyPolicy = ref(false)
@@ -77,10 +81,6 @@ const menuGroups: Record<string, string[]> = {
   ]
 }
 
-const restrictedAllowedRoutes = ['/rooms/assignments', '/rooms/queue', '/rooms/exam-results', '/rooms/sample-collection', '/rooms/sample-reception', '/settings']
-
-const externalDoctorAllowedRoutes = ['/rooms/exam-results', '/settings']
-
 function normalizeMenuPath(path: string) {
   return path.split(/[?#]/, 1)[0] || '/'
 }
@@ -92,6 +92,8 @@ function collectItemRoutes(item: NavigationMenuItem): string[] {
 }
 
 function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
+  const userRole = roles.value[0] ?? ''
+
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
     if (isExternalDoctor.value) {
       const routes = collectItemRoutes(item)
@@ -111,8 +113,9 @@ function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
     }
 
     if (isRestrictedUser.value) {
+      const allowedRoutes = getAllowedRoutes(userRole)
       const routes = collectItemRoutes(item)
-      const allowed = routes.some(r => restrictedAllowedRoutes.includes(r))
+      const allowed = routes.some(r => allowedRoutes.includes(r))
       if (!allowed) return acc
     }
 
@@ -327,10 +330,9 @@ const links = computed<NavigationMenuItem[][]>(() => [
           label: 'Room Queue',
           to: '/rooms/queue'
         },
-        {
-          label: 'Sample Collection',
-          to: '/rooms/sample-collection'
-        }
+        ...(permissions.value.includes('sample:collect')
+          ? [{ label: 'Sample Collection', to: '/rooms/sample-collection' }]
+          : [])
       ]
     },
     {
@@ -370,7 +372,17 @@ const links = computed<NavigationMenuItem[][]>(() => [
           active: activeResultDepartment.value === 'dental',
           resultDepartmentCode: 'DENTAL'
         }
-      ].filter(item => canAccessResultDepartment(item.resultDepartmentCode))
+      ].filter(item => {
+        // Superadmin dan external doctor: akses semua
+        if (canAccessAllResults.value || isExternalDoctor.value) {
+          return canAccessResultDepartment(item.resultDepartmentCode)
+        }
+        // Role lain: hanya akses departemen default
+        if (userDefaultDepartment.value) {
+          return item.resultDepartmentCode === userDefaultDepartment.value
+        }
+        return canAccessResultDepartment(item.resultDepartmentCode)
+      })
     },
     {
       label: 'Lab',
