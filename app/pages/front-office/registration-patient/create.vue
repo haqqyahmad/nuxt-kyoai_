@@ -1141,7 +1141,7 @@ async function submit() {
                       icon="i-lucide-save"
                       :loading="newPatientSaving"
                       :disabled="!canSaveNewPatient || newPatientSaving"
-                      @click="saveNewPatient"
+                      @click="saveNewPatient as any"
                     >
                       Simpan Pasien
                     </UButton>

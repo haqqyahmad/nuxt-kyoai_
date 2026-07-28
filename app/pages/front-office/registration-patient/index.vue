@@ -347,13 +347,12 @@ const columns: TableColumn<Patient>[] = [
     accessorKey: 'serviceType',
     header: 'Service Type',
     cell: ({ row }) => {
-      const serviceType = row.getValue('serviceType')
+      const serviceType = row.getValue('serviceType') as string
       return h(UBadge, {
         label: SERVICE_TYPE_LABEL[serviceType] ?? serviceType ?? '-',
         color: SERVICE_TYPE_COLOR[serviceType] ?? 'neutral',
         variant: 'subtle'
       })
-      // return row.getValue('serviceType') ?? '-'
     }
   },
   {
