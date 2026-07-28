@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { examTypeBadgeColor } from '~/constants/room-types'
+
 const route = useRoute()
 const api = useApi()
 const toast = useToast()
@@ -8,6 +9,7 @@ type ExamItem = {
   id: string
   source: 'paket' | 'additional'
   sortOrder: number
+  roomExamItems?: Array<{ id: string, status: string, updatedAt?: string | null }>
   item: {
     id: string
     code: string
@@ -55,7 +57,7 @@ type Registration = {
     status: string
     paket: { id: string, name: string } | null
     examItems: ExamItem[]
-    results: any[]
+    results: unknown[]
   } | null
 }
 
@@ -161,6 +163,47 @@ function formatDateTime(d?: string) {
     hour: '2-digit', minute: '2-digit'
   })
 }
+function getExamItemStatus(ei: ExamItem) {
+  const statuses = ei.roomExamItems?.map(item => item.status) ?? []
+  if (statuses.includes('DONE')) return 'DONE'
+  if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
+  if (statuses.includes('CALLED')) return 'CALLED'
+  if (statuses.includes('RETEXT')) return 'RETEXT'
+  if (statuses.includes('REFUSED')) return 'REFUSED'
+  if (statuses.includes('RESCHEDULED')) return 'RESCHEDULED'
+  if (statuses.includes('SKIPPED')) return 'SKIPPED'
+  return statuses[0] ?? 'PENDING'
+}
+
+function getExamItemStatusLabel(status: string) {
+  if (status === 'DONE') return 'Selesai'
+  if (status === 'IN_PROGRESS') return 'Dikerjakan'
+  if (status === 'CALLED') return 'Dipanggil'
+  if (status === 'SKIPPED') return 'Skip'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'REFUSED') return 'Menolak'
+  if (status === 'RETEXT') return 'Retest'
+  return 'Menunggu'
+}
+
+function getExamItemStatusColor(status: string) {
+  if (status === 'DONE') return 'success'
+  if (status === 'IN_PROGRESS') return 'warning'
+  if (status === 'CALLED') return 'info'
+  if (['SKIPPED', 'RESCHEDULED'].includes(status)) return 'neutral'
+  if (status === 'REFUSED') return 'error'
+  if (status === 'RETEXT') return 'warning'
+  return 'neutral'
+}
+
+function getExamItemStatusIcon(status: string) {
+  if (status === 'DONE') return 'i-lucide-check-circle-2'
+  if (status === 'IN_PROGRESS') return 'i-lucide-loader-circle'
+  if (status === 'CALLED') return 'i-lucide-bell'
+  if (status === 'REFUSED') return 'i-lucide-ban'
+  if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
+  return 'i-lucide-clock'
+}
 
 const mcuCategories = computed(() => {
   const items = reg.value?.exam?.examItems ?? []
@@ -168,7 +211,7 @@ const mcuCategories = computed(() => {
   const grouped = new Map<string, {
     label: string
     icon: string
-    items: { id: string, name: string, done: boolean }[]
+    items: { id: string, name: string, status: string, done: boolean }[]
   }>()
   const deptIcon: Record<string, string> = {
     Laboratorium: 'i-lucide-flask-conical',
@@ -185,7 +228,7 @@ const mcuCategories = computed(() => {
         items: []
       })
     }
-    grouped.get(deptName)?.items.push({ id: ei.id, name: ei.item.name, done: false })
+    grouped.get(deptName)?.items.push({ id: ei.id, name: ei.item.name, status: getExamItemStatus(ei), done: getExamItemStatus(ei) === 'DONE' })
   }
 
   return [...grouped.values()]
@@ -246,9 +289,9 @@ async function loadCheckinPreview() {
   try {
     const res = await api.get(`/registration/${reg.value.id}/checkin-preview`)
     checkinPreview.value = res.data.data as CheckinPreview
-  } catch (err: any) {
+  } catch (err: unknown) {
     checkinPreview.value = null
-    const msg = err?.response?.data?.message ?? 'Gagal memuat preview check-in'
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal memuat preview check-in'
     toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
     throw err
   } finally {
@@ -282,8 +325,8 @@ async function confirmCheckin() {
       description: `Nomor antrian: ${entry.queueCode}`,
       color: 'success'
     })
-  } catch (err: any) {
-    const msg = err?.response?.data?.message ?? 'Gagal melakukan check-in'
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal melakukan check-in'
     toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
   } finally {
     checkinLoading.value = false
@@ -307,8 +350,8 @@ async function undoCheckin() {
       color: 'success'
     })
     await refresh()
-  } catch (err: any) {
-    const msg = err?.response?.data?.message ?? 'Gagal membatalkan check-in'
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal membatalkan check-in'
     toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
   } finally {
     uncheckLoading.value = false
@@ -520,7 +563,9 @@ async function cancelRegistration() {
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Exam Type</span>
-                <UBadge :color="examTypeBadgeColor[examType] ?? 'neutral'" variant="subtle">{{ examType === 'MCU' ? 'MCU (Medical Checkup)' : 'Rawat Jalan' }}</UBadge>
+                <UBadge :color="examTypeBadgeColor[examType] ?? 'neutral'" variant="subtle">
+                  {{ examType === 'MCU' ? 'MCU (Medical Checkup)' : 'Rawat Jalan' }}
+                </UBadge>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>
@@ -696,7 +741,13 @@ async function cancelRegistration() {
                 <ul class="space-y-2">
                   <li v-for="item in cat.items" :key="item.name" class="flex items-center justify-between bg-background rounded-lg border border-default px-3 py-2">
                     <span class="text-sm">{{ item.name }}</span>
-                    <UIcon :name="item.done ? 'i-lucide-check-circle-2' : 'i-lucide-clock'" :class="item.done ? 'text-green-500' : 'text-muted'" class="text-base flex-shrink-0" />
+                    <UBadge
+                      :label="getExamItemStatusLabel(item.status)"
+                      :color="getExamItemStatusColor(item.status)"
+                      variant="soft"
+                      size="xs"
+                      :icon="getExamItemStatusIcon(item.status)"
+                    />
                   </li>
                 </ul>
               </div>
@@ -727,7 +778,13 @@ async function cancelRegistration() {
                       {{ ei.item.department?.name ?? '-' }} | {{ ei.item.group?.name ?? '-' }}
                     </p>
                   </div>
-                  <UIcon name="i-lucide-clock" class="text-muted text-base flex-shrink-0" />
+                  <UBadge
+                    :label="getExamItemStatusLabel(getExamItemStatus(ei))"
+                    :color="getExamItemStatusColor(getExamItemStatus(ei))"
+                    variant="soft"
+                    size="xs"
+                    :icon="getExamItemStatusIcon(getExamItemStatus(ei))"
+                  />
                 </div>
               </div>
             </div>
