@@ -66,7 +66,7 @@ const PAYMENT_TYPES = [
 const PRIORITY_TYPES = [
   { value: "Normal",   label: "Normal"    },
   { value: "VIP",      label: "VIP"       },
-  { value: "Emegency", label: "Emergency" },
+  { value: "Emergency", label: "Emergency" },
 ] as const;
 
 // ─────────────────────────────────────────────

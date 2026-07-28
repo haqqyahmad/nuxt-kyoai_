@@ -148,7 +148,7 @@ const PAYMENT_TYPES = [
 const PRIORITY_TYPES = [
   { value: 'Normal', label: 'Normal' },
   { value: 'VIP', label: 'VIP' },
-  { value: 'Emegency', label: 'Emergency' }
+  { value: 'Emergency', label: 'Emergency' }
 ] as const
 
 const INPUT_TYPE_LABEL: Record<string, string> = {
@@ -582,74 +582,6 @@ const canSubmit = computed(() => {
     && !!regForm.value.examDate
   )
 })
-
-// async function submit() {
-//   if (!canSubmit.value || submitting.value) return
-//   submitting.value = true
-
-//   try {
-//     // 1. Buat pasien baru jika perlu
-//     let patientId = selectedPatient.value?.id
-//     if (isNewPatient.value) {
-//       const res = await api.post('/patient', { ...newPatient.value })
-//       patientId = res.data.data.id
-//     }
-
-//     // 2. Buat registrasi
-//     await api.post('/registration', {
-//       patientId,
-//       branchId: selectedBranch.value!.branchId,
-//       companyId: String(regForm.value.companyId),
-//       serviceType: selectedService.value,
-//       paymentType: regForm.value.paymentType,
-//       priorityRegist: regForm.value.priorityRegist,
-//       examDate: regForm.value.examDate,
-//       scheduleDateExam: regForm.value.scheduleDateExam
-//     })
-
-//     // 3. Jika MCU — buat exam
-//     if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
-//       await api.post('/mcu/exams', {
-//         paketId: selectedPaket.value.id,
-//         patientId,
-//         examDate: regForm.value.examDate
-//       })
-
-//       // CATATAN: Additional items saat ini hanya dicatat di FE (state lokal).
-//       // Backend belum memiliki endpoint untuk menambah item spesifik per-exam
-//       // tanpa memodifikasi master paket secara permanen.
-//       //
-//       // Opsi ke depan (pilih salah satu sesuai kebutuhan):
-//       //   A) Buat endpoint baru: POST /mcu/exams/:id/items  → tambah item ke exam tertentu
-//       //   B) Buat "paket sementara" baru yang di-clone dari paket yang dipilih + additional items
-//       //   C) Simpan additional item IDs ke field tambahan di TrxExam (perlu migrasi schema)
-//       //
-//       // Untuk sementara additional items TIDAK diproses ke backend
-//       // agar tidak merusak data master paket.
-//       if (additionalItems.value.length > 0) {
-//         console.warn(
-//           '[MCU] Additional items belum diproses ke backend:',
-//           additionalItems.value.map(i => i.id)
-//         )
-//       }
-//     }
-
-//     toast.add({
-//       title: 'Berhasil',
-//       description: 'Registrasi berhasil dibuat',
-//       color: 'success'
-//     })
-//     router.push('/front-office/registration-patient')
-//   } catch (err: any) {
-//     toast.add({
-//       title: 'Gagal',
-//       description: err?.response?.data?.message ?? 'Terjadi kesalahan',
-//       color: 'error'
-//     })
-//   } finally {
-//     submitting.value = false
-//   }
-// }
 
 async function submit() {
   if (!canSubmit.value || submitting.value) return

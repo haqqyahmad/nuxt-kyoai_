@@ -113,7 +113,7 @@ const STATUS_COLOR: Record<string, string> = {
 const PRIORITY_COLOR: Record<string, string> = {
   Normal: 'neutral',
   VIP: 'warning',
-  Emegency: 'error'
+  Emergency: 'error'
 }
 
 const BRANCH_MAP: Record<string, string> = {

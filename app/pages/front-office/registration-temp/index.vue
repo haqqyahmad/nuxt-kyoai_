@@ -922,11 +922,6 @@ watch(currentPage, (page) => {
                 class="w-full"
               />
 
-              <p class="text-xs text-gray-400">
-                DEBUG: {{ selectedStatus }}
-              </p>
-            </div>
-
             <!-- 🔥 STATUS INFO -->
             <div class="text-sm text-muted">
               Status akan diubah menjadi:

@@ -64,10 +64,7 @@ function mapPatient(item: any): Patient & { id_reg: string } {
     serviceType: item.serviceType,
 
     // 🔥 penting
-    id_reg: item.id_reg,
-
-    serviceType: item.serviceType,
-    examDate: item.examDate
+    id_reg: item.id_reg
   }
 }
 
