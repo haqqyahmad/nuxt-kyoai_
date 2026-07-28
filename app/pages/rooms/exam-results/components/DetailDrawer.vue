@@ -83,6 +83,11 @@ type ExamResultDetail = {
   } | null
   resultTiming?: 'inline' | 'deferred'
   status?: 'pending' | 'completed'
+  workStatus?: string | null
+  resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED' | string | null
+  departmentResultStatus?: string | null
+  canEditResult?: boolean
+  canSubmitResult?: boolean
   exam?: {
     id: string
     examType?: 'MCU' | 'RAWAT_JALAN' | null
@@ -159,6 +164,17 @@ const groupGradingSaving = ref(false)
 
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
+const canEditCurrentResult = computed(() => props.result?.canEditResult ?? props.result?.status === 'pending')
+const canSubmitCurrentResult = computed(() => props.result?.canSubmitResult ?? props.result?.status === 'pending')
+const resultWorkflowLabel = computed(() => {
+  if (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW') return 'Waiting Approval'
+  if (props.result?.departmentResultStatus === 'DEPARTMENT_APPROVED') return 'Department Approved'
+  if (props.result?.resultStatus === 'SUBMITTED') return 'Submitted'
+  if (props.result?.resultStatus === 'RETURNED') return 'Returned'
+  if (props.result?.resultStatus === 'DRAFT') return 'Draft'
+  if (props.result?.resultStatus === 'READY') return 'Ready'
+  return null
+})
 
 function getSampleImpactLabel(impact: SampleImpact) {
   const name = impact.sampleTypeName || 'Sample'
@@ -986,7 +1002,7 @@ async function handleSubmitResult() {
 
     toast.add({
       title: 'Results submitted',
-      description: 'Exam has been marked as completed',
+      description: 'Hasil masuk approval department.',
       color: 'success'
     })
 
@@ -1091,7 +1107,7 @@ onMounted(() => {
             color="neutral"
             variant="soft"
             :loading="saving"
-            :disabled="submitting || isResultBlockedBySample"
+            :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
             icon="i-lucide-save"
             @click="handleSaveResult"
           >
@@ -1100,7 +1116,7 @@ onMounted(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving || isResultBlockedBySample"
+            :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
             icon="i-lucide-send"
             @click="handleSubmitResult"
           >
@@ -1541,7 +1557,7 @@ onMounted(() => {
                                 v-if="inputan.inputType === 'number'"
                                 v-model="getInputDraft(inputan.id).valueNumber"
                                 type="number"
-                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
+                                :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Masukkan hasil"
                                 @input="recomputeCalculatedDrafts(true)"
@@ -1551,7 +1567,7 @@ onMounted(() => {
                                 v-else-if="inputan.inputType === 'string'"
                                 v-model="getInputDraft(inputan.id).valueString"
                                 type="text"
-                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
+                                :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                                 placeholder="Masukkan hasil"
                               >
@@ -1559,7 +1575,7 @@ onMounted(() => {
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
                                 v-model="getInputDraft(inputan.id).valueSelected"
-                                :disabled="result.status !== 'pending' || isResultBlockedBySample"
+                                :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
                                 <option value="">
@@ -1664,7 +1680,7 @@ onMounted(() => {
                   </div>
 
                   <UButton
-                    v-if="result.status === 'pending'"
+                    v-if="canEditCurrentResult"
                     :loading="groupGradingSaving"
                     icon="i-lucide-save"
                     @click="saveGroupGrading"
@@ -1689,12 +1705,12 @@ onMounted(() => {
         >
           Kembali
         </UButton>
-        <template v-if="result?.status === 'pending'">
+        <template v-if="canEditCurrentResult || canSubmitCurrentResult">
           <UButton
             color="neutral"
             variant="soft"
             :loading="saving"
-            :disabled="submitting || isResultBlockedBySample"
+            :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
             @click="handleSaveResult"
           >
             Simpan Draft
@@ -1702,7 +1718,7 @@ onMounted(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving || isResultBlockedBySample"
+            :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
             @click="handleSubmitResult"
           >
             Submit Hasil
@@ -1714,7 +1730,7 @@ onMounted(() => {
           variant="soft"
           disabled
         >
-          Hasil Sudah Selesai
+          Hasil Terkunci
         </UButton>
       </div>
     </template>

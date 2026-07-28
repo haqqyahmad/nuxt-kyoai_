@@ -1,8 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
 @import "tailwindcss" theme(static);
 @import "@nuxt/ui";
 
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
+  --font-heading: 'Manrope', 'Public Sans', sans-serif;
 
   --color-green-50: #EFFDF5;
   --color-green-100: #D9FBE8;
@@ -15,6 +17,10 @@
   --color-green-800: #016538;
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
+}
+
+:where(h1, h2, h3, h4, .font-heading) {
+  font-family: var(--font-heading);
 }
 
 .sortable-move {

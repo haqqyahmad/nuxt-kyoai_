@@ -110,6 +110,7 @@ type ExamResult = {
   valueNumber?: number | null
   valueSelected?: string | null
   valueCalculated?: number | null
+  flag?: 'normal' | 'abnormal' | null
 }
 
 type ExamInputOption = {
@@ -170,6 +171,8 @@ type RoomExamItem = {
   } | null
   trxExamItem?: {
     id: string
+    templateSnapshotAt?: string | null
+    resultTemplateSnapshot?: unknown
     exam?: {
       id: string
       status: string
@@ -322,6 +325,14 @@ const roomSessionLabel = computed(() => {
 function formatPatientName(patient?: Patient | null) {
   if (!patient) return '-'
   return [patient.firstName, patient.middleName, patient.lastName].filter(Boolean).join(' ')
+}
+function formatDate(dateString?: string | null) {
+  if (!dateString) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(dateString))
 }
 
 function getStatusColor(status: string) {
@@ -729,13 +740,62 @@ function canRenderItemNotes(item: RoomExamItem) {
 }
 
 function isExamResultSubmitted(item: RoomExamItem) {
-  return item.trxExamItem?.exam?.status === 'completed'
+  return Boolean(item.trxExamItem?.templateSnapshotAt) || item.trxExamItem?.exam?.status === 'completed'
 }
 
 function canDoneItem(item: RoomExamItem) {
   if (item.status !== 'IN_PROGRESS') return false
   if (!hasStructuredInputs(item)) return true
   return isExamResultSubmitted(item)
+}
+function getStoredResult(item: RoomExamItem, inputanId: string) {
+  return item.trxExamItem?.exam?.results?.find(result => result.inputanId === inputanId) ?? null
+}
+
+function getResultDisplayValue(item: RoomExamItem, inputan: ExamInput) {
+  const result = getStoredResult(item, inputan.id)
+  const draft = resultDrafts[item.id]?.[inputan.id]
+
+  if (inputan.inputType === 'number') {
+    if (result?.valueNumber != null) return String(result.valueNumber)
+    if (getDraftText(draft?.valueNumber)) return getDraftText(draft?.valueNumber)
+  }
+
+  if (inputan.inputType === 'calculated') {
+    if (result?.valueCalculated != null) return String(result.valueCalculated)
+    if (getDraftText(draft?.valueCalculated)) return getDraftText(draft?.valueCalculated)
+  }
+
+  if (inputan.inputType === 'selected') {
+    const selected = result?.valueSelected ?? draft?.valueSelected
+    if (selected) return inputan.opsis?.find(opsi => opsi.value === selected)?.label ?? selected
+  }
+
+  const text = result?.valueString ?? draft?.valueString
+  if (getDraftText(text)) return getDraftText(text)
+
+  return null
+}
+
+function getSubmittedResultRows(item: RoomExamItem) {
+  return (item.trxExamItem?.item?.inputans ?? [])
+    .map((inputan) => {
+      const value = getResultDisplayValue(item, inputan)
+      return value == null
+        ? null
+        : {
+            id: inputan.id,
+            label: inputan.label,
+            value,
+            uom: inputan.uom,
+            flag: getStoredResult(item, inputan.id)?.flag ?? null
+          }
+    })
+    .filter((row): row is { id: string, label: string, value: string, uom?: string | null, flag: 'normal' | 'abnormal' | null } => Boolean(row))
+}
+
+function shouldShowResultDocument(item: RoomExamItem) {
+  return item.status === 'DONE' || isExamResultSubmitted(item)
 }
 
 function getOperationalStatusLabel(item: RoomExamItem) {
@@ -1401,7 +1461,8 @@ async function handleSubmitResults(item: RoomExamItem) {
     if (!saved) return
 
     await api.post(`/mcu/exams/${examId}/results/submit`, {
-      departmentId: item.trxExamItem?.item?.department?.id ?? undefined
+      departmentId: item.trxExamItem?.item?.department?.id ?? undefined,
+      examItemId: item.trxExamItem?.id
     })
     await loadPage(true)
     toast.add({
@@ -1974,6 +2035,44 @@ async function handleSubmitItemAction() {
                     />
                   </div>
 
+                  <div
+                    v-if="shouldShowResultDocument(item)"
+                    class="rounded-xl border border-default bg-muted/20 p-4"
+                  >
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p class="text-sm font-semibold text-highlighted">
+                          Dokumen hasil
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ item.trxExamItem?.templateSnapshotAt ? formatDate(item.trxExamItem.templateSnapshotAt) : 'Draft hasil tersimpan' }}
+                        </p>
+                      </div>
+                      <UBadge :color="item.trxExamItem?.resultStatus === 'SUBMITTED' ? 'warning' : 'success'" variant="soft" :label="item.trxExamItem?.resultStatus === 'SUBMITTED' ? 'Waiting Approval' : 'Submitted'" />
+                    </div>
+
+                    <p v-if="getSubmittedResultRows(item).length === 0" class="rounded-lg border border-dashed border-default bg-default px-3 py-2 text-sm text-muted">
+                      Hasil belum termuat di response. Refresh data atau buka kembali room ini.
+                    </p>
+
+                    <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div
+                        v-for="row in getSubmittedResultRows(item)"
+                        :key="row.id"
+                        class="rounded-lg border border-default bg-default px-3 py-2"
+                      >
+                        <p class="text-xs text-muted">
+                          {{ row.label }}
+                        </p>
+                        <p
+                          class="text-sm font-semibold"
+                          :class="row.flag === 'abnormal' ? 'text-error' : 'text-highlighted'"
+                        >
+                          {{ row.value }}<span v-if="row.uom" class="ml-1 text-xs font-normal text-muted">{{ row.uom }}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
                     <UButton
                       v-if="canCollectSample(item)"
