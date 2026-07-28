@@ -975,8 +975,8 @@ watch(currentPage, (page) => {
                     icon="i-lucide-award"
                     :items="[
                       { label: 'VIP', value: 'VIP' },
-                      { label: 'Normal', value: 'NORMAL' },
-                      { label: 'Emergency', value: 'EMERGENCY' }
+                      { label: 'Normal', value: 'Normal' },
+                      { label: 'Emergency', value: 'Emergency' }
                     ]"
                     placeholder="Pilih prioritas"
                     class="w-full min-w-[150px]"
