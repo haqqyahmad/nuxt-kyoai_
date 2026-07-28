@@ -326,7 +326,7 @@ async function confirmChangeStatus() {
     if (!reg_temp.value) return
 
     const index = reg_temp.value.findIndex(
-      i => i.id === row.original.id
+      (i: { id: string }) => i.id === row.original.id
     )
 
     if (index >= 0) {

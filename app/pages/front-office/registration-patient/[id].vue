@@ -180,9 +180,10 @@ const mcuCategories = computed(() => {
   for (const ei of paketItems) {
     const deptName: string = ei.item.department?.name ?? 'Lainnya'
     if (!grouped.has(deptName)) {
+      const icon = deptIcon[deptName as keyof typeof deptIcon] ?? deptIcon.default
       grouped.set(deptName, {
         label: deptName,
-        icon: deptIcon[deptName] || deptIcon['default'],
+        icon: icon as string,
         items: []
       })
     }
