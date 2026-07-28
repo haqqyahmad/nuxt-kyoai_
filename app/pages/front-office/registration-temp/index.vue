@@ -23,7 +23,9 @@ const selectedStatus = ref<string>('')
 // optional (kalau APPROVED butuh input)
 const formApprove = reactive({
   examDate: '',
-  priorityRegist: ''
+  priorityRegist: '',
+  patientExists: false as boolean | null,
+  patientId: '' as string
 })
 
 // optional (kalau REJECTED butuh input)
@@ -88,6 +90,63 @@ watch(
     validate()
   }
 )
+
+// Patient search for approval
+type Patient = {
+  id: string
+  PatientId?: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  gender?: string
+}
+
+const patientSearchQuery = ref('')
+const patientResults = ref<Patient[]>([])
+const patientSearchLoading = ref(false)
+const selectedPatient = ref<Patient | null>(null)
+
+let patientSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(patientSearchQuery, (val) => {
+  if (patientSearchTimer) clearTimeout(patientSearchTimer)
+  if (!val || val.length < 2) {
+    patientResults.value = []
+    return
+  }
+  patientSearchTimer = setTimeout(async () => {
+    patientSearchLoading.value = true
+    try {
+      const res = await api.get('/patient', { params: { search: val, limit: 10 } })
+      patientResults.value = res.data.data ?? []
+    } catch {
+      patientResults.value = []
+    } finally {
+      patientSearchLoading.value = false
+    }
+  }, 350)
+})
+
+function selectPatient(patient: Patient) {
+  selectedPatient.value = patient
+  formApprove.patientId = patient.id
+  formApprove.patientExists = true
+  patientSearchQuery.value = ''
+  patientResults.value = []
+}
+
+function clearPatient() {
+  selectedPatient.value = null
+  formApprove.patientId = ''
+  formApprove.patientExists = false
+}
+
+// Reset form when status changes
+watch(selectedStatus, (val) => {
+  if (val !== 'APPROVED') {
+    clearPatient()
+  }
+})
 
 type TempRegist = {
   id: string
@@ -319,6 +378,7 @@ async function confirmChangeStatus() {
     await updateStatus(row.original.id, val, {
       examDate: formApprove.examDate,
       priorityRegist: formApprove.priorityRegist,
+      patientId: formApprove.patientId || undefined,
       rejectReason: formReject.rejectReason
     })
 
@@ -986,6 +1046,70 @@ watch(currentPage, (page) => {
                   />
                   <p v-if="touched.priorityRegist && errors.priorityRegist" class="text-xs text-red-500">
                     {{ errors.priorityRegist }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Patient Existing Search -->
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-muted">
+                  Apakah pasien sudah pernah MCU di Kyoai?
+                </label>
+                <div class="flex gap-2">
+                  <UButton
+                    size="xs"
+                    :color="formApprove.patientExists === true ? 'primary' : 'neutral'"
+                    variant="soft"
+                    @click="formApprove.patientExists = true; clearPatient()"
+                  >
+                    Ya
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    :color="formApprove.patientExists === false ? 'primary' : 'neutral'"
+                    variant="soft"
+                    @click="formApprove.patientExists = false; clearPatient()"
+                  >
+                    Tidak
+                  </UButton>
+                </div>
+
+                <div v-if="formApprove.patientExists && !selectedPatient" class="mt-2">
+                  <UInput
+                    v-model="patientSearchQuery"
+                    placeholder="Cari nama atau nomor RM pasien..."
+                    icon="i-lucide-search"
+                  />
+                  <div v-if="patientSearchLoading" class="mt-2 text-xs text-muted">
+                    Mencari...
+                  </div>
+                  <div v-else-if="patientResults.length" class="mt-2 border rounded-lg max-h-48 overflow-auto">
+                    <div
+                      v-for="p in patientResults"
+                      :key="p.id"
+                      class="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-default last:border-0"
+                      @click="selectPatient(p)"
+                    >
+                      <p class="text-sm font-medium text-highlighted">
+                        {{ p.firstName }} {{ p.middleName || '' }} {{ p.lastName }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        RM: {{ p.PatientId || '-' }} · {{ p.gender || '-' }}
+                      </p>
+                    </div>
+                  </div>
+                  <div v-else-if="patientSearchQuery.length >= 2 && !patientSearchLoading" class="mt-2 text-xs text-muted">
+                    Tidak ada pasien ditemukan.
+                  </div>
+                </div>
+
+                <div v-if="selectedPatient" class="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <p class="text-sm font-medium text-primary">
+                    {{ selectedPatient.firstName }} {{ selectedPatient.middleName || '' }} {{ selectedPatient.lastName }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    RM: {{ selectedPatient.PatientId || '-' }}
+                    <UButton size="xs" variant="ghost" class="ml-2" @click="clearPatient">Ganti</UButton>
                   </p>
                 </div>
               </div>
