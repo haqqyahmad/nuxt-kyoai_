@@ -133,7 +133,7 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - BE: endpoint `/users/auth/employee` + `/users/profile` untuk self-update.
 - Perbaikan date fields di EditModal + Profile.
 
-### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + Permission Cleanup + Menu Refactor + PRD Update
+### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + Permission Cleanup + Menu Refactor + PRD Update + Portal Integration
 - `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings). Filter Results by role→department mapping. Filter Sample Collection by `sample:collect` permission.
 - `constants/menu.ts`: shared menu definition — extract menu structure, route constants, role lists ke file bersama antara `default.vue` dan `useMenuPreview.ts`. Tambah `'front-office'` ke restrictedRoles + allowed routes (`/front-office/*`). Tambah `getAllowedRoutes()` untuk filter per role.
 - `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor. Refactor: gunakan `useRoutePermission().hasRouteAccess` langsung (hapus duplikasi logika).
@@ -142,6 +142,12 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - `pages/login.vue`: redirect front-office ke `/front-office/registration-temp`.
 - `pages/settings/roles.vue`: tambah tombol Preview di kolom aksi untuk setiap role.
 - `pages/settings/permissions.vue`: tambah "Set Recommended Permissions" button — reset permission ke rekomendasi per role (8 role matrices: superadmin, admin, petugas-lab, petugas-radiologi, dokter, nurse, dokter-external, front-office, medical-admin, hr-admin). Tambah "Bulk Cleanup" button.
+- Fix: `useMenuPreview` filter Results by role→department mapping, filter Sample Collection by sample:collect permission.
+- FE: Fix `Emergency` typo di 4 file (registration-patient/create, [id], index, services/types/[id]).
+- FE: Hapus debug text, commented-out code, fix duplicate property di front-office module.
+- FE: TypeScript fixes — tambah examType ke Registration type, fix badge color types, fix setTimeout di template.
+- BE: Fix `Emergency` typo di PriorityEnum + migration untuk update ENUM columns.
+- Flow: self-assign ke LAB/LAB-MCU → redirect sample-collection → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
 - Fix: `useMenuPreview` filter Results by role→department mapping, filter Sample Collection by sample:collect permission.
 - Flow: self-assign ke LAB/LAB-MCU → redirect sample-collection → ambil pasien (dari index, dengan call stage) → masuk room → mulai pemeriksaan → ambil/tolak/reschedule per sample → selesaikan.
 
