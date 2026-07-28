@@ -130,6 +130,45 @@ Simpan struktur menu di database agar bisa diatur via UI dan preview menu 100% s
 - Setelah core operations stabil
 - Setelah fitur lain yang lebih prioritas selesai
 
+## Future Plan: Inline/Deferred Result + Dynamic Approval + Release
+
+**Status:** Planned (menunggu stabilisasi fitur lain)
+**Effort:** 21-31 hari (Database 2h, BE 10-13h, FE 10-14h, Testing 7-9h)
+**Dokumentasi:** `docs/inline-deferred-result-workflow.md`
+
+### Deskripsi
+Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release final report.
+
+### Key Status Layers
+- `RoomExamItem.status`: PENDING → IN_PROGRESS → DONE/SKIPPED/REFUSED/RETEST/RESCHEDULED
+- `TrxExamItem.resultStatus`: NOT_READY → READY → DRAFT → SUBMITTED → RETURNED
+- `ExamDepartmentResult.status`: DRAFT → DEPARTMENT_REVIEW → DEPARTMENT_APPROVED → SUBMITTED_TO_DOCTOR
+- `MedicalReport.status`: DOCTOR_REVIEW → DOCTOR_APPROVED → MR_REVIEW → MR_VERIFIED → READY_TO_RELEASE → RELEASED
+
+### Workflow
+1. **Inline Result**: Input dari room → SUBMITTED → Department Review
+2. **Deferred Result**: READY setelah item DONE → Input dari Result Menu → SUBMITTED → Department Review
+3. **Dynamic Department Approval**: Workflow configurable per department, four-eyes rule, snapshot immutable
+4. **Doctor Review**: Worklist dari DEPARTMENT_APPROVED → approve/return
+5. **MR Verification**: Worklist dari DOCTOR_APPROVED → verify/return
+6. **Release**: Preview → RELEASED → report locked
+
+### Data Model Baru (7 tabel)
+- ResultReviewWorkflow, ResultReviewStep
+- ExamDepartmentResult, ExamDepartmentResultVersion
+- ExamDepartmentReviewAction, ExamResultRevisionItem
+- MedicalReport, MedicalReportDepartmentVersion, MedicalReportAction
+
+### Dependencies
+- resultTiming (inline/deferred) — harus selesai dulu
+- examType discriminator — mempengaruhi workflow
+- Department master data — harus lengkap
+- Audit trail backend — perlu dibangun
+
+### Kapan Dieksekusi
+- Setelah core operations stabil
+- Setelah resultTiming dan examType diimplementasi
+
 ## Working Rules
 
 - Satu prioritas aktif dalam satu waktu.
