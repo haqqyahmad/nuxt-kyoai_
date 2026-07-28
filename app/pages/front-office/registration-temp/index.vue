@@ -922,6 +922,8 @@ watch(currentPage, (page) => {
                 class="w-full"
               />
 
+            </div>
+
             <!-- 🔥 STATUS INFO -->
             <div class="text-sm text-muted">
               Status akan diubah menjadi:
