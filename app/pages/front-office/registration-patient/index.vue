@@ -14,6 +14,7 @@ const toast = useToast()
 
 type Patient = {
   id: string
+  id_reg: string
   patientCode: string
   patientName: string
 

@@ -32,6 +32,7 @@ type Registration = {
   priorityRegist: string
   paymentType: string
   statusRegistration: string
+  examType: string
   createdAt: string
   queue: QueueInfo | null
   patient: {
@@ -126,7 +127,7 @@ const SERVICE_LABEL: Record<string, string> = {
   Dental: 'Gigi'
 }
 
-const STATUS_COLOR: Record<string, string> = {
+const STATUS_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
   Open: 'success',
   Checkin: 'info',
   CheckOut: 'neutral',
@@ -135,7 +136,7 @@ const STATUS_COLOR: Record<string, string> = {
   Cancel: 'error'
 }
 
-const PRIORITY_COLOR: Record<string, string> = {
+const PRIORITY_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
   Normal: 'neutral',
   VIP: 'warning',
   Emergency: 'error'
@@ -181,7 +182,7 @@ const mcuCategories = computed(() => {
     if (!grouped.has(deptName)) {
       grouped.set(deptName, {
         label: deptName,
-        icon: deptIcon[deptName] ?? deptIcon.default,
+        icon: deptIcon[deptName as keyof typeof deptIcon] ?? deptIcon['default'],
         items: []
       })
     }

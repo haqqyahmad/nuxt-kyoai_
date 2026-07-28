@@ -25,6 +25,15 @@ type TempRegistration = {
   patientExists?: boolean
   patientId: string
   status: string
+  statusRegistration?: string
+  id_reg?: string
+  patient?: {
+    firstName?: string
+    middleName?: string
+    lastName?: string
+    PatientId?: string
+    patientCode?: string
+  }
   rejectedReason: string
   registrationId: number
   createdAt: string
@@ -63,13 +72,13 @@ const SERVICE_LABEL: Record<string, string> = {
   Dental: 'Gigi'
 }
 
-const STATUS_COLOR: Record<string, string> = {
+const STATUS_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
   APPROVED: 'success',
   PENDING: 'warning',
   REJECTED: 'error'
 }
 
-const PRIORITY_COLOR: Record<string, string> = {
+const PRIORITY_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
   Normal: 'neutral',
   VIP: 'warning',
   Emergency: 'error'

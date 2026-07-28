@@ -143,13 +143,13 @@ const PAYMENT_TYPES = [
   { value: 'Personal', label: 'Personal' },
   { value: 'Insurance', label: 'Asuransi' },
   { value: 'BillToCompany', label: 'Bill to Company' }
-] as const
+]
 
 const PRIORITY_TYPES = [
   { value: 'Normal', label: 'Normal' },
   { value: 'VIP', label: 'VIP' },
   { value: 'Emergency', label: 'Emergency' }
-] as const
+]
 
 const INPUT_TYPE_LABEL: Record<string, string> = {
   number: 'Number',
@@ -274,6 +274,10 @@ function selectPatient(p: Patient) {
   patientSearch.value = fullName(p)
   patientResults.value = []
   patientDropOpen.value = false
+}
+
+function handlePatientBlur() {
+  setTimeout(() => { patientDropOpen.value = false }, 200)
 }
 
 function clearPatient() {
@@ -801,7 +805,7 @@ async function submit() {
                     :disabled="!!selectedPatient"
                     placeholder="Cari nama, nomor ID, atau kode pasien..."
                     @focus="patientDropOpen = true"
-                    @blur="setTimeout(() => (patientDropOpen = false), 200)"
+                    @blur="handlePatientBlur"
                   />
 
                   <div
