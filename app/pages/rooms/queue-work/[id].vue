@@ -2048,7 +2048,7 @@ async function handleSubmitItemAction() {
                           {{ item.trxExamItem?.templateSnapshotAt ? formatDate(item.trxExamItem.templateSnapshotAt) : 'Draft hasil tersimpan' }}
                         </p>
                       </div>
-                      <UBadge color="success" variant="soft" label="Submitted" />
+                      <UBadge :color="item.trxExamItem?.resultStatus === 'SUBMITTED' ? 'warning' : 'success'" variant="soft" :label="item.trxExamItem?.resultStatus === 'SUBMITTED' ? 'Waiting Approval' : 'Submitted'" />
                     </div>
 
                     <p v-if="getSubmittedResultRows(item).length === 0" class="rounded-lg border border-dashed border-default bg-default px-3 py-2 text-sm text-muted">

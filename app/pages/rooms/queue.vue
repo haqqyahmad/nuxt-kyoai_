@@ -110,6 +110,7 @@ type QueueHistoryRow = {
   tierOrder: number
   patientName: string
   patientId: string
+  examDate: string | null
   roomLabel: string
   itemSummary: string
   stageSummary: string
@@ -178,6 +179,7 @@ type WaitingRow = {
   tierOrder: number
   patientName: string
   patientId: string
+  examDate: string | null
   itemSummary: string
   stageSummary: string
   status: string
@@ -214,6 +216,8 @@ type QueueStoredFilters = {
   historyRoomTypeId: string
   waitingStatus: WaitingStatusFilter
   historyStatus: HistoryStatusFilter
+  examDateFrom: string
+  examDateTo: string
 }
 
 const waitingStatusValues: WaitingStatusFilter[] = ['WAITING', 'CALLED', 'IN_PROGRESS', 'ALL']
@@ -230,6 +234,9 @@ function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | nul
     ? stored.historyRoomTypeId
     : ''
 
+  const examDateFrom = typeof stored.examDateFrom === 'string' ? stored.examDateFrom : today
+  const examDateTo = typeof stored.examDateTo === 'string' ? stored.examDateTo : today
+
   return {
     waitingRoomTypeId,
     historyRoomTypeId,
@@ -238,7 +245,9 @@ function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | nul
       : 'WAITING',
     historyStatus: historyStatusValues.includes(stored.historyStatus as HistoryStatusFilter)
       ? stored.historyStatus as HistoryStatusFilter
-      : 'DONE'
+      : 'DONE',
+    examDateFrom,
+    examDateTo
   }
 }
 
@@ -248,7 +257,9 @@ const queueFilterState = useSafeLocalStorageState<QueueStoredFilters>(
     waitingRoomTypeId: '',
     historyRoomTypeId: '',
     waitingStatus: 'WAITING',
-    historyStatus: 'DONE'
+    historyStatus: 'DONE',
+    examDateFrom: today,
+    examDateTo: today
   },
   sanitizeQueueFilters
 )
@@ -256,6 +267,8 @@ const selectedWaitingRoomTypeId = toRef(queueFilterState, 'waitingRoomTypeId')
 const selectedHistoryRoomTypeId = toRef(queueFilterState, 'historyRoomTypeId')
 const waitingStatusFilter = toRef(queueFilterState, 'waitingStatus')
 const historyStatusFilter = toRef(queueFilterState, 'historyStatus')
+const examDateFromFilter = toRef(queueFilterState, 'examDateFrom')
+const examDateToFilter = toRef(queueFilterState, 'examDateTo')
 const historyStatusOptions = [
   { label: 'Selesai', value: 'DONE' },
   { label: 'Sedang diproses', value: 'IN_PROGRESS' },
@@ -365,7 +378,8 @@ const {
 
     const res = await api.get(`/medical/exams/queue/room/${effectiveHistoryRoomTypeId.value}`, {
       params: {
-        queueDate: today,
+        examDateFrom: examDateFromFilter.value || undefined,
+        examDateTo: examDateToFilter.value || undefined,
         status,
         limit: 100,
         page: 1,
@@ -378,7 +392,7 @@ const {
   },
   {
     default: () => [],
-    watch: [effectiveHistoryRoomTypeId, historyStatusFilter],
+    watch: [effectiveHistoryRoomTypeId, historyStatusFilter, examDateFromFilter, examDateToFilter],
     server: false
   }
 )
@@ -481,6 +495,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       tierOrder: item.tierOrder,
       patientName: formatPatientName(patient ?? null),
       patientId: patient?.PatientId || '-',
+      examDate: registration?.examDate ?? null,
       roomLabel: assignment.value?.roomType?.name
         ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
         : `Tier ${item.tierOrder}`,
@@ -516,6 +531,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       tierOrder: item.tierOrder,
       patientName: formatPatientName(patient ?? null),
       patientId: patient?.PatientId || '-',
+      examDate: registration?.examDate ?? null,
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
         : '-',
@@ -525,6 +541,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
     }
   })
 )
+
 
 const historyStats = computed(() => ({
   completed: historyRows.value.length,
@@ -542,6 +559,18 @@ function formatQueueDate(dateString?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date)
+}
+
+function formatExamDate(dateString?: string | null) {
+  if (!dateString) return '-'
+
+  const [datePart] = dateString.split('T')
+  const [year, month, day] = datePart.split('-').map(Number)
+  if (!year || !month || !day) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium'
+  }).format(new Date(year, month - 1, day))
 }
 
 function formatPatientName(patient?: PatientName | null) {
@@ -1082,6 +1111,24 @@ watch(
                   placeholder="Pilih room type"
                   class="w-56"
                 />
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-medium text-muted">Exam Date</span>
+                  <UInput
+                    v-model="examDateFromFilter"
+                    type="date"
+                    size="sm"
+                    class="w-36"
+                    aria-label="Exam date from"
+                  />
+                  <span class="text-xs text-muted">s/d</span>
+                  <UInput
+                    v-model="examDateToFilter"
+                    type="date"
+                    size="sm"
+                    class="w-36"
+                    aria-label="Exam date to"
+                  />
+                </div>
                 <USelect
                   v-model="historyStatusFilter"
                   :items="historyStatusOptions"
@@ -1126,6 +1173,9 @@ watch(
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Pasien
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Exam Date
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Item
@@ -1175,6 +1225,11 @@ watch(
                         RM {{ row.patientId }}
                       </p>
                     </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ formatExamDate(row.examDate) }}
+                    </p>
                   </td>
                   <td class="border-b border-default px-4 py-4">
                     <p class="text-sm text-highlighted">
@@ -1309,6 +1364,9 @@ watch(
                       Pasien
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Exam Date
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       Item
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -1350,6 +1408,11 @@ watch(
                           RM {{ row.patientId }}
                         </p>
                       </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <p class="text-sm text-highlighted">
+                        {{ formatExamDate(row.examDate) }}
+                      </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
                       <p class="text-sm text-highlighted">
