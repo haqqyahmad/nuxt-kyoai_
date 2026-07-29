@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-25 12:00
+Last updated: 2026-07-29 12:00
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -90,6 +90,36 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: Buat halaman `/hris/reimbursement` & `/hris/recruitment` atau hapus dari sidebar.
 - BE: Hapus stale file `src/routers/user.route.js` (root level) dan `error.middleware.js`/`ErrorHandlingMidd.js` duplikat.
 - QA Engineer: turunkan tiap prioritas menjadi smoke test minimal sebelum status dipindah ke completed.
+
+## Completed — Integrasi regist_portal → express_dash → my-app
+
+**Status:** Selesai ✅ (29 Juli 2026)
+
+### Portal Form Update
+- Field: branchId, serviceType, companyId, email (baru)
+- Address: addressType, detail, note, district, city, province, country (ganti address/address2/postal)
+- Marital Status: select SINGLE/MARRIED/DIVORCED (baru)
+- Hapus: blood, occupation, company, postal, agreement checkbox
+
+### Portal API (SvelteKit)
+- `/api/patient` → validasi Zod → map to BE format → POST `/public/register/:branchCode` → email
+- Submit panggil portal's own API, bukan BE langsung
+
+### Backend (express_dash)
+- Validation: tambah address fields + maritalStatus ke `publicRegisterSchema`
+- `submitFromPublic`: simpan address di `addressTemp` (JSON), simpan marital di `maritalTemp`
+- `approveTemp`: buat Address record dari `addressTemp`, set `maritalStatus` saat create patient
+- Fix: `generatePatientId` format `PAT-YYYYMMDD-BR-SEQ` (include branchId untuk unique global)
+- Migration: `ALTER TABLE RegistrationTemp ADD COLUMN addressTemp TEXT, maritalTemp VARCHAR(20)`
+
+### alur:
+```
+Portal → POST /api/patient → validasi → POST /public/register/:branchCode
+  → RegistrationTemp (addressTemp, maritalTemp)
+  → Front Office Approve
+  → Buat Patient + Registration + Address record
+  → Data tampil di /registration-patient
+```
 
 ## Future Plan: Database Menu System
 

@@ -133,7 +133,14 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 - BE: endpoint `/users/auth/employee` + `/users/profile` untuk self-update.
 - Perbaikan date fields di EditModal + Profile.
 
-### 2026-07-25 — Role Nurse Restriction + Preview Menu UI + Permission Cleanup + Menu Refactor + PRD Update + Portal Integration
+### 2026-07-29 — Portal Integration (regist_portal → express_dash → my-app)
+- `regist_portal`: update form field match BE (branchId, serviceType, companyId, address, maritalStatus)
+- `regist_portal`: API endpoint submit ke BE `/public/register/:branchCode` + email
+- `express_dash`: tambah addressTemp + maritalTemp di RegistrationTemp model
+- `express_dash`: buat Address record dari data portal saat approve
+- `express_dash`: fix generatePatientId format `PAT-YYYYMMDD-BR-SEQ` (include branchId)
+- `my-app`: tambah patient search saat approval di modal registration-temp
+- Flow: portal submit → RegistrationTemp → FO approve → Patient + Registration + Address
 - `layouts/default.vue`: tambah `'nurse'` ke `restrictedRoles` — nurse dibatasi seperti petugas-lab/radiologi/dokter (hanya Dashboard, Examination, Settings). Filter Results by role→department mapping. Filter Sample Collection by `sample:collect` permission.
 - `constants/menu.ts`: shared menu definition — extract menu structure, route constants, role lists ke file bersama antara `default.vue` dan `useMenuPreview.ts`. Tambah `'front-office'` ke restrictedRoles + allowed routes (`/front-office/*`). Tambah `getAllowedRoutes()` untuk filter per role.
 - `composables/useMenuPreview.ts`: composable baru untuk compute menu items berdasarkan permissions, mendukung restricted roles dan external doctor. Refactor: gunakan `useRoutePermission().hasRouteAccess` langsung (hapus duplikasi logika).
