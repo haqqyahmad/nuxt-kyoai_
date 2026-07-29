@@ -95,8 +95,11 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 
 **Status:** Selesai ✅ (29 Juli 2026)
 
-### Portal Form Update
-- Field: branchId, serviceType, companyId, email (baru)
+### Portal Form (lanjutan)
+- Company: searchable select dari mst_customer (via API proxy)
+- Branch: searchable select (spt company)
+- Payment Type: Personal/Insurance/BillToCompany
+- Service Type MCU → auto-fill notes "Puasa 8 jam sebelum pemeriksaan"
 - Address: addressType, detail, note, district, city, province, country (ganti address/address2/postal)
 - Marital Status: select SINGLE/MARRIED/DIVORCED (baru)
 - Hapus: blood, occupation, company, postal, agreement checkbox
