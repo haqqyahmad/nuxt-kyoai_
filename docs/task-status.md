@@ -1,6 +1,6 @@
 # Project Task Status
 
-Last updated: 2026-07-29 12:00
+Last updated: 2026-07-30 12:00
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
@@ -93,18 +93,27 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 
 ## Completed — Integrasi regist_portal → express_dash → my-app
 
-**Status:** Selesai ✅ (29 Juli 2026)
+**Status:** Selesai ✅ (30 Juli 2026)
 
-### Portal Form (lanjutan)
-- Captcha: SVG captcha verification di step 3
-- Email: template Kyoai branding, kirim ke pasien + admin
-- SMTP: Production (web13-cpn.neohosting.id)
-- Halaman sukses: `/registration/success` dengan celebration overlay
-- Loading: skip untuk halaman success
-- Appointment page: Payment Type (Personal/Insurance/BillToCompany), Company searchable, Branch searchable
-- Address: addressType, detail, note, district, city, province, country (ganti address/address2/postal)
-- Marital Status: select SINGLE/MARRIED/DIVORCED (baru)
-- Hapus: blood, occupation, company, postal, agreement checkbox
+### Portal Multi-Step Flow (BARU)
+- Step 0: BranchServiceSelect — pilih branch + service type (icon grid)
+- Step 1: PatientSearch — pilih pasien lama (search ID+DOB) atau baru
+- Step 2: PersonalInfo + ContactInfo + Appointment (auto-fill jika pasien lama)
+- Step 3: Verification + Captcha → Submit
+- Branch & Service Type di Step 0, otomatis readonly di Step 2
+- `/api/patient-search` → `/public/register/patient-lookup` (endpoint public)
+
+### Backend Approval Fix
+- Hapus unique constraint `@@unique([idType, idValue, status])` di RegistrationTemp
+  - Pasien bisa daftar MCU berkali-kali tanpa error constraint
+- Cek email unik: jika sudah dipakai pasien lain, skip (null)
+- Update data pasien existing saat approve + audit log
+- Buat Address record dari addressTemp saat approve
+- Generate PatientId format `PAT-YYYYMMDD-BR-SEQ`
+
+### Aturan Update Pasien
+- idNumber/idType berubah → CREATE pasien baru
+- Data lain berubah (phone, email, address, dll) → UPDATE existing
 
 ### Portal API (SvelteKit)
 - `/api/patient` → validasi Zod → map to BE format → POST `/public/register/:branchCode` → email
