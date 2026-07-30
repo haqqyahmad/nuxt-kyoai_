@@ -96,10 +96,12 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 **Status:** Selesai ✅ (29 Juli 2026)
 
 ### Portal Form (lanjutan)
-- Company: searchable select dari mst_customer (via API proxy)
-- Branch: searchable select (spt company)
-- Payment Type: Personal/Insurance/BillToCompany
-- Service Type MCU → auto-fill notes "Puasa 8 jam sebelum pemeriksaan"
+- Captcha: SVG captcha verification di step 3
+- Email: template Kyoai branding, kirim ke pasien + admin
+- SMTP: Production (web13-cpn.neohosting.id)
+- Halaman sukses: `/registration/success` dengan celebration overlay
+- Loading: skip untuk halaman success
+- Appointment page: Payment Type (Personal/Insurance/BillToCompany), Company searchable, Branch searchable
 - Address: addressType, detail, note, district, city, province, country (ganti address/address2/postal)
 - Marital Status: select SINGLE/MARRIED/DIVORCED (baru)
 - Hapus: blood, occupation, company, postal, agreement checkbox
