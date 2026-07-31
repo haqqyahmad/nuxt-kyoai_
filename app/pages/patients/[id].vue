@@ -71,6 +71,14 @@ const fullName = computed(() => {
     .join(" ");
 });
 
+const sortedHistories = computed(() =>
+  [...(patient.value?.histories ?? [])].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    return 0;
+  })
+);
+
 const formatDate = (date?: string) => {
   if (!date) return "-";
   return new Date(date).toLocaleDateString("id-ID", {
@@ -888,7 +896,7 @@ const deleteAddress = async (addressId: string) => {
 
         <div v-else class="divide-y divide-accented">
           <div
-            v-for="history in patient.histories"
+            v-for="history in sortedHistories"
             :key="history.id"
             class="p-4 flex items-start gap-3"
           >
