@@ -95,6 +95,12 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 
 **Status:** Selesai ✅ (30 Juli 2026)
 
+### Keputusan: Portal Address = Single
+- Portal hanya 1 address per registrasi (opsi A)
+- FE `/patients/:id` tetap multi-address (sudah ada)
+- FO bisa tambah/edit address lain di `/patients/:id`
+- Address dari portal → di-update ke address existing (tidak duplikat)
+
 ### Portal Multi-Step Flow (BARU)
 - Step 0: BranchServiceSelect — pilih branch + service type (icon grid)
 - Step 1: PatientSearch — pilih pasien lama (search ID+DOB) atau baru
