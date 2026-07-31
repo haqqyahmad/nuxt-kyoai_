@@ -101,6 +101,12 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FO bisa tambah/edit address lain di `/patients/:id`
 - Address dari portal → di-update ke address existing (tidak duplikat)
 
+### Email Templates + Worker (BARU)
+- 4 template: registrationReceived, adminNewSubmission, appointmentConfirmed, registrationRejected
+- Worker email.js: render template + kirim via transporter.sendMail()
+- SMTP: Production (web13-cpn.neohosting.id)
+- Template format: HTML dengan branding Kyoai Medical Services
+
 ### Portal Multi-Step Flow (BARU)
 - Step 0: BranchServiceSelect — pilih branch + service type (icon grid)
 - Step 1: PatientSearch — pilih pasien lama (search ID+DOB) atau baru
