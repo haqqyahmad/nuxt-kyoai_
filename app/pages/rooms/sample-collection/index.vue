@@ -152,14 +152,6 @@ async function loadHistory() {
   }
 }
 
-function formatPatient(queueEntry?: SampleCollectionRow['queueEntry']) {
-  const patient = queueEntry?.registration?.patient
-  if (!patient) return '-'
-  return [patient.firstName, patient.middleName, patient.lastName]
-    .filter(Boolean)
-    .join(' ') || '-'
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return '-'
   const date = new Date(value)
@@ -196,19 +188,6 @@ function openDetail(row: SampleCollectionRow) {
     queueCode: row.queueEntry?.queueCode || '-'
   }
   detailSamples.value = [row]
-  detailOpen.value = true
-}
-
-function openDetailGroup(samples: SampleCollectionRow[]) {
-  const first = samples[0]
-  const p = first?.queueEntry?.registration?.patient
-  detailPatient.value = {
-    name: [p?.firstName, p?.middleName, p?.lastName].filter(Boolean).join(' ') || '-',
-    patientId: p?.PatientId || '-',
-    idReg: first?.queueEntry?.registration?.id_reg || '-',
-    queueCode: first?.queueEntry?.queueCode || '-'
-  }
-  detailSamples.value = samples
   detailOpen.value = true
 }
 

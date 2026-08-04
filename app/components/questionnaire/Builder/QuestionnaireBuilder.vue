@@ -29,26 +29,12 @@ const emit = defineEmits<{
   ): void
 
   (
-    e: 'update:title',
+    e: 'update:title' | 'update:description' | 'update:portalKey' | 'add-question',
     value: string
   ): void
 
   (
-    e: 'update:description',
-    value: string
-  ): void
-
-  (
-    e: 'add-question',
-    sectionId: string
-  ): void
-
-  (
-    e: 'add-section'
-  ): void
-
-  (
-    e: 'preview'
+    e: 'add-section' | 'preview' | 'save'
   ): void
 }>()
 
@@ -61,6 +47,8 @@ const props = defineProps<{
   sections: Section[]
   title: string
   description: string
+  portalKey?: string
+  saving?: boolean
 }>()
 
 /**
@@ -74,6 +62,10 @@ const questionnaireTitle = ref(
 
 const questionnaireDescription = ref(
   props.description
+)
+
+const questionnairePortalKey = ref(
+  props.portalKey || ''
 )
 
 /**
@@ -93,6 +85,13 @@ watch(
   }
 )
 
+watch(
+  () => props.portalKey,
+  (value) => {
+    questionnairePortalKey.value = value || ''
+  }
+)
+
 /**
  * emit to parent
  */
@@ -102,6 +101,10 @@ watch(questionnaireTitle, (value) => {
 
 watch(questionnaireDescription, (value) => {
   emit('update:description', value)
+})
+
+watch(questionnairePortalKey, (value) => {
+  emit('update:portalKey', value)
 })
 
 /**
@@ -242,9 +245,14 @@ function saveDescription() {
       <!-- RIGHT -->
       <template #trailing>
         <div class="flex items-center gap-2">
-          <UBadge color="success" variant="soft" class="rounded-full px-3">
-            Auto Saved
-          </UBadge>
+          <UButton
+            icon="i-lucide-save"
+            color="primary"
+            :loading="saving"
+            @click="emit('save')"
+          >
+            Save
+          </UButton>
         </div>
       </template>
     </UDashboardNavbar>
@@ -314,11 +322,33 @@ function saveDescription() {
               class="text-sm sm:text-base text-muted cursor-text hover:text-default transition-colors whitespace-pre-line"
               @click="enableDescriptionEdit"
             >
-              {{ questionnaireDescription || "Click to add form description" }}
-            </p>
-          </Transition>
+                {{ questionnaireDescription || "Click to add form description" }}
+              </p>
+            </Transition>
+
+            <!-- PORTAL KEY -->
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-link"
+                class="size-4 text-muted"
+              />
+              <UInput
+                v-model="questionnairePortalKey"
+                variant="outline"
+                size="sm"
+                placeholder="MCU, MCU-2, dll"
+                class="max-w-48"
+                :color="questionnairePortalKey ? 'primary' : 'neutral'"
+              />
+              <p
+                v-if="questionnairePortalKey"
+                class="text-xs text-muted"
+              >
+                Portal akan pakai questionaire ini sebagai default
+              </p>
+</div>
+          </div>
         </div>
-      </div>
 
       <!-- EMPTY -->
       <div

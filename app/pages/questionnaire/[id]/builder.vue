@@ -1,19 +1,29 @@
 <!-- app/pages/questionnaire/[id]/builder.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 
 import { useToast } from '#imports'
 
 import { useQuestionnaireStore }
   from '~/stores/questionnaire/questionnaire'
+import { useQuestionnaireAutosave }
+  from '~/composables/questionnaire/useQuestionnaireAutosave'
 
 const toast = useToast()
+const api = useApi()
+const route = useRoute()
+
+const questionnaireId = String(route.params.id)
 
 const {
   sections,
+  setSections,
   addSection,
   addQuestion
 } = useQuestionnaireStore()
+
+useQuestionnaireAutosave(questionnaireId)
 
 /**
  * FORM META
@@ -26,41 +36,35 @@ const questionnaireDescription = ref(
   'Form description'
 )
 
+const questionnairePortalKey = ref('')
+
+/**
+ * Autosave header (nama + deskripsi) → PUT /questionnaire/:id
+ */
+let loaded = false
+
+watchDebounced(
+  [questionnaireTitle, questionnaireDescription],
+  async () => {
+    if (!loaded) return
+
+    try {
+      await api.put(`/questionnaire/${questionnaireId}`, {
+        questionnaire_name: questionnaireTitle.value,
+        description: questionnaireDescription.value,
+        portalKey: questionnairePortalKey.value || null,
+      })
+    } catch {
+      // abaikan — gagal update header tidak memblokir builder
+    }
+  },
+  { debounce: 1500, maxWait: 5000 }
+)
+
 /**
  * PREVIEW
  */
 const isPreviewOpen = ref(false)
-
-/**
- * ANSWERS
- */
-const answers = ref<Record<string, any>>({})
-
-/**
- * CONDITIONAL LOGIC
- */
-function shouldShowQuestion(question: any) {
-  // tidak punya conditional => tampil
-  if (!question.conditional) {
-    return true
-  }
-
-  const parentQuestionId
-    = question.conditional.parentQuestionId
-
-  const showIfOptionId
-    = question.conditional.showIfOptionId
-
-  const answer = answers.value[parentQuestionId]
-
-  // checkbox
-  if (Array.isArray(answer)) {
-    return answer.includes(showIfOptionId)
-  }
-
-  // radio/select
-  return answer === showIfOptionId
-}
 
 /**
  * ADD SECTION
@@ -75,6 +79,77 @@ function handleAddSection() {
     icon: 'i-lucide-plus'
   })
 }
+
+/**
+ * LOAD BY ID
+ */
+const loading = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+
+  try {
+    const res = await api.get(`/questionnaire/${questionnaireId}`)
+    const data = res.data.data
+
+    questionnaireTitle.value = data.questionnaire_name
+      || 'Untitled Questionnaire'
+
+    questionnaireDescription.value = data.description
+      || 'Form description'
+
+    questionnairePortalKey.value = data.portalKey || ''
+
+    setSections(data.sections ?? [])
+  } catch {
+    toast.add({
+      title: 'Gagal',
+      description: 'Gagal memuat questionnaire',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+    loaded = true
+  }
+})
+
+/**
+ * SAVE
+ */
+const saving = ref(false)
+
+/**
+ * Drag & drop (section/question) — sinkronkan urutan ke store,
+ * lalu autosave (PUT /:id/sections) mem-persist sortOrder.
+ */
+function onUpdateSections(nextSections: typeof sections.value) {
+  setSections(nextSections)
+}
+
+async function saveQuestionnaire() {
+  saving.value = true
+
+  try {
+    await api.put(
+      `/questionnaire/${questionnaireId}/sections`,
+      { sections: sections.value }
+    )
+
+    toast.add({
+      title: 'Tersimpan',
+      description: 'Questionnaire berhasil disimpan',
+      color: 'success'
+    })
+  } catch {
+    toast.add({
+      title: 'Gagal',
+      description: 'Gagal menyimpan questionnaire',
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -83,13 +158,18 @@ function handleAddSection() {
     :sections="sections"
     :title="questionnaireTitle"
     :description="questionnaireDescription"
+    :portalKey="questionnairePortalKey"
+    :saving="saving"
+    @update:sections="onUpdateSections"
     @update:title="questionnaireTitle = $event"
     @update:description="
       questionnaireDescription = $event
     "
+    @update:portalKey="questionnairePortalKey = $event"
     @add-section="handleAddSection"
     @add-question="addQuestion"
     @preview="isPreviewOpen = true"
+    @save="saveQuestionnaire"
   />
 
   <!-- ================================================= -->
@@ -115,285 +195,12 @@ function handleAddSection() {
             @click="isPreviewOpen = false"
           />
         </div>
-        <!-- HEADER -->
-        <div class="max-w-3xl mx-auto pt-6 px-4 sm:px-6">
-          <div
-            class="
-              bg-background
-              rounded-3xl
-              overflow-hidden
-              border border-default
-              shadow-sm
-            "
-          >
-            <!-- TOP ACCENT -->
-            <div class="h-3 bg-primary" />
 
-            <div class="p-6 sm:p-8 space-y-4">
-              <div class="space-y-2">
-                <h1
-                  class="
-                    text-2xl sm:text-4xl
-                    font-bold
-                    break-words
-                  "
-                >
-                  {{ questionnaireTitle }}
-                </h1>
-
-                <p
-                  v-if="questionnaireDescription"
-                  class="
-                    text-sm sm:text-base
-                    text-muted
-                    whitespace-pre-line
-                  "
-                >
-                  {{ questionnaireDescription }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- BODY -->
-        <div
-          class="
-            max-w-3xl
-            mx-auto
-            px-4 sm:px-6
-            py-6
-            space-y-6
-          "
-        >
-          <!-- SECTION -->
-          <div
-            v-for="(section, index) in sections"
-            :key="section.id"
-            class="
-              bg-background
-              border border-default
-              rounded-3xl
-              overflow-hidden
-              shadow-sm
-            "
-          >
-            <!-- SECTION HEADER -->
-            <div
-              class="
-                border-b border-default
-                p-6
-                space-y-3
-              "
-            >
-              <div
-                class="
-                  flex items-center
-                  gap-2
-                  flex-wrap
-                "
-              >
-                <UBadge
-                  color="primary"
-                  variant="soft"
-                >
-                  Section {{ index + 1 }}
-                </UBadge>
-              </div>
-
-              <div class="space-y-2">
-                <h2
-                  class="
-                    text-xl
-                    font-semibold
-                    break-words
-                  "
-                >
-                  {{
-                    section.sectionTitle
-                      || 'Untitled Section'
-                  }}
-                </h2>
-
-                <p
-                  v-if="section.description"
-                  class="
-                    text-sm
-                    text-muted
-                    whitespace-pre-line
-                  "
-                >
-                  {{ section.description }}
-                </p>
-              </div>
-            </div>
-
-            <!-- QUESTIONS -->
-            <div class="p-6 space-y-8">
-              <template
-                v-for="question in section.questions"
-                :key="question.id"
-              >
-                <div
-                  v-if="shouldShowQuestion(question)"
-                  class="space-y-4"
-                >
-                  <!-- QUESTION TITLE -->
-                  <div class="space-y-2">
-                    <div
-                      class="
-                      flex items-start
-                      gap-2
-                      flex-wrap
-                    "
-                    >
-                      <h3
-                        class="
-                        font-medium
-                        text-base
-                        break-words
-                      "
-                      >
-                        {{
-                          question.questionText
-                            || 'Untitled Question'
-                        }}
-                      </h3>
-
-                      <span
-                        v-if="question.isRequired"
-                        class="text-error"
-                      >
-                        *
-                      </span>
-
-                      <UBadge
-                        v-if="question.conditional"
-                        color="warning"
-                        variant="soft"
-                        size="sm"
-                      >
-                        Conditional
-                      </UBadge>
-                    </div>
-
-                    <p
-                      v-if="
-                        question.questionDescription
-                      "
-                      class="
-                      text-sm
-                      text-muted
-                      whitespace-pre-line
-                    "
-                    >
-                      {{
-                        question.questionDescription
-                      }}
-                    </p>
-                  </div>
-
-                  <!-- ================================================= -->
-                  <!-- INPUT RENDER -->
-                  <!-- ================================================= -->
-
-                  <!-- TEXT -->
-                  <UInput
-                    v-if="question.questionType === 'text'"
-                    v-model="answers[question.id]"
-                    placeholder="Your answer"
-                  />
-
-                  <!-- NUMBER -->
-                  <UInput
-                    v-else-if="
-                      question.questionType
-                        === 'number'
-                    "
-                    v-model="answers[question.id]"
-                    type="number"
-                    placeholder="Enter number"
-                  />
-
-                  <!-- TEXTAREA -->
-                  <UTextarea
-                    v-else-if="
-                      question.questionType
-                        === 'textarea'
-                    "
-                    v-model="answers[question.id]"
-                    :rows="4"
-                    autoresize
-                    placeholder="Your answer"
-                  />
-
-                  <!-- DATE -->
-                  <UInput
-                    v-else-if="
-                      question.questionType
-                        === 'date'
-                    "
-                    type="date"
-                  />
-
-                  <!-- SELECT -->
-                  <USelect
-                    v-else-if="question.questionType === 'select'"
-                    v-model="answers[question.id]"
-                    :items="
-                      question.options.map(option => ({
-                        label: option.label,
-                        value: option.id
-                      }))
-                    "
-                    placeholder="Choose option"
-                  />
-
-                  <!-- RADIO -->
-                  <URadioGroup
-                    v-else-if="question.questionType === 'radio'"
-                    v-model="answers[question.id]"
-                    :items="
-                      question.options.map(option => ({
-                        label: option.label,
-                        value: option.id
-                      }))
-                    "
-                  />
-
-                  <!-- CHECKBOX -->
-                  <UCheckboxGroup
-                    v-else-if="question.questionType === 'checkbox'"
-                    v-model="answers[question.id]"
-                    :items="
-                      question.options.map(option => ({
-                        label: option.label,
-                        value: option.id
-                      }))
-                    "
-                  />
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- SUBMIT -->
-          <div
-            class="
-              flex justify-end
-              pb-10
-            "
-          >
-            <UButton
-              size="lg"
-              color="primary"
-              icon="i-lucide-send"
-              class="rounded-xl px-6"
-            >
-              Submit Form
-            </UButton>
-          </div>
-        </div>
+        <QuestionnairePreviewForm
+          :title="questionnaireTitle"
+          :description="questionnaireDescription"
+          :sections="sections"
+        />
       </div>
     </template>
   </UModal>

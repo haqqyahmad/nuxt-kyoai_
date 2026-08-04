@@ -7,7 +7,8 @@ export function useQuestionOptions() {
   function addOption(question: Question) {
     question.options.push({
       id: crypto.randomUUID(),
-      label: 'Option'
+      label: 'Option',
+      value: 'option'
     })
   }
 

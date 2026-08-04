@@ -2,7 +2,9 @@
 import { watchDebounced } from '@vueuse/core'
 import { useQuestionnaireStore } from '~/stores/questionnaire/questionnaire'
 
-export function useQuestionnaireAutosave() {
+export function useQuestionnaireAutosave(questionnaireId?: string | null) {
+  if (!questionnaireId) return
+
   const api = useApi()
 
   const {
@@ -13,7 +15,7 @@ export function useQuestionnaireAutosave() {
     sections,
     async () => {
       await api.put(
-        '/questionnaire/builder',
+        `/questionnaire/${questionnaireId}/sections`,
         {
           sections: sections.value
         }

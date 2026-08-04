@@ -1,12 +1,45 @@
 # Project Task Status
 
-Last updated: 2026-07-31
+Last updated: 2026-08-05
+
+## Completed — 2026-08-05: Code Cleanup & Consistency Fixes
+
+- FE: Rename misleading function `deleteSelectedPatients` → `deleteSelectedQuestionnaires` di `questionnaire/index.vue` (copy-paste dari patient module).
+- FE: Rename `deletePatient` → `deleteRegistrationTemp`, `deleteSelectedPatients` → `deleteSelectedRegistrations`, dan `entity="patient"` → `entity="registration-temp"` (2 tempat) di `registration-temp/index.vue`.
+- FE: Hapus 2 unused function di `sample-collection/index.vue` — `formatPatient` dan `openDetailGroup`.
+- FE: Fix typecheck error di `registration-temp/[id].vue:148` — `reg.value.updatedAt` → `reg.value.updatedAt || reg.value.createdAt`.
+
+## Completed — 2026-08-05: Questionnaire Portal — per-company setting via questionnaireId
+
+**Tujuan:** Portal bisa menampilkan questionnaire berdasarkan `questionnaireId` (bukan `portalKey`), dengan fallback ke default MCU. Mendukung konfigurasi per-company di masa depan.
+
+**Backend (express_dash):**
+- Fix bug: route `GET /questionnaire/public/active` tidak terdaftar (controller ada, route hilang). Sekarang terdaftar.
+- Tambah `GET /questionnaire/public/default?companyId=XX&branchId=YY` — cek `CompanyQuestionnaire` mapping per-company/branch, fallback ke `portalKey='MCU'`.
+- Tambah model `CompanyQuestionnaire` (schema.prisma) + migration `20260805000000_add_company_questionnaire`.
+- Tambah repo `findCompanyQuestionnaireMapping(companyId, branchId)`.
+- Tambah service `getDefaultByCompany(companyId, branchId)`.
+- Tambah controller `getPublicDefault`.
+- Tambah route di `questionnaire.route.js` (sebelum `/:id` supaya tidak conflict).
+
+**Frontend (my-app):**
+- `AddModal.vue`: tambah field `portalKey` (opsional) biar admin bisa set "MCU" sebagai default.
+- `builder.vue` + `QuestionnaireBuilder.vue`: tambah `portalKey` prop + emit, autosave PUT includes `portalKey`, load portalKey saat fetch by ID. UI input portalKey di form header.
+- `index.vue`: tambah kolom `Portal Key` (badge primary jika 'MCU', badge info untuk lainnya).
+
+**Portal (regist_portal):**
+- `MCUQuestionnaire.svelte`: terima prop `questionnaireId` (opsional), `branchId`, `companyId`. Jika `questionnaireId` ada → fetch by ID (`GET /api/questionnaire/:id`). Jika tidak → fetch default (`GET /api/questionnaire/default?companyId=XX&branchId=YY`).
+- `+server.ts` (proxy): route `/api/questionnaire/default` → forward ke BE `GET /questionnaire/public/default?companyId=&branchId=`. Route `/api/questionnaire/:id` → forward ke BE `GET /questionnaire/public/:id`.
+- `+page.svelte`: pass `$form.branchId` dan `$form.companyId` ke `MCUQuestionnaire`.
+
+**File terpengaruh:** ~11 file (4 backend BE, 3 portal, 4 frontend my-app).
+
+
+Last updated: 2026-08-05
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
-## Completed
-
-- BE/PORTAL: Back-fill `QstAnswer.registrationId` saat approve — sebelumnya selalu NULL karena jawaban disubmit sebelum Registration dibuat. `approveTemp` kini update `qst_answer` set `registrationId=reg.id` where `regId=temp.id` dalam transaksi. Terverifikasi E2E.
+## Completed — 2026-08-05: Code Cleanup & Consistency Fixes
 
 - BE/PORTAL: Verifikasi E2E alur portal → MCU → FO approve (`docs/backend-alignment-worklog.md`). Fix bug: `QstAnswer.regId` `VarChar(20)` → `VarChar(100)` (UUID refCode 36-char overflow); migration `20260804000000_widen_qst_answer_regid`. Alur lengkap tersimpan benar (RegistrationTemp → QstAnswer by refCode → approve → Patient + Registration + Address).
 
@@ -100,8 +133,8 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE/BE: Finalkan shift schedule, attendance, dan HRIS module.
 - FE: Hapus hardcoded mock data `employeesOnLeave` di leaves/index.vue.
 - BE: Tambah endpoint `POST /hris/attendance/manual` — saat ini tidak ada (ManualEntryModal 404).
-- FE: Fix sample-collection — `:click`→`@click`, modal di luar panel, `[id].vue` import error.
-- FE: Auth + Guest middleware — cek JWT expiry + fix infinite loop.
+- FE: Fix sample-collection — `:click`→`@click`, modal di luar panel, `[id].vue` import error. **(Resolved — sudah diverifikasi benar)**
+- FE: Auth + Guest middleware — cek JWT expiry + fix infinite loop. **(Resolved — sudah diverifikasi benar)**
 - BE: Sync room access saat login (Opsi C) + skip jika sudah ada akses (Opsi A).
 - FE: Force refresh cache (`clearNuxtData`) di `/rooms/assignments` + Room Access modal.
 - FE/BE: Verifikasi wiring FE ↕ BE untuk questionnaire, service-types, change-password, dan leave-create (endpoint BE sudah ada, tinggal pastikan shape request/response cocok).

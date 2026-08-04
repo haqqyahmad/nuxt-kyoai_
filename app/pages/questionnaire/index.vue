@@ -9,6 +9,7 @@ import type { Row } from '@tanstack/table-core'
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UBadge = resolveComponent('UBadge')
 const api = useApi()
 const toast = useToast()
 
@@ -17,6 +18,8 @@ type Questionnaire = {
   questionnaire_code: string
   questionnaire_name: string
   description: string
+  version: string
+  portalKey?: string | null
   isActive?: boolean
   createdAt: string
 }
@@ -27,12 +30,6 @@ const { data: questions, refresh } = await useAsyncData('questions', () =>
 
 const data = computed(() => questions.value?.data ?? questions.value ?? [])
 
-const columnFilters = ref([
-  {
-    id: 'PatientId',
-    value: ''
-  }
-])
 const columnVisibility = ref()
 const rowSelection = ref({})
 
@@ -48,7 +45,7 @@ async function deleteQuestionnaire(id: string) {
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus questionnaire',
@@ -60,11 +57,11 @@ async function deleteQuestionnaire(id: string) {
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
 
-  await deletePatient(selectedDeleteId.value)
+  await deleteQuestionnaire(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
-async function deleteSelectedPatients() {
+async function deleteSelectedQuestionnaires() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
@@ -72,7 +69,7 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) =>
+      selectedRows.map((row: Row<Questionnaire>) =>
         api.delete(
           `/questionnaire/${row.original.questionnaire_id}`
         )
@@ -87,7 +84,7 @@ async function deleteSelectedPatients() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus data',
@@ -114,7 +111,9 @@ function getRowItems(row: Row<Questionnaire>) {
     {
       label: 'Preview Questionnaire',
       icon: 'i-lucide-eye',
-      to: `/questionnaire/${row.original.questionnaire_id}/preview`
+      to: `/questionnaire/${row.original.questionnaire_id}/preview`,
+      external: true,
+      target: '_blank'
     },
 
     {
@@ -159,7 +158,7 @@ const columns: TableColumn<Questionnaire>[] = [
   {
     accessorKey: 'questionnaire_code',
     header: 'Code',
-    cell: ({ row }) => `${row.getValue('PatientId')}`
+    cell: ({ row }) => row.getValue('questionnaire_code')
   },
   {
     accessorKey: 'questionnaire_name',
@@ -211,8 +210,21 @@ const columns: TableColumn<Questionnaire>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) =>
-      row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
+    cell: ({ row }) => row.getValue('version')
+  },
+  {
+    accessorKey: 'portalKey',
+    header: 'Portal Key',
+    cell: ({ row }) => {
+      const key = row.getValue('portalKey') as string | undefined
+      if (!key) return h('span', { class: 'text-muted' }, '-')
+      return h(UBadge, {
+        color: key === 'MCU' ? 'primary' : 'info',
+        variant: 'soft',
+        size: 'sm',
+        label: key
+      })
+    }
   },
   {
     accessorKey: 'isActive',
@@ -232,7 +244,12 @@ const columns: TableColumn<Questionnaire>[] = [
         onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
       })
     },
-    cell: ({ row }) => row.getValue('idNumber')
+    cell: ({ row }) =>
+      h(UBadge, {
+        color: row.getValue('isActive') ? 'success' : 'neutral',
+        variant: 'soft',
+        label: row.getValue('isActive') ? 'Active' : 'Inactive'
+      })
   },
   {
     accessorKey: 'createdAt',
@@ -357,7 +374,7 @@ watch(currentPage, (page) => {
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="questionnaire"
-            @confirm="deleteSelectedPatients"
+            @confirm="deleteSelectedQuestionnaires"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -409,7 +426,6 @@ watch(currentPage, (page) => {
 
       <UTable
         ref="table"
-        v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
         :pagination-options="{

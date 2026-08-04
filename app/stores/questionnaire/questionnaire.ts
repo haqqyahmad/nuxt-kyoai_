@@ -66,7 +66,11 @@ export const useQuestionnaireStore = () => {
 
     clone.questions = clone.questions.map(q => ({
       ...q,
-      id: crypto.randomUUID()
+      id: crypto.randomUUID(),
+      options: (q.options ?? []).map(o => ({
+        ...o,
+        id: crypto.randomUUID()
+      }))
     }))
 
     sections.value.push(clone)
@@ -161,7 +165,12 @@ export const useQuestionnaireStore = () => {
       questionText:
       `${question.questionText} Copy`,
 
-      isEditing: true
+      isEditing: true,
+
+      options: (question.options ?? []).map(o => ({
+        ...o,
+        id: crypto.randomUUID()
+      }))
     }
 
     section.questions.push(clone)

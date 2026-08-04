@@ -3,7 +3,7 @@
 import draggable from 'vuedraggable'
 import DragHandle from '../Shared/DragHandle.vue'
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 import { useToast } from '#imports'
 
@@ -23,12 +23,17 @@ const emit = defineEmits<{
   (e: 'add-question'): void
 }>()
 
-const hasUnsavedChanges = ref(false)
-
 const { section, index } = defineProps<{
   section: Section
   index: number
 }>()
+
+const baseline = { title: section.sectionTitle, description: section.description ?? '' }
+
+const hasUnsavedChanges = computed(() =>
+  section.sectionTitle !== baseline.title
+  || (section.description ?? '') !== (baseline.description ?? '')
+)
 
 const isCollapsed = ref(false)
 
@@ -50,6 +55,16 @@ const questionsModel = computed({
 
 const isEditing = ref(false)
 
+const sectionTitleModel = computed({
+  get: () => section.sectionTitle,
+  set: (value: string) => updateSection(section.id, { sectionTitle: value })
+})
+
+const sectionDescriptionModel = computed({
+  get: () => section.description,
+  set: (value: string) => updateSection(section.id, { description: value })
+})
+
 function toggleEdit() {
   /**
    * save
@@ -62,7 +77,8 @@ function toggleEdit() {
       icon: 'i-lucide-check'
     })
 
-    hasUnsavedChanges.value = false
+    baseline.title = section.sectionTitle
+    baseline.description = section.description ?? ''
   }
 
   isEditing.value = !isEditing.value
@@ -70,7 +86,7 @@ function toggleEdit() {
 
 const toast = useToast()
 
-const { removeSection, duplicateSection } = useQuestionnaireStore()
+const { removeSection, duplicateSection, updateSection } = useQuestionnaireStore()
 
 const isDeleteModalOpen = ref(false)
 
@@ -95,13 +111,6 @@ function handleDuplicateSection() {
     icon: 'i-lucide-copy'
   })
 }
-
-watch(
-  () => [section.sectionTitle, section.description],
-  () => {
-    hasUnsavedChanges.value = true
-  }
-)
 </script>
 
 <template>
@@ -118,14 +127,14 @@ watch(
           <template v-if="isEditing">
             <div class="flex flex-col gap-3 w-full">
               <UInput
-                v-model="section.sectionTitle"
+                v-model="sectionTitleModel"
                 size="lg"
                 placeholder="Section title"
                 class="w-full"
               />
 
               <UTextarea
-                v-model="section.description"
+                v-model="sectionDescriptionModel"
                 placeholder="Section description"
                 :rows="3"
                 class="w-full"

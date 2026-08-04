@@ -145,7 +145,7 @@ const statusHistory = computed(() => {
   if (reg.value.status === 'REJECTED' && reg.value.rejectedReason) {
     items.splice(1, 0, {
       label: 'Ditolak',
-      time: reg.value.updatedAt,
+       time: reg.value.updatedAt || reg.value.createdAt,
       desc: `Alasan: ${reg.value.rejectedReason}`,
       dot: 'bg-error'
     })

@@ -216,7 +216,7 @@ const columnVisibility = ref({
 const rowSelection = ref({})
 
 const selectedDeleteId = ref<string | null>(null)
-async function deletePatient(id: string) {
+async function deleteRegistrationTemp(id: string) {
   try {
     await api.delete(`/registration-temp/${id}`)
 
@@ -239,11 +239,11 @@ async function deletePatient(id: string) {
 async function handleDeleteById() {
   if (!selectedDeleteId.value) return
 
-  await deletePatient(selectedDeleteId.value)
+  await deleteRegistrationTemp(selectedDeleteId.value)
   selectedDeleteId.value = null
 }
 
-async function deleteSelectedPatients() {
+async function deleteSelectedRegistrations() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
@@ -837,8 +837,8 @@ watch(currentPage, (page) => {
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="patient"
-            @confirm="deleteSelectedPatients"
+            entity="registration-temp"
+            @confirm="deleteSelectedRegistrations"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
@@ -941,7 +941,7 @@ watch(currentPage, (page) => {
       <BaseDeleteModal
         v-model:open="isDeleteModalOpen"
         :count="1"
-        entity="patient"
+        entity="registration-temp"
         @confirm="handleDeleteById"
       />
       <BaseConfirmModal

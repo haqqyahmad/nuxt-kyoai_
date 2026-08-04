@@ -11,12 +11,12 @@ const emit = defineEmits<{
 
 // Schema
 const schema = z.object({
-  questionnaire_id: z.number(),
   questionnaire_code: z.string().min(1, 'Code is required'),
   questionnaire_name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   version: z.string().min(1, 'Version is required'),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  portalKey: z.string().optional(),
 })
 
 // Infer type dari schema
@@ -24,26 +24,33 @@ type Schema = z.output<typeof schema>
 
 // State
 const state = reactive<Schema>({
-  questionnaire_id: 1,
   questionnaire_code: '',
   questionnaire_name: '',
   description: '',
   version: '',
-  isActive: true
+  isActive: true,
+  portalKey: ''
 })
 
 // Submit
 async function submit(data: Schema) {
   try {
-    await api.post('/questionnaire', data)
+    await api.post('/questionnaire', {
+      questionnaire_code: data.questionnaire_code,
+      questionnaire_name: data.questionnaire_name,
+      description: data.description,
+      version: data.version,
+      isActive: data.isActive,
+      portalKey: data.portalKey || null,
+    })
 
     handleSuccess(
       toast,
-      'Questionnaire "${data.questionnaire_name}" created successfully'
+      `Questionnaire "${data.questionnaire_name}" created successfully`
     )
 
     emit('created')
-  } catch (err: any) {
+  } catch (err) {
     handleError(toast, err)
     throw err
   }
@@ -65,9 +72,6 @@ async function submit(data: Schema) {
     </template>
 
     <!-- 🔥 FORM ISI -->
-    <!-- Branch ID (hidden / auto) -->
-    <input type="hidden" :value="state.questionnaire_id">
-
     <!-- Code Template -->
     <UFormField
       label="Template Code"
@@ -136,6 +140,24 @@ async function submit(data: Schema) {
 
           <USwitch v-model="state.isActive" />
         </div>
+      </UFormField>
+
+      <!-- Portal Key -->
+      <UFormField
+        label="Portal Key"
+        name="portalKey"
+        class="sm:col-span-2"
+      >
+        <UInput
+          v-model="state.portalKey"
+          placeholder="MCU, MCU-2, dll (opsional)"
+          class="w-full"
+          :color="state.portalKey ? 'primary' : 'neutral'"
+        />
+        <p class="text-xs text-muted">
+          Portal key untuk mengidentifikasi questionaire ini di portal registrasi.
+          Gunakan <code class="text-xs">MCU</code> sebagai default.
+        </p>
       </UFormField>
     </div>
   </BaseFormModal>
