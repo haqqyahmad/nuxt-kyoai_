@@ -1,11 +1,31 @@
 # Project Task Status
 
-Last updated: 2026-07-30 12:00
+Last updated: 2026-07-31
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
 ## Completed
 
+- BE/PORTAL: Back-fill `QstAnswer.registrationId` saat approve — sebelumnya selalu NULL karena jawaban disubmit sebelum Registration dibuat. `approveTemp` kini update `qst_answer` set `registrationId=reg.id` where `regId=temp.id` dalam transaksi. Terverifikasi E2E.
+
+- BE/PORTAL: Verifikasi E2E alur portal → MCU → FO approve (`docs/backend-alignment-worklog.md`). Fix bug: `QstAnswer.regId` `VarChar(20)` → `VarChar(100)` (UUID refCode 36-char overflow); migration `20260804000000_widen_qst_answer_regid`. Alur lengkap tersimpan benar (RegistrationTemp → QstAnswer by refCode → approve → Patient + Registration + Address).
+
+- BE: Uniform email template — semua template di `express_dash/src/lib/email-templates/` (`registration-received`, `admin-new-submission`, `appointment-confirmed`, `registration-rejected`) di-rewrite mengikuti layout portal `regist_portal/src/lib/server/email/template.ts` (header gradient + logo, thank-you box, details-table, important-note, contact box, social media, footer), isi menyesuaikan subject masing-masing + accent color per jenis. "Registration Received" memakai template portal.
+- BE: Hapuskan duplikat email ke pasien — `public-registration.service.js` tidak lagi mengirim `registrationReceived`; konfirmasi pendaftaran ke pasien hanya lewat portal (`template.ts`). Worklog: `docs/backend-alignment-worklog.md` + `express_dash/docs/bmad/task-status.md`.
+- BE/PORTAL: Alur `/registration` — (1) BE `public-registration.validation.js` field optional jadi `.nullish()` (terima `null`, bukan hanya `undefined`); (2) `RegButton.svelte` fix: Back disabled di `currentStep===0` (bukan `1`), `isLast` pakai `totalStep-1` (0-based). Worklog: `docs/backend-alignment-worklog.md`.
+- PORTAL: Fix blocker alur `/registration` (audit portal→BE) — (1) `mapper.ts` tambah `normalizePhone()` agar format phone `+62 812-3456-7890` lolos validasi BE; (2) hapus opsi gender `Other` di `PersonalInfo.svelte` (BE hanya `male/female`); (3) map `WORK → OFFICE` di `mapper.ts` + typeMap `BILLING → OTHER` di `PatientSearch.svelte` (enum BE tidak punya `WORK`). Worklog: `docs/backend-alignment-worklog.md`.
+- PORTAL/BE: Fix non-blocker alur `/registration` — (1) `api/patient/+server.ts` baca `backendResult.data?.refCode`/`patientExists` (sebelumnya top-level → undefined); (2) BE `lookupPatient` verifikasi `dob` (sebelumnya diabaikan); (3) `Appointment.svelte` hapus hardcoded tanggal `2025-10-24/25/26` → pakai `tomorrowStr/day2Str/day3Str` dinamis; (4) hapus dead code `submitToBackend` di `mapper.ts`. Worklog: `docs/backend-alignment-worklog.md`.
+- BE/PORTAL: Sinkronisasi & pengamanan alur `/registration` — cek DB: semua 10 branch sudah ada di DB live → seed `seed.js` disinkronkan (10 branch, loop idempotent by `branchId`); `ApiKeyMiddleware` dipasang di `/public/register` (key terverifikasi cocok); rate limit `5→20`/10 menit; cegah `Patient.email @unique` gagal saat approve. Worklog: `docs/backend-alignment-worklog.md` + `express_dash/docs/bmad/task-status.md`.
+- PORTAL: Template email — `template.ts` tambah branch `04` (Clinique Suisse, alamat = 01, telp/WA `085195562898`, tanpa email, map baru); baris Email kondisional + helper `telHref()` (normalisasi tel link). Worklog: `docs/backend-alignment-worklog.md`.
+- PORTAL/BE: Re-audit alur `/registration` — fix temuan sisa: (1) `notes` MCU diteruskan ke BE (mapper + store + `defaultForm`, sekalian hilangkan TS error `+page.svelte:235`); (2) link dashboard email admin diperbaiki (path `/front-office/registration-temp/...` + `DASHBOARD_URL` di `.env` BE); (3) `patient-search` uppercase `idNumber`; (4) dedup email admin (portal tidak kirim admin lagi, BE `adminNewSubmission` yang menangani). Worklog: `docs/backend-alignment-worklog.md` + `express_dash/docs/bmad/task-status.md`.
+- FE: Audit & fix modul `/questionnaire` (bagian 1, FE) — `index.vue`: `handleDeleteById` memakai `deleteQuestionnaire` (bukan `deletePatient` yang tidak ada), kolom Code/Version/Active benar (sebelumnya `PatientId`/`gender`/`idNumber`), type `Questionnaire` + field `version`, buang `columnFilters` stale `PatientId`, kolom isActive pakai `UBadge`. `AddModal.vue`: toast template literal (sebelumnya `${...}` literal), buang `questionnaire_id` dari schema/state/hidden input. `useQuestionOptions.ts`: tambah `value` pada option (perbaiki TS error). Lint bersih; sisa TS `table` ref adalah pola lama. Catatan: BE `/questionnaire` masih stub (GET `[]`, DELETE no-op) — bagian 2 menyusul.
+- FE: Preview questionnaire diperbesar — ekstrak markup modal preview builder menjadi komponen bersama `components/questionnaire/Preview/QuestionnairePreviewForm.vue` (header besar, section card rounded-3xl, badge Section, input lengkap, tombol Submit). Dipakai di: modal preview `[id]/builder.vue` (ganti markup inline) dan halaman `[id]/preview.vue` (kontainer full-screen `min-h-screen bg-elevated/30`, layout blank). Hapus komponen lama yang tak terpakai (`QuestionnairePreview.vue`, `PreviewSection.vue`, `PreviewQuestion.vue`).
+- FE: Builder questionnaire — fix badge "Unsaved" palsu saat drag & drop question. Akar masalah: objek section diganti instance baru (`{...section}`) saat reorder → watcher array `[sectionTitle, description]` membandingkan referensi (bukan nilai) → salah menyalakan badge. Solusi: badge jadi `computed` yang membandingkan nilai terhadap snapshot baseline (di-reset saat Save), watcher lama dihapus. Sekalian fix `vue/no-mutating-props` di `SectionCard.vue` (v-model title/description lewat computed + store `updateSection`).
+- FE: Preview questionnaire dibuka di tab baru — item dropdown "Preview Questionnaire" di `/questionnaire` diberi `external: true` + `target: '_blank'`.
+- FE: Drag & drop builder tersimpan otomatis — `builder.vue` menangani `@update:sections` → `setSections()` → autosave (`PUT /:id/sections`) → `sortOrder` ter-persist di DB (sebelumnya reorder tidak sampai ke store).
+- FE: Duplicate section/question di builder tidak tersimpan — `duplicateSection`/`duplicateQuestion` meng-clone **option dengan id asli** (via `structuredClone`/spread) padahal id itu sudah dipakai soal aslinya → autosave `PUT /:id/sections` gagal unique constraint → duplikat tidak persist. Fix: generate `crypto.randomUUID()` baru untuk setiap option clone di store `questionnaire.ts`.
+- FE: Update nama & deskripsi questionnaire di builder tidak tersimpan — `questionnaireTitle`/`questionnaireDescription` hanya ref lokal; autosave hanya mengirim sections. Fix: `builder.vue` tambah `watchDebounced` (1.5s) pada title/description → `PUT /questionnaire/:id` (guard `loaded` setelah fetch). BE `PUT /:id` terverifikasi.
+- BE/FE: Implementasi modul `/questionnaire` end-to-end (bagian 2) — Prisma models `QstQuestionnaire/QstSection/QstQuestion/QstOption/QstAnswer` (id UUID, enum 7 tipe, cascade delete) + migration; route lengkap (CRUD header, `PUT /:id/sections` simpan pohon builder, section/question/option CRUD, `PUT /sort`, `POST /:id/submit` jawaban + snapshot soal); permission `questionnaire:create/update/delete` ditambah ke seed + role superadmin/admin. FE: builder/preview load by id (`GET /questionnaire/:id`), autosave + tombol Save (`PUT /questionnaire/:id/sections`), fix `v-model` date. Diverifikasi HTTP end-to-end (create→save→detail→submit→sort→delete). Worklog: `docs/backend-alignment-worklog.md` + `express_dash/docs/bmad/task-status.md`.
 - FE: Hapus checkbox "Only If Creator" duplikat di kolom Role permission matrix.
 - FE: Sidebar layout filter menu navigasi berdasarkan permissions user login via `useRoutePermission`.
 - BE: Model `MstPermissionAction` + migration + API `/settings/permission-actions`.
@@ -90,6 +110,26 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - FE: Buat halaman `/hris/reimbursement` & `/hris/recruitment` atau hapus dari sidebar.
 - BE: Hapus stale file `src/routers/user.route.js` (root level) dan `error.middleware.js`/`ErrorHandlingMidd.js` duplikat.
 - QA Engineer: turunkan tiap prioritas menjadi smoke test minimal sebelum status dipindah ke completed.
+
+## Completed — 2026-08-04: Audit & Finalisasi Flow Front-Office Registration
+
+- FE/BE: Reject mismatch fix — `registration-temp/index.vue` kirim `reason` (bukan `rejectReason`), sesuai `adminRejectSchema` di BE.
+- FE: Hapus opsi PENDING dari dropdown status — route `/:id/pending` tidak ada di backend (404). PENDING adalah status awal, bukan target perubahan.
+- FE: Field name `rejectedReason` — type `TempRegist` & update lokal kini pakai `rejectedReason` (sesuai Prisma `RegistrationTemp.rejectedReason`).
+- FE `[id].vue`: Hapus dead code `cancelRegistration`/`checkinPatient`/`isCancelled`/`isCheckedIn`/`isMCU` (operasi Registration bukan Temp, tidak dipakai di template).
+- FE `[id].vue`: Fix `statusRegistration` → `status` di `statusHistory` + tambah status REJECTED.
+- FE `[id].vue`: Fix `reg.patient.patientCode` → `reg.patientId` + fallback Service No. `registrationId ?? '-'`.
+- FE `[id].vue`: Fix type — `idValue: string`, `patientId: string | null`, `rejectedReason: string | null`, `registrationId: number | null`.
+- FE `[id].vue`: Hapus `statusRegistration` & `patient` object dari type (tidak ada di response temp).
+- FE/BE: E2E approve flow verified — tanpa patientId → buat pasien baru, dengan patientId → pakai existing.
+- FE/BE: Create patient + registration + exam MCU flow verified via API.
+- BE: `QstAnswer.regId` VarChar(20) → VarChar(100) — fix UUID overflow saat submit kuesioner portal.
+- BE: Back-fill `QstAnswer.registrationId` saat approve — jawaban MCU terkait ke Registration final.
+
+### Masih perlu diperhatikan (minor, non-blocker):
+- `scheduleDateExam` di `create.vue` default ke hari ini — tidak ditampilkan di form, selalu beda dari `examDate` jika pemeriksaan masa depan.
+- `examType` di `[id].vue` registrasi detail — fallback ke computed `MCU`/`RAWAT_JALAN` (bukan dari API).
+- Questionnaire list di `registration-temp/[id].vue` masih static mock — perlu fetch dari API `qst_answer`.
 
 ## Completed — Integrasi regist_portal → express_dash → my-app
 

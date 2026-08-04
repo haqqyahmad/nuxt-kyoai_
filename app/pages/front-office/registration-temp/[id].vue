@@ -1,12 +1,11 @@
 <script setup lang="ts">
 const route = useRoute()
 const api = useApi()
-const toast = useToast()
 
 type TempRegistration = {
   id: string
   idType: string
-  idValue: number
+  idValue: string
   firstName: string
   middleName?: string
   lastName: string
@@ -23,20 +22,12 @@ type TempRegistration = {
   scheduleDateExam: string
   notes: string
   patientExists?: boolean
-  patientId: string
+  patientId: string | null
   status: string
-  statusRegistration?: string
-  id_reg?: string
-  patient?: {
-    firstName?: string
-    middleName?: string
-    lastName?: string
-    PatientId?: string
-    patientCode?: string
-  }
-  rejectedReason: string
-  registrationId: number
+  rejectedReason: string | null
+  registrationId: number | null
   createdAt: string
+  updatedAt?: string
 }
 
 const { data: reg, refresh } = await useAsyncData(
@@ -137,9 +128,9 @@ function openModal(name: string) { modalTitle.value = name; modalOpen.value = tr
 // ─────────────────────────────────────────────
 const statusHistory = computed(() => {
   if (!reg.value) return []
-  return [
+  const items = [
     {
-      label: `Status: ${reg.value.statusRegistration}`,
+      label: `Status: ${reg.value.status}`,
       time: reg.value.createdAt,
       desc: 'Status diperbarui otomatis oleh sistem setelah validasi berhasil.',
       dot: 'bg-primary'
@@ -147,43 +138,20 @@ const statusHistory = computed(() => {
     {
       label: 'Registrasi Dibuat',
       time: reg.value.createdAt,
-      desc: 'Registrasi dibuat oleh Admission Staff.',
+      desc: 'Registrasi dibuat oleh pasien melalui portal.',
       dot: 'bg-muted'
     }
   ]
+  if (reg.value.status === 'REJECTED' && reg.value.rejectedReason) {
+    items.splice(1, 0, {
+      label: 'Ditolak',
+      time: reg.value.updatedAt,
+      desc: `Alasan: ${reg.value.rejectedReason}`,
+      dot: 'bg-error'
+    })
+  }
+  return items
 })
-
-// ─────────────────────────────────────────────
-// Actions
-// ─────────────────────────────────────────────
-const cancelLoading = ref(false)
-const checkinLoading = ref(false)
-
-async function cancelRegistration() {
-  cancelLoading.value = true
-  try {
-    await api.patch(`/registration/${reg.value?.id}/cancel`)
-    toast.add({ title: 'Berhasil', description: 'Registrasi dibatalkan', color: 'success' })
-    await refresh()
-  } catch {
-    toast.add({ title: 'Gagal', description: 'Gagal membatalkan registrasi', color: 'error' })
-  } finally { cancelLoading.value = false }
-}
-
-async function checkinPatient() {
-  checkinLoading.value = true
-  try {
-    await api.patch(`/registration/${reg.value?.id_reg}/status`, { status: 'Checkin' })
-    toast.add({ title: 'Berhasil', description: 'Pasien berhasil check-in', color: 'success' })
-    await refresh()
-  } catch {
-    toast.add({ title: 'Gagal', description: 'Gagal check-in', color: 'error' })
-  } finally { checkinLoading.value = false }
-}
-
-const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
-const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
-const isMCU = computed(() => reg.value?.serviceType === 'MCU')
 </script>
 
 <template>
@@ -247,7 +215,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
                 <UIcon name="i-lucide-user-circle" class="text-primary" />
                 Patient Information
               </h3>
-              <span v-if="reg.patient" class="text-xs text-muted">ID: {{ reg.patient.patientCode }}</span>
+              <span v-if="reg.patientId" class="text-xs text-muted">ID: {{ reg.patientId }}</span>
             </div>
             <div v-if="reg.firstName" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
@@ -335,7 +303,7 @@ const isMCU = computed(() => reg.value?.serviceType === 'MCU')
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>
-                <code class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono">{{ reg.registrationId }}</code>
+                <code class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono">{{ reg.registrationId ?? '-' }}</code>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Branch</span>

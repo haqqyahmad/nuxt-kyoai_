@@ -48,7 +48,7 @@ const isFormValid = computed(() => {
     return !!formReject.rejectReason
   }
 
-  return true
+  return false
 })
 
 const touched = reactive({
@@ -182,7 +182,7 @@ type TempRegist = {
   patientId?: string
 
   status: string
-  rejectReason?: string
+  rejectedReason?: string
 }
 
 const { data: reg_temp, refresh } = await useAsyncData(
@@ -295,10 +295,6 @@ const updateStatus = async (id: string, status: string, payload?: any) => {
   if (status === 'REJECTED') {
     return api.post(`/registration-temp/${id}/reject`, payload)
   }
-
-  if (status === 'PENDING') {
-    return api.post(`/registration-temp/${id}/pending`)
-  }
 }
 
 const examDateRef = ref<any>(null)
@@ -379,7 +375,7 @@ async function confirmChangeStatus() {
       examDate: formApprove.examDate,
       priorityRegist: formApprove.priorityRegist,
       patientId: formApprove.patientId || undefined,
-      rejectReason: formReject.rejectReason
+      reason: formReject.rejectReason
     })
 
     // 🔥 UPDATE LOCAL STATE
@@ -395,7 +391,7 @@ async function confirmChangeStatus() {
         status: val,
         examDate: formApprove.examDate,
         priorityRegist: formApprove.priorityRegist,
-        rejectReason: formReject.rejectReason
+        rejectedReason: val === 'REJECTED' ? formReject.rejectReason : null
       }
 
       reg_temp.value[index] = updated
@@ -753,7 +749,7 @@ const columns: TableColumn<TempRegist>[] = [
           class: `px-2 py-1 rounded-md text-xs font-semibold border cursor-pointer hover:opacity-80 transition ${colorMap[status]}`,
           onClick: () => {
             selectedRow.value = row
-            selectedStatus.value = row.original.status || 'PENDING'
+            selectedStatus.value = row.original.status === 'APPROVED' || row.original.status === 'REJECTED' ? row.original.status : ''
             isStatusModalOpen.value = true
           }
         },
@@ -976,9 +972,9 @@ watch(currentPage, (page) => {
                 v-model="selectedStatus"
                 :items="[
                   { label: 'Approved', value: 'APPROVED' },
-                  { label: 'Rejected', value: 'REJECTED' },
-                  { label: 'Pending', value: 'PENDING' }
+                  { label: 'Rejected', value: 'REJECTED' }
                 ]"
+                placeholder="Pilih status baru"
                 class="w-full"
               />
 
