@@ -7,6 +7,8 @@ definePageMeta({
 
 const toast = useToast()
 
+const { session: mySession, exitRoomSession } = await useRoomSession()
+
 const {
   user: currentUser,
   roles: userRoles,
@@ -106,6 +108,9 @@ const transferForm = reactive({
 const myAssignment = ref<RoomAssignmentRecord | null>(null)
 const myAssignmentPending = ref(false)
 const selfSaving = ref(false)
+const exitRoomSaving = ref(false)
+
+const activeSession = computed(() => mySession.value ?? null)
 
 const activeRoomOptions = computed(() =>
   rooms.value
@@ -378,6 +383,23 @@ async function refreshMyAssignment() {
   }
 }
 
+async function handleExitRoom() {
+  exitRoomSaving.value = true
+  try {
+    await exitRoomSession({})
+    toast.add({ title: 'Berhasil', description: 'Room session berhasil diakhiri', color: 'success' })
+    await refreshMyAssignment()
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Gagal keluar dari room'),
+      color: 'error'
+    })
+  } finally {
+    exitRoomSaving.value = false
+  }
+}
+
 async function submitSelfAssignment() {
   if (selfSaving.value) return
   if (!selfForm.roomId || !selfForm.assignedDate) {
@@ -553,6 +575,22 @@ onMounted(async () => {
             color="neutral"
             variant="soft"
           />
+
+          <UButton
+            v-if="activeSession"
+            :loading="exitRoomSaving"
+            label="Exit Room"
+            icon="i-lucide-log-out"
+            color="error"
+            variant="soft"
+            @click="handleExitRoom"
+          >
+            <template #trailing>
+              <span v-if="activeSession?.room" class="text-xs text-muted">
+                {{ activeSession.room.code }}
+              </span>
+            </template>
+          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
@@ -565,6 +603,26 @@ onMounted(async () => {
           :inactive="stats.inactive"
           :unique-users="stats.uniqueUsers"
         />
+
+        <UAlert
+          v-if="activeSession"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-door-open"
+          :title="`Room session aktif: ${activeSession.room?.code || ''} - ${activeSession.room?.name || ''}`"
+          description="Kamu masih berada di room ini. Exit dulu sebelum membuat/mengubah assignment hari ini."
+        >
+          <template #actions>
+            <UButton
+              :loading="exitRoomSaving"
+              label="Exit Room Sekarang"
+              icon="i-lucide-log-out"
+              color="error"
+              size="sm"
+              @click="handleExitRoom"
+            />
+          </template>
+        </UAlert>
 
         <UAlert
           color="neutral"

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import PhysicalExaminationDoctor from '~/components/rooms/PhysicalExaminationDoctor.vue'
+
 type Patient = {
-  id: string
+  id: string | number
   PatientId?: string | null
   firstName?: string | null
   middleName?: string | null
@@ -8,6 +10,9 @@ type Patient = {
   gender?: string | null
   dob?: string | null
   phone?: string | null
+  email?: string | null
+  idType?: string | null
+  idNumber?: string | null
 }
 
 type QueueStageItem = {
@@ -76,7 +81,9 @@ type CurrentRoom = {
   stageLinks?: Array<{
     stageId: string
     stage?: {
-      code: string
+      id?: string
+      code?: string
+      name?: string
     } | null
   }>
 }
@@ -171,6 +178,18 @@ type RoomExamItem = {
   } | null
   trxExamItem?: {
     id: string
+    externalAssignment?: {
+      id: string
+      status: 'ASSIGNED' | 'CANCELLED' | 'FILLED'
+      assignedExternalUserId?: number | null
+      attachmentUrl?: string | null
+      assignedAt?: string | null
+      filledAt?: string | null
+      assignedExternalUser?: {
+        id: number
+        name: string
+      } | null
+    } | null
     templateSnapshotAt?: string | null
     resultTemplateSnapshot?: unknown
     exam?: {
@@ -183,6 +202,8 @@ type RoomExamItem = {
       code?: string | null
       name?: string | null
       resultTiming?: 'inline' | 'deferred' | null
+      externalResult?: boolean
+      requiresAttachmentForDone?: boolean
       inputans?: ExamInput[]
       department?: {
         id: string
@@ -250,7 +271,11 @@ const currentUserId = computed(() => user.value?.id ?? null)
 const loading = ref(false)
 const refreshing = ref(false)
 const roomQueueDetail = ref<RoomQueueDetail | null>(null)
+const patientDetail = ref<Patient | null>(null)
+const patientDetailLoading = ref(false)
+const patientDetailError = ref('')
 const roomExamItems = ref<RoomExamItem[]>([])
+const activeExamId = computed(() => roomExamItems.value.find(item => item.trxExamItem?.exam?.id)?.trxExamItem?.exam?.id ?? '')
 const stageActionLoading = ref(false)
 const itemActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
@@ -584,8 +609,32 @@ function getInputValueClass(itemId: string, inputan: ExamInput) {
   return `${base} border-default text-highlighted focus:border-primary/60 focus:ring-primary/15`
 }
 
-const patient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
-const canManageItemActions = computed(() => permissions.value.includes('queue:admin'))
+const queuePatient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
+const patient = computed(() => patientDetail.value ?? queuePatient.value)
+
+function formatPatientDetail(patient?: Patient | null) {
+  if (!patient) return ''
+  const gender = patient.gender === 'MALE' ? 'Laki-laki' : patient.gender === 'FEMALE' ? 'Perempuan' : null
+  const age = getPatientAgeAtDate(patient.dob, roomQueueDetail.value?.queueEntry?.checkinAt)
+  return [gender, age != null ? `${age} th` : null, patient.phone].filter(Boolean).join(' · ')
+}
+
+async function loadPatientDetail(patientId?: string | number | null) {
+  patientDetail.value = null
+  patientDetailError.value = ''
+  if (patientId == null) return
+
+  patientDetailLoading.value = true
+  try {
+    const res = await api.get(`/patient/${patientId}`)
+    patientDetail.value = (res.data?.data ?? res.data ?? null) as Patient | null
+  } catch {
+    patientDetailError.value = 'Detail pasien tidak dapat dimuat. Informasi dasar dari antrian tetap ditampilkan.'
+  } finally {
+    patientDetailLoading.value = false
+  }
+}
+const canManageItemActions = computed(() => permissions.value.includes('queue:update'))
 const activeStage = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
     .filter(stage =>
@@ -608,7 +657,14 @@ const activeStage = computed(() => {
 
   return stages[0] ?? null
 })
-const activeStageCode = computed(() => activeStage.value?.stage?.code ?? null)
+function getCurrentRoomStageMeta(stageId?: string | null) {
+  if (!stageId) return null
+  return (currentRoomData.value?.stageLinks ?? []).find(link => link.stageId === stageId)?.stage ?? null
+}
+
+const activeStageCode = computed(() =>
+  activeStage.value?.stage?.code ?? getCurrentRoomStageMeta(activeStage.value?.stageId)?.code ?? null
+)
 const currentRoomWorkStatus = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
     .filter(stage => currentRoomStageIds.value.has(stage.stageId))
@@ -711,6 +767,11 @@ function canReceiveSample(item: RoomExamItem) {
   return !!getCollectedCollection(item)
 }
 
+function isPhysicalExamItem(item: RoomExamItem) {
+  const code = item.trxExamItem?.item?.code?.toUpperCase()
+  const name = item.trxExamItem?.item?.name?.toUpperCase()
+  return code === 'PHYSICAL_EXAMINATION' || name === 'PHYSICAL EXAMINATION'
+}
 function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
 }
@@ -732,11 +793,15 @@ function canInteractWithItem(item: RoomExamItem) {
 }
 
 function canRenderExamInputs(item: RoomExamItem) {
+  // Deferred: hasil diisi belakangan di halaman Hasil Exam, bukan saat examination
+  if (item.trxExamItem?.item?.resultTiming === 'deferred') return false
   return hasStructuredInputs(item) && canInteractWithItem(item)
 }
 
 function canRenderItemNotes(item: RoomExamItem) {
-  return canInteractWithItem(item) && !hasStructuredInputs(item)
+  return canInteractWithItem(item)
+    && !hasStructuredInputs(item)
+    && !item.trxExamItem?.item?.externalResult
 }
 
 function isExamResultSubmitted(item: RoomExamItem) {
@@ -745,9 +810,33 @@ function isExamResultSubmitted(item: RoomExamItem) {
 
 function canDoneItem(item: RoomExamItem) {
   if (item.status !== 'IN_PROGRESS') return false
+  if (item.trxExamItem?.item?.externalResult) {
+    const assignment = item.trxExamItem.externalAssignment
+    if (!assignment || !['ASSIGNED', 'FILLED'].includes(assignment.status)) {
+      return false
+    }
+    return !item.trxExamItem.item.requiresAttachmentForDone
+      || Boolean(assignment.attachmentUrl)
+  }
+  // Deferred: hasil diisi belakangan, item tetap bisa diselesaikan sekarang
+  if (item.trxExamItem?.item?.resultTiming === 'deferred') return true
   if (!hasStructuredInputs(item)) return true
   return isExamResultSubmitted(item)
 }
+function getExternalDoneBlockReason(item: RoomExamItem) {
+  const assignment = item.trxExamItem?.externalAssignment
+  if (!assignment || !['ASSIGNED', 'FILLED'].includes(assignment.status)) {
+    return 'Tugaskan dokter luar terlebih dahulu.'
+  }
+  if (
+    item.trxExamItem?.item?.requiresAttachmentForDone
+    && !assignment.attachmentUrl
+  ) {
+    return 'PDF hasil wajib diunggah sebelum item diselesaikan.'
+  }
+  return null
+}
+
 function getStoredResult(item: RoomExamItem, inputanId: string) {
   return item.trxExamItem?.exam?.results?.find(result => result.inputanId === inputanId) ?? null
 }
@@ -1162,6 +1251,7 @@ async function loadPage(showRefreshState = false) {
     ])
 
     roomQueueDetail.value = detailRes.data?.data ?? detailRes.data ?? null
+    await loadPatientDetail(queuePatient.value?.id ?? null)
     roomExamItems.value = examItemsRes.data?.data ?? examItemsRes.data ?? []
   } catch (error: unknown) {
     toast.add({
@@ -1299,29 +1389,15 @@ async function handleFinishStage() {
     )
 
     if (deferredItems.length > 0) {
-      const firstDeferredItem = deferredItems.find(item => item.trxExamItem?.exam?.id)
-      const departmentId = deferredItems.find(item => item.trxExamItem?.item?.department?.id)
-        ?.trxExamItem?.item?.department?.id
-
       toast.add({
         title: 'Ada hasil yang perlu diinput',
-        description: `${deferredItems.length} item menunggu input hasil.`,
+        description: `${deferredItems.length} item menunggu input hasil di halaman Hasil Exam.`,
         color: 'info'
       })
-      // Redirect to exam results page with deferred items highlighted
-      await router.push({
-        path: '/rooms/exam-results',
-        query: {
-          examId: firstDeferredItem?.trxExamItem?.exam?.id ?? undefined,
-          queueEntryId: roomQueueDetail.value?.queueEntry?.id ?? undefined,
-          departmentId: departmentId ?? undefined,
-          resultTiming: 'deferred'
-        }
-      })
-    } else {
-      // No deferred items, go back to queue
-      await router.push('/rooms/queue')
     }
+
+    // Kembali ke antrian room
+    await router.push('/rooms/queue')
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { errors?: { pendingItems?: Array<{ itemName?: string }> } } } }).response
     const pendingItems = response?.data?.errors?.pendingItems ?? []
@@ -1415,6 +1491,10 @@ async function saveResultsDraft(item: RoomExamItem, showToast = true) {
   if (!examId) return false
 
   const results = buildResultsPayload(item)
+  // Deferred: tidak perlu input hasil saat examination, skip save
+  if (results.length === 0 && item.trxExamItem?.item?.resultTiming === 'deferred') {
+    return true
+  }
   if (results.length === 0) {
     toast.add({
       title: 'Belum ada hasil',
@@ -1691,6 +1771,20 @@ async function handleSubmitItemAction() {
                   <p class="mt-1 text-sm text-muted">
                     {{ patient?.PatientId || '-' }} · {{ roomQueueDetail.queueEntry?.queueCode || '-' }}
                   </p>
+                  <p v-if="formatPatientDetail(patient)" class="mt-1 text-sm text-muted">
+                    {{ formatPatientDetail(patient) }}
+                  </p>
+                  <div v-if="patientDetailLoading" class="mt-2 flex items-center gap-2 text-xs text-muted">
+                    <UIcon name="i-lucide-loader-circle" class="size-3 animate-spin" />
+                    Memuat detail pasien
+                  </div>
+                  <UAlert
+                    v-else-if="patientDetailError"
+                    class="mt-3 max-w-2xl"
+                    color="warning"
+                    variant="soft"
+                    :description="patientDetailError"
+                  />
                 </div>
 
                 <div class="flex flex-wrap gap-2">
@@ -1799,6 +1893,8 @@ async function handleSubmitItemAction() {
               </div>
             </div>
           </UCard>
+
+          <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
 
           <UAlert
             v-if="!allItemsFinal"
@@ -1925,8 +2021,26 @@ async function handleSubmitItemAction() {
                     :description="item.blockedReason || getSampleActionDescription(item)"
                   />
 
+                  <ErpExternalResultPanel
+                    v-if="item.trxExamItem?.item?.externalResult && item.trxExamItem?.exam?.id"
+                    :exam-id="item.trxExamItem.exam.id"
+                    :exam-item-id="item.trxExamItem.id"
+                    :assignment="item.trxExamItem.externalAssignment"
+                    :requires-attachment-for-done="Boolean(item.trxExamItem.item.requiresAttachmentForDone)"
+                    :disabled="item.status !== 'IN_PROGRESS'"
+                    @updated="loadPage(true)"
+                  />
+
+                  <PhysicalExaminationDoctor
+                    v-if="canRenderExamInputs(item) && isPhysicalExamItem(item)"
+                    :exam-id="item.trxExamItem?.exam?.id || ''"
+                    :exam-item-id="item.trxExamItem?.id || ''"
+                    :inputans="item.trxExamItem?.item?.inputans || []"
+                    :results="item.trxExamItem?.exam?.results || []"
+                    @saved="loadPage(true)"
+                  />
                   <div
-                    v-if="canRenderExamInputs(item)"
+                    v-if="canRenderExamInputs(item) && !isPhysicalExamItem(item)"
                     class="space-y-3"
                   >
                     <div
@@ -2073,6 +2187,14 @@ async function handleSubmitItemAction() {
                       </div>
                     </div>
                   </div>
+                  <UAlert
+                    v-if="item.status === 'IN_PROGRESS' && item.trxExamItem?.item?.externalResult && getExternalDoneBlockReason(item)"
+                    color="warning"
+                    variant="soft"
+                    title="Item belum bisa diselesaikan"
+                    :description="getExternalDoneBlockReason(item) || undefined"
+                  />
+
                   <div class="flex flex-wrap gap-2 border-t border-default/70 pt-4">
                     <UButton
                       v-if="canCollectSample(item)"
@@ -2108,7 +2230,7 @@ async function handleSubmitItemAction() {
                     </UButton>
 
                     <UButton
-                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS'"
+                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS' && item.trxExamItem?.item?.resultTiming !== 'deferred'"
                       color="primary"
                       variant="soft"
                       icon="i-lucide-save"
@@ -2119,7 +2241,7 @@ async function handleSubmitItemAction() {
                     </UButton>
 
                     <UButton
-                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS'"
+                      v-if="hasStructuredInputs(item) && item.status === 'IN_PROGRESS' && item.trxExamItem?.item?.resultTiming !== 'deferred'"
                       color="primary"
                       variant="soft"
                       icon="i-lucide-send"

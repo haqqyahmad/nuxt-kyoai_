@@ -1,20 +1,16 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment } from '~/constants/menu'
+import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
-const { permissions, roles, allowedResultDepartmentCodes } = await useCurrentUser()
+const { permissions, roles, isExternalDoctor, allowedResultDepartmentCodes } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
 const restrictedRoles = restrictedRolesList
 const isRestrictedUser = computed(() =>
   roles.value.some(r => restrictedRoles.includes(r))
-)
-
-const isExternalDoctor = computed(() =>
-  externalRolesList.includes(roles.value[0] ?? '')
 )
 
 const currentRoleName = computed(() => roles.value[0] ?? '')
@@ -37,6 +33,7 @@ const menuGroups: Record<string, string[]> = {
     '/departments'
   ],
   'Medical': [
+    '/medical/master-grading',
     '/questionnaire',
     '/rooms',
     '/rooms/types',
@@ -206,7 +203,8 @@ watch(
 
 const canAccessAllResults = computed(() => roles.value.includes('superadmin'))
 
-function canAccessResultDepartment(code: string) {
+function canAccessResultDepartment(code?: string) {
+  if (!code) return true
   return canAccessAllResults.value
     || isExternalDoctor.value
     || allowedResultDepartmentCodes.value.includes(code.toUpperCase())
@@ -297,6 +295,11 @@ const links = computed<NavigationMenuItem[][]>(() => [
           ]
         },
         {
+          label: 'Master Grade',
+          icon: 'i-lucide-clipboard-list',
+          to: '/medical/master-grading'
+        },
+        {
           label: 'Questionnaire',
           to: '/questionnaire'
         },
@@ -342,6 +345,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
       open: menuOpenState.value['Results'],
       onUpdateOpen: (val: boolean) => updateMenuState('Results', val),
       children: [
+        ...(isExternalDoctor.value ? [{ label: 'Pekerjaan Dokter Luar', to: '/rooms/exam-results', active: true }] : []),
         {
           label: 'Hasil Exam Lab',
           to: '/rooms/exam-results?department=lab',
@@ -371,9 +375,15 @@ const links = computed<NavigationMenuItem[][]>(() => [
           to: '/rooms/exam-results?department=dental',
           active: activeResultDepartment.value === 'dental',
           resultDepartmentCode: 'DENTAL'
+        },
+        {
+          label: 'Doctor Result MCU',
+          to: '/rooms/doctor-result',
+          active: route.path.startsWith('/rooms/doctor-result')
         }
-      ].filter(item => {
-        // Superadmin dan external doctor: akses semua
+      ].filter((item) => {
+        if (isExternalDoctor.value) return !item.resultDepartmentCode
+        // Superadmin: akses sesuai departemen
         if (canAccessAllResults.value || isExternalDoctor.value) {
           return canAccessResultDepartment(item.resultDepartmentCode)
         }
@@ -490,6 +500,19 @@ const links = computed<NavigationMenuItem[][]>(() => [
   []
 ])
 
+const hideNavigationForExternalDoctor = computed(() => {
+  if (!isExternalDoctor.value) return false
+  return /^\/rooms\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path)
+})
+
+const hideSidebar = computed(() => {
+  // Sembunyikan sidebar di halaman detail doctor-result (full-width)
+  if (/^\/rooms\/doctor-result\/[A-Za-z0-9_-]+$/.test(route.path)) return true
+  // Sembunyikan untuk external doctor di halaman exam-results detail
+  if (hideNavigationForExternalDoctor.value) return true
+  return false
+})
+
 const groups = computed(() => [
   {
     id: 'links',
@@ -561,6 +584,7 @@ onMounted(() => {
   <ClientOnly>
     <UDashboardGroup unit="rem">
       <UDashboardSidebar
+        v-if="!hideSidebar"
         id="default"
         v-model:open="open"
         collapsible
@@ -602,7 +626,7 @@ onMounted(() => {
         </template>
       </UDashboardSidebar>
 
-      <UDashboardSearch :groups="groups" />
+      <UDashboardSearch v-if="!hideNavigationForExternalDoctor && !hideSidebar" :groups="groups" />
 
       <slot />
 

@@ -13,6 +13,8 @@ const props = defineProps<{
     code: string
     name: string
     resultTiming: 'inline' | 'deferred'
+    externalResult?: boolean
+    requiresAttachmentForDone?: boolean
     departmentId: string | null
     roomTypeId: string
     groupId: string | null
@@ -69,6 +71,8 @@ const form = reactive({
   code: '',
   name: '',
   resultTiming: 'inline',
+  externalResult: false,
+  requiresAttachmentForDone: false,
   departmentId: '',
   roomTypeId: '',
   groupId: '',
@@ -84,6 +88,8 @@ watch(() => props.item, (item) => {
     form.code = item.code
     form.name = item.name
     form.resultTiming = item.resultTiming
+    form.externalResult = Boolean(item.externalResult)
+    form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
     form.departmentId = item.departmentId || ''
     form.roomTypeId = item.roomTypeId
     form.groupId = item.groupId || ''
@@ -98,23 +104,23 @@ watch(() => props.item, (item) => {
 
 const rootGroups = computed(() =>
   groups.value
-    .filter((group) => !group.parentId)
+    .filter(group => !group.parentId)
     .slice()
     .sort(sortBySequence)
 )
 
 const selectedRootGroup = computed(() =>
-  groups.value.find((group) => group.id === form.groupId) ?? null
+  groups.value.find(group => group.id === form.groupId) ?? null
 )
 
 const selectedSubgroup = computed(() =>
-  groups.value.find((group) => group.id === form.subgroupId) ?? null
+  groups.value.find(group => group.id === form.subgroupId) ?? null
 )
 
 const subgroupOptions = computed(() => {
   if (!selectedRootGroup.value) return []
   return groups.value
-    .filter((group) => group.parentId === selectedRootGroup.value.id)
+    .filter(group => group.parentId === selectedRootGroup.value.id)
     .slice()
     .sort(sortBySequence)
 })
@@ -135,9 +141,9 @@ const hierarchySelectionError = computed(() => {
     return 'Subgroup yang dipilih tidak ditemukan.'
   }
   if (
-    form.subgroupId &&
-    selectedSubgroup.value &&
-    selectedSubgroup.value.parentId !== form.groupId
+    form.subgroupId
+    && selectedSubgroup.value
+    && selectedSubgroup.value.parentId !== form.groupId
   ) {
     return 'Subgroup harus berada di bawah group yang dipilih.'
   }
@@ -198,6 +204,8 @@ function resetAll() {
   form.code = ''
   form.name = ''
   form.resultTiming = 'inline'
+  form.externalResult = false
+  form.requiresAttachmentForDone = false
   form.departmentId = ''
   form.roomTypeId = ''
   form.groupId = ''
@@ -221,6 +229,8 @@ watch(open, (val) => {
       form.code = item.code
       form.name = item.name
       form.resultTiming = item.resultTiming
+      form.externalResult = Boolean(item.externalResult)
+      form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
       form.departmentId = item.departmentId || ''
       form.roomTypeId = item.roomTypeId
       form.groupId = item.groupId || ''
@@ -258,6 +268,8 @@ async function ensureItemCreated() {
       code: form.code,
       name: form.name,
       resultTiming: form.resultTiming,
+      externalResult: form.externalResult,
+      requiresAttachmentForDone: form.requiresAttachmentForDone,
       departmentId: form.departmentId || null,
       roomTypeId: form.roomTypeId,
       groupId: form.subgroupId || form.groupId || null,
@@ -294,7 +306,7 @@ watch(() => activeTab.value, async (newTab) => {
 })
 
 // Handle tab click - for template tab, ensure item is created
-function handleTabClick(tab: { key: string; disabled: boolean }) {
+function handleTabClick(tab: { key: string, disabled: boolean }) {
   if (tab.disabled) return
   if (tab.key === 'template' && !itemCreated.value) {
     ensureItemCreated()
@@ -322,6 +334,8 @@ async function submit() {
         code: form.code,
         name: form.name,
         resultTiming: form.resultTiming,
+        externalResult: form.externalResult,
+        requiresAttachmentForDone: form.requiresAttachmentForDone,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -347,6 +361,8 @@ async function submit() {
         code: form.code,
         name: form.name,
         resultTiming: form.resultTiming,
+        externalResult: form.externalResult,
+        requiresAttachmentForDone: form.requiresAttachmentForDone,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -361,7 +377,7 @@ async function submit() {
         color: 'success'
       })
     }
-emit('success')
+    emit('success')
   } catch (error: any) {
     toast.add({
       title: 'Gagal',
@@ -438,189 +454,219 @@ function handleDone() {
 
         <!-- BODY -->
         <div class="overflow-y-auto h-full px-6 py-4">
+          <!-- Tab: Info Item -->
+          <div v-if="activeTab === 'info'" class="space-y-5">
+            <form @submit.prevent="submit">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Item Code" required>
+                  <UInput
+                    v-model="form.code"
+                    placeholder="EX: LAB001"
+                    class="w-full"
+                  />
+                </UFormField>
 
-        <!-- Tab: Info Item -->
-        <div v-if="activeTab === 'info'" class="space-y-5">
-          <form @submit.prevent="submit">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Item Code" required>
-                <UInput
-                  v-model="form.code"
-                  placeholder="EX: LAB001"
+                <UFormField label="Department" required>
+                  <USelectMenu
+                    v-model="form.departmentId"
+                    :items="(departments || []).map((d: any) => ({ label: d.name, value: d.id }))"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select department"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Room Type" required>
+                  <USelectMenu
+                    v-model="form.roomTypeId"
+                    :items="roomTypeOptions"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select room type"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Kewajiban PDF">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
+                  </div>
+                </UFormField>
+
+                <UFormField label="Info">
+                  <div class="flex h-10 items-center text-sm text-muted">
+                    Item wajib tahu room type yang boleh dimasuki saat check-in.
+                  </div>
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Item Name" required>
+                  <UInput
+                    v-model="form.name"
+                    placeholder="Input item name"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Group">
+                  <USelectMenu
+                    v-model="form.groupId"
+                    :disabled="!form.departmentId"
+                    :items="rootGroups.map((g: any) => ({ label: g.name, value: g.id }))"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select group"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Result Timing" required>
+                  <USelectMenu
+                    v-model="form.resultTiming"
+                    :items="resultTimingOptions"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select timing"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Hasil dokter luar">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox v-model="form.externalResult" label="Dikerjakan oleh dokter luar" />
+                  </div>
+                </UFormField>
+                <UFormField label="Kewajiban PDF">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
+                  </div>
+                </UFormField>
+
+                <UFormField label="Info">
+                  <div class="flex h-10 items-center text-sm text-muted">
+                    `inline` untuk hasil yang diisi saat pemeriksaan, `deferred` untuk hasil setelah room selesai.
+                  </div>
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Sub Group">
+                  <USelectMenu
+                    v-model="form.subgroupId"
+                    :disabled="!form.groupId"
+                    :items="subgroupOptions.map((g: any) => ({ label: g.name, value: g.id }))"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select subgroup"
+                    class="w-full"
+                  />
+                  <p v-if="hierarchySelectionError" class="mt-2 text-xs text-error">
+                    {{ hierarchySelectionError }}
+                  </p>
+                </UFormField>
+
+                <UFormField label="Kewajiban PDF">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
+                  </div>
+                </UFormField>
+
+                <UFormField label="Info">
+                  <div class="flex h-10 items-center text-sm text-muted">
+                    Item akan disimpan ke subgroup jika dipilih, atau ke group utama jika tidak ada subgroup.
+                  </div>
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Price">
+                  <UInput
+                    v-model="form.price"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Status">
+                  <div class="flex h-10 items-center">
+                    <USwitch v-model="form.isActive" label="Active" />
+                  </div>
+                </UFormField>
+              </div>
+
+              <UFormField label="Description">
+                <UTextarea
+                  v-model="form.description"
+                  :rows="3"
+                  placeholder="Input description..."
                   class="w-full"
                 />
               </UFormField>
 
-              <UFormField label="Department" required>
-                <USelectMenu
-                  v-model="form.departmentId"
-                  :items="(departments || []).map((d: any) => ({ label: d.name, value: d.id }))"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Select department"
-                  class="w-full"
-                />
-              </UFormField>
+              <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
+                <UButton color="neutral" variant="soft" @click="open = false">
+                  Cancel
+                </UButton>
+                <UButton
+                  type="submit"
+                  :loading="loading"
+                  :disabled="!isValid"
+                  :icon="itemCreated ? 'i-lucide-save' : 'i-lucide-plus'"
+                >
+                  {{ itemCreated ? 'Simpan Perubahan' : 'Simpan & Lanjut ke Template' }}
+                </UButton>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tab: Template Exam -->
+          <div v-else-if="activeTab === 'template'" class="space-y-4">
+            <div v-if="creatingItem" class="flex items-center justify-center py-12">
+              <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
+              <span class="ml-2 text-sm text-muted">Membuat item...</span>
+            </div>
+            <ItemExamTemplate
+              v-else-if="createdItemId"
+              :item-id="createdItemId"
+            />
+            <div v-else class="flex flex-col items-center justify-center py-12 border border-dashed border-default rounded-lg text-center">
+              <UIcon name="i-lucide-test-tube-diagonal" class="size-10 text-muted mb-3" />
+              <p class="font-medium text-sm">
+                Klik tab Info Item dan isi data terlebih dahulu
+              </p>
+              <p class="text-xs text-muted mt-1">
+                Item akan otomatis dibuat saat Anda beralih ke tab ini
+              </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Room Type" required>
-                <USelectMenu
-                  v-model="form.roomTypeId"
-                  :items="roomTypeOptions"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Select room type"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Info">
-                <div class="flex h-10 items-center text-sm text-muted">
-                  Item wajib tahu room type yang boleh dimasuki saat check-in.
-                </div>
-              </UFormField>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Item Name" required>
-                <UInput
-                  v-model="form.name"
-                  placeholder="Input item name"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Group">
-                <USelectMenu
-                  v-model="form.groupId"
-                  :disabled="!form.departmentId"
-                  :items="rootGroups.map((g: any) => ({ label: g.name, value: g.id }))"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Select group"
-                  class="w-full"
-                />
-              </UFormField>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Result Timing" required>
-                <USelectMenu
-                  v-model="form.resultTiming"
-                  :items="resultTimingOptions"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Select timing"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Info">
-                <div class="flex h-10 items-center text-sm text-muted">
-                  `inline` untuk hasil yang diisi saat pemeriksaan, `deferred` untuk hasil setelah room selesai.
-                </div>
-              </UFormField>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Sub Group">
-                <USelectMenu
-                  v-model="form.subgroupId"
-                  :disabled="!form.groupId"
-                  :items="subgroupOptions.map((g: any) => ({ label: g.name, value: g.id }))"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Select subgroup"
-                  class="w-full"
-                />
-                <p v-if="hierarchySelectionError" class="mt-2 text-xs text-error">
-                  {{ hierarchySelectionError }}
-                </p>
-              </UFormField>
-
-              <UFormField label="Info">
-                <div class="flex h-10 items-center text-sm text-muted">
-                  Item akan disimpan ke subgroup jika dipilih, atau ke group utama jika tidak ada subgroup.
-                </div>
-              </UFormField>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Price">
-                <UInput
-                  v-model="form.price"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Status">
-                <div class="flex h-10 items-center">
-                  <USwitch v-model="form.isActive" label="Active" />
-                </div>
-              </UFormField>
-            </div>
-
-            <UFormField label="Description">
-              <UTextarea
-                v-model="form.description"
-                :rows="3"
-                placeholder="Input description..."
-                class="w-full"
-              />
-            </UFormField>
-
-            <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
-              <UButton color="neutral" variant="soft" @click="open = false">
-                Cancel
+            <div class="flex items-center justify-end gap-2 border-t border-default pt-4 mt-4">
+              <UButton color="neutral" variant="soft" @click="activeTab = 'info'">
+                Kembali
               </UButton>
-              <UButton
-                type="submit"
-                :loading="loading"
-                :disabled="!isValid"
-                :icon="itemCreated ? 'i-lucide-save' : 'i-lucide-plus'"
-              >
-                {{ itemCreated ? 'Simpan Perubahan' : 'Simpan & Lanjut ke Template' }}
+              <UButton icon="i-lucide-check" @click="handleDone">
+                Selesai
               </UButton>
             </div>
-          </form>
-        </div>
-
-        <!-- Tab: Template Exam -->
-        <div v-else-if="activeTab === 'template'" class="space-y-4">
-          <div v-if="creatingItem" class="flex items-center justify-center py-12">
-            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
-            <span class="ml-2 text-sm text-muted">Membuat item...</span>
           </div>
-          <ItemExamTemplate
-            v-else-if="createdItemId"
-            :item-id="createdItemId"
-          />
-          <div v-else class="flex flex-col items-center justify-center py-12 border border-dashed border-default rounded-lg text-center">
-            <UIcon name="i-lucide-test-tube-diagonal" class="size-10 text-muted mb-3" />
-            <p class="font-medium text-sm">Klik tab Info Item dan isi data terlebih dahulu</p>
-            <p class="text-xs text-muted mt-1">Item akan otomatis dibuat saat Anda beralih ke tab ini</p>
-          </div>
-
-          <div class="flex items-center justify-end gap-2 border-t border-default pt-4 mt-4">
-            <UButton color="neutral" variant="soft" @click="activeTab = 'info'">
-              Kembali
-            </UButton>
-            <UButton icon="i-lucide-check" @click="handleDone">
-              Selesai
-            </UButton>
-          </div>
-        </div>
-
         </div>
 
         <!-- FOOTER -->
         <template #footer>
           <div class="flex justify-end">
-            <UButton color="neutral" variant="soft" icon="i-lucide-check" @click="handleDone">
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-check"
+              @click="handleDone"
+            >
               Tutup
             </UButton>
           </div>

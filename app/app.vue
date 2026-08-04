@@ -4,6 +4,7 @@ import { defaultSeo, pageSeo } from '~/constants/seo'
 
 const route = useRoute()
 const colorMode = useColorMode()
+const { initTheme } = useTheme()
 
 const color = computed(() =>
   colorMode.value === 'dark' ? '#1b1718' : 'white'
@@ -47,6 +48,7 @@ const isAppReady = ref(false)
 
 onMounted(() => {
   isAppReady.value = true
+  initTheme()
 })
 </script>
 

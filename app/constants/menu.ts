@@ -93,6 +93,7 @@ export function buildMenuTree(): MenuItem[] {
             { label: 'Sample Types', to: '/items/sample-types' }
           ]
         },
+        { label: 'Master Grade', icon: 'i-lucide-clipboard-list', to: '/medical/master-grading' },
         { label: 'Questionnaire', to: '/questionnaire' },
         { label: 'Rooms', to: '/rooms' },
         { label: 'Room Types', to: '/rooms/types' },
@@ -136,6 +137,10 @@ export function buildMenuTree(): MenuItem[] {
           label: 'Hasil Exam Dental',
           to: '/rooms/exam-results?department=dental',
           resultDepartmentCode: 'DENTAL'
+        },
+        {
+          label: 'Doctor Result MCU',
+          to: '/rooms/doctor-result'
         }
       ]
     },

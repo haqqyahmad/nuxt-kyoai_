@@ -16,7 +16,8 @@ const schema = z
     email: z.string().email('Invalid email'),
     password: z.string().min(8, 'Must be at least 8 characters'),
     confirm_password: z.string().min(8, 'Must be at least 8 characters'),
-    language: z.string().optional().default('id')
+    language: z.string().optional().default('id'),
+    isExternal: z.boolean().optional().default(false)
   })
   .refine(data => data.password === data.confirm_password, {
     message: 'Passwords don\'t match',
@@ -34,7 +35,8 @@ const state = reactive({
   email: '',
   password: '',
   confirm_password: '',
-  language: 'id'
+  language: 'id',
+  isExternal: false
 })
 
 // ✅ submit dipisah (dipanggil BaseFormModal)
@@ -46,6 +48,7 @@ type RegisterPayload = {
   password: string
   confirm_password: string
   language?: string
+  isExternal?: boolean
 }
 
 async function submit(data: RegisterPayload) {
@@ -55,7 +58,8 @@ async function submit(data: RegisterPayload) {
       email: data.email,
       password: data.password,
       confirm_password: data.confirm_password,
-      language: data.language
+      language: data.language,
+      isExternal: Boolean(data.isExternal)
     })
 
     emit('created')
@@ -98,7 +102,21 @@ async function submit(data: RegisterPayload) {
     </UFormField>
 
     <UFormField label="Language" name="language">
-      <USelect v-model="state.language" :items="languageOptions" value-key="value" label-key="label" class="w-full" />
+      <USelect
+        v-model="state.language"
+        :items="languageOptions"
+        value-key="value"
+        label-key="label"
+        class="w-full"
+      />
+    </UFormField>
+
+    <UFormField
+      label="Jenis pengguna medis"
+      name="isExternal"
+      description="Aktifkan jika hasil pemeriksaan akan dikerjakan oleh dokter dari luar klinik."
+    >
+      <UCheckbox v-model="state.isExternal" label="Dokter luar" />
     </UFormField>
   </BaseFormModal>
 </template>

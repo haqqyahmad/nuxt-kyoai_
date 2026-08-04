@@ -44,6 +44,7 @@ type AuthUser = {
   id: number
   name: string
   email: string
+  isExternal?: boolean
   avatar?: string | null
   roles?: AuthRole[]
   roomAccesses?: AuthRoomAccess[]
@@ -79,6 +80,10 @@ export async function useCurrentUser() {
     (user.value?.roles ?? [])
       .map(item => item.role?.name)
       .filter((value): value is string => Boolean(value))
+  )
+
+  const isExternalDoctor = computed(() =>
+    Boolean(user.value?.isExternal) || roles.value.includes('dokter-external')
   )
 
   const permissions = computed(() => {
@@ -138,6 +143,7 @@ export async function useCurrentUser() {
   return {
     user,
     roles,
+    isExternalDoctor,
     permissions,
     isPic,
     canSelfAssign,

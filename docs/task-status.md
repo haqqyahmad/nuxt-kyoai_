@@ -1,10 +1,12 @@
 # Project Task Status
 
-Last updated: 2026-07-29 12:00
+Last updated: 2026-07-30
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
 ## Completed
+
+- FE: Room Queue menampilkan metadata pasien; Queue Work memuat detail pasien melalui GET /patient/:id dengan fallback data queue bila endpoint detail gagal.
 
 - FE: Hapus checkbox "Only If Creator" duplikat di kolom Role permission matrix.
 - FE: Sidebar layout filter menu navigasi berdasarkan permissions user login via `useRoutePermission`.

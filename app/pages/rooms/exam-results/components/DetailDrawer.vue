@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { computed, onBeforeUnmount, ref, watch, onMounted } from 'vue'
 
 import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
+const { isExternalDoctor } = await useCurrentUser()
 
 type Patient = {
   id: string | number
@@ -81,7 +82,17 @@ type ExamResultDetail = {
     department?: Department | null
     inputans?: ExamInput[]
   } | null
+  items?: Array<{
+    id: string
+    isExternalResult?: boolean
+    item?: {
+      id?: string | null
+      name?: string | null
+      code?: string | null
+    } | null
+  }>
   resultTiming?: 'inline' | 'deferred'
+  isExternalResult?: boolean
   status?: 'pending' | 'completed'
   workStatus?: string | null
   resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED' | string | null
@@ -94,7 +105,23 @@ type ExamResultDetail = {
     examCode?: string | null
     externalStatus?: 'ASSIGNED' | 'CANCELLED' | 'FILLED' | null
     assignedExternalUserId?: number | null
+    assignedExternalUser?: { id: number, name: string } | null
+    externalAssignedAt?: string | null
+    externalFilledAt?: string | null
     attachmentUrl?: string | null
+    externalAttachment?: {
+      id: string
+      originalName?: string | null
+      mimeType?: string | null
+      sizeBytes?: number | null
+      uploadedBy?: number | null
+      uploadedByUser?: { id: number, name: string } | null
+      uploadedAt?: string | null
+    } | null
+    workUpdatedBy?: number | null
+    workUpdatedByUser?: { id: number, name: string } | null
+    resultSubmittedBy?: number | null
+    resultSubmittedByUser?: { id: number, name: string } | null
     results?: Array<{
       inputanId: string
       valueString?: string | null
@@ -164,8 +191,19 @@ const groupGradingSaving = ref(false)
 
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
-const canEditCurrentResult = computed(() => props.result?.canEditResult ?? props.result?.status === 'pending')
-const canSubmitCurrentResult = computed(() => props.result?.canSubmitResult ?? props.result?.status === 'pending')
+const canEditCurrentResult = computed(() => {
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus !== 'FILLED'
+  return props.result?.canEditResult ?? props.result?.status === 'pending'
+})
+const canSubmitCurrentResult = computed(() => {
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus !== 'FILLED' && Boolean(props.result.exam?.attachmentUrl)
+  return props.result?.canSubmitResult ?? props.result?.status === 'pending'
+})
+const isExternalResultFilled = computed(() => 
+  props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
+)
+console.log('isExternalResultFilled', props.result?.isExternalResult, props.result?.exam?.externalStatus, isExternalResultFilled.value)
+console.log('props.result', props.result)
 const resultWorkflowLabel = computed(() => {
   if (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW') return 'Waiting Approval'
   if (props.result?.departmentResultStatus === 'DEPARTMENT_APPROVED') return 'Department Approved'
@@ -231,15 +269,24 @@ const externalDoctors = ref<Array<{ id: number, name: string }>>([])
 const selectedExternalDoctor = ref<number | undefined>(undefined)
 const externalSaving = ref(false)
 const externalFile = ref<File | null>(null)
+const externalInputColumns = ref<'one' | 'two'>('one')
+const externalAttachmentPreviewUrl = ref<string | null>(null)
+const externalAttachmentLoading = ref(false)
+const externalAttachmentError = ref<string | null>(null)
+
+const hasExternalResultContext = computed(() => Boolean(props.result?.isExternalResult || props.result?.items?.some(item => item.isExternalResult)))
+const isExternalDoctorWorkspace = computed(() => Boolean(isExternalDoctor.value && hasExternalResultContext.value))
+const isExternalInputTwoColumns = computed(() => externalInputColumns.value === 'two')
 
 async function loadExternalDoctors() {
   try {
-    const res = await api.get('/users?limit=1000')
+    const res = await api.get('/mcu/exams/external-doctors')
     const payload = res.data?.data ?? []
     if (Array.isArray(payload)) {
-      externalDoctors.value = payload
-        .filter((u: any) => (u.roles ?? []).some((r: any) => r.role?.name === 'dokter-external'))
-        .map((u: any) => ({ id: u.id, name: u.name }))
+      externalDoctors.value = payload.map((externalDoctor: { id: number, name: string }) => ({
+        id: externalDoctor.id,
+        name: externalDoctor.name
+      }))
     }
   } catch {
     externalDoctors.value = []
@@ -262,16 +309,124 @@ const externalStatusColor: Record<string, BadgeColor> = {
   FILLED: 'success'
 }
 
+function gradingColor(grading?: string | null): BadgeColor {
+  if (!grading) return 'neutral'
+  if (grading === 'NORMAL') return 'success'
+  if (grading === 'ABNORMAL_INC' || grading === 'ABNORMAL_DEC') return 'error'
+  return 'warning'
+}
+
+// Computed map of external results by inputanId for easy template access
+const externalResultsMap = computed(() => {
+  const map = new Map<string, any>()
+  if (props.result?.exam?.results) {
+    for (const r of props.result.exam.results) {
+      map.set(r.inputanId, r)
+    }
+  }
+  return map
+})
+
+// Safe getter that returns a default object if not found - avoids template undefined issues
+function getExtResult(inputanId: string) {
+  return externalResultsMap.value.get(inputanId) ?? null
+}
+
+function getOptionLabel(inputan: ExamInput, value: string) {
+  return inputan.opsis?.find(o => o.value === value)?.label ?? value
+}
+
 function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
   return (examTypeBadgeColor[type ?? 'MCU'] ?? 'neutral') as BadgeColor
 }
 
+
+function getExternalHeaderSubtitle() {
+  const patient = props.result?.patient
+  const parts = [
+    patient?.PatientId,
+    props.result?.queueCode,
+    patient?.gender === 'MALE' ? 'Laki-laki' : patient?.gender === 'FEMALE' ? 'Perempuan' : null,
+    getAgeAtExamLabel(patient, props.result?.checkinAt),
+  ].filter(Boolean)
+  return parts.join(' - ') || '-'
+}
+
+function formatExternalActor(user?: { id: number, name: string } | null, fallbackId?: number | null) {
+  if (user?.name) return user.name
+  if (fallbackId != null) return `User #${fallbackId}`
+  return '-'
+}
+
+function getExternalCollectorLabel() {
+  return formatExternalActor(props.result?.exam?.workUpdatedByUser, props.result?.exam?.workUpdatedBy)
+}
+
+function getExternalUploadLabel() {
+  const attachment = props.result?.exam?.externalAttachment
+  const actor = formatExternalActor(attachment?.uploadedByUser, attachment?.uploadedBy)
+  const uploadedAt = formatDateTime(attachment?.uploadedAt)
+  if (actor === '-' && uploadedAt === '-') return '-'
+  return [actor, uploadedAt].filter((value) => value && value !== '-').join(' - ')
+}
+
+function hasOtherOption(inputan: ExamInput) {
+  return (inputan.opsis || []).some((option) => option.value === 'Others' || option.label === 'Others')
+}
+
+function isOtherSelected(inputan: ExamInput) {
+  return getInputDraft(inputan.id).valueSelected === 'Others'
+}
+
+function getExternalExamItemId() {
+  if (isExternalDoctorWorkspace.value) return props.result?.id ?? null
+  const externalItem = props.result?.items?.find(item => item.isExternalResult)
+  return externalItem?.id ?? (props.result?.isExternalResult ? props.result.id : null)
+}
+
+function getInputDisplayId(inputan: ExamInput) {
+  if (inputan.inputType === 'selected' && inputan.uom) return inputan.uom
+  return inputan.label
+}
+
+function cleanupExternalAttachmentPreview() {
+  if (!import.meta.client) return
+  if (externalAttachmentPreviewUrl.value) {
+    URL.revokeObjectURL(externalAttachmentPreviewUrl.value)
+    externalAttachmentPreviewUrl.value = null
+  }
+}
+
+async function loadExternalAttachmentPreview() {
+  if (!import.meta.client) return
+  cleanupExternalAttachmentPreview()
+  externalAttachmentError.value = null
+
+  const examItemId = getExternalExamItemId()
+  if (!isExternalDoctorWorkspace.value || !props.result?.exam?.id || !examItemId || !props.result.exam?.attachmentUrl) {
+    return
+  }
+
+  externalAttachmentLoading.value = true
+  try {
+    const response = await api.get(
+      `/mcu/exams/${props.result.exam.id}/external-attachment/${examItemId}/download`,
+      { responseType: 'blob' }
+    )
+    externalAttachmentPreviewUrl.value = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+  } catch (error: unknown) {
+    externalAttachmentError.value = getErrorMessage(error, 'PDF hasil dokter luar tidak dapat dimuat.')
+  } finally {
+    externalAttachmentLoading.value = false
+  }
+}
 async function assignExternalDoctor() {
   if (!selectedExternalDoctor.value) return
   externalSaving.value = true
   try {
     await api.post(`/mcu/exams/${props.result?.exam?.id}/assign-external`, {
-      externalUserId: selectedExternalDoctor.value
+      externalUserId: selectedExternalDoctor.value,
+      examItemId: getExternalExamItemId()
     })
     toast.add({ title: 'Berhasil', description: 'Dokter luar ditugaskan.', color: 'success' })
     emit('resultSaved', props.result as ExamResultDetail)
@@ -285,7 +440,7 @@ async function assignExternalDoctor() {
 async function cancelExternalDoctor() {
   externalSaving.value = true
   try {
-    await api.post(`/mcu/exams/${props.result?.exam?.id}/cancel-external`)
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/cancel-external`, { examItemId: props.result?.id })
     toast.add({ title: 'Berhasil', description: 'Penugasan dokter luar dibatalkan.', color: 'success' })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
@@ -304,14 +459,37 @@ async function uploadExternalResult() {
   try {
     const form = new FormData()
     form.append('attachment', externalFile.value)
-    form.append('externalUserId', String(props.result?.exam?.assignedExternalUserId ?? selectedExternalDoctor.value ?? ''))
-    await api.post(`/mcu/exams/${props.result?.exam?.id}/external-result`, form, {
+    form.append('examItemId', String(getExternalExamItemId() ?? ''))
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/external-attachment`, form, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    toast.add({ title: 'Berhasil', description: 'Hasil dokter luar disimpan.', color: 'success' })
+    toast.add({ title: 'Berhasil', description: 'PDF hasil dokter luar berhasil diunggah.', color: 'success' })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
-    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal menyimpan hasil dokter luar.'), color: 'error' })
+    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal mengunggah PDF hasil dokter luar.'), color: 'error' })
+  } finally {
+    externalSaving.value = false
+  }
+}
+
+async function openExternalAttachment() {
+  const examItemId = getExternalExamItemId()
+  if (!props.result?.exam?.id || !examItemId) return
+  externalSaving.value = true
+  try {
+    const response = await api.get(
+      `/mcu/exams/${props.result.exam.id}/external-attachment/${examItemId}/download`,
+      { responseType: 'blob' }
+    )
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+    window.open(url, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'PDF tidak dapat dibuka',
+      description: getErrorMessage(error, 'Gagal membuka PDF hasil dokter luar.'),
+      color: 'error'
+    })
   } finally {
     externalSaving.value = false
   }
@@ -888,8 +1066,9 @@ function buildResultsPayload() {
 
     if (inputan.inputType === 'selected') {
       const valueSelected = getDraftText(draft.valueSelected)
+      const valueString = valueSelected === 'Others' ? getDraftText(draft.valueString) : ''
       if (valueSelected) {
-        payload.push({ ...base, valueSelected })
+        payload.push({ ...base, valueSelected, ...(valueString ? { valueString } : {}) })
       }
       continue
     }
@@ -941,7 +1120,15 @@ async function handleSaveResult() {
 
   saving.value = true
   try {
-    await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
+    if (isExternalDoctorWorkspace.value) {
+      await api.post(`/mcu/exams/${props.result.exam.id}/external-result`, {
+        examItemId: props.result.id,
+        results,
+        submit: false
+      })
+    } else {
+      await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
+    }
 
     toast.add({
       title: 'Draft saved',
@@ -995,6 +1182,23 @@ async function handleSubmitResult() {
 
   submitting.value = true
   try {
+    if (isExternalDoctorWorkspace.value) {
+      await api.post(`/mcu/exams/${props.result.exam.id}/external-result`, {
+        examItemId: props.result.id,
+        results,
+        submit: true
+      })
+
+      toast.add({
+        title: 'Hasil disubmit',
+        description: 'Hasil dokter luar berhasil dikirim.',
+        color: 'success'
+      })
+
+      emit('resultSaved', props.result)
+      return
+    }
+
     await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
     await api.post(`/mcu/exams/${props.result.exam.id}/results/submit`, {
       departmentId: props.result.item?.department?.id
@@ -1029,6 +1233,7 @@ watch(
       if (props.result.id) {
         fetchAudit('RoomExamItem', props.result.id)
         loadGroupResults()
+        void loadExternalAttachmentPreview()
       } else {
         resetAudit()
       }
@@ -1042,7 +1247,12 @@ watch(
 onMounted(() => {
   if (props.result) {
     seedDraftsFromExistingResults()
+    void loadExternalAttachmentPreview()
   }
+})
+
+onBeforeUnmount(() => {
+  cleanupExternalAttachmentPreview()
 })
 </script>
 
@@ -1083,10 +1293,10 @@ onMounted(() => {
             />
           </div>
           <h1 class="mt-2 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl">
-            {{ result?.item?.name || '-' }}
+            {{ isExternalDoctorWorkspace ? formatPatientName(result?.patient) : result?.item?.name || '-' }}
           </h1>
           <p class="mt-1 text-sm text-muted">
-            {{ formatPatientName(result?.patient) }} · {{ getDepartmentLabel(result?.item?.department) }}
+            {{ isExternalDoctorWorkspace ? getExternalHeaderSubtitle() : `${formatPatientName(result?.patient)} - ${getDepartmentLabel(result?.item?.department)}` }}
           </p>
         </div>
 
@@ -1127,8 +1337,74 @@ onMounted(() => {
     </template>
 
     <template #body>
+            <div
+        v-if="result && isExternalDoctorWorkspace"
+        class="flex h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
+      >
+        <UCard class="mb-4 shrink-0 overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex items-center justify-between gap-3">
+              <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Konteks Pemeriksaan</h4>
+              <UBadge :label="result.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
+            </div>
+          </template>
+          <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">No. RM / Antrian</dt><dd class="mt-1 break-words font-mono font-semibold text-highlighted">{{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Item Pemeriksaan</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ result.item?.name || '-' }} <span class="font-mono text-muted">{{ result.item?.code || '' }}</span></dd></div>
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Petugas Pengambil</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ getExternalCollectorLabel() }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Upload File</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ getExternalUploadLabel() }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}</dd></div>
+          </dl>
+        </UCard>
+
+        <div class="grid min-h-0 flex-1 gap-4" :class="isExternalInputTwoColumns ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]' : 'xl:grid-cols-[minmax(760px,1.55fr)_minmax(360px,.75fr)]'">
+          <UCard class="min-h-0 overflow-hidden border border-default/80 shadow-sm xl:sticky xl:top-0 xl:self-start" :ui="{ body: 'p-0 sm:p-0' }">
+            <div class="mx-4 mt-4 h-[calc(100dvh-20rem)] min-h-[440px] overflow-hidden rounded-t-lg bg-muted/30">
+              <div v-if="externalAttachmentLoading" class="flex h-full items-center justify-center text-sm text-muted"><UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat PDF...</div>
+              <iframe v-else-if="externalAttachmentPreviewUrl" :src="externalAttachmentPreviewUrl" title="PDF hasil pemeriksaan" class="h-full w-full border-0 bg-muted/30" />
+              <div v-else class="flex h-full items-center justify-center p-6"><UAlert color="warning" variant="soft" title="PDF belum tersedia" :description="externalAttachmentError || 'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'" class="max-w-md" /></div>
+            </div>
+            <div class="mx-4 mb-8 flex min-h-16 items-center justify-between gap-3 rounded-b-lg border border-t-0 border-default/80 bg-default px-4 py-4 text-xs text-muted">
+              <span class="min-w-0 truncate">{{ result.exam?.externalAttachment?.originalName || 'Dokumen PDF pemeriksaan' }}</span>
+              <span class="shrink-0 font-semibold text-highlighted">PDF Preview</span>
+            </div>
+          </UCard>
+
+          <UCard class="flex min-h-0 max-h-[calc(100dvh-20rem)] flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }">
+            <template #header>
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0"><h4 class="text-base font-semibold text-highlighted">Input Hasil {{ result.item?.name || 'Pemeriksaan' }}</h4><p class="mt-1 text-xs text-muted">Isi parameter berdasarkan PDF di sebelah kiri.</p></div>
+                <div class="inline-flex overflow-hidden rounded-lg border border-default bg-default">
+                  <button type="button" class="px-3 py-2 text-xs font-semibold" :class="externalInputColumns === 'one' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'" @click="externalInputColumns = 'one'">Input 1 Kolom</button>
+                  <button type="button" class="border-l border-default px-3 py-2 text-xs font-semibold" :class="externalInputColumns === 'two' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'" @click="externalInputColumns = 'two'">Input 2 Kolom</button>
+                </div>
+              </div>
+            </template>
+            <div class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300">Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh nurse.</div>
+            <div v-if="result.item?.inputans?.length" class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28" :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'">
+              <div v-for="inputan in result.item.inputans" :key="inputan.id" class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3">
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }} <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
+                <input v-if="inputan.inputType === 'number'" v-model="getInputDraft(inputan.id).valueNumber" type="number" :disabled="!canEditCurrentResult || isResultBlockedBySample" :class="getResultInputClass(inputan)" placeholder="Masukkan hasil" @input="recomputeCalculatedDrafts(true)">
+                <input v-else-if="inputan.inputType === 'string'" v-model="getInputDraft(inputan.id).valueString" type="text" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70" placeholder="Masukkan hasil">
+                <template v-else-if="inputan.inputType === 'selected'">
+                  <select v-model="getInputDraft(inputan.id).valueSelected" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70">
+                    <option value="">Pilih hasil</option><option v-for="opsi in inputan.opsis" :key="opsi.id" :value="opsi.value">{{ opsi.label }}</option>
+                  </select>
+                  <div v-if="hasOtherOption(inputan) && isOtherSelected(inputan)" class="mt-2"><label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Detail {{ inputan.label }}</label><input v-model="getInputDraft(inputan.id).valueString" type="text" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70" placeholder="Tuliskan detail jika memilih Others"></div>
+                </template>
+                <input v-else-if="inputan.inputType === 'calculated'" v-model="getInputDraft(inputan.id).valueCalculated" type="number" disabled :class="getResultInputClass(inputan)" placeholder="Dihitung otomatis">
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"><span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0], inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span></div>
+              </div>
+              <div class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3" :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"><label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" /></div>
+            </div>
+            <div v-else class="flex min-h-72 items-center justify-center p-6"><UAlert color="warning" variant="soft" title="Template hasil belum tersedia" description="Item ini belum memiliki parameter input hasil." /></div>
+            <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10"><div class="flex flex-col gap-2 sm:flex-row sm:justify-end"><UButton color="neutral" variant="soft" :loading="saving" :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample" icon="i-lucide-save" @click="handleSaveResult">Simpan Draft</UButton><UButton color="primary" :loading="submitting" :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample" icon="i-lucide-send" @click="handleSubmitResult">Submit Hasil</UButton></div></div>
+          </UCard>
+        </div>
+      </div>
       <div
-        v-if="result"
+        v-else-if="result"
         class="flex min-h-0 flex-col bg-gradient-to-b from-default via-default to-muted/10"
         :class="embedded ? 'min-h-full overflow-visible' : 'h-full overflow-hidden'"
       >
@@ -1309,74 +1585,82 @@ onMounted(() => {
                       {{ result.exam.examCode }}
                     </dd>
                   </div>
-                  <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Dokter Luar
-                    </dt>
-                    <dd class="mt-1 space-y-2">
-                      <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
-                        {{ result.exam.externalStatus }}
-                      </UBadge>
-                      <span v-else class="text-sm text-muted">-</span>
+<div v-if="hasExternalResultContext">
+                      <dt class="text-xs uppercase tracking-wide text-muted">
+                        Dokter Luar
+                      </dt>
+                      <dd class="mt-1 space-y-2">
+                        <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
+                          {{ result.exam.externalStatus }}
+                        </UBadge>
+                        <span v-else class="text-sm text-muted">-</span>
 
-                      <div v-if="!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED'" class="flex items-center gap-2">
-                        <USelectMenu
-                          v-model="selectedExternalDoctor"
-                          :items="externalDoctors"
-                          value-key="id"
-                          label-key="name"
-                          placeholder="Pilih dokter luar"
-                          class="min-w-48"
-                        />
-                        <UButton
-                          size="xs"
-                          color="primary"
-                          variant="soft"
-                          :loading="externalSaving"
-                          :disabled="!selectedExternalDoctor"
-                          @click="assignExternalDoctor"
-                        >
-                          Tugaskan
-                        </UButton>
-                      </div>
+                        <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
+                          {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                        </div>
 
-                      <div v-if="result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
-                        <UButton
-                          size="xs"
-                          color="error"
-                          variant="soft"
-                          :loading="externalSaving"
-                          @click="cancelExternalDoctor"
-                        >
-                          Batalkan
-                        </UButton>
-                        <UButton
-                          size="xs"
-                          color="success"
-                          variant="soft"
-                          :loading="externalSaving"
-                          @click="uploadExternalResult"
-                        >
-                          Upload Hasil
-                        </UButton>
-                        <UInput
-                          type="file"
-                          accept="application/pdf"
-                          size="xs"
-                          @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
-                        />
-                      </div>
+                        <div v-if="!isExternalDoctor && (!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
+                          <USelectMenu
+                            v-model="selectedExternalDoctor"
+                            :items="externalDoctors"
+                            value-key="id"
+                            label-key="name"
+                            placeholder="Pilih dokter luar"
+                            class="min-w-48"
+                          />
+                          <UButton
+                            size="xs"
+                            color="primary"
+                            variant="soft"
+                            :loading="externalSaving"
+                            :disabled="!selectedExternalDoctor"
+                            @click="assignExternalDoctor"
+                          >
+                            Tugaskan
+                          </UButton>
+                        </div>
 
-                      <a
-                        v-if="result.exam?.attachmentUrl"
-                        :href="result.exam.attachmentUrl"
-                        target="_blank"
-                        class="text-xs text-primary underline"
-                      >
-                        Lihat PDF
-                      </a>
-                    </dd>
-                  </div>
+                        <div v-if="!isExternalDoctor && result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
+                          <UButton
+                            size="xs"
+                            color="error"
+                            variant="soft"
+                            :loading="externalSaving"
+                            @click="cancelExternalDoctor"
+                          >
+                            Batalkan
+                          </UButton>
+                          <UButton
+                            size="xs"
+                            color="success"
+                            variant="soft"
+                            :loading="externalSaving"
+                            @click="uploadExternalResult"
+                          >
+                            Upload Hasil
+                          </UButton>
+                          <UInput
+                            type="file"
+                            accept="application/pdf"
+                            size="xs"
+                            @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
+                          />
+                        </div>
+
+                        <p v-if="isExternalDoctor" class="text-xs text-muted">PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di bawah.</p>
+                        <UButton
+                          v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
+                          size="xs"
+                          color="neutral"
+                          variant="outline"
+                          icon="i-lucide-file-text"
+                          :loading="externalSaving"
+                          @click="openExternalAttachment"
+                        >
+                          Lihat PDF
+                        </UButton>
+                      </dd>
+                    </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
                       Waktu Selesai
@@ -1471,7 +1755,7 @@ onMounted(() => {
                 </div>
               </UCard>
 
-              <UCard class="order-1 border border-default/80 bg-default/80 shadow-sm">
+              <UCard class="order-1 border border-default/80 bg-default/80 shadow-sm" v-if="!isExternalResultFilled">
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
@@ -1629,6 +1913,134 @@ onMounted(() => {
 
                 <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
                   Belum ada parameter input untuk pemeriksaan ini.
+                </div>
+              </UCard>
+
+              <!-- Hasil Dokter Luar - tampilkan jika externalStatus === 'FILLED' dan bukan external doctor workspace -->
+              <UCard v-if="isExternalResultFilled" class="order-1 border border-emerald-200/50 bg-emerald-50/30 dark:border-emerald-900/20 dark:bg-emerald-950/20 shadow-sm">
+                <template #header>
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 class="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                        Hasil Dokter Luar (Sudah Submit)
+                      </h4>
+                      <p class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                        Detail hasil yang diisi dokter luar: {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }} - {{ formatDateTime(result.exam.externalFilledAt) }}
+                      </p>
+                    </div>
+                    <UIcon name="i-lucide-user-check" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                </template>
+
+                <div class="overflow-hidden rounded-2xl border border-emerald-200/50 dark:border-emerald-800/30">
+                  <div class="overflow-x-auto">
+                    <table class="min-w-[720px] w-full table-fixed divide-y divide-emerald-200/50 dark:divide-emerald-800/30">
+                      <thead class="bg-emerald-50/50 dark:bg-emerald-950/30">
+                        <tr>
+                          <th class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Parameter
+                          </th>
+                          <th class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Nilai Normal
+                          </th>
+                          <th class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Hasil Dokter Luar
+                          </th>
+                          <th class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Grading
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody class="divide-y divide-emerald-200/50 dark:divide-emerald-800/30 bg-white/80 dark:bg-emerald-950/20">
+                        <tr
+                          v-for="inputan in result.item.inputans"
+                          :key="inputan.id"
+                          class="transition hover:bg-emerald-50/30 dark:hover:bg-emerald-900/20"
+                        >
+                          <td class="px-3 py-2.5 align-middle">
+                            <div class="min-w-0">
+                              <p class="text-sm font-semibold text-highlighted">
+                                {{ inputan.label }}
+                              </p>
+                              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                <UBadge
+                                  :label="getInputTypeLabel(inputan.inputType)"
+                                  :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
+                                  variant="subtle"
+                                  size="sm"
+                                />
+                                <span v-if="inputan.uom" class="text-xs text-muted">
+                                  {{ inputan.uom }}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td class="px-3 py-2.5 align-middle text-sm text-muted">
+                            <div v-if="getVisibleNormalRanges(inputan).length" class="space-y-1">
+                              <div
+                                v-for="range in getVisibleNormalRanges(inputan)"
+                                :key="range.id"
+                                class="leading-tight"
+                              >
+                                <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                  {{ formatNormalRange(range, inputan.uom) }}
+                                </p>
+                                <p class="mt-0.5 text-[11px] text-muted">
+                                  {{ formatRangeCriteria(range) }}
+                                </p>
+                              </div>
+                            </div>
+                            <span v-else class="text-xs text-amber-600 dark:text-amber-400">
+                              Belum tersedia
+                            </span>
+                          </td>
+
+                          <td class="px-3 py-2.5 align-middle">
+                            <div class="max-w-sm">
+                              <div v-if="getExtResult(inputan.id)" class="space-y-1">
+                                <template v-if="getExtResult(inputan.id)!.valueNumber != null">
+                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueNumber }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}</p>
+                                </template>
+                                <template v-else-if="getExtResult(inputan.id)!.valueCalculated != null">
+                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueCalculated }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}</p>
+                                </template>
+                                <template v-else-if="getExtResult(inputan.id)!.valueString != null">
+                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueString }}</p>
+                                </template>
+                                <template v-else-if="getExtResult(inputan.id)!.valueSelected != null">
+                                  <p class="text-sm font-semibold text-highlighted">{{ getOptionLabel(inputan, getExtResult(inputan.id)!.valueSelected) }}</p>
+                                </template>
+                                <template v-else>
+                                  <p class="text-sm text-muted">-</p>
+                                </template>
+                                <p class="text-[11px] text-muted">
+                                  ID: {{ getExtResult(inputan.id)!.inputanId }}
+                                </p>
+                              </div>
+                              <p v-else class="text-sm text-muted">Belum diisi</p>
+                            </div>
+                          </td>
+
+                          <td class="px-3 py-2.5 align-middle">
+                            <div v-if="getExtResult(inputan.id)">
+                              <UBadge
+                                :label="getExtResult(inputan.id)!.grading || 'NORMAL'"
+                                :color="gradingColor(getExtResult(inputan.id)!.grading)"
+                                variant="soft"
+                                size="sm"
+                              />
+                              <p v-if="getExtResult(inputan.id)!.flag === 'abnormal'" class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                Di luar nilai normal
+                              </p>
+                            </div>
+                            <span v-else class="text-xs text-muted">-</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </UCard>
 
