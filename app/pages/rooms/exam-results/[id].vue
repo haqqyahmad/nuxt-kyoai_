@@ -8,6 +8,7 @@ type DetailResult = NonNullable<
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
+const { isExternalDoctor } = await useCurrentUser()
 
 const result = ref<DetailResult | null>(null)
 const loading = ref(false)
@@ -25,13 +26,16 @@ async function loadResult() {
   try {
     const examId = getQueryValue(route.query.examId)
     const department = getQueryValue(route.query.department)
+    const roomTypeId = getQueryValue(route.query.roomTypeId)
     const params: Record<string, string | number> = {
       page: 1,
       limit: 1,
-      groupBy: 'exam'
+      groupBy: isExternalDoctor.value ? 'item' : 'exam'
     }
 
-    if (examId) {
+    if (isExternalDoctor.value) {
+      params.examItemId = String(route.params.id)
+    } else if (examId) {
       params.examId = examId
     } else {
       params.examItemId = String(route.params.id)
@@ -39,6 +43,10 @@ async function loadResult() {
 
     if (department) {
       params.department = department
+    }
+
+    if (roomTypeId) {
+      params.roomTypeId = roomTypeId
     }
 
     const response = await api.get('/mcu/exams/results', {
@@ -66,6 +74,7 @@ async function loadResult() {
 
 async function goBackToResults() {
   const department = getQueryValue(route.query.department)
+    const roomTypeId = getQueryValue(route.query.roomTypeId)
   await router.push({
     path: '/rooms/exam-results',
     query: department ? { department } : {}

@@ -25,6 +25,7 @@ type ExamResult = {
     name?: string | null
     code?: string | null
     department?: Department | null
+    roomType?: Department | null
     inputans?: Array<{
       id: string
       label: string
@@ -87,7 +88,8 @@ const api = useApi()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const { roles, allowedResultDepartments } = await useCurrentUser()
+const { roles, isExternalDoctor, allowedResultDepartments } = await useCurrentUser()
+const { roomTypes, pending: roomTypesPending } = await useRoomTypes()
 
 // State
 const loading = ref(false)
@@ -95,6 +97,7 @@ const results = ref<ExamResult[]>([])
 
 // Filters
 const departmentFilter = ref<string>('all')
+const roomTypeFilter = ref<string>('all')
 const statusFilter = ref<'pending' | 'completed' | 'all'>('all')
 const resultTypeFilter = ref<'inline' | 'deferred' | 'all'>('all')
 const dateFromFilter = ref<string>('')
@@ -113,6 +116,14 @@ const departmentsLoading = ref(false)
 const departmentItems = computed(() => [
   { label: 'All Departments', value: 'all' },
   ...departments.value.map((d) => ({ label: d.name, value: d.id })),
+])
+
+const roomTypeItems = computed(() => [
+  { label: 'All Room Types', value: 'all' },
+  ...roomTypes.value.map(roomType => ({
+    label: `${roomType.code} - ${roomType.name}`,
+    value: roomType.id
+  }))
 ])
 const initialExamId = ref('')
 const initialRegistrationId = ref('')
@@ -196,6 +207,7 @@ function applyRouteFilters() {
   const department = getQueryValue(route.query.department).toLowerCase()
   const status = getQueryValue(route.query.status)
   const resultTiming = getQueryValue(route.query.resultTiming)
+  const roomTypeId = getQueryValue(route.query.roomTypeId)
   const examId = getQueryValue(route.query.examId)
   const registrationId = getQueryValue(route.query.registrationId)
 
@@ -205,6 +217,7 @@ function applyRouteFilters() {
   resultTypeFilter.value = resultTiming === 'inline' || resultTiming === 'deferred'
     ? resultTiming
     : 'all'
+  roomTypeFilter.value = roomTypeId || 'all'
   initialExamId.value = examId
   initialRegistrationId.value = registrationId
 }
@@ -226,6 +239,7 @@ function syncRouteFilters() {
 
   if (menuDepartment) query.department = menuDepartment
   else if (departmentFilter.value && departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
+  if (roomTypeFilter.value !== 'all') query.roomTypeId = roomTypeFilter.value
   if (statusFilter.value !== 'all') query.status = statusFilter.value
   if (resultTypeFilter.value !== 'all') query.resultTiming = resultTypeFilter.value
   if (dateFromFilter.value) query.dateFrom = dateFromFilter.value
@@ -246,6 +260,10 @@ const filteredResults = computed(() => {
       menuDepartmentCode.value
       && result.item?.department?.code?.toUpperCase() !== menuDepartmentCode.value
     ) {
+      return false
+    }
+
+    if (roomTypeFilter.value !== 'all' && result.item?.roomType?.id !== roomTypeFilter.value) {
       return false
     }
 
@@ -322,13 +340,17 @@ async function loadResults() {
     const params: Record<string, any> = {
       page: page.value,
       limit: limit.value,
-      groupBy: 'exam',
+      groupBy: isExternalDoctor.value ? 'item' : 'exam',
     }
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {
       params.departmentId = departmentFilter.value
     } else if (menuDepartmentCode.value) {
       params.departmentCode = menuDepartmentCode.value
+    }
+
+    if (roomTypeFilter.value !== 'all') {
+      params.roomTypeId = roomTypeFilter.value
     }
 
     if (statusFilter.value !== 'all') {
@@ -386,10 +408,13 @@ watch(results, () => {
 async function viewDetail(result: ExamResult) {
   await router.push({
     path: `/rooms/exam-results/${result.id}`,
-    query: {
-      department: getQueryValue(route.query.department),
-      examId: result.exam?.id || ''
-    }
+    query: isExternalDoctor.value
+      ? {}
+      : {
+          department: getQueryValue(route.query.department),
+          examId: result.exam?.id || '',
+          ...(result.item?.roomType?.id ? { roomTypeId: result.item.roomType.id } : {})
+        }
   })
 }
 
@@ -397,6 +422,7 @@ async function viewDetail(result: ExamResult) {
 function resetFilters() {
   menuDepartmentCode.value = null
   departmentFilter.value = 'all'
+  roomTypeFilter.value = 'all'
   statusFilter.value = 'all'
   resultTypeFilter.value = 'all'
   dateFromFilter.value = ''
@@ -409,7 +435,7 @@ function resetFilters() {
 }
 
 // Watch filters and reload
-watch([departmentFilter, statusFilter, resultTypeFilter, dateFromFilter, dateToFilter], () => {
+watch([departmentFilter, roomTypeFilter, statusFilter, resultTypeFilter, dateFromFilter, dateToFilter], () => {
   if (isBootstrapping.value || isApplyingMenuDepartment.value) return
 
   const selectedDepartment = departments.value.find(
@@ -456,8 +482,8 @@ onMounted(async () => {
   <UDashboardPanel id="exam-results">
     <template #header>
       <UDashboardNavbar
-        title="Exam Results Management"
-        subtitle="Manage inline and deferred exam results"
+        :title="isExternalDoctor ? 'Pekerjaan Dokter Luar' : 'Exam Results Management'"
+        :subtitle="isExternalDoctor ? 'Hasil pemeriksaan yang ditugaskan kepada Anda' : 'Manage inline and deferred exam results'"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -479,13 +505,22 @@ onMounted(async () => {
 
     <template #body>
       <div class="space-y-4">
+        <UAlert
+          v-if="isExternalDoctor"
+          icon="i-lucide-stethoscope"
+          color="info"
+          variant="soft"
+          title="Workspace Dokter Luar"
+          description="Hanya pemeriksaan yang ditugaskan kepada akun Anda yang ditampilkan. Isi hasil, simpan draft, lalu submit."
+        />
+
         <!-- Filters Section -->
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex items-center justify-between gap-3">
               <h3 class="text-base font-semibold">Filters</h3>
               <UButton
-                v-if="departmentFilter !== 'all' || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
+                v-if="departmentFilter !== 'all' || roomTypeFilter !== 'all' || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
                 size="xs"
                 color="neutral"
                 variant="ghost"
@@ -496,7 +531,7 @@ onMounted(async () => {
             </div>
           </template>
 
-          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
             <!-- Search -->
             <UFormField label="Search">
               <UInput
@@ -507,7 +542,7 @@ onMounted(async () => {
             </UFormField>
 
             <!-- Department Filter -->
-            <UFormField label="Department">
+            <UFormField v-if="!isExternalDoctor" label="Department">
               <USelect
                 v-model="departmentFilter"
                 :items="departmentItems"
@@ -515,6 +550,17 @@ onMounted(async () => {
               />
             </UFormField>
 
+
+            <!-- Room Type Filter -->
+            <UFormField v-if="!isExternalDoctor" label="Room Type">
+              <USelect
+                v-model="roomTypeFilter"
+                :items="roomTypeItems"
+                :loading="roomTypesPending"
+                placeholder="Select room type"
+                class="w-full"
+              />
+            </UFormField>
             <!-- Status Filter -->
             <UFormField label="Status">
               <USelect
@@ -528,7 +574,7 @@ onMounted(async () => {
             </UFormField>
 
             <!-- Result Type Filter -->
-            <UFormField label="Result Type">
+            <UFormField v-if="!isExternalDoctor" label="Result Type">
               <USelect
                 v-model="resultTypeFilter"
                 :items="[
@@ -540,7 +586,7 @@ onMounted(async () => {
             </UFormField>
 
             <!-- Date Range -->
-            <UFormField label="Date Range">
+            <UFormField v-if="!isExternalDoctor" label="Date Range">
               <div class="flex gap-2">
                 <UInput
                   v-model="dateFromFilter"
@@ -578,7 +624,7 @@ onMounted(async () => {
             <UIcon name="i-lucide-inbox" class="mb-3 size-10 text-muted" />
             <h3 class="text-base font-semibold text-highlighted">No results found</h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
-              No exam results match your filter criteria. Try adjusting your filters.
+              {{ isExternalDoctor ? 'Belum ada pemeriksaan yang ditugaskan kepada Anda.' : 'No exam results match your filter criteria. Try adjusting your filters.' }}
             </p>
           </div>
 

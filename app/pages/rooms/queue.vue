@@ -41,9 +41,14 @@ type RoomSession = {
 }
 
 type PatientName = {
+  id?: number | string | null
+  PatientId?: string | null
   firstName?: string | null
   middleName?: string | null
   lastName?: string | null
+  gender?: string | null
+  dob?: string | null
+  phone?: string | null
 }
 
 type RoomQueueItem = {
@@ -110,6 +115,9 @@ type QueueHistoryRow = {
   tierOrder: number
   patientName: string
   patientId: string
+  patientGender: string | null
+  patientDob: string | null
+  patientPhone: string | null
   examDate: string | null
   roomLabel: string
   itemSummary: string
@@ -179,6 +187,9 @@ type WaitingRow = {
   tierOrder: number
   patientName: string
   patientId: string
+  patientGender: string | null
+  patientDob: string | null
+  patientPhone: string | null
   examDate: string | null
   itemSummary: string
   stageSummary: string
@@ -495,6 +506,9 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       tierOrder: item.tierOrder,
       patientName: formatPatientName(patient ?? null),
       patientId: patient?.PatientId || '-',
+      patientGender: patient?.gender ?? null,
+      patientDob: patient?.dob ?? null,
+      patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
       roomLabel: assignment.value?.roomType?.name
         ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
@@ -531,6 +545,9 @@ const waitingRows = computed<WaitingRow[]>(() =>
       tierOrder: item.tierOrder,
       patientName: formatPatientName(patient ?? null),
       patientId: patient?.PatientId || '-',
+      patientGender: patient?.gender ?? null,
+      patientDob: patient?.dob ?? null,
+      patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
@@ -541,7 +558,6 @@ const waitingRows = computed<WaitingRow[]>(() =>
     }
   })
 )
-
 
 const historyStats = computed(() => ({
   completed: historyRows.value.length,
@@ -579,6 +595,26 @@ function formatPatientName(patient?: PatientName | null) {
   return [patient.firstName, patient.middleName, patient.lastName]
     .filter(Boolean)
     .join(' ')
+}
+
+function formatPatientMeta(gender?: string | null, dob?: string | null, phone?: string | null) {
+  const genderLabel = gender === 'MALE' ? 'Laki-laki' : gender === 'FEMALE' ? 'Perempuan' : null
+  const age = dob ? getPatientAgeAtDate(dob, today) : null
+  const profile = [genderLabel, age != null ? `${age} th` : null].filter(Boolean).join(' · ')
+  return [profile, phone].filter(Boolean).join(' · ')
+}
+
+function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null) {
+  if (!dob) return null
+
+  const birthDate = new Date(dob)
+  const targetDate = referenceDate ? new Date(referenceDate) : new Date()
+  if (Number.isNaN(birthDate.getTime()) || Number.isNaN(targetDate.getTime())) return null
+
+  let age = targetDate.getFullYear() - birthDate.getFullYear()
+  const monthDiff = targetDate.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && targetDate.getDate() < birthDate.getDate())) age -= 1
+  return age
 }
 
 function getItemStatusLabel(status: string) {
@@ -1224,6 +1260,9 @@ watch(
                       <p class="text-xs text-muted">
                         RM {{ row.patientId }}
                       </p>
+                      <p v-if="formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone)" class="text-xs text-muted">
+                        {{ formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone) }}
+                      </p>
                     </div>
                   </td>
                   <td class="border-b border-default px-4 py-4">
@@ -1406,6 +1445,9 @@ watch(
                         </p>
                         <p class="text-xs text-muted">
                           RM {{ row.patientId }}
+                        </p>
+                        <p v-if="formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone)" class="text-xs text-muted">
+                          {{ formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone) }}
                         </p>
                       </div>
                     </td>

@@ -12,7 +12,8 @@ const userId = computed(() => Number(route.params.id))
 const schema = z.object({
   name: z.string().min(2, 'Too short'),
   email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Must be at least 8 characters').optional().or(z.literal(''))
+  password: z.string().min(8, 'Must be at least 8 characters').optional().or(z.literal('')),
+  isExternal: z.boolean().optional().default(false)
 })
 
 type Schema = z.output<typeof schema>
@@ -20,7 +21,8 @@ type Schema = z.output<typeof schema>
 const state = reactive<Partial<Schema>>({
   name: '',
   email: '',
-  password: ''
+  password: '',
+  isExternal: false
 })
 
 const loading = ref(false)
@@ -36,6 +38,7 @@ async function fetchUser() {
     state.name = data.name ?? ''
     state.email = data.email ?? ''
     state.password = ''
+    state.isExternal = Boolean(data.isExternal)
   } catch (err) {
     error.value = err
   } finally {
@@ -49,7 +52,8 @@ async function onSubmit(event: { data: Schema }) {
   try {
     const payload: Record<string, unknown> = {
       name: event.data.name,
-      email: event.data.email
+      email: event.data.email,
+      isExternal: Boolean(event.data.isExternal)
     }
     if (event.data.password) {
       payload.password = event.data.password
@@ -124,6 +128,14 @@ onMounted(fetchUser)
             description="Kosongkan jika tidak ingin mengubah password."
           >
             <UInput v-model="state.password" type="password" class="w-full" />
+          </UFormField>
+
+          <UFormField
+            label="Jenis pengguna medis"
+            name="isExternal"
+            description="Aktifkan jika user ini menerima penugasan hasil pemeriksaan sebagai dokter luar."
+          >
+            <UCheckbox v-model="state.isExternal" label="Dokter luar" />
           </UFormField>
 
           <div class="flex justify-end gap-2 pt-2">

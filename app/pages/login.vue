@@ -71,10 +71,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     const roles: string[] = res.data.data.roles ?? []
     const externalRole = 'dokter-external'
+    const isExternalDoctor = Boolean(res.data.data.isExternal) || roles.includes(externalRole)
     const frontOfficeRole = 'front-office'
     const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
-    const target = roles.includes(externalRole)
+    const target = isExternalDoctor
       ? '/rooms/exam-results'
       : roles.includes(frontOfficeRole)
         ? '/front-office/registration-temp'
