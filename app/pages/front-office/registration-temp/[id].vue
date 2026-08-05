@@ -109,19 +109,79 @@ function formatDateTime(d?: string) {
   })
 }
 
+function fmtDate(d?: string) {
+  if (!d) return '-'
+  const date = parseLocalDate(d)
+  if (!date) return d
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  })
+}
+
+function parseLocalDate(d: string): Date | null {
+  if (!d) return null
+  const iso = new Date(d)
+  if (!Number.isNaN(iso.getTime())) return iso
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d.trim())
+  if (m) {
+    const [_, y, mo, day] = m
+    const parsed = new Date(Number(y), Number(mo) - 1, Number(day))
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+  return null
+}
+
 // ─────────────────────────────────────────────
-// Questionnaires (static mock — replace with API)
+// Questionnaires — data asli dari BE
 // ─────────────────────────────────────────────
-const questionnaires = [
-  { name: 'MCU Questionnaire', completionDate: 'May 06, 2026', status: 'Completed' },
-  { name: 'SRQ-20 Mental Health', completionDate: 'May 06, 2026', status: 'Completed' },
-  { name: 'Physical Assessment Questionnaire', completionDate: null, status: 'Pending' }
-]
+type TempQuestionnaire = {
+  questionnaire_id: string
+  questionnaire_name: string
+  status: 'Completed' | 'Pending'
+  completionDate: string | null
+  answers?: Array<{
+    questionId: string
+    questionText: string
+    questionType?: string
+    optionId?: string | null
+    optionText?: string | null
+    answerText?: string | null
+  }>
+}
+
+const questionnaires = ref<TempQuestionnaire[]>([])
+const questionnairesLoading = ref(false)
+
+async function loadQuestionnaires() {
+  questionnairesLoading.value = true
+  try {
+    const res = await api.get(`/registration-temp/${route.params.id}/questionnaires`)
+    questionnaires.value = res.data?.data ?? []
+  } catch {
+    questionnaires.value = []
+  } finally {
+    questionnairesLoading.value = false
+  }
+}
 
 // Modal
 const modalOpen = ref(false)
 const modalTitle = ref('')
-function openModal(name: string) { modalTitle.value = name; modalOpen.value = true }
+const modalAnswers = ref<NonNullable<TempQuestionnaire['answers']>>([])
+function openModal(q: TempQuestionnaire) {
+  modalTitle.value = q.questionnaire_name
+  modalAnswers.value = q.answers ?? []
+  modalOpen.value = true
+}
+
+type TempAnswer = NonNullable<TempQuestionnaire['answers']>[number]
+
+function formatAnswer(q: TempAnswer): string {
+  if (q.answerText != null && q.answerText !== '') return q.answerText
+  if (q.optionText) return q.optionText
+  if (q.optionId) return q.optionId
+  return '-'
+}
 
 // ─────────────────────────────────────────────
 // Status history
@@ -145,13 +205,115 @@ const statusHistory = computed(() => {
   if (reg.value.status === 'REJECTED' && reg.value.rejectedReason) {
     items.splice(1, 0, {
       label: 'Ditolak',
-       time: reg.value.updatedAt || reg.value.createdAt,
+      time: reg.value.updatedAt || reg.value.createdAt,
       desc: `Alasan: ${reg.value.rejectedReason}`,
       dot: 'bg-error'
     })
   }
   return items
 })
+
+onMounted(() => {
+  loadQuestionnaires()
+})
+
+function printQuestionnaires() {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+  const completed = questionnaires.value.filter(q => q.status === 'Completed')
+  const html = `
+    <html>
+      <head>
+        <title>Medical Questionnaires - ${fullName.value}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+          h1 { font-size: 18px; margin-bottom: 4px; }
+          .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 11px; }
+          th { background: #f3f4f6; font-weight: 600; }
+          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+          .badge-success { background: #dcfce7; color: #166534; }
+          .badge-neutral { background: #f3f4f6; color: #374151; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Medical Questionnaires List</h1>
+        <div class="meta">
+          Patient: ${fullName.value} · ${reg.value?.patientId || '-'} · Reg: ${reg.value?.registrationId || '-'} · ${new Date().toLocaleString('id-ID')}
+        </div>
+        <table>
+          <thead>
+            <tr><th>Questionnaire</th><th style="text-align:center">Completion Date</th><th style="text-align:center">Status</th></tr>
+          </thead>
+          <tbody>
+            ${completed.map(q => `
+              <tr>
+                <td>${q.questionnaire_name}</td>
+                <td style="text-align:center">${q.completionDate ? formatDateTime(q.completionDate) : 'Not completed'}</td>
+                <td style="text-align:center"><span class="badge ${q.status === 'Completed' ? 'badge-success' : 'badge-neutral'}">${q.status}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.onload = () => {
+    printWindow.focus()
+    printWindow.print()
+  }
+}
+
+function printSingleQuestionnaire(q: TempQuestionnaire) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+  const answers = q.answers ?? []
+  const html = `
+    <html>
+      <head>
+        <title>${q.questionnaire_name} - ${fullName.value}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+          h1 { font-size: 18px; margin-bottom: 4px; }
+          .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
+          .section { margin-top: 16px; padding: 8px; background: #f9fafb; border-radius: 4px; }
+          .question { margin-bottom: 8px; }
+          .q-text { font-weight: 600; margin-bottom: 2px; }
+          .q-answer { color: #374151; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>${q.questionnaire_name}</h1>
+        <div class="meta">
+          Patient: ${fullName.value} · ${reg.value?.patientId || '-'} · Completed: ${q.completionDate ? formatDateTime(q.completionDate) : '-'} · ${new Date().toLocaleString('id-ID')}
+        </div>
+        ${answers.map((a: TempAnswer) => `
+          <div class="question">
+            <div class="q-text">${a.questionText}</div>
+            <div class="q-answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</div>
+          </div>
+        `).join('')}
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.onload = () => {
+    printWindow.focus()
+    printWindow.print()
+  }
+}
+
+function printModalAnswers() {
+  const q = questionnaires.value.find(x => x.questionnaire_name === modalTitle.value)
+  if (!q) return
+  printSingleQuestionnaire(q)
+}
 </script>
 
 <template>
@@ -218,7 +380,7 @@ const statusHistory = computed(() => {
               <span v-if="reg.patientId" class="text-xs text-muted">ID: {{ reg.patientId }}</span>
             </div>
             <div v-if="reg.firstName" class="px-5 py-4">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
                   <p class="text-xs text-muted mb-1">
                     Full Name
@@ -233,6 +395,14 @@ const statusHistory = computed(() => {
                   </p>
                   <p class="font-semibold">
                     {{ reg.gender === 'male' ? 'Male' : 'Female' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs text-muted mb-1">
+                    Tanggal Lahir
+                  </p>
+                  <p class="font-semibold">
+                    {{ fmtDate(reg.dob) }}
                   </p>
                 </div>
                 <div>
@@ -393,13 +563,16 @@ const statusHistory = computed(() => {
                 <UIcon name="i-lucide-clipboard-check" class="text-primary" />
                 Medical Questionnaires List
               </h3>
-              <UButton
-                icon="i-lucide-printer"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                label="Print All Results"
-              />
+              <div class="flex items-center gap-2">
+                <UButton
+                  icon="i-lucide-printer"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  label="Print All Results"
+                  @click="printQuestionnaires"
+                />
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left">
@@ -422,14 +595,14 @@ const statusHistory = computed(() => {
                 <tbody class="divide-y divide-default">
                   <tr
                     v-for="q in questionnaires"
-                    :key="q.name"
+                    :key="q.questionnaire_id"
                     class="hover:bg-elevated transition-colors"
                   >
                     <td class="px-5 py-3">
-                      <span class="text-sm font-semibold">{{ q.name }}</span>
+                      <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
                     </td>
                     <td class="px-5 py-3 text-center">
-                      <span v-if="q.completionDate" class="text-sm text-muted">{{ q.completionDate }}</span>
+                      <span v-if="q.completionDate" class="text-sm text-muted">{{ formatDateTime(q.completionDate) }}</span>
                       <span v-else class="text-sm text-muted italic">Not completed</span>
                     </td>
                     <td class="px-5 py-3 text-center">
@@ -448,7 +621,7 @@ const statusHistory = computed(() => {
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openModal(q.name)"
+                          @click="q.status === 'Completed' && openModal(q)"
                         />
                         <UButton
                           icon="i-lucide-printer"
@@ -456,6 +629,7 @@ const statusHistory = computed(() => {
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
+                          @click="q.status === 'Completed' && printSingleQuestionnaire(q)"
                         />
                       </div>
                     </td>
@@ -507,37 +681,20 @@ const statusHistory = computed(() => {
       <!-- ════ Questionnaire Modal ════ -->
       <UModal v-model:open="modalOpen" :title="modalTitle">
         <template #body>
-          <div class="space-y-3">
-            <div class="p-3 bg-elevated rounded-lg">
+          <div v-if="!modalAnswers.length" class="text-sm text-muted">
+            Tidak ada jawaban tersimpan untuk questionnaire ini.
+          </div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="(a, i) in modalAnswers"
+              :key="a.questionId || i"
+              class="p-3 bg-elevated rounded-lg"
+            >
               <p class="text-xs text-muted mb-1">
-                Allergies
+                {{ a.questionText }}
               </p>
               <p class="text-sm font-semibold">
-                None reported
-              </p>
-            </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Current Medications
-              </p>
-              <p class="text-sm font-semibold">
-                Amoxicillin (500mg, 1x Daily)
-              </p>
-            </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Previous Surgeries
-              </p>
-              <p class="text-sm font-semibold">
-                Appendectomy (2018)
-              </p>
-            </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Family History
-              </p>
-              <p class="text-sm font-semibold">
-                Hypertension (Father), Diabetes Type 2 (Mother)
+                {{ formatAnswer(a) }}
               </p>
             </div>
           </div>
@@ -550,7 +707,12 @@ const statusHistory = computed(() => {
               label="Close"
               @click="modalOpen = false"
             />
-            <UButton color="primary" icon="i-lucide-printer" label="Print Answers" />
+            <UButton
+              color="primary"
+              icon="i-lucide-printer"
+              label="Print Answers"
+              @click="printModalAnswers"
+            />
           </div>
         </template>
       </UModal>

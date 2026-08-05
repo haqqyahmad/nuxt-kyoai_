@@ -138,7 +138,6 @@ function selectPatient(patient: Patient) {
 function clearPatient() {
   selectedPatient.value = null
   formApprove.patientId = ''
-  formApprove.patientExists = false
 }
 
 // Reset form when status changes
@@ -423,6 +422,12 @@ watch(isStatusModalOpen, (val) => {
   if (val) {
     formApprove.examDate = ''
     formApprove.priorityRegist = ''
+    formApprove.patientExists = false
+    formApprove.patientId = ''
+    selectedPatient.value = null
+    patientSearchQuery.value = ''
+    patientResults.value = []
+
     formReject.rejectReason = ''
 
     touched.examDate = false
@@ -962,6 +967,70 @@ watch(currentPage, (page) => {
       >
         <template #content>
           <div class="space-y-4">
+            <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (ditanya sebelum pilih status) -->
+            <div class="space-y-2">
+              <label class="text-sm font-medium text-muted">
+                Apakah pasien sudah pernah MCU di Kyoai?
+              </label>
+              <div class="flex gap-2">
+                <UButton
+                  size="xs"
+                  :color="formApprove.patientExists === true ? 'primary' : 'neutral'"
+                  variant="soft"
+                  @click="formApprove.patientExists = true; clearPatient()"
+                >
+                  Ya
+                </UButton>
+                <UButton
+                  size="xs"
+                  :color="formApprove.patientExists === false ? 'primary' : 'neutral'"
+                  variant="soft"
+                  @click="formApprove.patientExists = false; clearPatient()"
+                >
+                  Tidak
+                </UButton>
+              </div>
+
+              <div v-if="formApprove.patientExists && !selectedPatient" class="mt-2">
+                <UInput
+                  v-model="patientSearchQuery"
+                  placeholder="Cari nama atau nomor RM pasien..."
+                  icon="i-lucide-search"
+                />
+                <div v-if="patientSearchLoading" class="mt-2 text-xs text-muted">
+                  Mencari...
+                </div>
+                <div v-else-if="patientResults.length" class="mt-2 border rounded-lg max-h-48 overflow-auto">
+                  <div
+                    v-for="p in patientResults"
+                    :key="p.id"
+                    class="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-default last:border-0"
+                    @click="selectPatient(p)"
+                  >
+                    <p class="text-sm font-medium text-highlighted">
+                      {{ p.firstName }} {{ p.middleName || '' }} {{ p.lastName }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      RM: {{ p.PatientId || '-' }} · {{ p.gender || '-' }}
+                    </p>
+                  </div>
+                </div>
+                <div v-else-if="patientSearchQuery.length >= 2 && !patientSearchLoading" class="mt-2 text-xs text-muted">
+                  Tidak ada pasien ditemukan.
+                </div>
+              </div>
+
+              <div v-if="selectedPatient" class="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                <p class="text-sm font-medium text-primary">
+                  {{ selectedPatient.firstName }} {{ selectedPatient.middleName || '' }} {{ selectedPatient.lastName }}
+                </p>
+                <p class="text-xs text-muted">
+                  RM: {{ selectedPatient.PatientId || '-' }}
+                  <UButton size="xs" variant="ghost" class="ml-2" @click="clearPatient">Ganti</UButton>
+                </p>
+              </div>
+            </div>
+
             <!-- 🔥 PINDAHKAN KE SINI -->
             <div class="space-y-2">
               <label class="text-sm font-medium text-muted">
@@ -1042,70 +1111,6 @@ watch(currentPage, (page) => {
                   />
                   <p v-if="touched.priorityRegist && errors.priorityRegist" class="text-xs text-red-500">
                     {{ errors.priorityRegist }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Patient Existing Search -->
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-muted">
-                  Apakah pasien sudah pernah MCU di Kyoai?
-                </label>
-                <div class="flex gap-2">
-                  <UButton
-                    size="xs"
-                    :color="formApprove.patientExists === true ? 'primary' : 'neutral'"
-                    variant="soft"
-                    @click="formApprove.patientExists = true; clearPatient()"
-                  >
-                    Ya
-                  </UButton>
-                  <UButton
-                    size="xs"
-                    :color="formApprove.patientExists === false ? 'primary' : 'neutral'"
-                    variant="soft"
-                    @click="formApprove.patientExists = false; clearPatient()"
-                  >
-                    Tidak
-                  </UButton>
-                </div>
-
-                <div v-if="formApprove.patientExists && !selectedPatient" class="mt-2">
-                  <UInput
-                    v-model="patientSearchQuery"
-                    placeholder="Cari nama atau nomor RM pasien..."
-                    icon="i-lucide-search"
-                  />
-                  <div v-if="patientSearchLoading" class="mt-2 text-xs text-muted">
-                    Mencari...
-                  </div>
-                  <div v-else-if="patientResults.length" class="mt-2 border rounded-lg max-h-48 overflow-auto">
-                    <div
-                      v-for="p in patientResults"
-                      :key="p.id"
-                      class="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-default last:border-0"
-                      @click="selectPatient(p)"
-                    >
-                      <p class="text-sm font-medium text-highlighted">
-                        {{ p.firstName }} {{ p.middleName || '' }} {{ p.lastName }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        RM: {{ p.PatientId || '-' }} · {{ p.gender || '-' }}
-                      </p>
-                    </div>
-                  </div>
-                  <div v-else-if="patientSearchQuery.length >= 2 && !patientSearchLoading" class="mt-2 text-xs text-muted">
-                    Tidak ada pasien ditemukan.
-                  </div>
-                </div>
-
-                <div v-if="selectedPatient" class="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <p class="text-sm font-medium text-primary">
-                    {{ selectedPatient.firstName }} {{ selectedPatient.middleName || '' }} {{ selectedPatient.lastName }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    RM: {{ selectedPatient.PatientId || '-' }}
-                    <UButton size="xs" variant="ghost" class="ml-2" @click="clearPatient">Ganti</UButton>
                   </p>
                 </div>
               </div>

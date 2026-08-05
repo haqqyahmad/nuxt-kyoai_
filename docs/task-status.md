@@ -4,9 +4,65 @@ Last updated: 2026-08-05
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
-## Completed — 2026-08-05: Full Code Review & Critical Bug Fixes
+## Completed — 2026-08-05: Print Function Medical Questionnaires (FE)
 
-**Review menyeluruh** dilakukan terhadap BE (express_dash), FE (my-app), dan Portal (regist_portal), dibandingkan dengan seluruh docs.
+**Perintah:** Tambahkan fungsi print di `/front-office/registration-temp/[id]` pada Medical Questionnaires List.
+
+Implementasi:
+- **Print All Results** (header tabel) — cetak daftar semua questionnaire Completed
+- **Per-row print** (icon printer tiap baris) — cetak satu questionnaire dengan detail jawaban
+- **Modal "Print Answers"** — cetak detail jawaban dari modal
+
+Teknik: `window.print()` + CSS `@media print` (zero dependency, native browser print dialog, simpel).
+
+File: `app/pages/front-office/registration-temp/[id].vue`
+
+## Completed — 2026-08-05: Fix DOB "Invalid Date" + Tambahkan Tanggal Lahir di Patient Information
+
+**Perintah:** DOB pada `/front-office/registration-temp/[id]` tampil `Invalid Date`; tambahkan DOB di Patient Information.
+
+- Akar: `new Date(dob)` gagal parse format BE (`YYYY-MM-DD` / `YYYY-MM-DD HH:MM:SS`) → `Invalid Date`.
+- Fix: `parseLocalDate()` (ISO dulu, lalu regex `YYYY-MM-DD` manual sebagai fallback).
+- Tambahan field **Tanggal Lahir** di grid Patient Information (format `dd MMMM yyyy`).
+
+File: `app/pages/front-office/registration-temp/[id].vue`
+
+## Status history: tidak menulis log perubahan status
+
+- `statusHistory` (line 167) adalah **computed display-only** — memodelkan ulang satu fetch `GET /registration-temp/:id`, tidak ada write/create/update record.
+- Perubahan status (PENDING→APPROVED/REJECTED) ditulis oleh **backend** via endpoint `POST /.../:id/approve` / `/.../:id/reject`; FE hanya menampilkan `status`/`rejectedReason`/`updatedAt` hasil fetch.
+- Agar history update setelah approval dari halaman ini, perlu panggil `refresh()` (saat ini belum di-wire / unused).
+
+## Completed — 2026-08-05: Fix Portal 404 — Routing SvelteKit Sub-path
+
+**Akar masalah (tahap 2):** Setelah `portalKey` di-set, portal masih 404. Penyebab: logika proxy `/api/questionnaire/default` & `/api/questionnaire/:id` ditaruh DI DALAM `src/routes/api/questionnaire/+server.ts`, padahal SvelteKit hanya me-route **path persis** ke file itu — sub-path `/default` dan `/:id` TIDAK masuk ke file tersebut → SvelteKit 404. Hanya `/api/questionnaire/answers` yang bekerja karena punya file route sendiri.
+
+Fix:
+- Buat `src/routes/api/questionnaire/default/+server.ts` — proxy ke BE `/questionnaire/public/default?companyId=&branchId=`.
+- Buat `src/routes/api/questionnaire/[id]/+server.ts` — proxy ke BE `/questionnaire/public/:id`.
+- Sederhanakan `src/routes/api/questionnaire/+server.ts` — hanya tangani `/api/questionnaire?portalKey=` (legacy → BE `/public/active`).
+- **Verifikasi curl:** `/api/questionnaire/default` → 200 (MCU Questionnaire), `/api/questionnaire/:id` → 200, `/api/questionnaire/answers` POST → 400 (validasi, route benar), `/api/questionnaire?portalKey=MCU` → 200.
+
+## Completed — 2026-08-05: Fix Portal Gagal Memuat Kuesioner
+
+**Akar masalah:** Kuesioner "MCU Questionnaire" di DB punya `portalKey = NULL` (dibuat sebelum field `portalKey` ditambahkan ke UI). Portal memanggil `/api/questionnaire/public/default?companyId=&branchId=` → BE fallback `findFirst({ isActive: true, portalKey: 'MCU' })` → tidak ketemu → 404 "Questionnaire default tidak ditemukan" → portal tampil "Gagal memuat kuesioner".
+
+Fix:
+- **Data:** `UPDATE qst_questionnaire SET portalKey='MCU' WHERE questionnaireCode='QST-001-001'`.
+- **BE robust** (`getDefaultByCompany`): prioritas 1 = questionnaire `portalKey='MCU'`; prioritas 2 = questionnaire active pertama yang masih punya sections (fallback agar portal tidak gagal bila admin lupa set portalKey).
+- **Verifikasi:** `GET /questionnaire/public/default` mengembalikan MCU Questionnaire (sections + questions); `POST /questionnaire/public/:id/submit` sukses (skip pertanyaan yang tidak valid). Test data dibersihkan.
+
+## Completed — 2026-08-05: Fix Pertanyaan Hilang di Answers Questionnaire
+
+**Akar masalah:** Portal hanya mengirim jawaban yang TERISI (`Object.entries(questionnaireAnswers)`), jadi pertanyaan yang tidak dijawab pasien (opsional/kosong) tidak pernah tercatat di `qst_answer` → tampak "hilang" di daftar answer.
+
+Fix:
+- **Portal** (`regist_portal/src/routes/registration/+page.svelte`): submit sekarang mengiterasi SEMUA pertanyaan dari `loadedQuestionnaire.sections` — pertanyaan terjawab dikirim sesuai tipe (radio/select → optionId, checkbox → optionIds, lainnya → answerText); pertanyaan kosong dikirim `answerText: null`. Kondisi submit juga diubah dari "ada jawaban" → "questionnaire ter-load".
+- **BE** (`submitAnswers`): tambah dedup — `deleteAnswersForSubmission` (deleteMany by regId/registrationId + questionnaireId) sebelum insert, cegah duplikat bila pasien submit ulang/retry.
+- **BE display** (`getTempQuestionnaires`): endpoint `/registration-temp/:id/questionnaires` menampilkan **hanya pertanyaan yang dijawab** (non-empty) — pertanyaan kosong tidak muncul. Storage tetap menyimpan semua pertanyaan (aman), display memfilter.
+- **Keputusan user:** display answer → "Hanya pertanyaan yang dijawab".
+
+## Completed — 2026-08-05: Full Code Review & Critical Bug Fixes**Review menyeluruh** dilakukan terhadap BE (express_dash), FE (my-app), dan Portal (regist_portal), dibandingkan dengan seluruh docs.
 
 - 🔴 K1: **Restore model Qst\* + CompanyQuestionnaire di `schema.prisma`** — commit merge `6567627` menghapus semua model Qst (QstQuestionnaire/Section/Question/Option/Answer) + CompanyQuestionnaire dari schema, membuat `prisma validate`/`generate` gagal (`Registration.qstAnswers` mereferensikan model yang tidak ada). Restore penuh dari commit `7534d13` + opposite relation `companyQuestionnaires` di QstQuestionnaire. Prisma client di-regenerate → `prisma.companyQuestionnaire` tersedia. **`GET /questionnaire/public/default` kembali berfungsi.**
 - 🔴 K2: **Portal proxy by-ID** (`regist_portal/src/routes/api/questionnaire/+server.ts`) — cek `segments.length === 2` padahal path `/api/questionnaire/:id` menghasilkan 3 segment → selalu 404. Diperbaiki menjadi `segments.length === 3 && segments[1] === 'questionnaire'`.
@@ -20,6 +76,15 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - 🟠 S5: **Fix `rescheduleNote` user di-drop** — `rescheduleSampleValidation` kini menerima `rescheduleNote`, repo `rescheduleSample` menggunakannya (sebelumnya note hardcoded).
 - 🟠 S6: **Filter `isActive`** di `getDefaultByCompany` — questionnaire non-aktif tidak lagi disajikan ke portal.
 - Fix lain: duplicate `branchId` di `patient.validation.js`.
+
+## Completed — 2026-08-05: Minor Fixes (M8, M7, M3, M14)
+
+- 🟡 M8: **Hapus route `POST /api/email/test`** (open relay) + helper `$lib/server/email/test.ts` di portal — dead code, tidak ada caller.
+- 🟡 M7: **Hapus blok komentar kredensial SMTP** (`website@kyoaims.com`/`Reg!@#123`) + import `MAIL_TO` unused di `regist_portal/src/routes/api/appointment/+server.ts`.
+- 🟡 M3: **Tab `leave` kini tampil di profile settings** — tambah entry `{ id: 'leave' }` di `empTabs` (template & data `leaveBalanceData` sudah ada).
+- 🟡 M14: **Ganti mock questionnaire di `registration-temp/[id].vue` dengan data asli**:
+  - BE: endpoint baru `GET /registration-temp/:id/questionnaires` (repo/service/controller/route) — query `qst_answer` by `regId`, group by questionnaire, tambah default MCU sebagai Pending bila belum diisi.
+  - FE: hapus mock `questionnaires` statis + modal isi statis; fetch data asli, render jawaban (`questionText` → `answerText`/`optionText`), status Completed/Pending.
 
 ## Completed
 

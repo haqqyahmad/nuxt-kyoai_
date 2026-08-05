@@ -8,6 +8,49 @@ Scope: Menyamakan frontend, PRD, dan dokumentasi kerja dengan backend aktif di `
 Audit menyeluruh ketiga codebase. Fix yang dilakukan:
 
 1. **`schema.prisma` restore** — commit merge `6567627` menghapus semua model `Qst*` + `CompanyQuestionnaire` dari schema (tabel DB tetap ada via migration). `Registration.qstAnswers QstAnswer[]` menjadi referensi broken → `prisma validate`/`generate` gagal. Restore penuh dari commit `7534d13`, tambah opposite relation `companyQuestionnaires CompanyQuestionnaire[]` di `QstQuestionnaire`, lalu `prisma generate`. **Unblock `GET /questionnaire/public/default`.**
+
+## 2026-08-05 — Print Function Medical Questionnaires (FE)
+
+- Tambahkan fungsi print di halaman detail registrasi temporary (`/front-office/registration-temp/[id]`) pada section Medical Questionnaires List.
+- Fitur: Print All Results (header), Print per-row (icon printer tiap baris), Print Answers (modal).
+- Teknik: `window.print()` + CSS `@media print` — zero dependency, native browser print dialog.
+- File: `app/pages/front-office/registration-temp/[id].vue`.
+
+## 2026-08-05 — Fix DOB "Invalid Date" di Patient Information (FE)
+
+- **Akar:** `dob` dari BE (format `YYYY-MM-DD` / MySQL `YYYY-MM-DD HH:MM:SS`) tidak dapat diparse `new Date()` konsisten di browser → render `Invalid Date`.
+- **Fix:** tambah `parseLocalDate()` — coba `new Date(d)` dulu, bila Invalid Date lakukan regex `YYYY-MM-DD` manual → `new Date(YYYY, MM-1, DD)` (lokasi/angka positif, aman timezone). `fmtDate()` pakai parser ini; bila tetap gagal kembalikan raw string (graceful).
+- Tambahan: field **Tanggal Lahir (DOB)** ditambahkan di grid Patient Information, format `dd MMMM yyyy` (mis. `15 Januari 1990`).
+- File: `app/pages/front-office/registration-temp/[id].vue`.
+
+## 2026-08-05 — Audit Modal Approve (FE)
+
+**Pertanyaan:** "Untuk Approved, ada indikasi FO ditanya sudah pernah MCU di Kyoai belum?"
+
+**Jawaban:** **Ada.** Di `registration-temp/index.vue` — modal status approve bertanya *"Apakah pasien sudah pernah MCU di Kyoai?"* dengan tombol **Ya** / **Tidak**.
+- **Ya** → muncul patient search (nama/RM) → `selectPatient` mengisi `formApprove.patientId` → approve kirim `patientId` (pakai pasien existing).
+- **Tidak** → `patientId` undefined → BE buat pasien baru.
+- Ini selaras alur worklog: *"tanpa patientId → buat pasien baru, dengan patientId → pakai existing."*
+
+**Re-order alur modal (sesuai permintaan):** blok "Apakah pasien sudah pernah MCU?" dipindah jadi elemen **pertama** (selalu tampil), **sebelum** "Pilih Status" — mengikuti marker `<!-- 🔥 PINDAHKAN KE SINI -->`. Jadi urutan modal jadi: (1) tanya Ya/Tidak MCU, (2) pilih status APPROVED/REJECTED, (3) form masing-masing (examDate+priority untuk APPROVED; reason untuk REJECTED), (4) konfirm. Blok ini dikeluarkan dari `v-if="selectedStatus === 'APPROVED'"` agar tampil sejak modal dibuka. Lint: 15 error semua pre-existing, tidak ada yang baru.
+
+**Fix state-leak:** `watch(isStatusModalOpen)` (baris 438) sebelumnya reset `examDate`/`priorityRegist`/`rejectReason` tapi **tidak** `patientExists`/`selectedPatient`/`patientId`/`patientSearchQuery` → pasien dari sesi approve sebelumnya bocor ke baris berikutnya. Ditambah reset penuh di buka modal agar keputusan Ya/Tidak selalu clean per baris.
+- File: `app/pages/front-office/registration-temp/index.vue`.
+
+## 2026-08-05 — Fix "Ya" tidak munculkan patient search di modal approve (FE)
+
+**Bug:** Klik **Ya** di *"Apakah pasien sudah pernah MCU di Kyoai?"* tidak ada respon — field pencarian pasien tidak muncul.
+
+**Akar:** handler tombol `@click="formApprove.patientExists = true; clearPatient()"` — `clearPatient()` (baris 138) juga mengeset `formApprove.patientExists = false`, sehingga eksekusi berurutan `true → false` meniadakan pilihan Ya (toggle kembali false, `v-if="patientExists && !selectedPatient"` tetap false).
+
+**Fix:** `clearPatient()` tidak lagi mereset `patientExists` — fungsinya hanya mengosongkan `selectedPatient` + `patientId`. Reset toggle Ya/Tidak dialihkan ke `watch(isStatusModalOpen)` (baris 438), jadi bersih per sesi modal terbuka. Flow sekarang:
+- **Ya** → `patientExists=true`, `clearPatient()` bersihkan data (bukan toggle) → search muncul ✅
+- **Tidak** → `patientExists=false` → search tersembunyi ✅
+- **Ganti** pasca-pilih → `selectedPatient=null`, toggle tetap true → search re-open ✅
+- File: `app/pages/front-office/registration-temp/index.vue`.
+
+## 2026-08-05 — Full Review (BE/FE/Portal) + Fix Bug Kritis (lanjutan)
+
 2. **Portal proxy by-ID** (`regist_portal/src/routes/api/questionnaire/+server.ts`) — bug segment count (2 vs 3) → `/api/questionnaire/:id` selalu 404. Fix ke `segments.length === 3 && segments[1] === 'questionnaire'`.
 3. **`DELETE /registration-temp/:id`** — route BE tidak ada, FE memanggilnya (404). Tambah repo/service/controller/route.
 4. **`POST/PATCH /patient/:id/history`** — `createPatientSchema.pick({companyId, startDate})` dengan key yang tidak ada → 500. Ganti ke `companyHistorySchema`.
@@ -16,6 +59,13 @@ Audit menyeluruh ketiga codebase. Fix yang dilakukan:
 7. **`rescheduleSampleValidation`** — terima `rescheduleNote`; repo pakai note user (bukan hardcoded).
 8. **`getDefaultByCompany`** — filter `isActive`.
 9. **FE fixes** — `assignments.vue` `const api = useApi()`, autosave `portalKey` watch source, `handleError`→`showErrors`.
+
+## 2026-08-05 — Minor Fixes (M8, M7, M3, M14)
+
+1. **M8 — hapus `POST /api/email/test`** — open relay, dead code. File `+server.ts` + `$lib/server/email/test.ts` dihapus.
+2. **M7 — hapus kredensial SMTP di komentar** — `api/appointment/+server.ts` (blok komentar `website@kyoaims.com`/`Reg!@#123` + `sendMail` mati + import `MAIL_TO` unused).
+3. **M3 — tab Leave di settings profile** — entry `{ id: 'leave' }` ditambahkan ke `empTabs` (`settings/index.vue`).
+4. **M14 — questionnaire asli di detail registration-temp** — endpoint BE baru `GET /registration-temp/:id/questionnaires` (query `qst_answer` by `regId`, group per questionnaire, fallback default MCU sebagai Pending); FE `registration-temp/[id].vue` ganti mock + modal render jawaban asli.
 
 ## 2026-08-04 — Audit & Fix front-office registration (FE ↔ BE alignment)
 
