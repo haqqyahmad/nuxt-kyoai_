@@ -3,6 +3,20 @@
 Tanggal: 2026-07-10  
 Scope: Menyamakan frontend, PRD, dan dokumentasi kerja dengan backend aktif di `C:\laragon\www\express_dash`.
 
+## 2026-08-05 — Full Review (BE/FE/Portal) + Fix Bug Kritis
+
+Audit menyeluruh ketiga codebase. Fix yang dilakukan:
+
+1. **`schema.prisma` restore** — commit merge `6567627` menghapus semua model `Qst*` + `CompanyQuestionnaire` dari schema (tabel DB tetap ada via migration). `Registration.qstAnswers QstAnswer[]` menjadi referensi broken → `prisma validate`/`generate` gagal. Restore penuh dari commit `7534d13`, tambah opposite relation `companyQuestionnaires CompanyQuestionnaire[]` di `QstQuestionnaire`, lalu `prisma generate`. **Unblock `GET /questionnaire/public/default`.**
+2. **Portal proxy by-ID** (`regist_portal/src/routes/api/questionnaire/+server.ts`) — bug segment count (2 vs 3) → `/api/questionnaire/:id` selalu 404. Fix ke `segments.length === 3 && segments[1] === 'questionnaire'`.
+3. **`DELETE /registration-temp/:id`** — route BE tidak ada, FE memanggilnya (404). Tambah repo/service/controller/route.
+4. **`POST/PATCH /patient/:id/history`** — `createPatientSchema.pick({companyId, startDate})` dengan key yang tidak ada → 500. Ganti ke `companyHistorySchema`.
+5. **HRIS auth** — 8 router HRIS kini pakai `auth` middleware (sebelumnya hanya API key).
+6. **`approveTemp` transaction** — `repo.createPatient`/`repo.updateTempStatus` terima `tx` (rollback benar).
+7. **`rescheduleSampleValidation`** — terima `rescheduleNote`; repo pakai note user (bukan hardcoded).
+8. **`getDefaultByCompany`** — filter `isActive`.
+9. **FE fixes** — `assignments.vue` `const api = useApi()`, autosave `portalKey` watch source, `handleError`→`showErrors`.
+
 ## 2026-08-04 — Audit & Fix front-office registration (FE ↔ BE alignment)
 
 ### Temuan & Fix di `registration-temp/index.vue` (Approval Flow):

@@ -44,7 +44,7 @@ const questionnairePortalKey = ref('')
 let loaded = false
 
 watchDebounced(
-  [questionnaireTitle, questionnaireDescription],
+  [questionnaireTitle, questionnaireDescription, questionnairePortalKey],
   async () => {
     if (!loaded) return
 

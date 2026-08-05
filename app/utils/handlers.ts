@@ -13,7 +13,7 @@ export const handleError = (toast: any, err: any) => {
       || err?.message
       || 'Failed to add user'
 
-  showError(toast, message)
+  showErrors(toast, message)
 }
 
 export const handleSuccessGeneral = (toast: any, name: string, message: string) => {

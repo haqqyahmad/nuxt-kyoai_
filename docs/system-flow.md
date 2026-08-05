@@ -446,6 +446,9 @@ BullMQ:
 | `/items/sample-types` | `/api/medical/exams` (sample types) | CRUD |
 | `/questionnaire` | `/api/questionnaire` | CRUD |
 | `/questionnaire/:id/builder` | `/api/questionnaire/builder` | PUT (autosave) |
+| Portal questionnaire (default) | `/api/questionnaire/public/default?companyId=&branchId=` | GET — per-company via tabel `CompanyQuestionnaire`, fallback `portalKey=MCU` |
+| Portal questionnaire (by ID) | `/api/questionnaire/public/:id` | GET |
+| Portal submit jawaban | `/api/questionnaire/public/:id/submit` | POST |
 | `/rooms` | `/api/medical/rooms/rooms` | CRUD |
 | `/rooms/types` | `/api/medical/rooms/room-types` | CRUD |
 | `/rooms/assignments` | `/api/room-assignments` | CRUD |

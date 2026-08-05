@@ -1,8 +1,25 @@
 # Project Task Status
 
-Last updated: 2026-07-30
+Last updated: 2026-08-05
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-05: Full Code Review & Critical Bug Fixes
+
+**Review menyeluruh** dilakukan terhadap BE (express_dash), FE (my-app), dan Portal (regist_portal), dibandingkan dengan seluruh docs.
+
+- 🔴 K1: **Restore model Qst\* + CompanyQuestionnaire di `schema.prisma`** — commit merge `6567627` menghapus semua model Qst (QstQuestionnaire/Section/Question/Option/Answer) + CompanyQuestionnaire dari schema, membuat `prisma validate`/`generate` gagal (`Registration.qstAnswers` mereferensikan model yang tidak ada). Restore penuh dari commit `7534d13` + opposite relation `companyQuestionnaires` di QstQuestionnaire. Prisma client di-regenerate → `prisma.companyQuestionnaire` tersedia. **`GET /questionnaire/public/default` kembali berfungsi.**
+- 🔴 K2: **Portal proxy by-ID** (`regist_portal/src/routes/api/questionnaire/+server.ts`) — cek `segments.length === 2` padahal path `/api/questionnaire/:id` menghasilkan 3 segment → selalu 404. Diperbaiki menjadi `segments.length === 3 && segments[1] === 'questionnaire'`.
+- 🔴 K4: **Tambah `DELETE /registration-temp/:id` di BE** — FE memanggil endpoint ini tapi tidak ada di route → 404. Tambah repo `deleteTemp`, service `deleteTemp`, controller `removeTemp`, route `DELETE /:id` (permission `registration:delete`).
+- 🔴 K5: **Fix `POST/PATCH /patient/:id/history`** — route memakai `createPatientSchema.pick({companyId, startDate})` padahal `companyId` tidak ada di schema tersebut → 500. Diganti pakai `companyHistorySchema` yang sudah benar.
+- 🔴 K3: **`assignments.vue`** — `api` undefined di module scope (hanya ada di dalam `refreshMyAssignment`) → sync room access diam-diam gagal. Tambah `const api = useApi()`.
+- 🟠 S1: **Tambah `auth` middleware ke 8 router HRIS** — employeePersonal, employeeHealth, employeeDocument, employeeEmergencyContact, employeePosition, leave, shift, nationalHoliday. Sebelumnya hanya dilindungi API key (ada di bundle FE) → data PII terekspos.
+- 🟠 S2: **Fix transaction boundary `approveTemp`** — `repo.createPatient` & `repo.updateTempStatus` kini menerima argumen `tx` sehingga ikut rollback bila transaksi gagal (sebelumnya pakai global prisma → orphan patient).
+- 🟠 S3: **Fix autosave `portalKey`** — `watchDebounced` di `builder.vue` kini memasukkan `questionnairePortalKey` di watch sources (sebelumnya hanya title/description, jadi portalKey tidak tersimpan bila hanya field itu diubah).
+- 🟠 S4: **Fix `handleError` typo** — `handlers.ts` memanggil `showError` (global Nuxt) padahal helper yang benar `showErrors` → error toast tidak pernah muncul. Diperbaiki.
+- 🟠 S5: **Fix `rescheduleNote` user di-drop** — `rescheduleSampleValidation` kini menerima `rescheduleNote`, repo `rescheduleSample` menggunakannya (sebelumnya note hardcoded).
+- 🟠 S6: **Filter `isActive`** di `getDefaultByCompany` — questionnaire non-aktif tidak lagi disajikan ke portal.
+- Fix lain: duplicate `branchId` di `patient.validation.js`.
 
 ## Completed
 

@@ -6,6 +6,7 @@ definePageMeta({
 })
 
 const toast = useToast()
+const api = useApi()
 
 const { session: mySession, exitRoomSession } = await useRoomSession()
 
