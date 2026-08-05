@@ -43,11 +43,21 @@ Audit menyeluruh ketiga codebase. Fix yang dilakukan:
 
 **Akar:** handler tombol `@click="formApprove.patientExists = true; clearPatient()"` — `clearPatient()` (baris 138) juga mengeset `formApprove.patientExists = false`, sehingga eksekusi berurutan `true → false` meniadakan pilihan Ya (toggle kembali false, `v-if="patientExists && !selectedPatient"` tetap false).
 
-**Fix:** `clearPatient()` tidak lagi mereset `patientExists` — fungsinya hanya mengosongkan `selectedPatient` + `patientId`. Reset toggle Ya/Tidak dialihkan ke `watch(isStatusModalOpen)` (baris 438), jadi bersih per sesi modal terbuka. Flow sekarang:
+**Fix:** `clearPatient()` tidak lagi mereset `patientExists` — fungsinya hanya mengosongkan `selectedPatient` + `patientId` + `confirmOverwrite`. Reset toggle Ya/Tidak dialihkan ke `watch(isStatusModalOpen)` + `watch(patientExists)`, jadi bersih per sesi modal terbuka. Flow sekarang:
 - **Ya** → `patientExists=true`, `clearPatient()` bersihkan data (bukan toggle) → search muncul ✅
 - **Tidak** → `patientExists=false` → search tersembunyi ✅
-- **Ganti** pasca-pilih → `selectedPatient=null`, toggle tetap true → search re-open ✅
+- **Ganti** pasca-pilih → `selectedPatient=null` + `confirmOverwrite=false`, toggle tetap true → re-search + re-ack → search re-open ✅
+- **Konfirmasi overwrite:** tambahan `UCheckbox` (amber) wajib dicentek **Ya + APPROVED** — `isFormValid` return false bila belum ack; mengamankan FO sebelum approval menimpa data pasien existing. Reset otomatis tiap kali Ya/Tidak diganti atau modal dibuka.
 - File: `app/pages/front-office/registration-temp/index.vue`.
+
+## 2026-08-05 — Update `dob` ke existing patient di `approveTemp` (BE, express_dash)
+
+**Temuan (cek portal /registration → FO approve):** perubahan personal info pasien existing **di-UPDATE**, kecuali **`dob` (Tanggal Lahir) diabaikan** — `updateData` di `approveTemp` (`public-registration.service.js:266`) hanya berisi firstName/middleName/lastName/gender/maritalStatus/phone/email (+ address upsert, company history + audit `recordDiff`), tidak ada `dob`. Jadi DOB yang diubah pasien di portal tidak pernah mentracked ke existing patient (konsisten dengan bug FE DOB "Invalid Date").
+
+**Fix:** tambah `dob: temp.dob ? dobToIso(temp.dob) : patientBefore.dob` di `updateData` + `dob: patientBefore.dob` di audit `before` (`recordDiff`). `dobToIso` sudah ter-import (dipakai juga di `createPatient`). `node --check` OK.
+- BE file: `express_dash/src/services/public-registration/public-registration.service.js` (baris 274 + 293).
+- Aturan *"data lain berubah → UPDATE existing"* kini lengkap: hanya `idType`/`idNumber` berubah tetap → patient baru (identity key via `findPatientByIdentity`); semua field lain termasuk `dob` di-update.
+
 
 ## 2026-08-05 — Full Review (BE/FE/Portal) + Fix Bug Kritis (lanjutan)
 

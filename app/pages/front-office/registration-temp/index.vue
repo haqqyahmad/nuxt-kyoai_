@@ -41,6 +41,7 @@ const errors = reactive({
 
 const isFormValid = computed(() => {
   if (selectedStatus.value === 'APPROVED') {
+    if (formApprove.patientExists === true && !confirmOverwrite.value) return false
     return !!formApprove.examDate && !!formApprove.priorityRegist
   }
 
@@ -105,6 +106,7 @@ const patientSearchQuery = ref('')
 const patientResults = ref<Patient[]>([])
 const patientSearchLoading = ref(false)
 const selectedPatient = ref<Patient | null>(null)
+const confirmOverwrite = ref(false)
 
 let patientSearchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -138,6 +140,7 @@ function selectPatient(patient: Patient) {
 function clearPatient() {
   selectedPatient.value = null
   formApprove.patientId = ''
+  confirmOverwrite.value = false
 }
 
 // Reset form when status changes
@@ -425,6 +428,7 @@ watch(isStatusModalOpen, (val) => {
     formApprove.patientExists = false
     formApprove.patientId = ''
     selectedPatient.value = null
+    confirmOverwrite.value = false
     patientSearchQuery.value = ''
     patientResults.value = []
 
@@ -449,6 +453,11 @@ watch([selectedRow, selectedStatus], ([row, status]) => {
     formApprove.examDate = data.examDate || ''
     formApprove.priorityRegist = data.priorityRegist || ''
   }
+})
+
+// Reset konfirmasi overwrite tiap kali keputusan Ya/Tidak berubah
+watch(() => formApprove.patientExists, () => {
+  confirmOverwrite.value = false
 })
 
 function getRowItems(row: Row<TempRegist>) {
@@ -1031,7 +1040,28 @@ watch(currentPage, (page) => {
               </div>
             </div>
 
-            <!-- 🔥 PINDAHKAN KE SINI -->
+            <!-- Konfirmasi overwrite data pasien existing -->
+            <div
+              v-if="formApprove.patientExists === true"
+              class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
+            >
+              <label class="flex items-start gap-2.5 text-sm">
+                <UCheckbox
+                  v-model="confirmOverwrite"
+                  color="warning"
+                />
+                <span class="text-amber-900 dark:text-amber-200">
+                  Pasien sudah pernah MCU di Kyoai. Data pasien yang ada (nama,
+                  gender, telepon, email, tanggal lahir) akan
+                  <strong class="font-semibold">
+                    ditimpa
+                  </strong>
+                  dengan data dari pendaftaran ini saat disetujui. Centang untuk konfirmasi.
+                </span>
+              </label>
+            </div>
+
+            <!-- 🔥 PINDAJKAN KE SINI -->
             <div class="space-y-2">
               <label class="text-sm font-medium text-muted">
                 Pilih Status
