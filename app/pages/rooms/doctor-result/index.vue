@@ -2,7 +2,6 @@
 import { h, resolveComponent, ref, computed, watch } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
-import { getPaginationRowModel } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
@@ -66,8 +65,12 @@ const search = ref('')
 const statusFilter = ref('all')
 const companyFilter = ref('all')
 const packageFilter = ref('all')
+const examDateFrom = ref('')
+const examDateTo = ref('')
 const columnVisibility = ref({})
 const currentPage = ref(1)
+const totalExams = ref(0)
+const pageSize = ref(20)
 
 const statusOptions = [
   { label: 'Semua Status', value: 'all' },
@@ -105,24 +108,15 @@ const filteredExams = computed(() => {
       .join(' ')
       .toLowerCase()
     const matchesSearch = !q || hay.includes(q)
-    const matchesStatus = statusFilter.value === 'all' || e.status === statusFilter.value
     const matchesCompany = companyFilter.value === 'all' || e.company === companyFilter.value
     const matchesPackage = packageFilter.value === 'all' || e.packageName === packageFilter.value
-    return matchesSearch && matchesStatus && matchesCompany && matchesPackage
+    return matchesSearch && matchesCompany && matchesPackage
   })
 })
 
 const totalPending = computed(() => exams.value.filter(e => e.status !== 'completed').length)
 const totalCompleted = computed(() => exams.value.filter(e => e.status === 'completed').length)
 const totalItems = computed(() => exams.value.reduce((sum, exam) => sum + (exam.itemCount ?? 0), 0))
-
-const currentPageSize = computed<number>({
-  get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
-  set: (value: number) => {
-    table.value?.tableApi?.setPageSize(value)
-    currentPage.value = 1
-  }
-})
 
 const displayColumnItems = computed(() =>
   table.value?.tableApi
@@ -199,13 +193,22 @@ const columns: TableColumn<ExamListItem>[] = [
 async function load() {
   loading.value = true
   try {
-    const res = await api.get('/mcu/exams/results', {
-      params: { page: 1, limit: 100, groupBy: 'exam', scope: 'false' }
-    })
+    const params: Record<string, string | number> = {
+      page: currentPage.value,
+      limit: pageSize.value,
+      groupBy: 'exam',
+      scope: 'false'
+    }
+    if (statusFilter.value !== 'all') params.status = statusFilter.value
+    if (examDateFrom.value) params.examDateFrom = examDateFrom.value
+    if (examDateTo.value) params.examDateTo = examDateTo.value
+
+    const res = await api.get('/mcu/exams/results', { params })
     const payload = res.data?.data ?? res.data
     exams.value = Array.isArray(payload)
       ? payload
       : (payload?.data ?? [])
+    totalExams.value = res.data?.meta?.total ?? exams.value.length
   } catch (err) {
     const errMsg = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
@@ -239,16 +242,13 @@ function progressValue(exam: ExamListItem) {
   return Math.round(((exam.completedItemCount ?? 0) / exam.itemCount) * 100)
 }
 
-watch(
-  () => table.value?.tableApi?.getState().pagination.pageIndex,
-  (idx) => {
-    currentPage.value = (idx ?? 0) + 1
-  },
-  { immediate: true }
-)
-
 watch(currentPage, (page) => {
-  table.value?.tableApi?.setPageIndex(page - 1)
+  load()
+})
+
+watch([statusFilter, examDateFrom, examDateTo], () => {
+  currentPage.value = 1
+  load()
 })
 
 onMounted(load)
@@ -368,24 +368,32 @@ onMounted(load)
             </div>
           </template>
 
-          <div class="mb-4 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_220px_180px_200px]">
+          <div class="mb-4 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_120px_120px_160px_200px]">
             <UInput
               v-model="search"
               icon="i-lucide-search"
               placeholder="Cari pasien / exam code / perusahaan"
               class="sm:col-span-2 xl:col-span-1"
             />
-            <USelect
-              v-model="companyFilter"
-              :items="companyOptions"
+            <UInput
+              v-model="examDateFrom"
+              type="date"
+              icon="i-lucide-calendar"
+              placeholder="Exam dari"
+            />
+            <UInput
+              v-model="examDateTo"
+              type="date"
+              icon="i-lucide-calendar"
+              placeholder="Exam sampai"
             />
             <USelect
               v-model="statusFilter"
               :items="statusOptions"
             />
             <USelect
-              v-model="packageFilter"
-              :items="packageOptions"
+              v-model="companyFilter"
+              :items="companyOptions"
             />
           </div>
 
@@ -398,9 +406,6 @@ onMounted(load)
               :loading="loading"
               sticky
               class="w-full min-w-[920px]"
-              :pagination-options="{
-                getPaginationRowModel: getPaginationRowModel()
-              }"
               :ui="{
                 base: 'table-fixed border-separate border-spacing-0',
                 thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
@@ -414,23 +419,23 @@ onMounted(load)
 
           <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 md:flex-row md:items-center md:justify-between">
             <div class="text-sm text-muted">
-              Menampilkan {{ table?.tableApi?.getFilteredRowModel().rows.length || 0 }} pasien
+              Menampilkan {{ exams.length }} dari {{ totalExams }} pasien
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <USelect
-                v-model="currentPageSize"
+                v-model="pageSize"
                 class="w-32"
                 :items="[
                   { label: '10 items', value: 10 },
                   { label: '20 items', value: 20 },
-                  { label: '50 items', value: 50 },
-                  { label: 'All', value: 1000 }
+                  { label: '50 items', value: 50 }
                 ]"
+                @update:model-value="() => { currentPage = 1; load() }"
               />
               <UPagination
                 v-model:page="currentPage"
-                :items-per-page="currentPageSize"
-                :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
+                :items-per-page="pageSize"
+                :total="totalExams"
               />
             </div>
           </div>

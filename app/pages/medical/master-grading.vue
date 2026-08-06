@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { GradeRule } from '~/types/doctor-result'
+import type { GradeRule, GroupGradeConfig } from '~/types/doctor-result'
 
 type GradeRuleForm = {
   code: string
@@ -84,6 +84,17 @@ const masterItems = ref<MasterItem[]>([])
 const selectedGroupKey = ref('')
 const selectedInputanKey = ref('')
 
+// [F] grade options + group config
+const masterGradeOptions = ref<Array<{ id: string, grade: string, label: string, sortOrder: number, isActive: boolean }>>([])
+const groupConfigs = ref<GroupGradeConfig[]>([])
+const configLoading = ref(false)
+const configSaving = ref<Record<string, boolean>>({})
+const groupConfigOpen = ref(false)
+const gradeOptionModalOpen = ref(false)
+const gradeOptionForm = reactive({ id: '', grade: '', label: '', sortOrder: 0, isActive: true })
+const editingGroupConfig = ref<GroupGradeConfig | null>(null)
+const groupConfigComments = reactive<Record<string, string>>({}) // key `${groupId}:${grade}` -> comment
+
 function unwrapList(value: unknown): unknown[] {
   const payload = (value as { data?: unknown } | null)?.data ?? value
   if (Array.isArray(payload)) return payload
@@ -147,19 +158,128 @@ async function loadMasterReferences() {
   masterLoading.value = true
   try {
     const departmentResponse = await api.get('/medical/departments')
-    masterDepartments.value = unwrapList(departmentResponse.data)
+    masterDepartments.value = unwrapList(departmentResponse.data) as MasterDepartment[]
 
     const groupResponses = await Promise.all(masterDepartments.value.map(department =>
       api.get('/medical/groups', { params: { departmentId: department.id } }).catch(() => ({ data: [] }))
     ))
-    masterGroups.value = groupResponses.flatMap(response => flattenGroups(unwrapList(response.data)))
+    masterGroups.value = groupResponses.flatMap(response => flattenGroups(unwrapList(response.data) as MasterGroup[]))
 
     const itemResponse = await api.get('/mcu/items', { params: { page: 1, limit: 1000 } })
-    masterItems.value = unwrapList(itemResponse.data)
+    masterItems.value = unwrapList(itemResponse.data) as MasterItem[]
   } catch (value: unknown) {
     toast.add({ title: 'Gagal memuat referensi master', description: getErrorMessage(value, 'Department, group, atau item tidak dapat dimuat.'), color: 'error' })
   } finally {
     masterLoading.value = false
+  }
+}
+
+// [F] ── grade options ───────────────────────────────────────────
+async function loadGradeOptions() {
+  try {
+    const res = await api.get('/mcu/grade-options')
+    masterGradeOptions.value = res.data?.data ?? res.data ?? []
+  } catch {
+    masterGradeOptions.value = []
+  }
+}
+
+function openCreateGradeOption() {
+  Object.assign(gradeOptionForm, { id: '', grade: '', label: '', sortOrder: masterGradeOptions.value.length + 1, isActive: true })
+  gradeOptionModalOpen.value = true
+}
+
+function openEditGradeOption(option: typeof masterGradeOptions.value[number]) {
+  Object.assign(gradeOptionForm, { id: option.id, grade: option.grade, label: option.label, sortOrder: option.sortOrder, isActive: option.isActive })
+  gradeOptionModalOpen.value = true
+}
+
+async function saveGradeOption() {
+  if (!gradeOptionForm.grade.trim() || !gradeOptionForm.label.trim()) {
+    toast.add({ title: 'Validasi gagal', description: 'Grade dan label wajib diisi.', color: 'error' })
+    return
+  }
+  try {
+    if (gradeOptionForm.id) {
+      await api.put(`/mcu/grade-options/${gradeOptionForm.id}`, { ...gradeOptionForm })
+    } else {
+      await api.post('/mcu/grade-options', { ...gradeOptionForm })
+    }
+    gradeOptionModalOpen.value = false
+    toast.add({ title: 'Berhasil', description: 'Grade option tersimpan', color: 'success' })
+    await Promise.all([loadGradeOptions(), loadGroupConfigs()])
+  } catch (value: unknown) {
+    toast.add({ title: 'Gagal simpan grade option', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
+  }
+}
+
+async function deleteGradeOption(option: typeof masterGradeOptions.value[number]) {
+  try {
+    await api.delete(`/mcu/grade-options/${option.id}`)
+    toast.add({ title: 'Berhasil', description: 'Grade option dihapus', color: 'success' })
+    await Promise.all([loadGradeOptions(), loadGroupConfigs()])
+  } catch (value: unknown) {
+    toast.add({ title: 'Gagal hapus', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
+  }
+}
+
+// [F] ── group grade config ─────────────────────────────────────
+async function loadGroupConfigs() {
+  configLoading.value = true
+  try {
+    const res = await api.get('/mcu/group-grade-configs')
+    groupConfigs.value = res.data?.data ?? res.data ?? []
+  } catch (value: unknown) {
+    toast.add({ title: 'Gagal muat config group', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
+  } finally {
+    configLoading.value = false
+  }
+}
+
+function openGroupConfig(group: GroupGradeConfig) {
+  editingGroupConfig.value = group
+  Object.keys(groupConfigComments).forEach(k => delete groupConfigComments[k])
+  for (const opt of group.commentOptions) {
+    groupConfigComments[`${group.groupId}:${opt.grade}`] = opt.comment
+  }
+  groupConfigOpen.value = true
+}
+
+async function saveGroupConfig() {
+  if (!editingGroupConfig.value) return
+  const groupId = editingGroupConfig.value.groupId
+  configSaving.value[groupId] = true
+  try {
+    const comments = masterGradeOptions.value
+      .filter(o => o.isActive)
+      .map(o => ({ grade: o.grade, comment: groupConfigComments[`${groupId}:${o.grade}`] ?? '' }))
+    await api.put(`/mcu/group-grade-configs/${groupId}`, {
+      showInDoctorResult: editingGroupConfig.value.showInDoctorResult,
+      comments
+    })
+    toast.add({ title: 'Berhasil', description: 'Konfigurasi group tersimpan', color: 'success' })
+    groupConfigOpen.value = false
+    await loadGroupConfigs()
+  } catch (value: unknown) {
+    toast.add({ title: 'Gagal simpan config', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
+  } finally {
+    delete configSaving.value[groupId]
+  }
+}
+
+async function toggleGroupShow(group: GroupGradeConfig) {
+  const groupId = group.groupId
+  configSaving.value[groupId] = true
+  try {
+    await api.put(`/mcu/group-grade-configs/${groupId}`, {
+      showInDoctorResult: group.showInDoctorResult
+    })
+    toast.add({ title: 'Berhasil', description: group.showInDoctorResult ? 'Group ditampilkan di Doctor Result' : 'Group disembunyikan dari Doctor Result', color: 'success' })
+  } catch (value: unknown) {
+    group.showInDoctorResult = !group.showInDoctorResult
+    toast.add({ title: 'Gagal', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
+  } finally {
+    delete configSaving.value[groupId]
   }
 }
 
@@ -450,7 +570,7 @@ async function importJson(event: Event) {
 }
 
 onMounted(() => {
-  void Promise.all([loadRules(), loadMasterReferences()])
+  void Promise.all([loadRules(), loadMasterReferences(), loadGradeOptions(), loadGroupConfigs()])
 })
 </script>
 
@@ -547,6 +667,137 @@ onMounted(() => {
             </p>
           </UCard>
         </div>
+
+        <!-- [F] Master Grade Options -->
+        <UCard class="w-full min-w-0 overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div class="min-w-0">
+                <h2 class="break-words text-base font-semibold text-highlighted">
+                  Master Grade Options
+                </h2>
+                <p class="break-words text-sm text-muted">
+                  Daftar grade yang tersedia untuk dokter (item & group).
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-plus"
+                class="shrink-0"
+                @click="openCreateGradeOption"
+              >
+                Tambah Grade Option
+              </UButton>
+            </div>
+          </template>
+          <UTable
+            :data="masterGradeOptions"
+            :columns="[
+              { accessorKey: 'grade', header: 'Grade' },
+              { accessorKey: 'label', header: 'Label' },
+              { accessorKey: 'sortOrder', header: 'Urutan' },
+              { accessorKey: 'isActive', header: 'Status' },
+              { id: 'actions', header: 'Aksi' }
+            ]"
+            :loading="configLoading"
+            class="w-full min-w-[640px]"
+          >
+            <template #grade-cell="{ row }">
+              <span class="font-black" :class="gradeClass(row.original.grade)">{{ row.original.grade }}</span>
+            </template>
+            <template #isActive-cell="{ row }">
+              <UBadge :color="row.original.isActive ? 'success' : 'neutral'" variant="soft">
+                {{ row.original.isActive ? 'Aktif' : 'Nonaktif' }}
+              </UBadge>
+            </template>
+            <template #actions-cell="{ row }">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <UButton icon="i-lucide-pencil" size="sm" color="neutral" variant="outline" @click="openEditGradeOption(row.original)">
+                  Edit
+                </UButton>
+                <UButton icon="i-lucide-trash-2" size="sm" color="error" variant="subtle" @click="deleteGradeOption(row.original)">
+                  Hapus
+                </UButton>
+              </div>
+            </template>
+          </UTable>
+        </UCard>
+
+        <!-- [F] Konfigurasi Grade per Group -->
+        <UCard class="w-full min-w-0 overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div class="min-w-0">
+                <h2 class="break-words text-base font-semibold text-highlighted">
+                  Konfigurasi Grade per Group
+                </h2>
+                <p class="break-words text-sm text-muted">
+                  Atur group mana yang tampil di Doctor Result + komentar default per grade group.
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                class="shrink-0"
+                color="neutral"
+                variant="soft"
+                :loading="configLoading"
+                @click="loadGroupConfigs"
+              >
+                Refresh
+              </UButton>
+            </div>
+          </template>
+          <div class="max-h-[calc(100vh-20rem)] min-h-40 w-full min-w-0 overflow-auto rounded-lg border border-default">
+            <UTable
+              :data="groupConfigs"
+              :columns="[
+                { accessorKey: 'groupName', header: 'Group' },
+                { accessorKey: 'department', header: 'Department' },
+                { accessorKey: 'showInDoctorResult', header: 'Tampil di Doctor Result' },
+                { accessorKey: 'commentOptions', header: 'Komentar Default' },
+                { id: 'actions', header: 'Aksi' }
+              ]"
+              :loading="configLoading"
+              class="w-full min-w-[720px]"
+            >
+              <template #groupName-cell="{ row }">
+                <div class="min-w-0">
+                  <p class="font-semibold text-highlighted">{{ row.original.groupName }}</p>
+                  <p class="text-xs text-muted">{{ row.original.groupCode || '-' }}</p>
+                </div>
+              </template>
+              <template #department-cell="{ row }">
+                <span class="text-sm">{{ row.original.department?.name ?? '-' }}</span>
+              </template>
+              <template #showInDoctorResult-cell="{ row }">
+                <USwitch
+                  :model-value="row.original.showInDoctorResult"
+                  :loading="configSaving[row.original.groupId]"
+                  @update:model-value="(v) => { row.original.showInDoctorResult = v as boolean; toggleGroupShow(row.original) }"
+                />
+              </template>
+              <template #commentOptions-cell="{ row }">
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="opt in row.original.commentOptions"
+                    :key="opt.grade"
+                    class="rounded-full border border-default px-2 py-0.5 text-xs"
+                  >
+                    <b>{{ opt.grade }}</b>
+                    <span v-if="opt.comment" class="text-muted">: {{ opt.comment }}</span>
+                  </span>
+                  <span v-if="!row.original.commentOptions.length" class="text-xs text-muted">
+                    Belum ada komentar
+                  </span>
+                </div>
+              </template>
+              <template #actions-cell="{ row }">
+                <UButton icon="i-lucide-settings-2" size="sm" color="neutral" variant="outline" @click="openGroupConfig(row.original)">
+                  Atur Komentar
+                </UButton>
+              </template>
+            </UTable>
+          </div>
+        </UCard>
 
         <UCard class="w-full min-w-0 overflow-hidden border border-default/80 shadow-sm">
           <template #header>
@@ -870,6 +1121,99 @@ onMounted(() => {
                   @click="saveRule"
                 >
                   Simpan Grade
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
+
+      <!-- [F] Modal Grade Option -->
+      <UModal v-model:open="gradeOptionModalOpen" :ui="{ content: 'sm:max-w-md' }">
+        <template #content>
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold text-highlighted">
+                {{ gradeOptionForm.id ? 'Edit Grade Option' : 'Tambah Grade Option' }}
+              </h2>
+            </template>
+            <div class="space-y-4">
+              <UFormField label="Kode Grade" required>
+                <UInput v-model="gradeOptionForm.grade" placeholder="D" class="w-full" />
+              </UFormField>
+              <UFormField label="Label" required>
+                <UInput v-model="gradeOptionForm.label" placeholder="Significant / Rujuk Khusus" class="w-full" />
+              </UFormField>
+              <div class="grid grid-cols-2 gap-4">
+                <UFormField label="Urutan">
+                  <UInput v-model.number="gradeOptionForm.sortOrder" type="number" min="1" class="w-full" />
+                </UFormField>
+                <UFormField label="Status">
+                  <USwitch v-model="gradeOptionForm.isActive" label="Aktif" />
+                </UFormField>
+              </div>
+            </div>
+            <template #footer>
+              <div class="flex w-full flex-col justify-end gap-2 sm:flex-row">
+                <UButton color="neutral" variant="soft" @click="gradeOptionModalOpen = false">
+                  Batal
+                </UButton>
+                <UButton icon="i-lucide-save" @click="saveGradeOption">
+                  Simpan
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
+
+      <!-- [F] Modal Konfigurasi Group -->
+      <UModal v-model:open="groupConfigOpen" :ui="{ content: 'sm:max-w-lg' }">
+        <template #content>
+          <UCard>
+            <template #header>
+              <div>
+                <h2 class="text-lg font-semibold text-highlighted">
+                  {{ editingGroupConfig?.groupName ?? 'Konfigurasi Group' }}
+                </h2>
+                <p class="text-sm text-muted">
+                  Komentar default per grade group (boleh kosong). Dokter bisa mengubah di Doctor Result.
+                </p>
+              </div>
+            </template>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between rounded-lg border border-default px-3 py-2">
+                <span class="text-sm font-medium">Tampil di Doctor Result</span>
+                <USwitch v-model="editingGroupConfig!.showInDoctorResult" />
+              </div>
+              <div class="space-y-2">
+                <p class="text-xs font-semibold uppercase text-muted">Komentar per Grade</p>
+                <div
+                  v-for="opt in masterGradeOptions.filter(o => o.isActive)"
+                  :key="opt.grade"
+                  class="flex items-center gap-2"
+                >
+                  <span class="w-10 shrink-0 font-black" :class="gradeClass(opt.grade)">{{ opt.grade }}</span>
+                  <UInput
+                    :model-value="groupConfigComments[`${editingGroupConfig?.groupId}:${opt.grade}`] ?? ''"
+                    placeholder="Komentar (opsional)"
+                    class="flex-1"
+                    @update:model-value="(v) => groupConfigComments[`${editingGroupConfig?.groupId}:${opt.grade}`] = v as string"
+                  />
+                </div>
+              </div>
+            </div>
+            <template #footer>
+              <div class="flex w-full flex-col justify-end gap-2 sm:flex-row">
+                <UButton color="neutral" variant="soft" @click="groupConfigOpen = false">
+                  Batal
+                </UButton>
+                <UButton
+                  icon="i-lucide-save"
+                  :loading="editingGroupConfig ? configSaving[editingGroupConfig.groupId] : false"
+                  @click="saveGroupConfig"
+                >
+                  Simpan
                 </UButton>
               </div>
             </template>

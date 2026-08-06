@@ -8,7 +8,8 @@ import {
   FLAG_LABEL,
   FLAG_COLOR
 } from '~/types/doctor-result'
-import type { DoctorResultItem } from '~/types/doctor-result'
+import type { DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
+import DentalResultDisplay from '~/components/dental/DentalResultDisplay.vue'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -29,11 +30,14 @@ const {
   submitting,
   selectedGrades,
   comments,
+  groupGrades,
   finalGrade,
   fitnessLevel,
   finalComment,
   internalNote,
   allItems,
+  allGroups,
+  pendingGroups,
   pendingCount,
   gradedCount,
   totalGradable,
@@ -41,12 +45,15 @@ const {
   load,
   selectGrade,
   clearGrade,
+  selectGroupGrade,
+  clearGroupGrade,
   gradeOptionsFor,
   submit
 } = useDoctorResult(examId)
 
 const activeDepartmentId = ref('')
 const gradeLoading = ref<Record<string, boolean>>({})
+const groupGradeLoading = ref<Record<string, boolean>>({})
 const gradeOptionsCache = ref<Record<string, string[]>>({})
 const columnVisibility = ref({})
 
@@ -60,6 +67,21 @@ const departmentTabs = computed(() => departments.value.map(department => ({
 
 const autoCommentText = computed(() =>
   finalComment.value || Object.values(comments.value).filter(Boolean).join(' ')
+)
+
+// [F] Ringkasan grade per group (sidebar)
+const groupSummary = computed(() =>
+  allGroups.value
+    .filter(g => g.groupId && g.showInDoctorResult !== false)
+    .map(g => ({
+      group: g,
+      grade: groupGrades.value[g.groupId!]?.grade ?? g.grade ?? g.defaultGrade ?? null,
+      comment: groupGrades.value[g.groupId!]?.comment ?? g.comment ?? ''
+    }))
+)
+
+const abnormalGroupsPending = computed(() =>
+  groupSummary.value.filter(s => s.group.isAbnormal && !s.grade)
 )
 
 // Ringkasan Grading — semua item gradable dari SEMUA department (bukan per tab aktif)
@@ -142,6 +164,39 @@ async function loadGradeOptions() {
       gradeOptionsCache.value[item.inputanId] = options
     }
   }
+}
+
+// [F] Grade group: grade + komentar (opsional)
+async function onGroupGradeChange(group: DoctorResultGroup, grade: string, comment: string) {
+  if (!group.groupId) return
+  // jaga komentar user: kalau sudah terisi manual, pertahankan
+  const existing = groupGrades.value[group.groupId]?.comment ?? group.comment ?? ''
+  const finalComment = existing || (grade ? groupCommentFor(group, grade) : '')
+  groupGradeLoading.value[group.groupId] = true
+  try {
+    if (!grade) {
+      await clearGroupGrade(group.groupId)
+      group.grade = null
+      return
+    }
+    const ok = await selectGroupGrade(group.groupId, grade, finalComment)
+    if (ok) group.grade = grade
+  } finally {
+    groupGradeLoading.value[group.groupId] = false
+  }
+}
+
+function onGroupCommentChange(group: DoctorResultGroup, comment: string) {
+  group.comment = comment
+  const grade = group.groupId ? groupGrades.value[group.groupId]?.grade : null
+  if (group.groupId && grade) {
+    groupGrades.value[group.groupId] = { grade, comment }
+    void selectGroupGrade(group.groupId, grade, comment)
+  }
+}
+
+function groupCommentFor(group: DoctorResultGroup, grade: string) {
+  return group.commentOptions?.find(o => o.grade === grade)?.comment ?? ''
 }
 
 // Hapus grade lewat card Ringkasan Grading — sync otomatis ke select (selectedGrades)
@@ -394,6 +449,15 @@ onBeforeUnmount(() => {
             description="Semua item gradable harus diisi sebelum submit ke MR Review."
           />
 
+          <UAlert
+            v-if="abnormalGroupsPending.length > 0"
+            icon="i-lucide-alert-triangle"
+            color="error"
+            variant="soft"
+            :title="`${abnormalGroupsPending.length} group abnormal belum di-grade`"
+            description="Kelompok dengan item abnormal wajib diberi grade group sebelum submit."
+          />
+
           <!-- Sticky Group Anchor Navigation -->
           <div class="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-1.5 bg-default/95 backdrop-blur-sm px-4 py-2 border-b border-default shadow-sm">
             <span class="mr-1 text-xs font-semibold text-muted">Group:</span>
@@ -448,47 +512,115 @@ onBeforeUnmount(() => {
                       {{ dept.departmentCode }}
                     </UBadge>
                   </div>
+
+                  <!-- [DENTAL] Preview read-only hasil dept gigi -->
                   <div
-                    v-for="group in dept.groups"
-                    :key="group.groupName"
-                    class="w-full min-w-0 overflow-hidden rounded-lg border border-default/70"
+                    v-if="(dept as any).dental"
+                    class="w-full min-w-0 overflow-hidden rounded-lg border border-primary/30"
                   >
-                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default bg-elevated/40 px-4 py-3">
-                      <div class="min-w-0">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-primary/30 bg-primary/5 px-4 py-3">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <UIcon name="i-lucide-stethoscope" class="size-4 text-primary" />
                         <h4 class="truncate font-semibold">
-                          {{ group.groupName }}
+                          Pemeriksaan Gigi — Preview
                         </h4>
-                        <p class="text-xs text-muted">
-                          Result approved dari department
-                        </p>
                       </div>
-                      <UBadge color="success" variant="soft">
-                        DEPARTMENT_APPROVED
-                      </UBadge>
+                      <div class="flex items-center gap-2">
+                        <UBadge
+                          v-if="(dept as any).dental.status === 'SUBMITTED'"
+                          color="success"
+                          variant="soft"
+                          label="Submitted"
+                        />
+                        <UButton
+                          icon="i-lucide-printer"
+                          size="xs"
+                          color="primary"
+                          variant="outline"
+                          @click="router.push(`/rooms/dental/print/${examId}`)"
+                        >
+                          Cetak
+                        </UButton>
+                      </div>
                     </div>
-                    <div class="w-full min-w-0 overflow-x-auto">
-                      <UTable
-                        v-model:column-visibility="columnVisibility"
-                        :data="group.items"
-                        :columns="itemColumns"
-                        class="w-full min-w-[960px]"
-                        :ui="{
-                          base: 'table-fixed border-separate border-spacing-0',
-                          thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-                          tbody: '[&>tr]:last:[&>td]:border-b-0',
-                          th: 'py-3 border-b border-default',
-                          td: 'border-b border-default align-top',
-                          separator: 'h-0'
-                        }"
-                      />
+                    <div class="px-4 py-3">
+                      <DentalResultDisplay :data="(dept as any).dental" />
                     </div>
                   </div>
+                  <template v-for="group in dept.groups" :key="group.groupName">
+                    <div
+                      v-if="group.showInDoctorResult !== false"
+                      class="w-full min-w-0 overflow-hidden rounded-lg border border-default/70"
+                    >
+                      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default bg-elevated/40 px-4 py-3">
+                        <div class="flex min-w-0 items-center gap-3">
+                          <h4 class="truncate font-semibold">
+                            {{ group.groupName }}
+                          </h4>
+                          <small class="text-xs text-muted">Result approved dari department</small>
+                        </div>
+                        <UBadge
+                          v-if="group.isAbnormal"
+                          color="error"
+                          variant="soft"
+                        >
+                          ⚠ {{ group.abnormalCount }} abnormal
+                        </UBadge>
+                        <span v-else class="text-xs font-semibold text-success">
+                          ✓ Normal
+                        </span>
+                      </div>
+
+                      <!-- [F] strip grade group -->
+                      <div
+                        class="flex flex-wrap items-center gap-3 border-b border-default px-4 py-3"
+                        :class="group.isAbnormal ? 'bg-error/5' : 'bg-success/5'"
+                      >
+                        <span class="text-xs font-semibold text-muted">Grade Group</span>
+                        <USelect
+                          class="w-44"
+                          size="sm"
+                          :model-value="groupGrades[group.groupId!]?.grade ?? group.grade ?? (group.isAbnormal ? '' : group.defaultGrade ?? 'A')"
+                          :items="(group.gradeOptions ?? []).map(o => ({ label: `${o.grade} - ${o.label}`, value: o.grade }))"
+                          placeholder="Pilih"
+                          :loading="group.groupId ? groupGradeLoading[group.groupId] : false"
+                          @update:model-value="onGroupGradeChange(group, $event as string, groupCommentFor(group, $event as string))"
+                        />                       <UInput
+                          class="min-w-48 flex-1"
+                          size="sm"
+                          :model-value="groupGrades[group.groupId!]?.comment ?? group.comment ?? ''"
+                          placeholder="Komentar group (opsional)"
+                          @update:model-value="(v) => onGroupCommentChange(group, v as string)"
+                        />
+                        <small v-if="!group.isAbnormal" class="text-xs text-success">
+                          otomatis A, dapat diubah
+                        </small>
+                      </div>
+
+                      <div class="w-full min-w-0 overflow-x-auto">
+                        <UTable
+                          v-model:column-visibility="columnVisibility"
+                          :data="group.items"
+                          :columns="itemColumns"
+                          class="w-full min-w-[960px]"
+                          :ui="{
+                            base: 'table-fixed border-separate border-spacing-0',
+                            thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
+                            tbody: '[&>tr]:last:[&>td]:border-b-0',
+                            th: 'py-3 border-b border-default',
+                            td: 'border-b border-default align-top',
+                            separator: 'h-0'
+                          }"
+                        />
+                      </div>
+                    </div>
+                  </template>
                 </section>
               </div>
             </UCard>
 
             <aside class="w-full min-w-0 space-y-4 2xl:sticky 2xl:top-4 2xl:self-start">
-              <UCard class="w-full min-w-0">
+              <UCard class="w-full min-w-0 aside-scroll">
                 <template #header>
                   <div class="flex items-center justify-between gap-2">
                     <h2 class="font-semibold">
@@ -501,6 +633,46 @@ onBeforeUnmount(() => {
                 </template>
 
                 <div class="space-y-4">
+                  <!-- [F] Grade per Group summary -->
+                  <div class="rounded-lg border border-primary/30 bg-elevated/50 p-3">
+                    <h3 class="text-sm font-semibold text-primary">
+                      Grade per Group
+                    </h3>
+                    <div v-if="groupSummary.length" class="mt-2 space-y-2">
+                      <div
+                        v-for="gs in groupSummary"
+                        :key="gs.group.groupId ?? gs.group.groupName"
+                        class="flex items-start justify-between gap-2 rounded-md border border-default px-3 py-2"
+                      >
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-medium">
+                              {{ gs.group.groupName }}
+                            </span>
+                            <span
+                              class="text-sm font-black"
+                              :class="gs.group.isAbnormal ? 'text-error' : 'text-success'"
+                            >
+                              {{ gs.grade || '-' }}
+                            </span>
+                          </div>
+                          <p class="mt-1 text-xs text-muted">
+                            {{ gs.group.isAbnormal ? `${gs.group.abnormalCount} abnormal` : 'Normal' }}
+                          </p>
+                          <p v-if="gs.comment" class="mt-0.5 text-sm">
+                            {{ gs.comment }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <p v-else class="mt-2 text-xs text-muted">
+                      Tidak ada grade group.
+                    </p>
+                    <p v-if="abnormalGroupsPending.length" class="mt-2 text-xs font-semibold text-warning">
+                      {{ abnormalGroupsPending.length }} group abnormal belum di-grade
+                    </p>
+                  </div>
+
                   <UAlert
                     icon="i-lucide-info"
                     color="warning"
@@ -615,3 +787,22 @@ onBeforeUnmount(() => {
     </template>
   </UDashboardPanel>
 </template>
+
+<style scoped>
+.aside-scroll {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  scrollbar-width: thin;          /* Firefox */
+  scrollbar-color: var(--ui-border) transparent; /* Firefox */
+}
+.aside-scroll::-webkit-scrollbar {
+  width: 4px;                     /* Chrome / Safari */
+}
+.aside-scroll::-webkit-scrollbar-thumb {
+  background: var(--ui-border);
+  border-radius: 999px;
+}
+.aside-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+</style>

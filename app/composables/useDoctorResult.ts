@@ -4,7 +4,6 @@ import type {
   DoctorResultItem,
   GradeRule
 } from '~/types/doctor-result'
-
 function getErrorMessage(error: unknown, fallback: string): string {
   const err = error as { response?: { data?: { message?: string } }, message?: string }
   return err?.response?.data?.message || err?.message || fallback
@@ -34,6 +33,9 @@ export function useDoctorResult(examId: string) {
   const comments = ref<Record<string, string>>({}) // inputanId -> auto-comment
   const gradeRules = ref<Record<string, GradeRule[]>>({}) // cache: "condition:label" -> rules
 
+  // [F] grade per group: groupId -> { grade, comment }
+  const groupGrades = ref<Record<string, { grade: string; comment: string }>>({})
+
   const finalGrade = ref('')
   const fitnessLevel = ref('')
   const finalComment = ref('')
@@ -59,8 +61,25 @@ export function useDoctorResult(examId: string) {
     allItems.value.filter(i => i.gradable).length
   )
 
+  // [F] group abnormal wajib di-grade dulu
+  const allGroups = computed(() =>
+    (data.value?.departments ?? []).flatMap(d => d.groups ?? [])
+  )
+
+  const pendingGroups = computed(() =>
+    allGroups.value.filter(g =>
+      g.showInDoctorResult !== false &&
+      g.groupId &&
+      g.isAbnormal &&
+      !groupGrades.value[g.groupId]?.grade
+    )
+  )
+
   const canSubmit = computed(() =>
-    pendingCount.value === 0 && Boolean(finalGrade.value) && Boolean(fitnessLevel.value)
+    pendingCount.value === 0 &&
+    pendingGroups.value.length === 0 &&
+    Boolean(finalGrade.value) &&
+    Boolean(fitnessLevel.value)
   )
 
   // ── load ────────────────────────────────────────────────────────────
@@ -75,10 +94,22 @@ export function useDoctorResult(examId: string) {
       // Preload grade dari server
       selectedGrades.value = {}
       comments.value = {}
+      groupGrades.value = {}
       for (const item of allItems.value) {
         if (item.grade) {
           selectedGrades.value[item.inputanId] = item.grade
           comments.value[item.inputanId] = item.comment ?? ''
+        }
+      }
+      // [F] preload group grades
+      for (const dept of data.value?.departments ?? []) {
+        for (const group of dept.groups ?? []) {
+          if (group.groupId && group.grade) {
+            groupGrades.value[group.groupId] = {
+              grade: group.grade,
+              comment: group.comment ?? ''
+            }
+          }
         }
       }
     } catch (err) {
@@ -183,6 +214,41 @@ export function useDoctorResult(examId: string) {
     }
   }
 
+  // ── [F] group grade ──────────────────────────────────────────────
+  async function selectGroupGrade(groupId: string, grade: string, comment: string) {
+    // optimistic
+    groupGrades.value[groupId] = { grade, comment }
+    try {
+      await api.post(`/mcu/exams/${examId}/doctor-result/group/${groupId}`, { grade, comment })
+      return true
+    } catch (err) {
+      delete groupGrades.value[groupId]
+      toast.add({
+        title: 'Gagal simpan grade group',
+        description: getErrorMessage(err, 'Gagal menyimpan grade group'),
+        color: 'error'
+      })
+      return false
+    }
+  }
+
+  async function clearGroupGrade(groupId: string) {
+    const prev = groupGrades.value[groupId]
+    delete groupGrades.value[groupId]
+    try {
+      await api.delete(`/mcu/exams/${examId}/doctor-result/group/${groupId}`)
+      return true
+    } catch (err) {
+      if (prev) groupGrades.value[groupId] = prev
+      toast.add({
+        title: 'Gagal hapus grade group',
+        description: getErrorMessage(err, 'Gagal menghapus grade group'),
+        color: 'error'
+      })
+      return false
+    }
+  }
+
   // ── submit ─────────────────────────────────────────────────────────
   async function submit() {
     if (!canSubmit.value) return false
@@ -191,7 +257,10 @@ export function useDoctorResult(examId: string) {
       const payload: DoctorResultSubmitPayload = {
         finalGrade: finalGrade.value,
         fitnessLevel: fitnessLevel.value,
-        finalComment: finalComment.value || Object.values(comments.value).join(' '),
+        finalComment: finalComment.value || [
+          ...Object.values(comments.value).filter(Boolean),
+          ...Object.values(groupGrades.value).map(g => g.comment).filter(Boolean)
+        ].join(' '),
         internalNote: internalNote.value
       }
       const res = await api.post(`/mcu/exams/${examId}/doctor-result/submit`, payload)
@@ -216,11 +285,14 @@ export function useDoctorResult(examId: string) {
     error,
     selectedGrades,
     comments,
+    groupGrades,
     finalGrade,
     fitnessLevel,
     finalComment,
     internalNote,
     allItems,
+    allGroups,
+    pendingGroups,
     pendingItems,
     pendingCount,
     gradedCount,
@@ -229,6 +301,8 @@ export function useDoctorResult(examId: string) {
     load,
     selectGrade,
     clearGrade,
+    selectGroupGrade,
+    clearGroupGrade,
     gradeOptionsFor,
     submit
   }
