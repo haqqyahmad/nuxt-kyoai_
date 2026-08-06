@@ -322,6 +322,9 @@ type StatusHistoryItem = {
   action: string
   notes: string | null
   createdAt: string
+  actorId?: number | null
+  actorRole?: string | null
+  actorName?: string | null
   payloadBefore?: Record<string, any> | null
   payloadAfter?: Record<string, any> | null
 }
@@ -756,6 +759,10 @@ onMounted(() => {
                       </p>
                       <p class="text-xs text-muted italic mt-0.5">
                         {{ statusHistoryDesc(item) }}
+                      </p>
+                      <p v-if="item.actorName" class="text-xs text-muted mt-0.5 flex items-center gap-1">
+                        <UIcon name="i-lucide-user" class="text-xs" />
+                        {{ item.actorName }}<template v-if="item.actorRole"> · {{ item.actorRole }}</template>
                       </p>
                     </div>
                   </div>
