@@ -41,7 +41,6 @@ const errors = reactive({
 
 const isFormValid = computed(() => {
   if (selectedStatus.value === 'APPROVED') {
-    if (formApprove.patientExists === true && !confirmOverwrite.value) return false
     return !!formApprove.examDate && !!formApprove.priorityRegist
   }
 
@@ -345,7 +344,8 @@ const handleChangeStatus = async (row: any, val: string) => {
 const statusLabel: Record<string, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
-  PENDING: 'Pending'
+  PENDING: 'Pending',
+  PROCESS: 'Process'
 }
 
 async function confirmChangeStatus() {
@@ -370,15 +370,37 @@ async function confirmChangeStatus() {
     return
   }
 
+  // Alur baru: APPROVED tidak membuat registrasi di sini.
+  // Set status PROCESS, lalu redirect ke create → FO pilih paket MCU → registrasi dibuat saat simpan.
+  if (val === 'APPROVED') {
+    const query = new URLSearchParams({ tempId: row.original.id })
+    if (formApprove.examDate) query.set('examDate', formApprove.examDate)
+    if (formApprove.priorityRegist) query.set('priorityRegist', formApprove.priorityRegist)
+    if (formApprove.patientId) query.set('patientId', formApprove.patientId)
+
+    isStatusModalOpen.value = false
+    try {
+      await api.post(`/registration-temp/${row.original.id}/process`)
+    } catch {
+      // best-effort — redirect tetap jalan
+    }
+    toast.add({
+      title: 'Lanjutkan Registrasi',
+      description: 'Pilih paket MCU lalu simpan untuk membuat registrasi.',
+      color: 'info'
+    })
+    await navigateTo(`/front-office/registration-patient/create?${query.toString()}`)
+    return
+  }
+
   try {
     const oldStatus = row.original.status
 
-    await updateStatus(row.original.id, val, {
-      examDate: formApprove.examDate,
-      priorityRegist: formApprove.priorityRegist,
-      patientId: formApprove.patientId || undefined,
+    const payload: any = {
       reason: formReject.rejectReason
-    })
+    }
+
+    await updateStatus(row.original.id, val, payload)
 
     // 🔥 UPDATE LOCAL STATE
     if (!reg_temp.value) return
@@ -391,8 +413,6 @@ async function confirmChangeStatus() {
       const updated = {
         ...reg_temp.value[index],
         status: val,
-        examDate: formApprove.examDate,
-        priorityRegist: formApprove.priorityRegist,
         rejectedReason: val === 'REJECTED' ? formReject.rejectReason : null
       }
 
@@ -754,7 +774,8 @@ const columns: TableColumn<TempRegist>[] = [
       const colorMap: Record<string, string> = {
         APPROVED: 'bg-green-100 text-green-700 border-green-200',
         REJECTED: 'bg-red-100 text-red-700 border-red-200',
-        PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200'
+        PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        PROCESS: 'bg-blue-100 text-blue-700 border-blue-200'
       }
 
       return h(
@@ -788,7 +809,7 @@ const columns: TableColumn<TempRegist>[] = [
   }
 ]
 
-const table = useTemplateRef('table')
+const table = ref()
 
 const searchQuery = computed({
   get: (): string => {
@@ -808,12 +829,11 @@ const searchQuery = computed({
 
 const currentPage = ref(1)
 
-const currentPageSize = computed({
-  get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
-  set: (value: number) => {
-    table.value?.tableApi?.setPageSize(value)
-    currentPage.value = 1
-  }
+const currentPageSize = ref(10)
+
+watch(currentPageSize, (value) => {
+  table.value?.tableApi?.setPageSize(value)
+  currentPage.value = 1
 })
 
 watch(
@@ -976,8 +996,8 @@ watch(currentPage, (page) => {
       >
         <template #content>
           <div class="space-y-4">
-            <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (ditanya sebelum pilih status) -->
-            <div class="space-y-2">
+            <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (hanya muncul saat Approve) -->
+            <div v-if="selectedStatus === 'APPROVED'" class="space-y-2">
               <label class="text-sm font-medium text-muted">
                 Apakah pasien sudah pernah MCU di Kyoai?
               </label>
@@ -1042,7 +1062,7 @@ watch(currentPage, (page) => {
 
             <!-- Konfirmasi overwrite data pasien existing -->
             <div
-              v-if="formApprove.patientExists === true"
+              v-if="selectedStatus === 'APPROVED' && formApprove.patientExists === true"
               class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
             >
               <label class="flex items-start gap-2.5 text-sm">

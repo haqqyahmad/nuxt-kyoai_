@@ -321,7 +321,7 @@ const columns: TableColumn<Patient>[] = [
       row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'IdNumber',
+    accessorKey: 'idNumber',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -438,7 +438,7 @@ const columns: TableColumn<Patient>[] = [
   }
 ]
 
-const table = useTemplateRef('table')
+const table = ref()
 
 const searchQuery = computed({
   get: (): string => {
@@ -457,12 +457,11 @@ const searchQuery = computed({
 
 const currentPage = ref(1)
 
-const currentPageSize = computed({
-  get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
-  set: (value: number) => {
-    table.value?.tableApi?.setPageSize(value)
-    currentPage.value = 1
-  }
+const currentPageSize = ref(10)
+
+watch(currentPageSize, (val) => {
+  table.value?.tableApi?.setPageSize(val)
+  currentPage.value = 1
 })
 
 watch(

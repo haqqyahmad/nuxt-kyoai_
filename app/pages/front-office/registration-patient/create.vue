@@ -4,6 +4,16 @@
 const api = useApi()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
+
+const tempId = computed(() => route.query.tempId as string | undefined)
+const fromTemp = ref(false)
+
+const backTarget = computed(() =>
+  fromTemp.value && tempId.value
+    ? `/front-office/registration-temp/${tempId.value}`
+    : '/front-office/registration-patient'
+)
 
 // ─────────────────────────────────────────────
 // Types
@@ -363,6 +373,118 @@ const regForm = ref({
 })
 
 // ─────────────────────────────────────────────
+// Prefill dari RegistrationTemp (approve → create)
+// ─────────────────────────────────────────────
+type TempRegistration = {
+  id: string
+  branchId: string
+  companyId: string
+  serviceType: string
+  paymentType: string
+  priorityRegist: string
+  examDate: string
+  scheduleDateExam: string
+  patientId: string | null
+  patientExists?: boolean
+  registrationId?: number | null
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  gender?: 'male' | 'female'
+  idType?: string
+  idValue?: string
+  phone?: string
+  email?: string
+  dob?: string
+  maritalStatus?: string
+}
+
+const tempLoading = ref(false)
+const tempLoadError = ref('')
+
+function tempDobToInput(tempDob?: string) {
+  if (!tempDob) return ''
+  const m = tempDob.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  return tempDob.slice(0, 10)
+}
+
+async function loadTempPrefill(temp: TempRegistration) {
+  fromTemp.value = true
+
+  const branch = (branches.value ?? []).find(
+    b => b.branchId === temp.branchId
+  )
+  if (branch) selectedBranch.value = branch
+
+  selectedService.value = temp.serviceType
+  regForm.value.companyId = temp.companyId
+  regForm.value.paymentType = temp.paymentType || 'Personal'
+  regForm.value.priorityRegist = temp.priorityRegist || 'Normal'
+  regForm.value.examDate = temp.examDate?.slice(0, 10) || ''
+  regForm.value.scheduleDateExam = temp.scheduleDateExam?.slice(0, 10) || ''
+
+  if (temp.patientId) {
+    // Patient existing → tampilkan sebagai pasien terpilih (bukan form baru)
+    try {
+      const res = await api.get(`/patient/${temp.patientId}`)
+      const patient = res.data.data as Patient
+      selectPatient(patient)
+    } catch {
+      tempLoadError.value = 'Gagal memuat data pasien'
+    }
+  } else {
+    // Patient baru dari portal → tampilkan form pasien baru terisi
+    isNewPatient.value = true
+    newPatient.value.firstName = temp.firstName || ''
+    newPatient.value.middleName = temp.middleName || ''
+    newPatient.value.lastName = temp.lastName || ''
+    newPatient.value.gender = temp.gender === 'female' ? 'FEMALE' : 'MALE'
+    newPatient.value.idType = temp.idType || 'KTP'
+    newPatient.value.idNumber = temp.idValue || ''
+    newPatient.value.phone = temp.phone || ''
+    newPatient.value.email = temp.email || ''
+    newPatient.value.dob = tempDobToInput(temp.dob)
+  }
+}
+
+async function loadFromTemp() {
+  if (!tempId.value) return
+
+  tempLoading.value = true
+  tempLoadError.value = ''
+  try {
+    const res = await api.get(`/registration-temp/${tempId.value}`)
+    const temp = res.data.data as TempRegistration
+
+    if (route.query.patientId && temp.patientId !== route.query.patientId) {
+      temp.patientId = String(route.query.patientId)
+    }
+
+    await loadTempPrefill(temp)
+
+    if (route.query.examDate) {
+      regForm.value.examDate = String(route.query.examDate).slice(0, 10)
+    }
+    if (route.query.priorityRegist) {
+      regForm.value.priorityRegist = String(route.query.priorityRegist)
+    }
+  } catch {
+    tempLoadError.value = 'Gagal memuat data registrasi sementara'
+  } finally {
+    tempLoading.value = false
+  }
+}
+
+watch(
+  () => [branches.value, tempId.value],
+  () => {
+    if (tempId.value && branches.value?.length) loadFromTemp()
+  },
+  { immediate: true }
+)
+
+// ─────────────────────────────────────────────
 // Paket MCU
 // ─────────────────────────────────────────────
 const selectedPaket = ref<Paket | null>(null)
@@ -593,30 +715,46 @@ async function submit() {
 
   try {
     let patientId = selectedPatient.value?.id
-    if (isNewPatient.value) {
-      const patient = await saveNewPatient()
-      if (!patient) return
-      patientId = patient.id
-    }
 
-    const regPayload = {
-      patientId,
-      branchId: selectedBranch.value!.branchId,
-      companyId: String(regForm.value.companyId),
-      serviceType: selectedService.value,
-      paymentType: regForm.value.paymentType,
-      priorityRegist: regForm.value.priorityRegist,
-      examDate: regForm.value.examDate,
-      scheduleDateExam: regForm.value.scheduleDateExam
+    let registrationId: number
+    if (fromTemp.value && tempId.value) {
+      // Alur portal: approve backend dipanggil saat simpan →
+      // backend membuat patient (jika baru) + Registration + address + company history
+      const approveRes = await api.post(`/registration-temp/${tempId.value}/approve`, {
+        examDate: regForm.value.examDate,
+        scheduleDateExam: regForm.value.scheduleDateExam,
+        priorityRegist: regForm.value.priorityRegist,
+        patientId: patientId || undefined
+      })
+      registrationId = approveRes.data.data.registrationId
+      patientId = approveRes.data.data.patientId ?? patientId
+    } else {
+      if (isNewPatient.value) {
+        const patient = await saveNewPatient()
+        if (!patient) return
+        patientId = patient.id
+      }
+
+      const regPayload = {
+        patientId,
+        branchId: selectedBranch.value!.branchId,
+        companyId: String(regForm.value.companyId),
+        serviceType: selectedService.value,
+        paymentType: regForm.value.paymentType,
+        priorityRegist: regForm.value.priorityRegist,
+        examDate: regForm.value.examDate,
+        scheduleDateExam: regForm.value.scheduleDateExam
+      }
+      const regRes = await api.post('/registration', regPayload)
+      registrationId = regRes.data.data.id
     }
-    const regRes = await api.post('/registration', regPayload)
 
     if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
       const examRes = await api.post('/mcu/exams', {
         paketId: selectedPaket.value.id,
         patientId,
         examDate: regForm.value.examDate,
-        registrationId: regRes.data.data.id
+        registrationId
       })
 
       const examId = examRes.data.data.id
@@ -633,7 +771,9 @@ async function submit() {
 
     toast.add({
       title: 'Berhasil',
-      description: 'Registrasi berhasil dibuat',
+      description: fromTemp.value
+        ? 'Registrasi & exam MCU berhasil dibuat'
+        : 'Registrasi berhasil dibuat',
       color: 'success'
     })
     router.push('/front-office/registration-patient')
@@ -650,6 +790,22 @@ async function submit() {
     submitting.value = false
   }
 }
+
+const cancelLoading = ref(false)
+
+async function cancel() {
+  if (fromTemp.value && tempId.value) {
+    cancelLoading.value = true
+    try {
+      await api.post(`/registration-temp/${tempId.value}/reset`)
+    } catch {
+      // best-effort — redirect tetap jalan
+    } finally {
+      cancelLoading.value = false
+    }
+  }
+  router.push(backTarget.value)
+}
 </script>
 
 <template>
@@ -662,7 +818,8 @@ async function submit() {
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/front-office/registration-patient"
+            :loading="cancelLoading"
+            @click="cancel"
           />
         </template>
       </UDashboardNavbar>
@@ -671,6 +828,32 @@ async function submit() {
     <!-- ── Body ── -->
     <template #body>
       <div class="max-w-5xl mx-auto py-6 px-4 space-y-5">
+        <UAlert
+          v-if="tempLoading"
+          icon="i-lucide-loader-circle"
+          color="info"
+          variant="soft"
+          title="Memuat data registrasi sementara..."
+          :description="`Mengambil data dari registrasi portal #${tempId}`"
+        />
+
+        <UAlert
+          v-else-if="fromTemp"
+          icon="i-lucide-clipboard-check"
+          color="success"
+          variant="subtle"
+          title="Data registrasi sementara telah dimuat"
+          description="Data pasien, cabang, dan layanan sudah terisi otomatis dari portal. Pilih paket MCU lalu simpan untuk membuat exam."
+        />
+
+        <UAlert
+          v-else-if="tempLoadError"
+          icon="i-lucide-alert-circle"
+          color="error"
+          variant="soft"
+          :title="tempLoadError"
+        />
+
         <div
           class="grid gap-5 items-start"
           style="grid-template-columns: repeat(2, minmax(0, 1fr))"
@@ -1188,7 +1371,7 @@ async function submit() {
                     :items="
                       (companies ?? []).map((c) => ({
                         label: `${c.codeCostumer} – ${c.customerName}`,
-                        value: c.codeCostumer
+                        value: String(c.id)
                       }))
                     "
                     placeholder="Pilih perusahaan..."
@@ -1884,7 +2067,8 @@ async function submit() {
             <UButton
               color="neutral"
               variant="outline"
-              to="/front-office/registration-patient"
+              :loading="cancelLoading"
+              @click="cancel"
             >
               Batal
             </UButton>
