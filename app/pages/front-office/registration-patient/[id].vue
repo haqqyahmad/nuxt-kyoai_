@@ -341,6 +341,10 @@ async function loadStatusHistory() {
   }
 }
 
+const statusHistoryDisplay = computed(() =>
+  [...statusHistory.value].reverse()
+)
+
 function statusHistoryLabel(item: StatusHistoryItem): string {
   if (item.action === 'CREATE') return 'Registrasi Dibuat'
   if (item.action === 'STATUS_CHANGE') {
@@ -741,8 +745,8 @@ onMounted(() => {
                 </div>
                 <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
-                  <div v-for="(item, i) in statusHistory" :key="item.id || i" class="relative flex gap-3 pl-6">
-                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="i === statusHistory.length - 1 ? 'bg-primary' : 'bg-muted'" />
+                  <div v-for="(item, i) in statusHistoryDisplay" :key="item.id || i" class="relative flex gap-3 pl-6">
+                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="i === 0 ? 'bg-primary' : 'bg-muted'" />
                     <div>
                       <p class="text-sm font-semibold">
                         {{ statusHistoryLabel(item) }}
