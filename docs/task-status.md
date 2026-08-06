@@ -4,6 +4,79 @@ Last updated: 2026-08-06
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-06: Detail Registration — DOB, Questionnaire Dinamis, Status History
+
+**Perintah:** `/front-office/registration-patient/[id]` — tambah DOB di Patient Information, Medical Questionnaire List dinamis (seperti di temp), dan cek apakah Status History benar-benar mencatat perubahan.
+
+### 1. Patient Information — DOB
+- Tambah field **Tanggal Lahir** di sebelah Gender (baris atas 4 kolom: Full Name | Gender | Tanggal Lahir | Contact Status).
+- Helper `formatDob` + `parseLocalDate` (handle ISO UTC & format `YYYY-MM-DD`).
+
+### 2. Medical Questionnaire List — dinamis
+- Backend: endpoint baru `GET /registration/number/:id_reg/questionnaires` — refactor `getQuestionnaires()` generik di `public-registration.service.js`, query via `registrationId` pada `QstAnswer` (temp page pakai `regId`).
+- FE: hapus array hardcoded → fetch dari BE + loading/empty state. Modal tampil jawaban asli per pertanyaan (ganti dummy Allergies/Medications).
+- Verifikasi: `REG-20260805-01-0004` → MCU Questionnaire, Completed, 14 answers.
+
+### 3. Status History — via tabel `diff_audit_logs`
+- **Temuan awal:** `Registration` tidak punya `updatedAt` dan tidak ada tabel history; `updateStatus/reschedule/cancel` hanya overwrite field — tidak ada riwayat nyata.
+- **Fix backend:**
+  - `recordDiff()` ditambahkan di semua titik perubahan status: CREATE, updateStatus, reschedule, cancel (registration.service), checkin/undoCheckin/partialExam (queue.service), approve portal (public-registration.service).
+  - Endpoint baru `GET /registration/number/:id_reg/status-history` — baca dari `diff_audit_logs` (`entity='Registration'`).
+- **FE:** Status History dinamis dari endpoint, loading/empty state, menampilkan transisi status (`Open → Cancel`), auto-refresh setelah cancel/checkin/uncheck. **Urutan:** backend tetap `createdAt` asc (tidak diubah), FE pakai `statusHistoryDisplay` (`reverse()`) agar **terbaru tampil di atas** dengan dot biru di item teratas.
+- **Actor:** `diff_audit_logs` kini diisi `actorId` + `actorRole` (via `resolveActor` di `audit.service.js`; semua titik perubahan status Registration meneruskan `req.user?.id`). `getStatusHistory` resolve `actorName` (join `User.name`); FE tampilkan nama + role di tiap item. Catatan: data audit lama (sebelum fix) tidak punya actor → tidak tampil.
+- **Scroll:** container Status History pakai `max-h-72 overflow-y-auto` — riwayat panjang bisa di-scroll, item terbaru tetap di atas.
+
+## Completed — 2026-08-06: Status History untuk RegistrationTemp (diff_audit_logs)
+
+**Perintah:** `/front-office/registration-temp/[id]` — Status History dinamis mirip registration-patient, pakai `diff_audit_logs` entity `RegistrationTemp`.
+
+### Backend (express_dash)
+- **recordDiff** untuk entity `RegistrationTemp` di semua titik perubahan status:
+  - `submitFromPublic` → **CREATE** (PENDING)
+  - `markAsProcess` → **STATUS_CHANGE** PENDING → PROCESS
+  - `resetToPending` → **STATUS_CHANGE** PROCESS → PENDING
+  - `approveTemp` → **STATUS_CHANGE** PROCESS → APPROVED
+  - `rejectTemp` → **STATUS_CHANGE** PENDING/APPROVED → REJECTED
+- **Endpoint baru:** `GET /api/registration-temp/:id/status-history` — return `{ createdAt, currentStatus, history: [...] }` dengan `actorId`, `actorRole`, `actorName`.
+
+### Frontend (my-app)
+- **`registration-temp/[id].vue`**:
+  - `loadStatusHistory()` fetch ke endpoint baru
+  - `statusHistoryDisplay` computed (reverse → terbaru di atas)
+  - Template menampilkan: label transisi (`PENDING → PROCESS` dsb), timestamp, actorName + actorRole, notes
+  - Loading/empty state, scroll `max-h-72 overflow-y-auto`, dot biru di item teratas
+  - Auto-load di `onMounted`
+
+### Verifikasi
+- Typecheck FE/BE bersih
+- Test end-to-end: submit temp → process (PENDING→PROCESS) → approve (PROCESS→APPROVED) → status-history menampilkan transisi dengan `actorName: Super Admin`, `actorRole: superadmin`
+
+Files: `app/pages/front-office/registration-temp/[id].vue`, express_dash `public-registration.service.js`, `public-registration.controller.js`, `public-registration.route.js`
+
+## Completed — 2026-08-06: Status History untuk RegistrationTemp (diff_audit_logs)
+- **Catatan:** data registrasi lama tidak punya history (hanya terisi untuk perubahan baru).
+
+Files: `app/pages/front-office/registration-patient/[id].vue`, express_dash `registration.service.js`, `queue.service.js`, `public-registration.service.js`, `registration.route.js`, `registration.controller.js`
+
+## Completed — 2026-08-06: Fix Invalid CSRF Token di Portal (submit pasien baru)
+
+**Perintah:** Submit pasien baru di portal `/registration` muncul error `Invalid CSRF token`.
+
+### Penyebab
+- Duplikasi CSRF setup: `+layout.server.ts` DAN `+page.server.ts` (root `/`) dua-duanya generate `randomBytes()` + `cookies.set('csrf_token')` setiap load.
+- Saat SPA **client-side navigation** (dari `/` → `/registration` via tombol Patient Portal), cookie `csrf_token` di-overwrite token baru di background, sementara `data.csrfToken` yang dipakai form masih token lama → mismatch → 403.
+- Pasien existing lebih jarang kena karena melewati `/api/patient-search` dulu (refresh state); pasien baru submit langsung.
+
+### Fix
+- `+layout.server.ts`: token **stabil per sesi** — generate hanya jika cookie belum ada, tidak overwrite tiap load.
+- Hapus `+page.server.ts` root (duplikasi; halaman home tidak mengonsumsi `data.csrfToken`).
+
+### Verifikasi
+- Buka `/` → cookie `7fe6...`; buka `/registration` (session sama) → cookie & token HTML tetap sama (sebelumnya berubah-ubah).
+- POST `/api/patient` dengan token → lolos CSRF (respons 400 validasi field, bukan 403).
+
+Files (regist_portal): `src/routes/+layout.server.ts`, `src/routes/+page.server.ts` (hapus)
+
 ## Completed — 2026-08-06: Alur Portal → FO Registration (companyId + approve → create + PROCESS status)
 
 **Perintah:** Rapikan alur portal `/registration` sampai FO `/registration-patient`; companyId konsisten; approve → redirect create; MCU Breakdown terisi setelah simpan; status PROCESS.
