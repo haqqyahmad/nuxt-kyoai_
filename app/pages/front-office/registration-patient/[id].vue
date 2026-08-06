@@ -739,7 +739,7 @@ onMounted(() => {
                   Status History
                 </h3>
               </div>
-              <div class="p-4">
+              <div class="p-4 max-h-72 overflow-y-auto">
                 <div v-if="statusHistoryLoading" class="flex items-center justify-center py-6">
                   <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
                 </div>
