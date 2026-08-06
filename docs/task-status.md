@@ -1,8 +1,32 @@
 # Project Task Status
 
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-06: Alur Portal → FO Registration (companyId + approve → create + PROCESS status)
+
+**Perintah:** Rapikan alur portal `/registration` sampai FO `/registration-patient`; companyId konsisten; approve → redirect create; MCU Breakdown terisi setelah simpan; status PROCESS.
+
+### CompanyId konsisten (id format)
+- Portal & create.vue kirim `companyId = String(customer.id)`.
+- `registration.repositories.js`: JOIN company handle **dua format** (`codeCostumer` dan `id` numeric) di `findAll`, `findByRegNumber`, `findCheckinPreviewById` — kolom Company tampil untuk data lama & baru.
+- `exam.service.js`: lookup company `OR [{ codeCostumer }, { id }]` + map keduanya; `getDoctorResult` resolve nama company (tidak raw id).
+
+### Alur baru approve → create
+- Approve di `/registration-temp` **tidak membuat registrasi** — set status **PROCESS** (endpoint `POST /:id/process`) lalu redirect ke `/registration-patient/create?tempId=...`.
+- `create.vue`: prefill data dari temp (patient existing → ditampilkan sebagai pasien terpilih; patient baru → form terisi), FO pilih Paket MCU, **Simpan** → backend `approveTemp` (buat patient + Registration + address + company history) → buat exam → MCU Breakdown terisi.
+- **Batal** di create → `POST /:id/reset` → status kembali **PENDING** → kembali ke detail temp.
+- Status **PROCESS** tampil **biru** (`info`) di index & detail temp.
+- `adminApproveSchema` + `approveTemp`: overwrite data pasien existing kini benar-benar diterima (sebelumnya di-strip Zod).
+
+### Fix lain
+- `registration-patient/index.vue`: `useTemplateRef`→`ref`, fix `accessorKey: 'idNumber'` (sorting kolom ID Number).
+- Portal (`regist_portal`) `PatientSearch.svelte`: DOB patient existing bergeser 1 hari (ISO UTC `17:00Z` di-`slice`); fix `formatDobLocal()` via `new Date()` lokal.
+
+Files: `app/pages/front-office/registration-patient/{index,create}.vue`, `app/pages/front-office/registration-temp/{index,[id]}.vue`
+
+## Status history: tidak menulis log perubahan status
 
 ## Completed — 2026-08-05: Print Function Medical Questionnaires (FE)
 
@@ -30,8 +54,8 @@ File: `app/pages/front-office/registration-temp/[id].vue`
 ## Status history: tidak menulis log perubahan status
 
 - `statusHistory` (line 167) adalah **computed display-only** — memodelkan ulang satu fetch `GET /registration-temp/:id`, tidak ada write/create/update record.
-- Perubahan status (PENDING→APPROVED/REJECTED) ditulis oleh **backend** via endpoint `POST /.../:id/approve` / `/.../:id/reject`; FE hanya menampilkan `status`/`rejectedReason`/`updatedAt` hasil fetch.
-- Agar history update setelah approval dari halaman ini, perlu panggil `refresh()` (saat ini belum di-wire / unused).
+- Alur status saat ini: PENDING → **PROCESS** (klik Approve, redirect ke create) → **APPROVED** (klik Simpan di create, `approveTemp` dibuatkan Registration). Batal di create → **PENDING** kembali via `POST /:id/reset`.
+- Perubahan status ditulis oleh **backend** via endpoint `POST /.../:id/process`, `/.../:id/approve`, `/.../:id/reject`, `/.../:id/reset`; FE hanya menampilkan `status`/`rejectedReason`/`updatedAt` hasil fetch.
 
 ## Completed — 2026-08-05: Fix Portal 404 — Routing SvelteKit Sub-path
 

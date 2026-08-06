@@ -151,6 +151,28 @@ function formatDateTime(d?: string) {
     hour: '2-digit', minute: '2-digit'
   })
 }
+
+function formatDob(d?: string) {
+  if (!d) return '-'
+  const date = parseLocalDate(d)
+  if (!date) return d
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  })
+}
+
+function parseLocalDate(d: string): Date | null {
+  if (!d) return null
+  const iso = new Date(d)
+  if (!Number.isNaN(iso.getTime())) return iso
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d.trim())
+  if (m) {
+    const [_, y, mo, day] = m
+    const parsed = new Date(Number(y), Number(mo) - 1, Number(day))
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+  return null
+}
 function getExamItemStatus(ei: ExamItem) {
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
@@ -247,36 +269,97 @@ const additionalItems = computed(() =>
   (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
 )
 
-const questionnaires = [
-  { name: 'MCU Questionnaire', completionDate: 'May 06, 2026', status: 'Completed' },
-  { name: 'SRQ-20 Mental Health', completionDate: 'May 06, 2026', status: 'Completed' },
-  { name: 'Physical Assessment Questionnaire', completionDate: null, status: 'Pending' }
-]
+type PatientQuestionnaire = {
+  questionnaire_id: string
+  questionnaire_name: string
+  status: 'Completed' | 'Pending'
+  completionDate: string | null
+  answers?: Array<{
+    questionId: string
+    questionText: string
+    questionType?: string
+    optionId?: string | null
+    optionText?: string | null
+    answerText?: string | null
+  }>
+}
+
+const questionnaires = ref<PatientQuestionnaire[]>([])
+const questionnairesLoading = ref(false)
+
+async function loadQuestionnaires() {
+  questionnairesLoading.value = true
+  try {
+    const res = await api.get(`/registration/number/${route.params.id}/questionnaires`)
+    questionnaires.value = res.data?.data ?? []
+  } catch {
+    questionnaires.value = []
+  } finally {
+    questionnairesLoading.value = false
+  }
+}
+
+type PatientAnswer = NonNullable<PatientQuestionnaire['answers']>[number]
+
+function formatAnswer(q: PatientAnswer): string {
+  if (q.answerText != null && q.answerText !== '') return q.answerText
+  if (q.optionText) return q.optionText
+  if (q.optionId) return q.optionId
+  return '-'
+}
 
 const modalOpen = ref(false)
 const modalTitle = ref('')
-function openModal(name: string) {
-  modalTitle.value = name
+const modalAnswers = ref<NonNullable<PatientQuestionnaire['answers']>>([])
+function openModal(q: PatientQuestionnaire) {
+  modalTitle.value = q.questionnaire_name
+  modalAnswers.value = q.answers ?? []
   modalOpen.value = true
 }
 
-const statusHistory = computed(() => {
-  if (!reg.value) return []
-  return [
-    {
-      label: `Status: ${reg.value.statusRegistration}`,
-      time: reg.value.createdAt,
-      desc: 'Status diperbarui otomatis oleh sistem setelah validasi berhasil.',
-      dot: 'bg-primary'
-    },
-    {
-      label: 'Registrasi Dibuat',
-      time: reg.value.createdAt,
-      desc: 'Registrasi dibuat oleh Admission Staff.',
-      dot: 'bg-muted'
-    }
-  ]
-})
+type StatusHistoryItem = {
+  id: string
+  action: string
+  notes: string | null
+  createdAt: string
+  payloadBefore?: Record<string, any> | null
+  payloadAfter?: Record<string, any> | null
+}
+
+const statusHistory = ref<StatusHistoryItem[]>([])
+const statusHistoryLoading = ref(false)
+
+async function loadStatusHistory() {
+  statusHistoryLoading.value = true
+  try {
+    const res = await api.get(`/registration/number/${route.params.id}/status-history`)
+    statusHistory.value = res.data?.data?.history ?? []
+  } catch {
+    statusHistory.value = []
+  } finally {
+    statusHistoryLoading.value = false
+  }
+}
+
+function statusHistoryLabel(item: StatusHistoryItem): string {
+  if (item.action === 'CREATE') return 'Registrasi Dibuat'
+  if (item.action === 'STATUS_CHANGE') {
+    const before = item.payloadBefore?.statusRegistration
+    const after = item.payloadAfter?.statusRegistration
+    const from = before?.from ?? before?.to
+    const to = after?.to ?? after?.from
+    if (from && to && from !== to) return `${from} → ${to}`
+    if (to) return `Status: ${to}`
+    return 'Perubahan status'
+  }
+  return item.action
+}
+
+function statusHistoryDesc(item: StatusHistoryItem): string {
+  if (item.notes) return item.notes
+  if (item.action === 'CREATE') return 'Registrasi dibuat.'
+  return 'Perubahan status registrasi.'
+}
 
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
 const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
@@ -324,6 +407,7 @@ async function confirmCheckin() {
 
     const entry = res.data.data
     await refresh()
+    await loadStatusHistory()
 
     checkinModalOpen.value = false
     checkinSuccessOpen.value = true
@@ -353,12 +437,12 @@ async function undoCheckin() {
   try {
     await api.post(`/registration/${reg.value.id}/uncheck`)
     await refresh()
+    await loadStatusHistory()
     toast.add({
       title: 'Berhasil',
       description: 'Check-in pasien berhasil dibatalkan',
       color: 'success'
     })
-    await refresh()
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal membatalkan check-in'
     toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
@@ -374,12 +458,18 @@ async function cancelRegistration() {
     await api.patch(`/registration/${reg.value?.id}/cancel`)
     toast.add({ title: 'Berhasil', description: 'Registrasi dibatalkan', color: 'success' })
     await refresh()
+    await loadStatusHistory()
   } catch {
     toast.add({ title: 'Gagal', description: 'Gagal membatalkan registrasi', color: 'error' })
   } finally {
     cancelLoading.value = false
   }
 }
+
+onMounted(() => {
+  loadQuestionnaires()
+  loadStatusHistory()
+})
 </script>
 
 <template>
@@ -488,7 +578,7 @@ async function cancelRegistration() {
               <span v-if="reg.patient" class="text-xs text-muted">ID: {{ reg.patient.patientCode }}</span>
             </div>
             <div v-if="reg.patient" class="px-5 py-4">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-5 border-b border-default pb-4 mb-4">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
                   <p class="text-xs text-muted mb-1">
                     Full Name
@@ -503,6 +593,14 @@ async function cancelRegistration() {
                   </p>
                   <p class="font-semibold">
                     {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs text-muted mb-1">
+                    Tanggal Lahir
+                  </p>
+                  <p class="font-semibold">
+                    {{ formatDob(reg.patient.dob) }}
                   </p>
                 </div>
                 <div>
@@ -635,19 +733,25 @@ async function cancelRegistration() {
                 </h3>
               </div>
               <div class="p-4">
-                <div class="relative space-y-4">
+                <div v-if="statusHistoryLoading" class="flex items-center justify-center py-6">
+                  <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
+                </div>
+                <div v-else-if="!statusHistory.length" class="py-6 text-center">
+                  <p class="text-sm text-muted">Belum ada riwayat status.</p>
+                </div>
+                <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
-                  <div v-for="(item, i) in statusHistory" :key="i" class="relative flex gap-3 pl-6">
-                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="item.dot" />
+                  <div v-for="(item, i) in statusHistory" :key="item.id || i" class="relative flex gap-3 pl-6">
+                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="i === statusHistory.length - 1 ? 'bg-primary' : 'bg-muted'" />
                     <div>
                       <p class="text-sm font-semibold">
-                        {{ item.label }}
+                        {{ statusHistoryLabel(item) }}
                       </p>
                       <p class="text-xs text-muted mt-0.5">
-                        {{ formatDateTime(item.time) }}
+                        {{ formatDateTime(item.createdAt) }}
                       </p>
                       <p class="text-xs text-muted italic mt-0.5">
-                        {{ item.desc }}
+                        {{ statusHistoryDesc(item) }}
                       </p>
                     </div>
                   </div>
@@ -671,7 +775,13 @@ async function cancelRegistration() {
               />
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-left">
+              <div v-if="questionnairesLoading" class="flex items-center justify-center py-10">
+                <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
+              </div>
+              <div v-else-if="!questionnaires.length" class="py-10 text-center">
+                <p class="text-sm text-muted">Belum ada questionnaire terisi.</p>
+              </div>
+              <table v-else class="w-full text-left">
                 <thead>
                   <tr class="border-b border-default">
                     <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
@@ -689,12 +799,12 @@ async function cancelRegistration() {
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
-                  <tr v-for="q in questionnaires" :key="q.name" class="hover:bg-elevated transition-colors">
+                  <tr v-for="q in questionnaires" :key="q.questionnaire_id" class="hover:bg-elevated transition-colors">
                     <td class="px-5 py-3">
-                      <span class="text-sm font-semibold">{{ q.name }}</span>
+                      <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
                     </td>
                     <td class="px-5 py-3 text-center">
-                      <span v-if="q.completionDate" class="text-sm text-muted">{{ q.completionDate }}</span>
+                      <span v-if="q.completionDate" class="text-sm text-muted">{{ formatDateTime(q.completionDate) }}</span>
                       <span v-else class="text-sm text-muted italic">Not completed</span>
                     </td>
                     <td class="px-5 py-3 text-center">
@@ -713,7 +823,7 @@ async function cancelRegistration() {
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openModal(q.name)"
+                          @click="q.status === 'Completed' && openModal(q)"
                         />
                         <UButton
                           icon="i-lucide-printer"
@@ -1062,38 +1172,19 @@ async function cancelRegistration() {
       <UModal v-model:open="modalOpen" :title="modalTitle">
         <template #body>
           <div class="space-y-3">
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Allergies
-              </p>
-              <p class="text-sm font-semibold">
-                None reported
-              </p>
+            <div v-if="modalAnswers.length" class="space-y-3">
+              <div v-for="a in modalAnswers" :key="a.questionId" class="p-3 bg-elevated rounded-lg">
+                <p class="text-xs text-muted mb-1">
+                  {{ a.questionText }}
+                </p>
+                <p class="text-sm font-semibold">
+                  {{ formatAnswer(a) }}
+                </p>
+              </div>
             </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Current Medications
-              </p>
-              <p class="text-sm font-semibold">
-                Amoxicillin (500mg, 1x Daily)
-              </p>
-            </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Previous Surgeries
-              </p>
-              <p class="text-sm font-semibold">
-                Appendectomy (2018)
-              </p>
-            </div>
-            <div class="p-3 bg-elevated rounded-lg">
-              <p class="text-xs text-muted mb-1">
-                Family History
-              </p>
-              <p class="text-sm font-semibold">
-                Hypertension (Father), Diabetes Type 2 (Mother)
-              </p>
-            </div>
+            <p v-else class="text-sm text-muted text-center py-4">
+              Tidak ada jawaban.
+            </p>
           </div>
         </template>
         <template #footer>
@@ -1104,7 +1195,6 @@ async function cancelRegistration() {
               label="Close"
               @click="modalOpen = false"
             />
-            <UButton color="primary" icon="i-lucide-printer" label="Print Answers" />
           </div>
         </template>
       </UModal>
