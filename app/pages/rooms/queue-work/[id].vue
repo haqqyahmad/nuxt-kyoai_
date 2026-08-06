@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PhysicalExaminationDoctor from '~/components/rooms/PhysicalExaminationDoctor.vue'
+import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
 
 type Patient = {
   id: string | number
@@ -767,11 +768,20 @@ function canReceiveSample(item: RoomExamItem) {
   return !!getCollectedCollection(item)
 }
 
+function isDentalExamItem(item: RoomExamItem) {
+  const deptCode = item.trxExamItem?.item?.department?.code?.toUpperCase()
+  return deptCode === 'DENTAL'
+}
+
+// Item dental ditampilkan terpisah dari item pemeriksaan lain.
+const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
+const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 function isPhysicalExamItem(item: RoomExamItem) {
   const code = item.trxExamItem?.item?.code?.toUpperCase()
   const name = item.trxExamItem?.item?.name?.toUpperCase()
   return code === 'PHYSICAL_EXAMINATION' || name === 'PHYSICAL EXAMINATION'
 }
+
 function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
 }
@@ -1977,10 +1987,44 @@ async function handleSubmitItemAction() {
               </div>
             </UCard>
 
+            <!-- Dental Examination (tampilan terpisah dari exam lain) -->
+            <div v-if="dentalItems.length > 0" class="space-y-4">
+              <div class="flex items-center gap-3">
+                <div class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow">
+                  <UIcon name="i-lucide-stethoscope" class="size-5" />
+                </div>
+                <div>
+                  <h3 class="text-base font-semibold text-highlighted">
+                    Pemeriksaan Gigi (Dental)
+                  </h3>
+                  <p class="text-sm text-muted">
+                    {{ dentalItems.length }} item dental ditampilkan terpisah dari pemeriksaan lainnya.
+                  </p>
+                </div>
+              </div>
+
+              <DentalExamWorkPanel
+                v-for="item in dentalItems"
+                :key="item.id"
+                :item="item"
+                :can-start="isExamStageActive()"
+                :can-done="canDoneItem(item)"
+                :can-manage-actions="canManageItemActions"
+                :start-loading="Boolean(itemActionLoading[item.id])"
+                :done-loading="Boolean(itemActionLoading[item.id])"
+                @start="handleStartItem(item)"
+                @done="handleDoneItem(item)"
+                @refuse="openItemActionModal(item, 'refuse')"
+                @reschedule="openItemActionModal(item, 'reschedule')"
+                @retest="openItemActionModal(item, 'retest')"
+                @refreshed="loadPage(true)"
+              />
+            </div>
+
             <!-- Item Cards (non-sample + sample items in EXAM stage) -->
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div v-if="nonDentalItems.length > 0" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <UCard
-                v-for="item in roomExamItems"
+                v-for="item in nonDentalItems"
                 :key="item.id"
                 class="overflow-hidden border border-default/80 shadow-sm"
               >

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch, onMounted } from 'vue'
 
 import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
+
 const { isExternalDoctor } = await useCurrentUser()
 
 type Patient = {
@@ -199,7 +200,7 @@ const canSubmitCurrentResult = computed(() => {
   if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus !== 'FILLED' && Boolean(props.result.exam?.attachmentUrl)
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
-const isExternalResultFilled = computed(() => 
+const isExternalResultFilled = computed(() =>
   props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
 )
 console.log('isExternalResultFilled', props.result?.isExternalResult, props.result?.exam?.externalStatus, isExternalResultFilled.value)
@@ -340,14 +341,13 @@ function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
   return (examTypeBadgeColor[type ?? 'MCU'] ?? 'neutral') as BadgeColor
 }
 
-
 function getExternalHeaderSubtitle() {
   const patient = props.result?.patient
   const parts = [
     patient?.PatientId,
     props.result?.queueCode,
     patient?.gender === 'MALE' ? 'Laki-laki' : patient?.gender === 'FEMALE' ? 'Perempuan' : null,
-    getAgeAtExamLabel(patient, props.result?.checkinAt),
+    getAgeAtExamLabel(patient, props.result?.checkinAt)
   ].filter(Boolean)
   return parts.join(' - ') || '-'
 }
@@ -367,11 +367,11 @@ function getExternalUploadLabel() {
   const actor = formatExternalActor(attachment?.uploadedByUser, attachment?.uploadedBy)
   const uploadedAt = formatDateTime(attachment?.uploadedAt)
   if (actor === '-' && uploadedAt === '-') return '-'
-  return [actor, uploadedAt].filter((value) => value && value !== '-').join(' - ')
+  return [actor, uploadedAt].filter(value => value && value !== '-').join(' - ')
 }
 
 function hasOtherOption(inputan: ExamInput) {
-  return (inputan.opsis || []).some((option) => option.value === 'Others' || option.label === 'Others')
+  return (inputan.opsis || []).some(option => option.value === 'Others' || option.label === 'Others')
 }
 
 function isOtherSelected(inputan: ExamInput) {
@@ -1291,6 +1291,16 @@ onBeforeUnmount(() => {
               :color="getStatusColor(result.status)"
               variant="subtle"
             />
+            <UButton
+              v-if="result?.item?.department?.code?.toUpperCase() === 'DENTAL' && result.exam?.id"
+              icon="i-lucide-stethoscope"
+              size="xs"
+              color="primary"
+              variant="soft"
+              :to="`/rooms/dental/${result.exam.id}`"
+            >
+              Hasil Dental
+            </UButton>
           </div>
           <h1 class="mt-2 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl">
             {{ isExternalDoctorWorkspace ? formatPatientName(result?.patient) : result?.item?.name || '-' }}
@@ -1337,33 +1347,86 @@ onBeforeUnmount(() => {
     </template>
 
     <template #body>
-            <div
+      <div
         v-if="result && isExternalDoctorWorkspace"
         class="flex h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
       >
         <UCard class="mb-4 shrink-0 overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex items-center justify-between gap-3">
-              <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">Konteks Pemeriksaan</h4>
+              <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
+                Konteks Pemeriksaan
+              </h4>
               <UBadge :label="result.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
             </div>
           </template>
           <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">No. RM / Antrian</dt><dd class="mt-1 break-words font-mono font-semibold text-highlighted">{{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Item Pemeriksaan</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ result.item?.name || '-' }} <span class="font-mono text-muted">{{ result.item?.code || '' }}</span></dd></div>
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Petugas Pengambil</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ getExternalCollectorLabel() }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Upload File</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ getExternalUploadLabel() }}</dd></div>
-            <div class="min-w-0"><dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt><dd class="mt-1 break-words font-semibold text-highlighted">{{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}</dd></div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                No. RM / Antrian
+              </dt><dd class="mt-1 break-words font-mono font-semibold text-highlighted">
+                {{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                Item Pemeriksaan
+              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
+                {{ result.item?.name || '-' }} <span class="font-mono text-muted">{{ result.item?.code || '' }}</span>
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                Dokter Luar
+              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
+                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                Petugas Pengambil
+              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
+                {{ getExternalCollectorLabel() }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                Upload File
+              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
+                {{ getExternalUploadLabel() }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs uppercase tracking-wide text-muted">
+                Dokter Luar
+              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
+                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+              </dd>
+            </div>
           </dl>
         </UCard>
 
         <div class="grid min-h-0 flex-1 gap-4" :class="isExternalInputTwoColumns ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]' : 'xl:grid-cols-[minmax(760px,1.55fr)_minmax(360px,.75fr)]'">
           <UCard class="min-h-0 overflow-hidden border border-default/80 shadow-sm xl:sticky xl:top-0 xl:self-start" :ui="{ body: 'p-0 sm:p-0' }">
             <div class="mx-4 mt-4 h-[calc(100dvh-20rem)] min-h-[440px] overflow-hidden rounded-t-lg bg-muted/30">
-              <div v-if="externalAttachmentLoading" class="flex h-full items-center justify-center text-sm text-muted"><UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat PDF...</div>
-              <iframe v-else-if="externalAttachmentPreviewUrl" :src="externalAttachmentPreviewUrl" title="PDF hasil pemeriksaan" class="h-full w-full border-0 bg-muted/30" />
-              <div v-else class="flex h-full items-center justify-center p-6"><UAlert color="warning" variant="soft" title="PDF belum tersedia" :description="externalAttachmentError || 'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'" class="max-w-md" /></div>
+              <div v-if="externalAttachmentLoading" class="flex h-full items-center justify-center text-sm text-muted">
+                <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat PDF...
+              </div>
+              <iframe
+                v-else-if="externalAttachmentPreviewUrl"
+                :src="externalAttachmentPreviewUrl"
+                title="PDF hasil pemeriksaan"
+                class="h-full w-full border-0 bg-muted/30"
+              />
+              <div v-else class="flex h-full items-center justify-center p-6">
+                <UAlert
+                  color="warning"
+                  variant="soft"
+                  title="PDF belum tersedia"
+                  :description="externalAttachmentError || 'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'"
+                  class="max-w-md"
+                />
+              </div>
             </div>
             <div class="mx-4 mb-8 flex min-h-16 items-center justify-between gap-3 rounded-b-lg border border-t-0 border-default/80 bg-default px-4 py-4 text-xs text-muted">
               <span class="min-w-0 truncate">{{ result.exam?.externalAttachment?.originalName || 'Dokumen PDF pemeriksaan' }}</span>
@@ -1374,32 +1437,120 @@ onBeforeUnmount(() => {
           <UCard class="flex min-h-0 max-h-[calc(100dvh-20rem)] flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }">
             <template #header>
               <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0"><h4 class="text-base font-semibold text-highlighted">Input Hasil {{ result.item?.name || 'Pemeriksaan' }}</h4><p class="mt-1 text-xs text-muted">Isi parameter berdasarkan PDF di sebelah kiri.</p></div>
+                <div class="min-w-0">
+                  <h4 class="text-base font-semibold text-highlighted">
+                    Input Hasil {{ result.item?.name || 'Pemeriksaan' }}
+                  </h4><p class="mt-1 text-xs text-muted">
+                    Isi parameter berdasarkan PDF di sebelah kiri.
+                  </p>
+                </div>
                 <div class="inline-flex overflow-hidden rounded-lg border border-default bg-default">
-                  <button type="button" class="px-3 py-2 text-xs font-semibold" :class="externalInputColumns === 'one' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'" @click="externalInputColumns = 'one'">Input 1 Kolom</button>
-                  <button type="button" class="border-l border-default px-3 py-2 text-xs font-semibold" :class="externalInputColumns === 'two' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'" @click="externalInputColumns = 'two'">Input 2 Kolom</button>
+                  <button
+                    type="button"
+                    class="px-3 py-2 text-xs font-semibold"
+                    :class="externalInputColumns === 'one' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'"
+                    @click="externalInputColumns = 'one'"
+                  >
+                    Input 1 Kolom
+                  </button>
+                  <button
+                    type="button"
+                    class="border-l border-default px-3 py-2 text-xs font-semibold"
+                    :class="externalInputColumns === 'two' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'"
+                    @click="externalInputColumns = 'two'"
+                  >
+                    Input 2 Kolom
+                  </button>
                 </div>
               </div>
             </template>
-            <div class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300">Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh nurse.</div>
+            <div class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300">
+              Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh nurse.
+            </div>
             <div v-if="result.item?.inputans?.length" class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28" :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'">
               <div v-for="inputan in result.item.inputans" :key="inputan.id" class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3">
                 <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }} <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
-                <input v-if="inputan.inputType === 'number'" v-model="getInputDraft(inputan.id).valueNumber" type="number" :disabled="!canEditCurrentResult || isResultBlockedBySample" :class="getResultInputClass(inputan)" placeholder="Masukkan hasil" @input="recomputeCalculatedDrafts(true)">
-                <input v-else-if="inputan.inputType === 'string'" v-model="getInputDraft(inputan.id).valueString" type="text" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70" placeholder="Masukkan hasil">
+                <input
+                  v-if="inputan.inputType === 'number'"
+                  v-model="getInputDraft(inputan.id).valueNumber"
+                  type="number"
+                  :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                  :class="getResultInputClass(inputan)"
+                  placeholder="Masukkan hasil"
+                  @input="recomputeCalculatedDrafts(true)"
+                >
+                <input
+                  v-else-if="inputan.inputType === 'string'"
+                  v-model="getInputDraft(inputan.id).valueString"
+                  type="text"
+                  :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                  class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
+                  placeholder="Masukkan hasil"
+                >
                 <template v-else-if="inputan.inputType === 'selected'">
                   <select v-model="getInputDraft(inputan.id).valueSelected" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70">
-                    <option value="">Pilih hasil</option><option v-for="opsi in inputan.opsis" :key="opsi.id" :value="opsi.value">{{ opsi.label }}</option>
+                    <option value="">
+                      Pilih hasil
+                    </option><option v-for="opsi in inputan.opsis" :key="opsi.id" :value="opsi.value">
+                      {{ opsi.label }}
+                    </option>
                   </select>
-                  <div v-if="hasOtherOption(inputan) && isOtherSelected(inputan)" class="mt-2"><label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Detail {{ inputan.label }}</label><input v-model="getInputDraft(inputan.id).valueString" type="text" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70" placeholder="Tuliskan detail jika memilih Others"></div>
+                  <div v-if="hasOtherOption(inputan) && isOtherSelected(inputan)" class="mt-2">
+                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Detail {{ inputan.label }}</label><input
+                      v-model="getInputDraft(inputan.id).valueString"
+                      type="text"
+                      :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                      class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
+                      placeholder="Tuliskan detail jika memilih Others"
+                    >
+                  </div>
                 </template>
-                <input v-else-if="inputan.inputType === 'calculated'" v-model="getInputDraft(inputan.id).valueCalculated" type="number" disabled :class="getResultInputClass(inputan)" placeholder="Dihitung otomatis">
-                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"><span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0], inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span></div>
+                <input
+                  v-else-if="inputan.inputType === 'calculated'"
+                  v-model="getInputDraft(inputan.id).valueCalculated"
+                  type="number"
+                  disabled
+                  :class="getResultInputClass(inputan)"
+                  placeholder="Dihitung otomatis"
+                >
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0], inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
+                </div>
               </div>
-              <div class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3" :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"><label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" /></div>
+              <div class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3" :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''">
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" />
+              </div>
             </div>
-            <div v-else class="flex min-h-72 items-center justify-center p-6"><UAlert color="warning" variant="soft" title="Template hasil belum tersedia" description="Item ini belum memiliki parameter input hasil." /></div>
-            <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10"><div class="flex flex-col gap-2 sm:flex-row sm:justify-end"><UButton color="neutral" variant="soft" :loading="saving" :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample" icon="i-lucide-save" @click="handleSaveResult">Simpan Draft</UButton><UButton color="primary" :loading="submitting" :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample" icon="i-lucide-send" @click="handleSubmitResult">Submit Hasil</UButton></div></div>
+            <div v-else class="flex min-h-72 items-center justify-center p-6">
+              <UAlert
+                color="warning"
+                variant="soft"
+                title="Template hasil belum tersedia"
+                description="Item ini belum memiliki parameter input hasil."
+              />
+            </div>
+            <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10">
+              <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  :loading="saving"
+                  :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
+                  icon="i-lucide-save"
+                  @click="handleSaveResult"
+                >
+                  Simpan Draft
+                </UButton><UButton
+                  color="primary"
+                  :loading="submitting"
+                  :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
+                  icon="i-lucide-send"
+                  @click="handleSubmitResult"
+                >
+                  Submit Hasil
+                </UButton>
+              </div>
+            </div>
           </UCard>
         </div>
       </div>
@@ -1412,8 +1563,12 @@ onBeforeUnmount(() => {
           <div class="flex items-start gap-2">
             <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0" />
             <div class="min-w-0">
-              <p class="text-sm font-semibold">Result dikunci karena sample</p>
-              <p class="text-xs">{{ sampleBlockedDescription }}</p>
+              <p class="text-sm font-semibold">
+                Result dikunci karena sample
+              </p>
+              <p class="text-xs">
+                {{ sampleBlockedDescription }}
+              </p>
               <div v-if="result?.sampleImpacts?.length" class="mt-2 flex flex-wrap gap-2 text-[11px]">
                 <UBadge
                   v-for="impact in result.sampleImpacts"
@@ -1585,82 +1740,84 @@ onBeforeUnmount(() => {
                       {{ result.exam.examCode }}
                     </dd>
                   </div>
-<div v-if="hasExternalResultContext">
-                      <dt class="text-xs uppercase tracking-wide text-muted">
-                        Dokter Luar
-                      </dt>
-                      <dd class="mt-1 space-y-2">
-                        <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
-                          {{ result.exam.externalStatus }}
-                        </UBadge>
-                        <span v-else class="text-sm text-muted">-</span>
+                  <div v-if="hasExternalResultContext">
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Dokter Luar
+                    </dt>
+                    <dd class="mt-1 space-y-2">
+                      <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
+                        {{ result.exam.externalStatus }}
+                      </UBadge>
+                      <span v-else class="text-sm text-muted">-</span>
 
-                        <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
-                          {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
-                        </div>
+                      <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
+                        {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                      </div>
 
-                        <div v-if="!isExternalDoctor && (!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
-                          <USelectMenu
-                            v-model="selectedExternalDoctor"
-                            :items="externalDoctors"
-                            value-key="id"
-                            label-key="name"
-                            placeholder="Pilih dokter luar"
-                            class="min-w-48"
-                          />
-                          <UButton
-                            size="xs"
-                            color="primary"
-                            variant="soft"
-                            :loading="externalSaving"
-                            :disabled="!selectedExternalDoctor"
-                            @click="assignExternalDoctor"
-                          >
-                            Tugaskan
-                          </UButton>
-                        </div>
-
-                        <div v-if="!isExternalDoctor && result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
-                          <UButton
-                            size="xs"
-                            color="error"
-                            variant="soft"
-                            :loading="externalSaving"
-                            @click="cancelExternalDoctor"
-                          >
-                            Batalkan
-                          </UButton>
-                          <UButton
-                            size="xs"
-                            color="success"
-                            variant="soft"
-                            :loading="externalSaving"
-                            @click="uploadExternalResult"
-                          >
-                            Upload Hasil
-                          </UButton>
-                          <UInput
-                            type="file"
-                            accept="application/pdf"
-                            size="xs"
-                            @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
-                          />
-                        </div>
-
-                        <p v-if="isExternalDoctor" class="text-xs text-muted">PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di bawah.</p>
+                      <div v-if="!isExternalDoctor && (!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
+                        <USelectMenu
+                          v-model="selectedExternalDoctor"
+                          :items="externalDoctors"
+                          value-key="id"
+                          label-key="name"
+                          placeholder="Pilih dokter luar"
+                          class="min-w-48"
+                        />
                         <UButton
-                          v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
                           size="xs"
-                          color="neutral"
-                          variant="outline"
-                          icon="i-lucide-file-text"
+                          color="primary"
+                          variant="soft"
                           :loading="externalSaving"
-                          @click="openExternalAttachment"
+                          :disabled="!selectedExternalDoctor"
+                          @click="assignExternalDoctor"
                         >
-                          Lihat PDF
+                          Tugaskan
                         </UButton>
-                      </dd>
-                    </div>
+                      </div>
+
+                      <div v-if="!isExternalDoctor && result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
+                        <UButton
+                          size="xs"
+                          color="error"
+                          variant="soft"
+                          :loading="externalSaving"
+                          @click="cancelExternalDoctor"
+                        >
+                          Batalkan
+                        </UButton>
+                        <UButton
+                          size="xs"
+                          color="success"
+                          variant="soft"
+                          :loading="externalSaving"
+                          @click="uploadExternalResult"
+                        >
+                          Upload Hasil
+                        </UButton>
+                        <UInput
+                          type="file"
+                          accept="application/pdf"
+                          size="xs"
+                          @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
+                        />
+                      </div>
+
+                      <p v-if="isExternalDoctor" class="text-xs text-muted">
+                        PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di bawah.
+                      </p>
+                      <UButton
+                        v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
+                        size="xs"
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-file-text"
+                        :loading="externalSaving"
+                        @click="openExternalAttachment"
+                      >
+                        Lihat PDF
+                      </UButton>
+                    </dd>
+                  </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
                       Waktu Selesai
@@ -1755,7 +1912,7 @@ onBeforeUnmount(() => {
                 </div>
               </UCard>
 
-              <UCard class="order-1 border border-default/80 bg-default/80 shadow-sm" v-if="!isExternalResultFilled">
+              <UCard v-if="!isExternalResultFilled" class="order-1 border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
@@ -2001,25 +2158,37 @@ onBeforeUnmount(() => {
                             <div class="max-w-sm">
                               <div v-if="getExtResult(inputan.id)" class="space-y-1">
                                 <template v-if="getExtResult(inputan.id)!.valueNumber != null">
-                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueNumber }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}</p>
+                                  <p class="text-sm font-semibold text-highlighted">
+                                    {{ getExtResult(inputan.id)!.valueNumber }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
+                                  </p>
                                 </template>
                                 <template v-else-if="getExtResult(inputan.id)!.valueCalculated != null">
-                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueCalculated }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}</p>
+                                  <p class="text-sm font-semibold text-highlighted">
+                                    {{ getExtResult(inputan.id)!.valueCalculated }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
+                                  </p>
                                 </template>
                                 <template v-else-if="getExtResult(inputan.id)!.valueString != null">
-                                  <p class="text-sm font-semibold text-highlighted">{{ getExtResult(inputan.id)!.valueString }}</p>
+                                  <p class="text-sm font-semibold text-highlighted">
+                                    {{ getExtResult(inputan.id)!.valueString }}
+                                  </p>
                                 </template>
                                 <template v-else-if="getExtResult(inputan.id)!.valueSelected != null">
-                                  <p class="text-sm font-semibold text-highlighted">{{ getOptionLabel(inputan, getExtResult(inputan.id)!.valueSelected) }}</p>
+                                  <p class="text-sm font-semibold text-highlighted">
+                                    {{ getOptionLabel(inputan, getExtResult(inputan.id)!.valueSelected) }}
+                                  </p>
                                 </template>
                                 <template v-else>
-                                  <p class="text-sm text-muted">-</p>
+                                  <p class="text-sm text-muted">
+                                    -
+                                  </p>
                                 </template>
                                 <p class="text-[11px] text-muted">
                                   ID: {{ getExtResult(inputan.id)!.inputanId }}
                                 </p>
                               </div>
-                              <p v-else class="text-sm text-muted">Belum diisi</p>
+                              <p v-else class="text-sm text-muted">
+                                Belum diisi
+                              </p>
                             </div>
                           </td>
 

@@ -33,7 +33,16 @@ export type DoctorResultItem = {
 }
 
 export type DoctorResultGroup = {
+  groupId: string | null
   groupName: string
+  showInDoctorResult: boolean
+  isAbnormal: boolean
+  abnormalCount: number
+  defaultGrade: string | null       // A jika semua normal
+  grade: string | null               // store dari exam (A/B/BF/C/F)
+  comment: string | null             // komentar dokter (opsional)
+  commentOptions: Array<{ grade: string; comment: string }>
+  gradeOptions: Array<{ grade: string; label: string }>
   items: DoctorResultItem[]
 }
 
@@ -56,6 +65,24 @@ export type DoctorResultResponse = {
   patient: DoctorResultPatient
   departments: DoctorResultDepartment[]
   summary: DoctorResultSummary
+}
+
+export type GradeOption = {
+  id: string
+  grade: string
+  label: string
+  sortOrder: number
+  isActive: boolean
+}
+
+export type GroupGradeConfig = {
+  groupId: string
+  groupName: string
+  groupCode?: string | null
+  department?: { id: string; name: string; code?: string | null } | null
+  showInDoctorResult: boolean
+  gradeOptions: GradeOption[]
+  commentOptions: Array<{ grade: string; label?: string; comment: string; isActive?: boolean }>
 }
 
 export type DoctorResultSubmitPayload = {

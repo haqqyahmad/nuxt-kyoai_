@@ -31,3 +31,6 @@ logs
 
 # Docs
 docs
+
+# Graphify output (AI code analysis artifacts)
+/graphify-out/

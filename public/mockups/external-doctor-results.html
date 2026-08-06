@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mockup - Pekerjaan Dokter Luar</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#0f172a;background:#f8fafc}
+*{box-sizing:border-box}body{margin:0}.shell{display:flex;min-height:100vh}.side{width:248px;background:#fff;border-right:1px solid #e2e8f0;padding:24px 16px}.brand{font-weight:700;font-size:18px;margin:0 8px 28px}.nav{display:grid;gap:6px}.nav a{padding:11px 12px;border-radius:8px;color:#475569;text-decoration:none;font-size:14px}.nav a.active{background:#e2e8f0;color:#0f172a;font-weight:600}.main{flex:1;padding:28px;max-width:1280px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b}.title{font-size:28px;margin:6px 0}.sub{color:#64748b;margin:0}.btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:10px 14px;font-weight:600}.banner{margin:24px 0;padding:16px;border:1px solid #bae6fd;background:#f0f9ff;border-radius:10px}.banner strong{display:block;margin-bottom:4px}.filters,.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px}.filters{padding:18px;margin-bottom:16px}.filters h2{font-size:15px;margin:0 0 14px}.field{display:flex;gap:10px}.field input,.field select{height:40px;border:1px solid #cbd5e1;border-radius:7px;padding:0 12px;flex:1}.card{overflow:hidden}.card-head{padding:18px;display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0}.card-head h2{font-size:16px;margin:0}.count{color:#64748b;font-size:13px}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:14px 18px;border-bottom:1px solid #f1f5f9;font-size:14px}.table th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc}.mono{font-family:ui-monospace,SFMono-Regular,monospace}.badge{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#fef3c7;color:#92400e}.action{color:#0369a1;text-decoration:none;font-weight:600}.empty{text-align:center;padding:64px 20px;color:#64748b}.empty h3{color:#334155;margin:10px 0 6px}.empty p{margin:0}
+@media(max-width:760px){.side{display:none}.main{padding:18px}.top{display:block}.top .btn{margin-top:16px}.field{display:block}.field input{width:100%;margin-bottom:8px}.table{min-width:700px}.card{overflow:auto}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side"><div class="brand">KYOAI ERP</div><nav class="nav"><a class="active" href="#">Pekerjaan Dokter Luar</a><a href="#">Settings</a></nav></aside>
+<main class="main">
+<header class="top"><div><div class="eyebrow">Results</div><h1 class="title">Pekerjaan Dokter Luar</h1><p class="sub">Hasil pemeriksaan yang ditugaskan kepada Anda</p></div><button class="btn">Refresh</button></header>
+<section class="banner"><strong>Workspace Dokter Luar</strong><span>Hanya pemeriksaan yang ditugaskan kepada akun Anda yang ditampilkan. Isi hasil, simpan draft, lalu submit.</span></section>
+<section class="filters"><h2>Filter pekerjaan</h2><div class="field"><input placeholder="Cari pasien, nomor antrian, atau item"><select><option>Semua status</option><option>Menunggu diisi</option><option>Draft</option><option>Sudah disubmit</option></select></div></section>
+<section class="card"><div class="card-head"><h2>Pemeriksaan ditugaskan</h2><span class="count">2 pekerjaan</span></div><table class="table"><thead><tr><th>Pasien</th><th>Item</th><th>Ditugaskan</th><th>Status</th><th>Aksi</th></tr></thead><tbody><tr><td><strong>Budi Antrian Umum</strong><br><span class="mono">DEMO-PAT-002 · M004</span></td><td>ECG<br><span class="mono">NRS-ECG-0001</span></td><td>30 Jul 2026</td><td><span class="badge">ASSIGNED</span></td><td><a class="action" href="#">Buka hasil →</a></td></tr><tr><td><strong>Siti Aminah</strong><br><span class="mono">PAT-001 · M008</span></td><td>Radiologi Thorax<br><span class="mono">RAD-THX-001</span></td><td>30 Jul 2026</td><td><span class="badge">DRAFT</span></td><td><a class="action" href="#">Lanjutkan →</a></td></tr></tbody></table>
+</section>
+</main>
+</div>
+</body>
+</html>
