@@ -4,6 +4,68 @@ Last updated: 2026-08-06
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-06: FE Polish Questionnaire (toast ganda, lebar modal, filter MCU)
+
+- **Double toast saat add questionnaire**: `AddModal.vue` memanggil `handleSuccess` sendiri (toast #1) + `BaseFormModal.onSubmit` juga menampilkan toast sukses `handleSuccessGeneral` (toast #2). Fix: hapus `handleSuccess` di `AddModal.submit` → andalkan toast dari `BaseFormModal` (pola sama dengan `branches/AddModal.vue`).
+- **Lebar `CompanyMappingModal`**: `:ui="{ content: 'sm:max-w-4xl' }"`.
+- **Trigger UModal v4**: default slot (bukan `#trigger`); `load()` dipicu `watch(open)`.
+- **Dropdown questionnaire mengecualikan `portalKey === 'MCU'`** (sudah default di portal) — BE `toListItem`/`toDetail` kini mengekspos `portalKey`; data MCU Questionnaire di-update `portalKey='MCU'` via API.
+
+## Completed — 2026-08-06: Questionnaire per Company/Branch di Portal Registrasi
+
+**Perintah:** Portal registrasi harus menampilkan questionnaire sesuai company/branch yang dipilih pasien, sambil tetap menampilkan questionnaire MCU default.
+
+### Keputusan Desain
+- Questionnaire tampil **pisah** (satu questionnaire = satu step tambahan di stepper), bukan digabung.
+- Satu company/branch boleh punya **banyak** mapping (beberapa questionnaire).
+- Scope penuh: Backend (express_dash) + Portal (regist_portal) + UI manajemen (my-app).
+
+### Backend (express_dash)
+- `questionnaire.service.js`:
+  - `getDefaultByCompany` kini **return array** (MCU default + semua mapping company/branch aktif) — tidak lagi return tunggal.
+  - Tambah CRUD: `listCompanyMappings`, `createCompanyMapping`, `updateCompanyMapping`, `removeCompanyMapping`.
+  - Helper: `toCompanyMapping`, `resolveCompanyNames`, `findFullById`.
+- `questionnaire.repositories.js`: `findCompanyQuestionnaireMapping` ditambah param `questionnaireId`; tambah `findCompanyQuestionnaireMappings` (where companyId + isActive, OR branch null/branchId), `listCompanyQuestionnaireMappings`, `findCompanyQuestionnaireMappingById`, `createCompanyQuestionnaireMapping`, `updateCompanyQuestionnaireMapping`, `removeCompanyQuestionnaireMapping`.
+- `questionnaire.controller.js`: expose `listCompanyMappings`, `createCompanyMapping`, `updateCompanyMapping`, `removeCompanyMapping`.
+- Router baru `company-questionnaire.route.js` → CRUD di `/settings/company-questionnaires`, mount di `routers/index.js` dengan `ApiKeyMiddleware`.
+- Model: `CompanyQuestionnaire` (`@@map("company_questionnaire")`, unique [companyId, branchId, questionnaireId], branchId nullable = berlaku semua branch).
+
+### Portal (regist_portal)
+- `MCUQuestionnaire.svelte`: props baru `questionnaire` (object pre-loaded, **tidak fetch ulang**), render dinamis; fix TS `e.target` → `e.currentTarget`.
+- `+page.svelte` `/registration`: steps **dinamis via `$derived`** (baseSteps 2 + `questionnaires.map` + verification). State `questionnaires` array + `questionnaireAnswers` = `Record<questionnaireId, Record<qid, value>>`. `loadQuestionnaires()` fetch `/api/questionnaire/default?companyId=&branchId=` (return array). `next()` memuat saat keluar step Data Pasien (currentStep===1). `submit()` loop semua questionnaire dan kirim semua jawaban per questionnaire (null untuk kosong, optionId/optionIds/answerText).
+- Verifikasi: `svelte-check` bebas error untuk file diubah; `vite build` sukses.
+
+### Frontend my-app
+- `components/questionnaire/CompanyMappingModal.vue` (baru): modal 2 mode (list & form) — kelola mapping company/branch/questionnaire (create/edit/delete). UTable v4: `TableColumn<Mapping>[]` + slot `#<id>-cell="{ row }"` memakai `row.original`.
+- `pages/questionnaire/index.vue`: tombol "Mapping Per Company" ditambahkan di header (#right) sebelah tombol tambah questionnaire.
+- `CompanyMappingModal.vue` (perbaikan): trigger memakai default slot UModal (bukan `#trigger`), `load()` di-trigger via `watch(open)`. Pilihan questionnaire **mengecualikan** yang ber-`portalKey: MCU` (sudah default muncul di portal) — BE `toListItem` kini mengekspos `portalKey`.
+
+### Verifikasi
+- BE: `node --check` semua file OK; uji service — return array, mapping dibuat/di-list/dihapus.
+- my-app: `eslint` bersih + `nuxi typecheck` bebas error pada file baru (error lain pre-existing).
+- Portal: `svelte-check` + `vite build` sukses.
+
+Files: express_dash `src/services/questionnaire/questionnaire.service.js`, `src/repositories/questionnaire/questionnaire.repositories.js`, `src/controller/questionnaire/questionnaire.controller.js`, `src/routers/company-questionnaire/company-questionnaire.route.js`, `src/routers/index.js`; regist_portal `src/lib/components/registration/MCUQuestionnaire.svelte`, `src/routes/registration/+page.svelte`; my-app `app/components/questionnaire/CompanyMappingModal.vue`, `app/pages/questionnaire/index.vue`.
+
+## Completed — 2026-08-06: Audit Alur FE → BE Questionnaire (index + builder)
+
+**Perintah:** Cek alur `/questionnaire` dan `/questionnaire/[id]/builder` sampai backend.
+
+### Peta alur
+- **`/questionnaire`** → `GET /api/questionnaire` (list, kini sertakan `portalKey`) · `QuestionnaireAddModal` → `POST /api/questionnaire` · delete → `DELETE /api/questionnaire/:id`.
+- **`/questionnaire/[id]/builder`** → `onMounted`: `GET /api/questionnaire/:id` · autosave header (debounce 1.5s) → `PUT /api/questionnaire/:id` (name/description/portalKey) · autosave sections (deep) → `PUT /api/questionnaire/:id/sections` (upsert + delete yang dihapus) · tombol Simpan → `PUT /api/questionnaire/:id/sections`.
+- Semua route BE memakai `auth` + `permit("questionnaire:*")`; endpoint individual section/question/option masih ada tapi **tidak dipakai** builder (builder sync pohon utuh).
+
+### Bug ditemukan & diperbaiki
+1. **`toDetail` tidak mengekspos `portalKey`** → builder selalu load `portalKey=''`, lalu autosave header mengirim `portalKey: null` → **menghapus flag MCU** saat edit questionnaire. Fix: tambah `portalKey: q.portalKey` di `toDetail` (`questionnaire.service.js`).
+2. **Data: `portalKey` MCU Questionnaire = NULL** → filter `portalKey !== 'MCU'` di CompanyMappingModal tidak jalan, badge portal di index kosong, dan default hanya tercapai lewat fallback. Fix data via `PUT /api/questionnaire/:id {"portalKey":"MCU"}`.
+
+### Verifikasi live
+- `GET /api/questionnaire` & `GET /api/questionnaire/:id` kini menampilkan `portalKey`.
+- `PUT /api/questionnaire/:id` (header) persist portalKey=MCU.
+- `PUT /api/questionnaire/:id/sections` roundtrip 2 section / 25 soal + conditional logic terjaga.
+- `GET /api/questionnaire/public/default` memakai prioritas-1 (portalKey='MCU').
+
 ## Completed — 2026-08-06: Detail Registration — DOB, Questionnaire Dinamis, Status History
 
 **Perintah:** `/front-office/registration-patient/[id]` — tambah DOB di Patient Information, Medical Questionnaire List dinamis (seperti di temp), dan cek apakah Status History benar-benar mencatat perubahan.

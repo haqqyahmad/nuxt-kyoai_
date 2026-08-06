@@ -3,6 +3,13 @@
 Tanggal: 2026-07-10  
 Scope: Menyamakan frontend, PRD, dan dokumentasi kerja dengan backend aktif di `C:\laragon\www\express_dash`.
 
+## 2026-08-06 — Questionnaire per Company/Branch (BE + Portal + my-app)
+
+- **BE (`express_dash`)**: `getDefaultByCompany` kini return **array** (MCU default + mapping company/branch aktif). Tambah CRUD `CompanyQuestionnaire` via router `/settings/company-questionnaires` (service/repo/controller baru). Branch nullable = berlaku semua branch.
+- **Portal (`regist_portal`)**: steps registrasi dinamis — tiap questionnaire company jadi step terpisah; `MCUQuestionnaire.svelte` menerima `questionnaire` pre-loaded (no refetch); submit kirim semua jawaban per questionnaire.
+- **my-app**: `CompanyMappingModal.vue` — kelola mapping company/branch/questionnaire (list + form, UTable v4).
+- Detail lengkap di `docs/task-status.md` → section "Questionnaire per Company/Branch di Portal Registrasi".
+
 ## 2026-08-05 — Full Review (BE/FE/Portal) + Fix Bug Kritis
 
 Audit menyeluruh ketiga codebase. Fix yang dilakukan:

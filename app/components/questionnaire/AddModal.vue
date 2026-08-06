@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import * as z from 'zod'
-import { handleError, handleSuccess } from '~/utils/handlers'
+import { handleError } from '~/utils/handlers'
 
 const api = useApi()
 const toast = useToast()
@@ -16,7 +16,7 @@ const schema = z.object({
   description: z.string().optional(),
   version: z.string().min(1, 'Version is required'),
   isActive: z.boolean(),
-  portalKey: z.string().optional(),
+  portalKey: z.string().optional()
 })
 
 // Infer type dari schema
@@ -41,13 +41,8 @@ async function submit(data: Schema) {
       description: data.description,
       version: data.version,
       isActive: data.isActive,
-      portalKey: data.portalKey || null,
+      portalKey: data.portalKey || null
     })
-
-    handleSuccess(
-      toast,
-      `Questionnaire "${data.questionnaire_name}" created successfully`
-    )
 
     emit('created')
   } catch (err) {

@@ -123,6 +123,12 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-08-06 — Questionnaire per Company/Branch di Portal
+- BE: `getDefaultByCompany` return array (MCU default + mapping company/branch aktif) + CRUD `CompanyQuestionnaire` di `/settings/company-questionnaires`.
+- Portal: steps dinamis (tiap questionnaire = step terpisah), `MCUQuestionnaire` pre-loaded, submit semua jawaban per questionnaire.
+- my-app: `QuestionnaireCompanyMappingModal` — kelola mapping company/branch/questionnaire.
+- Detail: `docs/task-status.md`.
+
 ### 2026-07-17 — Fix stageLinks + DB sync
 - Generate Prisma Client → `stageLinks` berfungsi.
 - DB sync: isExternal, externalResult (revert), prisma db push FK error.

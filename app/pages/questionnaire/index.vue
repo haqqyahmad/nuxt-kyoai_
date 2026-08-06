@@ -356,6 +356,7 @@ watch(currentPage, (page) => {
         </template>
 
         <template #right>
+          <QuestionnaireCompanyMappingModal />
           <QuestionnaireAddModal @created="refresh" />
         </template>
       </UDashboardNavbar>
