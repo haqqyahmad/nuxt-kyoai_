@@ -438,35 +438,60 @@ function formatAnswer(q: TempAnswer): string {
 // ─────────────────────────────────────────────
 // Status history
 // ─────────────────────────────────────────────
-const statusHistory = computed(() => {
-  if (!reg.value) return []
-  const items = [
-    {
-      label: `Status: ${reg.value.status}`,
-      time: reg.value.createdAt,
-      desc: 'Status diperbarui otomatis oleh sistem setelah validasi berhasil.',
-      dot: 'bg-primary'
-    },
-    {
-      label: 'Registrasi Dibuat',
-      time: reg.value.createdAt,
-      desc: 'Registrasi dibuat oleh pasien melalui portal.',
-      dot: 'bg-muted'
-    }
-  ]
-  if (reg.value.status === 'REJECTED' && reg.value.rejectedReason) {
-    items.splice(1, 0, {
-      label: 'Ditolak',
-      time: reg.value.updatedAt || reg.value.createdAt,
-      desc: `Alasan: ${reg.value.rejectedReason}`,
-      dot: 'bg-error'
-    })
+type StatusHistoryItem = {
+  id: string
+  action: string
+  notes: string | null
+  createdAt: string
+  actorId?: number | null
+  actorRole?: string | null
+  actorName?: string | null
+  payloadBefore?: Record<string, any> | null
+  payloadAfter?: Record<string, any> | null
+}
+
+const statusHistory = ref<StatusHistoryItem[]>([])
+const statusHistoryLoading = ref(false)
+
+async function loadStatusHistory() {
+  statusHistoryLoading.value = true
+  try {
+    const res = await api.get(`/registration-temp/${route.params.id}/status-history`)
+    statusHistory.value = res.data?.data?.history ?? []
+  } catch {
+    statusHistory.value = []
+  } finally {
+    statusHistoryLoading.value = false
   }
-  return items
-})
+}
+
+const statusHistoryDisplay = computed(() =>
+  [...statusHistory.value].reverse()
+)
+
+function statusHistoryLabel(item: StatusHistoryItem): string {
+  if (item.action === 'CREATE') return 'Registrasi Dibuat'
+  if (item.action === 'STATUS_CHANGE') {
+    const before = item.payloadBefore?.status
+    const after = item.payloadAfter?.status
+    const from = before?.from ?? before?.to
+    const to = after?.to ?? after?.from
+    if (from && to && from !== to) return `${from} → ${to}`
+    if (to) return `Status: ${to}`
+    return 'Perubahan status'
+  }
+  return item.action
+}
+
+function statusHistoryDesc(item: StatusHistoryItem): string {
+  if (item.notes) return item.notes
+  if (item.action === 'CREATE') return 'Registrasi dibuat.'
+  return 'Perubahan status registrasi.'
+}
 
 onMounted(() => {
   loadQuestionnaires()
+  loadStatusHistory()
 })
 
 function printQuestionnaires() {
@@ -795,27 +820,30 @@ function printModalAnswers() {
                   Status History
                 </h3>
               </div>
-              <div class="p-4">
-                <div class="relative space-y-4">
+              <div class="p-4 max-h-72 overflow-y-auto">
+                <div v-if="statusHistoryLoading" class="flex items-center justify-center py-6">
+                  <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
+                </div>
+                <div v-else-if="!statusHistory.length" class="py-6 text-center">
+                  <p class="text-sm text-muted">Belum ada riwayat status.</p>
+                </div>
+                <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
-                  <div
-                    v-for="(item, i) in statusHistory"
-                    :key="i"
-                    class="relative flex gap-3 pl-6"
-                  >
-                    <div
-                      class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0"
-                      :class="item.dot"
-                    />
+                  <div v-for="(item, i) in statusHistoryDisplay" :key="item.id || i" class="relative flex gap-3 pl-6">
+                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="i === 0 ? 'bg-primary' : 'bg-muted'" />
                     <div>
                       <p class="text-sm font-semibold">
-                        {{ item.label }}
+                        {{ statusHistoryLabel(item) }}
                       </p>
                       <p class="text-xs text-muted mt-0.5">
-                        {{ formatDateTime(item.time) }}
+                        {{ formatDateTime(item.createdAt) }}
                       </p>
                       <p class="text-xs text-muted italic mt-0.5">
-                        {{ item.desc }}
+                        {{ statusHistoryDesc(item) }}
+                      </p>
+                      <p v-if="item.actorName" class="text-xs text-muted mt-0.5 flex items-center gap-1">
+                        <UIcon name="i-lucide-user" class="text-xs" />
+                        {{ item.actorName }}<template v-if="item.actorRole"> · {{ item.actorRole }}</template>
                       </p>
                     </div>
                   </div>
