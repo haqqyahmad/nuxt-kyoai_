@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DENTAL_GRADE_CONFIG, TOOTH_GROUPS } from '../types/dental'
-import type { DentalExamData } from '../types/dental'
+import { DENTAL_GRADE_CONFIG, TOOTH_GROUPS } from '~/types/dental'
+import type { DentalExamData } from '~/types/dental'
 
 const props = defineProps<{ data: DentalExamData | null }>()
 
