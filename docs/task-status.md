@@ -4,6 +4,23 @@ Last updated: 2026-08-06
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-06: Portal — Fix pilih Company di /registration (pasien baru)
+
+- **Masalah**: company tidak bisa dipilih di dropdown `Appointment` (pasien baru).
+- **Akar**: pola `onclick` + `onblur` (race) yang sama dengan bug branch — dropdown menutup sebelum klik item tercatat.
+- **Fix** (`Appointment.svelte`): item dropdown company & branch diganti ke `onmousedown` + `e.preventDefault()` (seleksi sebelum blur). Proxy `/api/customers` sudah menyediakan data (verified: CUST001 Maju Jaya).
+- Verifikasi: `/api/customers` 200, `Appointment.svelte` compile 200, `/registration` 200, svelte-check bersih.
+
+## Completed — 2026-08-06: Portal — Fix pilih Branch di /registration
+
+- **Masalah**: branch tidak bisa dipilih di portal `/registration`.
+- **Akar**: daftar branch **hardcoded** + dropdown rentan race `onblur` (dropdown menutup sebelum klik item tercatat). BE `/branch` butuh JWT, tidak bisa dipakai portal.
+- **Fix**:
+  - BE: endpoint publik `GET /branch/public` (hanya api-key) → `{ branchId, nameBranch }` — service `getPublic`, controller `getPublicBranches`, route diletakkan sebelum `/:id`.
+  - Portal: proxy baru `src/routes/api/branch/+server.ts` ke `/branch/public`; `BranchServiceSelect.svelte` fetch dinamis dari API dengan fallback daftar hardcoded.
+  - Interaksi dropdown: item pakai `onmousedown` + `e.preventDefault()` (bukan `onclick`) agar seleksi terjadi sebelum blur menutup dropdown (Svelte 5 tidak dukung `|preventDefault`).
+- Verifikasi: BE `/branch/public` 200 (10 branch), proxy portal `/api/branch` 200, `/registration` 200, svelte-check bersih untuk file diubah.
+
 ## Completed — 2026-08-06: FE Polish Questionnaire (toast ganda, lebar modal, filter MCU)
 
 - **Double toast saat add questionnaire**: `AddModal.vue` memanggil `handleSuccess` sendiri (toast #1) + `BaseFormModal.onSubmit` juga menampilkan toast sukses `handleSuccessGeneral` (toast #2). Fix: hapus `handleSuccess` di `AddModal.submit` → andalkan toast dari `BaseFormModal` (pola sama dengan `branches/AddModal.vue`).
