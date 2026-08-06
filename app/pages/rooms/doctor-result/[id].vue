@@ -9,7 +9,7 @@ import {
   FLAG_COLOR
 } from '~/types/doctor-result'
 import type { DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
-import DentalResultDisplay from '~/components/dental/DentalResultDisplay.vue'
+import DentalSummaryDisplay from '~/components/dental/DentalSummaryDisplay.vue'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -513,16 +513,16 @@ onBeforeUnmount(() => {
                     </UBadge>
                   </div>
 
-                  <!-- [DENTAL] Preview read-only hasil dept gigi -->
+                  <!-- [DENTAL] Summary dept gigi — hanya kesimpulan, grade dari dokter dental -->
                   <div
                     v-if="(dept as any).dental"
-                    class="w-full min-w-0 overflow-hidden rounded-lg border border-primary/30"
+                    class="w-full min-w-0 overflow-hidden rounded-lg border border-teal-500/30"
                   >
-                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-primary/30 bg-primary/5 px-4 py-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-teal-500/30 bg-teal-500/5 px-4 py-3">
                       <div class="flex min-w-0 items-center gap-2">
-                        <UIcon name="i-lucide-stethoscope" class="size-4 text-primary" />
+                        <UIcon name="i-lucide-stethoscope" class="size-4 text-teal-600" />
                         <h4 class="truncate font-semibold">
-                          Pemeriksaan Gigi — Preview
+                          Dental Examination — Kesimpulan
                         </h4>
                       </div>
                       <div class="flex items-center gap-2">
@@ -544,7 +544,10 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
                     <div class="px-4 py-3">
-                      <DentalResultDisplay :data="(dept as any).dental" />
+                      <DentalSummaryDisplay
+                        :data="(dept as any).dental"
+                        :exam-id="examId"
+                      />
                     </div>
                   </div>
                   <template v-for="group in dept.groups" :key="group.groupName">

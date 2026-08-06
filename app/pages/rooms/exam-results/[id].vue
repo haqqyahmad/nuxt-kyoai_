@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DetailDrawer from './components/DetailDrawer.vue'
+import DentalResultPanel from './components/DentalResultPanel.vue'
 
 type DetailResult = NonNullable<
   InstanceType<typeof DetailDrawer>['$props']['result']
@@ -19,14 +20,24 @@ function getQueryValue(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
 
+const department = computed(() => getQueryValue(route.query.department))
+const isDental = computed(() => department.value.toLowerCase() === 'dental')
+const examId = computed(() => getQueryValue(route.query.examId))
+const roomTypeId = computed(() => getQueryValue(route.query.roomTypeId))
+
 async function loadResult() {
   loading.value = true
   error.value = null
 
+  // Dental: data dimuat sendiri oleh DentalResultPanel via /mcu/exams/:id/dental.
+  // API generic results tidak mengembalikan data dental.
+  if (isDental.value) {
+    loading.value = false
+    result.value = null
+    return
+  }
+
   try {
-    const examId = getQueryValue(route.query.examId)
-    const department = getQueryValue(route.query.department)
-    const roomTypeId = getQueryValue(route.query.roomTypeId)
     const params: Record<string, string | number> = {
       page: 1,
       limit: 1,
@@ -35,18 +46,18 @@ async function loadResult() {
 
     if (isExternalDoctor.value) {
       params.examItemId = String(route.params.id)
-    } else if (examId) {
-      params.examId = examId
+    } else if (examId.value) {
+      params.examId = examId.value
     } else {
       params.examItemId = String(route.params.id)
     }
 
-    if (department) {
-      params.department = department
+    if (department.value) {
+      params.department = department.value
     }
 
-    if (roomTypeId) {
-      params.roomTypeId = roomTypeId
+    if (roomTypeId.value) {
+      params.roomTypeId = roomTypeId.value
     }
 
     const response = await api.get('/mcu/exams/results', {
@@ -73,11 +84,9 @@ async function loadResult() {
 }
 
 async function goBackToResults() {
-  const department = getQueryValue(route.query.department)
-    const roomTypeId = getQueryValue(route.query.roomTypeId)
   await router.push({
     path: '/rooms/exam-results',
-    query: department ? { department } : {}
+    query: department.value ? { department: department.value } : {}
   })
 }
 
@@ -103,6 +112,17 @@ onMounted(() => {
         />
       </div>
 
+      <!-- Dental: editor + view khusus dental -->
+      <div v-else-if="isDental && examId" class="h-full overflow-auto">
+        <DentalResultPanel
+          :exam-id="examId"
+          :exam-item-id="String(route.params.id)"
+          :room-type-id="roomTypeId"
+          :department-id="(result as any)?.departmentId"
+        />
+      </div>
+
+      <!-- Non-dental: generic result drawer -->
       <DetailDrawer
         v-else
         :open="true"
