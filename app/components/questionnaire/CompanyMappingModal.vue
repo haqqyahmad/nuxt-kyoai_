@@ -174,7 +174,7 @@ function openAddToGroup(g: MappingGroup) {
   editingId.value = null
   state.companyId = g.companyId
   state.branchId = g.branchId || ''
-  state.questionnaireIds = []
+  state.questionnaireIds = g.items.map(i => i.questionnaire_id)
   state.isActive = true
   mode.value = 'form'
 }
