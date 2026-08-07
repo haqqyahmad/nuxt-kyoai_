@@ -85,11 +85,43 @@ const selectedQuestionnaireNames = computed(() =>
     .filter(Boolean) as string[]
 )
 
-const columns: TableColumn<Mapping>[] = [
+type MappingGroup = {
+  key: string
+  companyId: string
+  company_name: string
+  branchId: string | null
+  items: Mapping[]
+}
+
+const groupedMappings = computed<MappingGroup[]>(() => {
+  const map = new Map<string, MappingGroup>()
+  for (const m of mappings.value) {
+    const key = `${m.companyId}|${m.branchId ?? ''}`
+    const group = map.get(key)
+    if (group) {
+      group.items.push(m)
+    } else {
+      map.set(key, {
+        key,
+        companyId: String(m.companyId),
+        company_name: m.company_name,
+        branchId: m.branchId ?? null,
+        items: [m]
+      })
+    }
+  }
+  return [...map.values()]
+})
+
+function allActive(g: MappingGroup) {
+  return g.items.every(i => i.isActive)
+}
+
+const columns: TableColumn<MappingGroup>[] = [
   { accessorKey: 'company_name', header: 'Company' },
   { accessorKey: 'branchId', header: 'Branch' },
-  { accessorKey: 'questionnaire_name', header: 'Questionnaire' },
-  { accessorKey: 'isActive', header: 'Status' },
+  { id: 'questionnaires', header: 'Questionnaire' },
+  { id: 'status', header: 'Status' },
   { id: 'actions', header: '' }
 ]
 
@@ -136,6 +168,15 @@ function openForm(m?: Mapping) {
 
 function backToList() {
   mode.value = 'list'
+}
+
+function openAddToGroup(g: MappingGroup) {
+  editingId.value = null
+  state.companyId = g.companyId
+  state.branchId = g.branchId || ''
+  state.questionnaireIds = []
+  state.isActive = true
+  mode.value = 'form'
 }
 
 async function submit(event: FormSubmitEvent<Schema>) {
@@ -230,7 +271,7 @@ async function confirmDelete() {
 
           <UTable
             v-else
-            :data="mappings"
+            :data="groupedMappings"
             :columns="columns"
             class="w-full"
           >
@@ -249,33 +290,43 @@ async function confirmDelete() {
               />
             </template>
 
-            <template #questionnaire_name-cell="{ row }">
-              <span>{{ row.original.questionnaire_name }}</span>
+            <template #questionnaires-cell="{ row }">
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="m in row.original.items"
+                  :key="m.id"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-xs font-medium text-primary"
+                >
+                  {{ m.questionnaire_name }}
+                  <button
+                    type="button"
+                    class="text-primary hover:text-red-500 leading-none"
+                    title="Hapus mapping"
+                    @click="deletingId = m.id"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
             </template>
 
-            <template #isActive-cell="{ row }">
+            <template #status-cell="{ row }">
               <UBadge
-                :color="row.original.isActive ? 'success' : 'neutral'"
+                :color="allActive(row.original) ? 'success' : 'neutral'"
                 variant="soft"
-                :label="row.original.isActive ? 'Aktif' : 'Nonaktif'"
+                :label="allActive(row.original) ? 'Aktif' : 'Nonaktif'"
               />
             </template>
 
             <template #actions-cell="{ row }">
-              <div class="flex justify-end gap-1">
+              <div class="flex justify-end">
                 <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
+                  label="Tambah"
+                  icon="i-lucide-plus"
+                  color="primary"
+                  variant="soft"
                   size="sm"
-                  @click="openForm(row.original)"
-                />
-                <UButton
-                  icon="i-lucide-trash"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  @click="deletingId = row.original.id"
+                  @click="openAddToGroup(row.original)"
                 />
               </div>
             </template>
