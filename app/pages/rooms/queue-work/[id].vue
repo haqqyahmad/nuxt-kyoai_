@@ -666,6 +666,7 @@ function getCurrentRoomStageMeta(stageId?: string | null) {
 const activeStageCode = computed(() =>
   activeStage.value?.stage?.code ?? getCurrentRoomStageMeta(activeStage.value?.stageId)?.code ?? null
 )
+const roomStageInProgress = computed(() => activeStage.value?.status === 'IN_PROGRESS')
 const currentRoomWorkStatus = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
     .filter(stage => currentRoomStageIds.value.has(stage.stageId))
@@ -795,7 +796,8 @@ function isItemInProgress(item: RoomExamItem) {
 }
 
 function canInteractWithItem(item: RoomExamItem) {
-  if (!isExamStageActive()) return false
+  if (!roomStageInProgress.value) return false
+  if (isSampleManagedItem(item) && !isExamStageActive()) return false
   if (!isItemInProgress(item)) return false
   if (item.operationalStatus === 'WAITING_SAMPLE') return false
   if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED') return false
@@ -2263,7 +2265,7 @@ async function handleSubmitItemAction() {
                     </UButton>
 
                     <UButton
-                      v-else-if="item.status === 'PENDING' && isExamStageActive()"
+                      v-else-if="item.status === 'PENDING' && roomStageInProgress"
                       color="warning"
                       variant="soft"
                       icon="i-lucide-play"
