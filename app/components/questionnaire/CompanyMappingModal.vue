@@ -40,7 +40,7 @@ const questionnaires = ref<QuestionOption[]>([])
 const schema = z.object({
   companyId: z.string().min(1, 'Company wajib dipilih'),
   branchId: z.string().optional(),
-  questionnaireId: z.string().min(1, 'Questionnaire wajib dipilih'),
+  questionnaireIds: z.array(z.string()).min(1, 'Pilih minimal satu questionnaire'),
   isActive: z.boolean()
 })
 
@@ -50,7 +50,7 @@ const editingId = ref<string | null>(null)
 const state = reactive<Schema>({
   companyId: '',
   branchId: '',
-  questionnaireId: '',
+  questionnaireIds: [],
   isActive: true
 })
 
@@ -75,6 +75,14 @@ const questionnaireItems = computed(() =>
       label: `${q.questionnaire_code} - ${q.questionnaire_name}`,
       value: q.questionnaire_id
     }))
+)
+
+const selectedQuestionnaireNames = computed(() =>
+  state.questionnaireIds
+    .map(id =>
+      questionnaires.value.find(q => q.questionnaire_id === id)?.questionnaire_name
+    )
+    .filter(Boolean) as string[]
 )
 
 const columns: TableColumn<Mapping>[] = [
@@ -114,13 +122,13 @@ function openForm(m?: Mapping) {
     editingId.value = m.id
     state.companyId = String(m.companyId)
     state.branchId = m.branchId || ''
-    state.questionnaireId = m.questionnaire_id
+    state.questionnaireIds = m.questionnaire_id ? [m.questionnaire_id] : []
     state.isActive = m.isActive
   } else {
     editingId.value = null
     state.companyId = ''
     state.branchId = ''
-    state.questionnaireId = ''
+    state.questionnaireIds = []
     state.isActive = true
   }
   mode.value = 'form'
@@ -134,19 +142,38 @@ async function submit(event: FormSubmitEvent<Schema>) {
   const data = event.data
 
   try {
-    const payload = {
+    const basePayload = {
       companyId: data.companyId,
       branchId: data.branchId || null,
-      questionnaireId: data.questionnaireId,
       isActive: data.isActive
     }
 
     if (editingId.value) {
-      await api.put(`/settings/company-questionnaires/${editingId.value}`, payload)
+      await api.put(`/settings/company-questionnaires/${editingId.value}`, {
+        ...basePayload,
+        questionnaireId: data.questionnaireIds[0]
+      })
       handleSuccess(toast, 'Mapping berhasil diperbarui')
     } else {
-      await api.post('/settings/company-questionnaires', payload)
-      handleSuccess(toast, 'Mapping berhasil dibuat')
+      const mappedIds = new Set(
+        mappings.value
+          .filter(m => String(m.companyId) === String(data.companyId) && (m.branchId ?? '') === (data.branchId || ''))
+          .map(m => m.questionnaire_id)
+      )
+
+      const toCreate = data.questionnaireIds.filter(id => !mappedIds.has(id))
+
+      if (toCreate.length === 0) {
+        handleSuccess(toast, 'Questionnaire yang dipilih sudah ter-mapping untuk company ini')
+      } else {
+        for (const qid of toCreate) {
+          await api.post('/settings/company-questionnaires', {
+            ...basePayload,
+            questionnaireId: qid
+          })
+        }
+        handleSuccess(toast, `${toCreate.length} mapping berhasil dibuat`)
+      }
     }
 
     mode.value = 'list'
@@ -293,15 +320,35 @@ async function confirmDelete() {
             />
           </UFormField>
 
-          <UFormField label="Questionnaire" name="questionnaireId" required>
+          <UFormField label="Questionnaire" name="questionnaireIds" required>
             <USelect
-              v-model="state.questionnaireId"
+              v-model="state.questionnaireIds"
               :items="questionnaireItems"
               value-key="value"
               label-key="label"
-              placeholder="Pilih questionnaire"
+              multiple
+              placeholder="Pilih satu atau lebih questionnaire"
               class="w-full"
-            />
+            >
+              <template #default>
+                <template v-if="state.questionnaireIds.length">
+                  <div class="flex flex-wrap gap-1 pr-6">
+                    <UBadge
+                      v-for="(name, i) in selectedQuestionnaireNames"
+                      :key="i"
+                      color="primary"
+                      variant="soft"
+                      size="sm"
+                    >
+                      {{ name }}
+                    </UBadge>
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="text-muted">Pilih satu atau lebih questionnaire</span>
+                </template>
+              </template>
+            </USelect>
           </UFormField>
 
           <UFormField label="Status" name="isActive">
