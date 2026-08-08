@@ -179,19 +179,6 @@ function maritalLabel(m?: string | null): string {
   return map[m] ?? m
 }
 
-function dataDiriRows(row: QuestionnaireResult): Array<[string, string]> {
-  return [
-    ['Nama Lengkap', `${row.patientName} ${row.patientGender ? `(${genderLabel(row.patientGender)})` : ''}`],
-    ['Umur', row.patientAge != null ? `${row.patientAge} tahun` : (row.patientDob ? fmtDate(row.patientDob) : '-')],
-    ['Perusahaan', row.companyName || '-'],
-    ['Status Pernikahan', maritalLabel(row.patientMaritalStatus)],
-    ['Alamat Rumah', row.patientAddress || '-'],
-    ['Telepon', row.patientPhone || '-'],
-    ['No. RM', row.patientCode || '-'],
-    ['Registrasi', row.registrationRef]
-  ]
-}
-
 function formatDateTime(d?: string | null) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -225,64 +212,72 @@ function printSingle(row: QuestionnaireResult) {
   if (!printWindow) return
 
   const answers = modalData.value?.answers ?? []
-  const datiDiri = dataDiriRows(row)
   const questionsHtml = answers.length
-    ? answers.map((a, i) => `
-        <tr>
-          <td class="num">${i + 1}</td>
-          <td class="q-text">${a.questionText}</td>
-          <td class="q-answer">${a.answered !== false ? (a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')) : '<span class="empty">-</span>'}</td>
-        </tr>
+    ? answers.map(a => `
+        <li class="question-item">
+          <div class="flex-row">
+            <span>${a.questionText}</span>
+            <span class="answer">${a.answered !== false ? (a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')) : '-'}</span>
+          </div>
+        </li>
       `).join('')
     : ''
 
   const html = `
-    <html>
+    <html lang="id">
       <head>
         <title>${row.questionnaire_name} - ${row.patientName}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; font-size: 12px; color: #111; }
-          h1 { font-size: 18px; text-align: center; margin: 0 0 2px; text-transform: uppercase; }
-          .subtitle { text-align: center; font-size: 11px; color: #555; margin-bottom: 18px; }
-          h2 { font-size: 13px; text-transform: uppercase; margin: 18px 0 8px; border-bottom: 1.5px solid #333; padding-bottom: 3px; }
-          table.dati { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-          table.dati td { padding: 3px 6px; vertical-align: top; }
-          table.dati td.label { width: 30%; font-weight: 600; }
-          table.quest { width: 100%; border-collapse: collapse; }
-          table.quest th { text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 1.5px solid #333; padding: 4px 6px; }
-          table.quest td { border-bottom: 1px solid #ddd; padding: 6px; vertical-align: top; }
-          table.quest td.num { width: 34px; font-weight: 600; }
-          table.quest td.q-text { width: 60%; }
-          .empty { color: #999; }
-          .footer { margin-top: 24px; }
-          .sign-grid { display: flex; justify-content: space-between; margin-top: 40px; }
-          .sign { text-align: center; width: 40%; }
-          .sign .line { border-top: 1px solid #333; margin-top: 48px; padding-top: 4px; }
-          @media print { body { padding: 0; } }
+          * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
+          body { background-color: #f0f2f5; margin: 0; padding: 20px; }
+          .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; min-height: 1050px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; }
+          h1 { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; margin-top: 0; margin-bottom: 25px; text-transform: uppercase; }
+          .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
+          .data-diri-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          .data-diri-table td { padding: 2px 0; vertical-align: top; }
+          .data-diri-table td.label { width: 180px; }
+          .data-diri-table td.colon { width: 15px; }
+          .question-list { margin: 0; padding-left: 20px; }
+          .question-item { margin-bottom: 6px; line-height: 1.3; }
+          .answer { font-weight: bold; }
+          .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+          .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
+          .signature-space { height: 60px; }
+          @media print {
+            body { background-color: white; padding: 0; }
+            .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
+          }
         </style>
       </head>
       <body>
-        <h1>KUESIONER MEDICAL CHECK-UP</h1>
-        <div class="subtitle">${row.questionnaire_name} — ${fmtDate(row.examDate)}</div>
+        <div class="document-page">
+          <h1>KUESIONER MEDICAL CHECK - UP</h1>
 
-        <h2>DATA DIRI</h2>
-        <table class="dati">
-          ${datiDiri.map(([k, v]) => `<tr><td class="label">${k}</td><td>: ${v}</td></tr>`).join('')}
-        </table>
+          <div class="section-title">DATA DIRI</div>
+          <table class="data-diri-table">
+            <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td>${row.patientName} &nbsp;&nbsp;&nbsp; ( ${genderLabel(row.patientGender)} )</td></tr>
+            <tr><td class="label">Tgl, Bln, Tahun Lahir</td><td class="colon">:</td><td>${row.patientDob ? fmtDate(row.patientDob) : '-'} &nbsp;&nbsp;&nbsp; ( Umur : ${row.patientAge != null ? `${row.patientAge} Tahun` : '-'} )</td></tr>
+            <tr><td class="label">Perusahaan</td><td class="colon">:</td><td>${row.companyName || '-'}</td></tr>
+            <tr><td class="label">Status Pernikahan</td><td class="colon">:</td><td>${maritalLabel(row.patientMaritalStatus)}</td></tr>
+            <tr><td class="label">Alamat Rumah</td><td class="colon">:</td><td>${row.patientAddress || '-'}</td></tr>
+            <tr><td class="label">Telepon</td><td class="colon">:</td><td>${row.patientPhone || '-'}</td></tr>
+            <tr><td class="label">No. RM / Registrasi</td><td class="colon">:</td><td>${row.patientCode || '-'} / ${row.registrationRef}</td></tr>
+          </table>
 
-        ${questionsHtml
-          ? `<h2>ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA</h2>
-        <table class="quest">
-          <thead><tr><th>No</th><th>Pertanyaan</th><th>Jawaban</th></tr></thead>
-          <tbody>${questionsHtml}</tbody>
-        </table>
-        <div class="footer">
-          <div class="sign-grid">
-            <div class="sign"><div>Pasien</div><div class="line">${row.patientName}</div></div>
-            <div class="sign"><div>Dokter</div><div class="line"></div></div>
-          </div>
-        </div>`
-          : '<div class="meta">Tidak ada jawaban tersimpan.</div>'}
+          ${questionsHtml
+            ? `<div class="section-title">ISILAH PERTANYAAN DIBAWAH DENGAN SEBENARNYA</div>
+          <ol class="question-list">
+            ${questionsHtml}
+          </ol>
+
+          <div class="signature-area">
+            <div>${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}</div>
+            <div class="signature-space"></div>
+            <div>( ttd )</div>
+            <div>${row.patientName}</div>
+          </div>`
+            : '<div>Belum ada jawaban tersimpan.</div>'}
+        </div>
       </body>
     </html>
   `
@@ -646,128 +641,118 @@ watch(currentPage, (page) => {
       <!-- Detail modal -->
       <UModal v-model:open="modalOpen" :title="modalResult?.questionnaire_name ?? 'Detail'" :ui="{ content: 'sm:max-w-4xl' }">
         <template #body>
-          <div v-if="modalResult" class="space-y-4">
-            <div class="flex flex-wrap gap-2 items-center">
-              <UBadge
-                v-if="modalResult.status === 'Completed'"
-                label="Completed"
-                color="success"
-                variant="subtle"
-              />
-              <UBadge
-                v-else
-                label="Pending"
-                color="neutral"
-                variant="subtle"
-              />
-            </div>
-
-            <div class="rounded-lg border border-default">
-              <div class="px-4 py-2 bg-elevated rounded-t-lg border-b border-default">
-                <p class="text-sm font-semibold">
-                  DATA DIRI
-                </p>
+          <div v-if="modalResult" class="flex flex-col items-center">
+            <div class="qr-doc-paper w-full">
+              <div class="flex flex-wrap gap-2 items-center mb-3">
+                <UBadge
+                  v-if="modalResult.status === 'Completed'"
+                  label="Completed"
+                  color="success"
+                  variant="subtle"
+                />
+                <UBadge
+                  v-else
+                  label="Pending"
+                  color="neutral"
+                  variant="subtle"
+                />
               </div>
-              <dl class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Nama Lengkap:
-                  </dt>
-                  <dd class="font-semibold">
-                    {{ modalResult.patientName }}
-                  </dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Jenis Kelamin:
-                  </dt>
-                  <dd>{{ genderLabel(modalResult.patientGender) }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Umur:
-                  </dt>
-                  <dd>{{ modalResult.patientAge != null ? `${modalResult.patientAge} tahun` : (modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-') }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    No. RM:
-                  </dt>
-                  <dd>{{ modalResult.patientCode || '-' }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Perusahaan:
-                  </dt>
-                  <dd>{{ modalResult.companyName || '-' }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Status Pernikahan:
-                  </dt>
-                  <dd>{{ maritalLabel(modalResult.patientMaritalStatus) }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Alamat Rumah:
-                  </dt>
-                  <dd>{{ modalResult.patientAddress || '-' }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Telepon:
-                  </dt>
-                  <dd>{{ modalResult.patientPhone || '-' }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Registrasi:
-                  </dt>
-                  <dd>{{ modalResult.registrationRef }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Exam Date:
-                  </dt>
-                  <dd>{{ fmtDate(modalResult.examDate) }}</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <dt class="text-muted shrink-0">
-                    Branch:
-                  </dt>
-                  <dd>{{ modalResult.branchName || '-' }}</dd>
-                </div>
-              </dl>
-            </div>
 
-            <div class="rounded-lg border border-default">
-              <div class="px-4 py-2 bg-elevated rounded-t-lg border-b border-default">
-                <p class="text-sm font-semibold">
-                  ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA
-                </p>
+              <h1 class="qr-doc-title">
+                KUESIONER MEDICAL CHECK - UP
+              </h1>
+
+              <div class="qr-section-title">
+                DATA DIRI
               </div>
-              <div v-if="modalLoading" class="flex items-center justify-center py-6">
+              <table class="qr-data-diri">
+                <tr>
+                  <td class="qr-label">
+                    Nama Lengkap
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientName }} &nbsp;&nbsp;&nbsp; ( {{ genderLabel(modalResult.patientGender) }} )</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    Tgl, Bln, Tahun Lahir
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-' }} &nbsp;&nbsp;&nbsp; ( Umur : {{ modalResult.patientAge != null ? `${modalResult.patientAge} Tahun` : '-' }} )</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    Perusahaan
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.companyName || '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    Status Pernikahan
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ maritalLabel(modalResult.patientMaritalStatus) }}</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    Alamat Rumah
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientAddress || '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    Telepon
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientPhone || '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
+                    No. RM / Registrasi
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientCode || '-' }} / {{ modalResult.registrationRef }}</td>
+                </tr>
+              </table>
+
+              <div v-if="modalLoading" class="flex items-center justify-center py-8">
                 <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
               </div>
-              <div v-else-if="!modalData?.answers?.length" class="px-4 py-4 text-sm text-muted">
-                Tidak ada jawaban tersimpan untuk questionnaire ini.
-              </div>
-              <div v-else class="divide-y divide-default">
-                <div
-                  v-for="(a, i) in modalData.answers"
-                  :key="a.questionId || i"
-                  class="flex items-start gap-3 px-4 py-3"
-                >
-                  <span class="text-sm font-semibold text-muted shrink-0 w-6">{{ i + 1 }}.</span>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm text-muted">
-                      {{ a.questionText }}
-                    </p>
-                    <p class="text-sm font-semibold mt-0.5">
-                      {{ formatAnswer(a) }}
-                    </p>
-                  </div>
+              <template v-else-if="modalData?.answers?.length">
+                <div class="qr-section-title">
+                  ISILAH PERTANYAAN DIBAWAH DENGAN SEBENARNYA
                 </div>
+                <ol class="qr-question-list">
+                  <li
+                    v-for="(a, i) in modalData.answers"
+                    :key="a.questionId || i"
+                    class="qr-question-item"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <span>{{ a.questionText }}</span>
+                      <span class="qr-answer shrink-0">{{ formatAnswer(a) }}</span>
+                    </div>
+                  </li>
+                </ol>
+              </template>
+              <div v-else class="text-sm text-muted py-4">
+                Tidak ada jawaban tersimpan untuk questionnaire ini.
               </div>
             </div>
           </div>
@@ -796,3 +781,67 @@ watch(currentPage, (page) => {
     </template>
   </UDashboardPanel>
 </template>
+
+<style scoped>
+.qr-doc-paper {
+  background: white;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  color: #000;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.qr-doc-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  text-decoration: underline;
+  text-transform: uppercase;
+  margin: 0 0 20px;
+}
+
+.qr-section-title {
+  font-weight: bold;
+  text-decoration: underline;
+  text-transform: uppercase;
+  margin: 15px 0 8px;
+}
+
+.qr-data-diri {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+
+.qr-data-diri td {
+  padding: 2px 0;
+  vertical-align: top;
+}
+
+.qr-data-diri td.qr-label {
+  width: 180px;
+}
+
+.qr-data-diri td.qr-colon {
+  width: 15px;
+}
+
+.qr-question-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.qr-question-item {
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.qr-answer {
+  font-weight: bold;
+}
+</style>
