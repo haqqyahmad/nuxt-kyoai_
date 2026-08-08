@@ -21,6 +21,7 @@ export const frontOfficeAllowedRoutes: string[] = [
   '/',
   '/front-office/registration-temp',
   '/front-office/registration-patient',
+  '/front-office/questionnaire-results',
   '/settings',
   '/settings/security',
   '/settings/notifications'
@@ -156,7 +157,8 @@ export function buildMenuTree(): MenuItem[] {
       icon: 'i-lucide-users',
       children: [
         { label: 'Temp Registration', to: '/front-office/registration-temp' },
-        { label: 'Patient Appointment', to: '/front-office/registration-patient' }
+        { label: 'Patient Appointment', to: '/front-office/registration-patient' },
+        { label: 'Hasil Questionnaire', to: '/front-office/questionnaire-results' }
       ]
     },
     {

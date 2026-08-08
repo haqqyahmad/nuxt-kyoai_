@@ -123,6 +123,11 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-08-08 — Hasil Questionnaire di Front Office
+- BE `express_dash`: endpoint `GET /api/questionnaire/results` — list lintas pasien (group `qstAnswer` per `registrationId ?? regId`, gabung Registration/RegistrationTemp, map branch/customer), filter company/branch/tanggal/status. Route diletakkan sebelum `/:id`.
+- my-app: halaman baru `/front-office/questionnaire-results` — tabel pasien × questionnaire + filter + modal detail + print. Daftar di `frontOfficeAllowedRoutes` + menu Front Office + SEO.
+- Detail: `docs/task-status.md`.
+
 ### 2026-08-06 — Questionnaire per Company/Branch di Portal
 - BE: `getDefaultByCompany` return array (MCU default + mapping company/branch aktif) + CRUD `CompanyQuestionnaire` di `/settings/company-questionnaires`.
 - Portal: steps dinamis (tiap questionnaire = step terpisah), `MCUQuestionnaire` pre-loaded, submit semua jawaban per questionnaire.

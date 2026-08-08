@@ -1,8 +1,25 @@
 # Project Task Status
 
-Last updated: 2026-08-06
+Last updated: 2026-08-08
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-08: Hasil Questionnaire di Front Office (list lintas pasien)
+
+**Perintah:** Buat list "Hasil Questionnaire" dari data pasien di menu Front Office — tabel pasien + status questionnaire, filter company/branch/tanggal/status, tombol lihat & print.
+
+### Backend (express_dash)
+- `questionnaire.service.js`: tambah `listResults({ companyId, branchId, dateFrom, dateTo, status })` — query `qstAnswer` yang sudah punya `registrationId` saja (**hanya registrasi yang sudah di-approve**, temp dari portal dieksklusi), group per `registrationId`, gabung `Registration` (+patient), map nama branch/customer. Filter: company (match `String(companyId)`), branch, tanggal (thd `examDate`), status (`Completed` jika ada baris jawaban non-kosong, else `Pending`). Output per (registrasi × questionnaire): `registrationKey`, `registrationRef` (`id_reg`), `patientCode` (`PatientId`), `patientName`, `companyId/companyName`, `branchId/branchName`, `examDate`, `questionnaire_id/name`, `status`, `completionDate`.
+- `questionnaire.controller.js`: tambah `listResults` (baca `req.query`, response.success).
+- `questionnaire.route.js`: route `GET /results` (auth + `permit("questionnaire:read")`) **sebelum** `GET /:id` agar "results" tidak dianggap sebagai id.
+- Verifikasi: list 10 baris (semua punya `registrationRef` REG-..., tidak ada UUID temp), filter company/branch/date/status bekerja.
+
+### Frontend (my-app)
+- `pages/front-office/questionnaire-results.vue` (baru): UTable pasien × questionnaire dengan filter bar (company/branch/date from/to/status), kolom Patient (nama + RM), Regist, Exam Date, Company, Branch, Questionnaire, Status (badge), Completion, aksi dropdown Lihat/Print. Modal detail memakai endpoint `GET /registration/number/:id_reg/questionnaires` + print via `window.open`. Pola pagination/display-control meniru `registration-patient/index.vue`.
+- `constants/menu.ts`: tambah `/front-office/questionnaire-results` ke `frontOfficeAllowedRoutes` + menu item "Hasil Questionnaire" di Front Office.
+- `layouts/default.vue`: tambah menu item "Hasil Questionnaire" di grup Front Office.
+- `constants/seo/front-office.ts`: SEO entry baru.
+- Verifikasi: lint bersih untuk file diubah, typecheck tidak ada error untuk file baru, route HTTP 200.
 
 ## Completed — 2026-08-06: Portal — Fix pilih Company di /registration (pasien baru)
 
