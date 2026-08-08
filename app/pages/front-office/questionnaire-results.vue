@@ -644,7 +644,7 @@ watch(currentPage, (page) => {
       </div>
 
       <!-- Detail modal -->
-      <UModal v-model:open="modalOpen" :title="modalResult?.questionnaire_name ?? 'Detail'">
+      <UModal v-model:open="modalOpen" :title="modalResult?.questionnaire_name ?? 'Detail'" :ui="{ content: 'sm:max-w-4xl' }">
         <template #body>
           <div v-if="modalResult" class="space-y-4">
             <div class="flex flex-wrap gap-2 items-center">
