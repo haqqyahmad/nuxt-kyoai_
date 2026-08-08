@@ -412,74 +412,75 @@ watch(currentPage, (page) => {
     </template>
 
     <template #body>
-      <div class="w-full max-w-7xl mx-auto space-y-4 p-4">
+      <div class="w-full min-w-0 space-y-4">
         <!-- Filters -->
-        <div class="flex flex-wrap items-end gap-3 rounded-xl border border-default bg-background p-4">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-muted">Company</label>
-            <USelect
-              v-model="filters.companyId"
-              :items="(customers ?? []).map(c => ({ label: c.customerName, value: String(c.id) }))"
-              placeholder="Semua company"
-              class="w-56"
-              clear-search-on-close
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-muted">Branch</label>
-            <USelect
-              v-model="filters.branchId"
-              :items="(branches ?? []).map(b => ({ label: b.nameBranch, value: String(b.branchId) }))"
-              placeholder="Semua branch"
-              class="w-64"
-              clear-search-on-close
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-muted">Dari Tanggal</label>
-            <UInput
-              v-model="filters.dateFrom"
-              type="date"
-              class="w-40"
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-muted">Sampai Tanggal</label>
-            <UInput
-              v-model="filters.dateTo"
-              type="date"
-              class="w-40"
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-muted">Status</label>
-            <USelect
-              v-model="filters.status"
-              :items="[
-                { label: 'Completed', value: 'Completed' },
-                { label: 'Pending', value: 'Pending' }
-              ]"
-              placeholder="Semua status"
-              class="w-44"
-            />
-          </div>
-
-          <div class="flex items-center gap-2 ml-auto">
-            <UButton
-              label="Reset"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-rotate-ccw"
-              :disabled="loading"
-              @click="clearFilters"
-            />
-            <UButton
-              label="Terapkan"
-              color="primary"
-              icon="i-lucide-filter"
-              :loading="loading"
-              @click="fetchResults"
-            />
+        <div class="rounded-xl border border-default bg-background p-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <label class="text-xs font-medium text-muted">Company</label>
+              <USelect
+                v-model="filters.companyId"
+                :items="(customers ?? []).map(c => ({ label: c.customerName, value: String(c.id) }))"
+                placeholder="Semua company"
+                class="w-full"
+                clear-search-on-close
+              />
+            </div>
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <label class="text-xs font-medium text-muted">Branch</label>
+              <USelect
+                v-model="filters.branchId"
+                :items="(branches ?? []).map(b => ({ label: b.nameBranch, value: String(b.branchId) }))"
+                placeholder="Semua branch"
+                class="w-full"
+                clear-search-on-close
+              />
+            </div>
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <label class="text-xs font-medium text-muted">Dari Tanggal</label>
+              <UInput
+                v-model="filters.dateFrom"
+                type="date"
+                class="w-full"
+              />
+            </div>
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <label class="text-xs font-medium text-muted">Sampai Tanggal</label>
+              <UInput
+                v-model="filters.dateTo"
+                type="date"
+                class="w-full"
+              />
+            </div>
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <label class="text-xs font-medium text-muted">Status</label>
+              <USelect
+                v-model="filters.status"
+                :items="[
+                  { label: 'Completed', value: 'Completed' },
+                  { label: 'Pending', value: 'Pending' }
+                ]"
+                placeholder="Semua status"
+                class="w-full"
+              />
+            </div>
+            <div class="flex items-end gap-2 xl:justify-end">
+              <UButton
+                label="Reset"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-rotate-ccw"
+                :disabled="loading"
+                @click="clearFilters"
+              />
+              <UButton
+                label="Terapkan"
+                color="primary"
+                icon="i-lucide-filter"
+                :loading="loading"
+                @click="fetchResults"
+              />
+            </div>
           </div>
         </div>
 
@@ -542,13 +543,13 @@ watch(currentPage, (page) => {
 
         <!-- Pagination -->
         <div
-          class="flex items-center justify-between gap-3 border-t border-default pt-4"
+          class="flex flex-wrap items-center justify-between gap-3 border-t border-default pt-4"
         >
           <div class="text-sm text-muted">
             {{ results.length }} row(s)
           </div>
 
-          <div class="flex items-center gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
             <USelect
               v-model="currentPageSize"
               :items="[
