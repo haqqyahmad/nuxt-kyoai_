@@ -123,6 +123,12 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-08-08 — View Answers Hasil Questionnaire gaya form KUESIONER MCU
+- BE `express_dash`: `listResults` tambah field DATA DIRI (patientGender, patientDob, patientAge, patientMaritalStatus, patientPhone, patientAddress dari Address polimorfik PATIENT).
+- BE `express_dash`: detail `GET /registration/number/:id_reg/questionnaires` kembalikan SEMUA soal berurutan + flag `answered` (agar form bernomor lengkap).
+- my-app: modal view answers + print di `/front-office/questionnaire-results` jadi gaya form — blok DATA DIRI + soal bernomor jawaban inline + area tanda tangan.
+- Detail: `docs/task-status.md`.
+
 ### 2026-08-08 — Hasil Questionnaire di Front Office
 - BE `express_dash`: endpoint `GET /api/questionnaire/results` — list lintas pasien (group `qstAnswer` per `registrationId ?? regId`, gabung Registration/RegistrationTemp, map branch/customer), filter company/branch/tanggal/status. Route diletakkan sebelum `/:id`.
 - my-app: halaman baru `/front-office/questionnaire-results` — tabel pasien × questionnaire + filter + modal detail + print. Daftar di `frontOfficeAllowedRoutes` + menu Front Office + SEO.
