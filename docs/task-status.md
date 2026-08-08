@@ -17,6 +17,13 @@ Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi ta
 - `pages/front-office/questionnaire-results.vue`: modal "View answers" dirombak jadi gaya form — blok **DATA DIRI** (Nama Lengkap + Jenis Kelamin, Umur, No. RM, Perusahaan, Status Pernikahan, Alamat Rumah, Telepon, Registrasi, Exam Date, Branch) lalu bagian **"ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA"** dengan soal bernomor (1., 2., …) dan jawaban inline (jawaban kosong tampil "-"). Helper baru: `genderLabel`, `maritalLabel`, `dataDiriRows`. Print (`printSingle`) juga dibuat gaya form serupa: judul KUESIONER MEDICAL CHECK-UP + DATA DIRI + tabel No/Pertanyaan/Jawaban + area tanda tangan Pasien & Dokter.
 - Verifikasi: lint bersih, typecheck tanpa error untuk file ini, headless Chrome — modal menampilkan 11 baris DATA DIRI + soal bernomor dengan jawaban inline.
 
+## Completed — 2026-08-08: View Answers Hasil Questionnaire gaya form KUESIONER MCU (paper-document)
+
+**Perubahan terakhir:** ritel modal & print agar menyerupai referensi `gemini-code-1786166780281.html`:
+- BE `listResults` tambah `patientPosition` (dari `PatientCompanyHistory`, current position); detail `GET /registration/number/:id_reg/questionnaires` sertakan `sectionTitle` per soal + kirim semua soal (bukan hanya terjawab) + flag `answered`.
+- FE modal view answers: paparan paper-document — blok DATA DIRI sebagai tabel `label : value` (Nama Lengkap+gender, Tgl Lahir+Umur, Perusahaan, Status Pernikahan, Alamat, Telepon, **Posisi Pekerjaan**, No. RM/Registrasi, Exam Date, Branch), soal dikelompokkan per **section** (e.g. KHUSUS WANITA) dengan numbering, hanya soal **berjawab** yang tampil, consent (PERNYATAAN & PERSETUJUAN — 2 poin izin), area tanda tangan (JAKARTA, tanggal, (ttd)), footer "Page 1". Print (`printSingle`) serupa (tanpa grup section — satu daftar terjawab, plus posisi, consent, ttd, footer).
+- Verifikasi: lint + typecheck bersih, headless Chrome — 8 baris DATA DIRI, numbering decimal, adanya consent/ttd/Page 1.
+
 ## Completed — 2026-08-08: Hasil Questionnaire di Front Office (list lintas pasien)
 
 **Perintah:** Buat list "Hasil Questionnaire" dari data pasien di menu Front Office — tabel pasien + status questionnaire, filter company/branch/tanggal/status, tombol lihat & print.

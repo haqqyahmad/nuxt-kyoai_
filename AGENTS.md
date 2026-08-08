@@ -124,9 +124,9 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 ## Sejarah Pengerjaan (perubahan besar)
 
 ### 2026-08-08 — View Answers Hasil Questionnaire gaya form KUESIONER MCU
-- BE `express_dash`: `listResults` tambah field DATA DIRI (patientGender, patientDob, patientAge, patientMaritalStatus, patientPhone, patientAddress dari Address polimorfik PATIENT).
-- BE `express_dash`: detail `GET /registration/number/:id_reg/questionnaires` kembalikan SEMUA soal berurutan + flag `answered` (agar form bernomor lengkap).
-- my-app: modal view answers + print di `/front-office/questionnaire-results` jadi gaya form — blok DATA DIRI + soal bernomor jawaban inline + area tanda tangan.
+- BE `express_dash`: `listResults` tambah field DATA DIRI (patientGender, patientDob, patientAge, patientMaritalStatus, patientPhone, patientAddress dari Address polimorfik PATIENT) + `patientPosition` (Posisi Pekerjaan dari PatientCompanyHistory).
+- BE `express_dash`: detail `GET /registration/number/:id_reg/questionnaires` kembalikan SEMUA soal berurutan + flag `answered` + `sectionTitle` per soal (untuk grouping seperti KHUSUS WANITA).
+- my-app: modal + print view answers di `/front-office/questionnaire-results` jadi gaya paper-document — DATA DIRI tabel label:colon:value (termasuk Posisi Pekerjaan), soal dikelompokkan per section, consent (PERNYATAAN & PERSETUJUAN), area tanda tangan (JAKARTA, tanggal, (ttd)), footer "Page 1".
 - Detail: `docs/task-status.md`.
 
 ### 2026-08-08 — Hasil Questionnaire di Front Office
