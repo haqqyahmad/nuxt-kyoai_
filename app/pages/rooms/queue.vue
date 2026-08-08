@@ -1039,7 +1039,7 @@ watch(
     </template>
 
     <template #body>
-      <div class="space-y-4">
+      <div class="w-full max-w-7xl mx-auto space-y-4">
         <div class="flex justify-start sm:hidden">
           <UBadge
             :color="activeRoomSession ? 'success' : 'neutral'"
