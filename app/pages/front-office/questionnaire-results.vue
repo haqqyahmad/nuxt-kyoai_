@@ -161,6 +161,10 @@ function formatAnswer(a: NonNullable<TempQuestionnaire['answers']>[number]): str
   return '-'
 }
 
+const answeredQuestions = computed(() =>
+  (modalData.value?.answers ?? []).filter(a => a.answered === true)
+)
+
 function genderLabel(g?: string | null): string {
   if (!g) return '-'
   if (g === 'MALE') return 'Laki-laki'
@@ -211,13 +215,13 @@ function printSingle(row: QuestionnaireResult) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
-  const answers = modalData.value?.answers ?? []
+  const answers = (modalData.value?.answers ?? []).filter(a => a.answered === true)
   const questionsHtml = answers.length
     ? answers.map(a => `
         <li class="question-item">
           <div class="flex-row">
             <span>${a.questionText}</span>
-            <span class="answer">${a.answered !== false ? (a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')) : '-'}</span>
+            <span class="answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</span>
           </div>
         </li>
       `).join('')
@@ -734,13 +738,13 @@ watch(currentPage, (page) => {
               <div v-if="modalLoading" class="flex items-center justify-center py-8">
                 <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
               </div>
-              <template v-else-if="modalData?.answers?.length">
+              <template v-else-if="answeredQuestions.length">
                 <div class="qr-section-title">
                   ISILAH PERTANYAAN DIBAWAH DENGAN SEBENARNYA
                 </div>
                 <ol class="qr-question-list">
                   <li
-                    v-for="(a, i) in modalData.answers"
+                    v-for="(a, i) in answeredQuestions"
                     :key="a.questionId || i"
                     class="qr-question-item"
                   >
@@ -834,6 +838,7 @@ watch(currentPage, (page) => {
 .qr-question-list {
   margin: 0;
   padding-left: 20px;
+  list-style: decimal;
 }
 
 .qr-question-item {
