@@ -22,6 +22,7 @@ type QuestionnaireResult = {
   patientMaritalStatus?: string | null
   patientPhone?: string | null
   patientAddress?: string | null
+  patientPosition?: string | null
   companyId: string
   companyName: string
   branchId: string
@@ -121,6 +122,7 @@ type TempQuestionnaire = {
     questionId: string
     questionText: string
     questionType?: string
+    sectionTitle?: string | null
     optionId?: string | null
     optionText?: string | null
     answerText?: string | null
@@ -161,8 +163,28 @@ function formatAnswer(a: NonNullable<TempQuestionnaire['answers']>[number]): str
   return '-'
 }
 
-const answeredQuestions = computed(() =>
-  (modalData.value?.answers ?? []).filter(a => a.answered === true)
+type AnswerItem = NonNullable<TempQuestionnaire['answers']>[number]
+
+const answeredQuestions = computed((): AnswerItem[] =>
+  (modalData.value?.answers ?? []).filter((a): a is AnswerItem => a.answered === true)
+)
+
+const answeredBySection = computed((): Array<{ section: string, items: AnswerItem[] }> => {
+  const groups: Array<{ section: string, items: AnswerItem[] }> = []
+  for (const a of answeredQuestions.value) {
+    const sec = a.sectionTitle || 'Umum'
+    const g = groups.find(x => x.section === sec)
+    if (g) {
+      g.items.push(a)
+    } else {
+      groups.push({ section: sec, items: [a] })
+    }
+  }
+  return groups
+})
+
+const signCityDate = computed(() =>
+  new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()
 )
 
 function genderLabel(g?: string | null): string {
@@ -265,6 +287,7 @@ function printSingle(row: QuestionnaireResult) {
             <tr><td class="label">Status Pernikahan</td><td class="colon">:</td><td>${maritalLabel(row.patientMaritalStatus)}</td></tr>
             <tr><td class="label">Alamat Rumah</td><td class="colon">:</td><td>${row.patientAddress || '-'}</td></tr>
             <tr><td class="label">Telepon</td><td class="colon">:</td><td>${row.patientPhone || '-'}</td></tr>
+            <tr><td class="label">Posisi Pekerjaan</td><td class="colon">:</td><td>${row.patientPosition || '-'}</td></tr>
             <tr><td class="label">No. RM / Registrasi</td><td class="colon">:</td><td>${row.patientCode || '-'} / ${row.registrationRef}</td></tr>
           </table>
 
@@ -726,6 +749,15 @@ watch(currentPage, (page) => {
                 </tr>
                 <tr>
                   <td class="qr-label">
+                    Posisi Pekerjaan
+                  </td>
+                  <td class="qr-colon">
+                    :
+                  </td>
+                  <td>{{ modalResult.patientPosition || '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="qr-label">
                     No. RM / Registrasi
                   </td>
                   <td class="qr-colon">
@@ -738,25 +770,69 @@ watch(currentPage, (page) => {
               <div v-if="modalLoading" class="flex items-center justify-center py-8">
                 <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
               </div>
-              <template v-else-if="answeredQuestions.length">
-                <div class="qr-section-title">
-                  ISILAH PERTANYAAN DIBAWAH DENGAN SEBENARNYA
-                </div>
-                <ol class="qr-question-list">
-                  <li
-                    v-for="(a, i) in answeredQuestions"
-                    :key="a.questionId || i"
-                    class="qr-question-item"
+              <template v-else-if="answeredBySection.length">
+                <div
+                  v-for="(group, gi) in answeredBySection"
+                  :key="group.section || gi"
+                >
+                  <div
+                    v-if="group.items.length && group.section"
+                    class="qr-section-title"
                   >
-                    <div class="flex items-start justify-between gap-3">
-                      <span>{{ a.questionText }}</span>
-                      <span class="qr-answer shrink-0">{{ formatAnswer(a) }}</span>
-                    </div>
-                  </li>
-                </ol>
+                    {{ group.section }}
+                  </div>
+                  <ol
+                    v-if="group.items.length"
+                    class="qr-question-list"
+                    :class="gi > 0 ? 'qr-question-list-mt' : ''"
+                  >
+                    <li
+                      v-for="(a, i) in group.items"
+                      :key="a.questionId || i"
+                      class="qr-question-item"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <span>{{ a.questionText }}</span>
+                        <span class="qr-answer shrink-0">{{ formatAnswer(a) }}</span>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
               </template>
               <div v-else class="text-sm text-muted py-4">
                 Tidak ada jawaban tersimpan untuk questionnaire ini.
+              </div>
+
+              <div v-if="answeredBySection.length" class="qr-consent-section">
+                <div class="qr-consent-line">
+                  Isian diatas telah saya isi dengan sadar dan benar
+                </div>
+                <div class="qr-consent-line">
+                  Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:
+                </div>
+                <ol class="qr-consent-list">
+                  <li>
+                    Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut
+                  </li>
+                  <li>
+                    Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)
+                  </li>
+                </ol>
+                <div class="qr-signature-area">
+                  <div class="qr-sign-city">
+                    {{ signCityDate }}
+                  </div>
+                  <div class="qr-sign-line" />
+                  <div class="qr-sign-label">
+                    ( ttd )
+                  </div>
+                  <div class="qr-sign-name">
+                    {{ modalResult.patientName || '-' }}
+                  </div>
+                </div>
+                <div class="qr-footer">
+                  Page 1
+                </div>
               </div>
             </div>
           </div>
@@ -841,6 +917,10 @@ watch(currentPage, (page) => {
   list-style: decimal;
 }
 
+.qr-question-list-mt {
+  margin-top: 10px;
+}
+
 .qr-question-item {
   margin-bottom: 6px;
   line-height: 1.3;
@@ -848,5 +928,41 @@ watch(currentPage, (page) => {
 
 .qr-answer {
   font-weight: bold;
+}
+
+.qr-consent-section {
+  margin-top: 20px;
+  border-top: 1px solid #d1d5db;
+  padding-top: 16px;
+}
+
+.qr-consent-line,
+.qr-consent-list li {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+
+.qr-consent-list {
+  margin: 5px 0 0 0;
+  padding-left: 20px;
+}
+
+.qr-signature-area {
+  margin-top: 30px;
+  text-align: right;
+}
+
+.qr-sign-line {
+  border-top: 1px solid #333;
+  margin-top: 48px;
+  padding-top: 4px;
+}
+
+.qr-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-style: italic;
+  font-size: 11px;
 }
 </style>
