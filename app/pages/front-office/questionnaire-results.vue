@@ -3,6 +3,7 @@ import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
+import type { HeaderContext } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
@@ -258,25 +259,29 @@ async function printResult(row: QuestionnaireResult) {
   printSingle(row)
 }
 
+function sortHeader(label: string) {
+  return ({ column }: HeaderContext<QuestionnaireResult, unknown>) => {
+    const isSorted = column.getIsSorted()
+
+    return h(UButton, {
+      color: 'neutral',
+      variant: 'ghost',
+      label,
+      icon: isSorted
+        ? isSorted === 'asc'
+          ? 'i-lucide-arrow-up-narrow-wide'
+          : 'i-lucide-arrow-down-wide-narrow'
+        : 'i-lucide-arrow-up-down',
+      class: '-mx-2.5',
+      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+    })
+  }
+}
+
 const columns: TableColumn<QuestionnaireResult>[] = [
   {
     accessorKey: 'patientName',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Patient',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    },
+    header: sortHeader('Patient'),
     cell: ({ row }) => {
       const r = row.original
 
@@ -288,22 +293,22 @@ const columns: TableColumn<QuestionnaireResult>[] = [
   },
   {
     accessorKey: 'registrationRef',
-    header: 'Regist',
+    header: sortHeader('Regist'),
     cell: ({ row }) => row.getValue('registrationRef') as string
   },
   {
     accessorKey: 'examDate',
-    header: 'Exam Date',
+    header: sortHeader('Exam Date'),
     cell: ({ row }) => fmtDate(row.getValue('examDate') as string)
   },
   {
     accessorKey: 'companyName',
-    header: 'Company',
+    header: sortHeader('Company'),
     cell: ({ row }) => row.getValue('companyName') || '-'
   },
   {
     accessorKey: 'branchName',
-    header: 'Branch',
+    header: sortHeader('Branch'),
     cell: ({ row }) => {
       const v = row.getValue('branchName') as string
       return h('span', { class: 'line-clamp-2 max-w-56' }, v || '-')
@@ -311,12 +316,12 @@ const columns: TableColumn<QuestionnaireResult>[] = [
   },
   {
     accessorKey: 'questionnaire_name',
-    header: 'Questionnaire',
+    header: sortHeader('Questionnaire'),
     cell: ({ row }) => row.getValue('questionnaire_name') || '-'
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: sortHeader('Status'),
     cell: ({ row }) => {
       const status = row.getValue('status') as string
 
@@ -332,7 +337,7 @@ const columns: TableColumn<QuestionnaireResult>[] = [
   },
   {
     accessorKey: 'completionDate',
-    header: 'Completion',
+    header: sortHeader('Completion'),
     cell: ({ row }) => {
       const v = row.getValue('completionDate') as string | null
       return v ? formatDateTime(v) : '-'
