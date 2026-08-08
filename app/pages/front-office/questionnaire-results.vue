@@ -16,6 +16,12 @@ type QuestionnaireResult = {
   registrationRef: string
   patientCode: string
   patientName: string
+  patientGender?: string | null
+  patientDob?: string | null
+  patientAge?: number | null
+  patientMaritalStatus?: string | null
+  patientPhone?: string | null
+  patientAddress?: string | null
   companyId: string
   companyName: string
   branchId: string
@@ -118,6 +124,7 @@ type TempQuestionnaire = {
     optionId?: string | null
     optionText?: string | null
     answerText?: string | null
+    answered?: boolean
   }>
 }
 
@@ -154,6 +161,37 @@ function formatAnswer(a: NonNullable<TempQuestionnaire['answers']>[number]): str
   return '-'
 }
 
+function genderLabel(g?: string | null): string {
+  if (!g) return '-'
+  if (g === 'MALE') return 'Laki-laki'
+  if (g === 'FEMALE') return 'Perempuan'
+  return g
+}
+
+function maritalLabel(m?: string | null): string {
+  if (!m) return '-'
+  const map: Record<string, string> = {
+    SINGLE: 'Belum Menikah',
+    MARRIED: 'Menikah',
+    DIVORCED: 'Cerai',
+    WIDOWED: 'Janda/Duda'
+  }
+  return map[m] ?? m
+}
+
+function dataDiriRows(row: QuestionnaireResult): Array<[string, string]> {
+  return [
+    ['Nama Lengkap', `${row.patientName} ${row.patientGender ? `(${genderLabel(row.patientGender)})` : ''}`],
+    ['Umur', row.patientAge != null ? `${row.patientAge} tahun` : (row.patientDob ? fmtDate(row.patientDob) : '-')],
+    ['Perusahaan', row.companyName || '-'],
+    ['Status Pernikahan', maritalLabel(row.patientMaritalStatus)],
+    ['Alamat Rumah', row.patientAddress || '-'],
+    ['Telepon', row.patientPhone || '-'],
+    ['No. RM', row.patientCode || '-'],
+    ['Registrasi', row.registrationRef]
+  ]
+}
+
 function formatDateTime(d?: string | null) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -187,32 +225,63 @@ function printSingle(row: QuestionnaireResult) {
   if (!printWindow) return
 
   const answers = modalData.value?.answers ?? []
+  const datiDiri = dataDiriRows(row)
+  const questionsHtml = answers.length
+    ? answers.map((a, i) => `
+        <tr>
+          <td class="num">${i + 1}</td>
+          <td class="q-text">${a.questionText}</td>
+          <td class="q-answer">${a.answered !== false ? (a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')) : '<span class="empty">-</span>'}</td>
+        </tr>
+      `).join('')
+    : ''
+
   const html = `
     <html>
       <head>
         <title>${row.questionnaire_name} - ${row.patientName}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
-          h1 { font-size: 18px; margin-bottom: 4px; }
-          .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
-          .question { margin-bottom: 8px; }
-          .q-text { font-weight: 600; margin-bottom: 2px; }
-          .q-answer { color: #374151; }
+          body { font-family: Arial, sans-serif; padding: 24px; font-size: 12px; color: #111; }
+          h1 { font-size: 18px; text-align: center; margin: 0 0 2px; text-transform: uppercase; }
+          .subtitle { text-align: center; font-size: 11px; color: #555; margin-bottom: 18px; }
+          h2 { font-size: 13px; text-transform: uppercase; margin: 18px 0 8px; border-bottom: 1.5px solid #333; padding-bottom: 3px; }
+          table.dati { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+          table.dati td { padding: 3px 6px; vertical-align: top; }
+          table.dati td.label { width: 30%; font-weight: 600; }
+          table.quest { width: 100%; border-collapse: collapse; }
+          table.quest th { text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 1.5px solid #333; padding: 4px 6px; }
+          table.quest td { border-bottom: 1px solid #ddd; padding: 6px; vertical-align: top; }
+          table.quest td.num { width: 34px; font-weight: 600; }
+          table.quest td.q-text { width: 60%; }
+          .empty { color: #999; }
+          .footer { margin-top: 24px; }
+          .sign-grid { display: flex; justify-content: space-between; margin-top: 40px; }
+          .sign { text-align: center; width: 40%; }
+          .sign .line { border-top: 1px solid #333; margin-top: 48px; padding-top: 4px; }
           @media print { body { padding: 0; } }
         </style>
       </head>
       <body>
-        <h1>${row.questionnaire_name}</h1>
-        <div class="meta">
-          Patient: ${row.patientName} · ${row.patientCode || '-'} · Company: ${row.companyName || '-'} · Branch: ${row.branchName || '-'} · Completed: ${row.completionDate ? formatDateTime(row.completionDate) : '-'}
-        </div>
-        ${answers.length
-          ? answers.map(a => `
-              <div class="question">
-                <div class="q-text">${a.questionText}</div>
-                <div class="q-answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</div>
-              </div>
-            `).join('')
+        <h1>KUESIONER MEDICAL CHECK-UP</h1>
+        <div class="subtitle">${row.questionnaire_name} — ${fmtDate(row.examDate)}</div>
+
+        <h2>DATA DIRI</h2>
+        <table class="dati">
+          ${datiDiri.map(([k, v]) => `<tr><td class="label">${k}</td><td>: ${v}</td></tr>`).join('')}
+        </table>
+
+        ${questionsHtml
+          ? `<h2>ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA</h2>
+        <table class="quest">
+          <thead><tr><th>No</th><th>Pertanyaan</th><th>Jawaban</th></tr></thead>
+          <tbody>${questionsHtml}</tbody>
+        </table>
+        <div class="footer">
+          <div class="sign-grid">
+            <div class="sign"><div>Pasien</div><div class="line">${row.patientName}</div></div>
+            <div class="sign"><div>Dokter</div><div class="line"></div></div>
+          </div>
+        </div>`
           : '<div class="meta">Tidak ada jawaban tersimpan.</div>'}
       </body>
     </html>
@@ -577,7 +646,7 @@ watch(currentPage, (page) => {
       <!-- Detail modal -->
       <UModal v-model:open="modalOpen" :title="modalResult?.questionnaire_name ?? 'Detail'">
         <template #body>
-          <div v-if="modalResult" class="space-y-3">
+          <div v-if="modalResult" class="space-y-4">
             <div class="flex flex-wrap gap-2 items-center">
               <UBadge
                 v-if="modalResult.status === 'Completed'"
@@ -592,51 +661,112 @@ watch(currentPage, (page) => {
                 variant="subtle"
               />
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="text-muted">Pasien:</span>
-                <span class="font-semibold">{{ modalResult.patientName }}</span>
+
+            <div class="rounded-lg border border-default">
+              <div class="px-4 py-2 bg-elevated rounded-t-lg border-b border-default">
+                <p class="text-sm font-semibold">
+                  DATA DIRI
+                </p>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-muted">No. RM:</span>
-                <span>{{ modalResult.patientCode || '-' }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-muted">Registrasi:</span>
-                <span>{{ modalResult.registrationRef }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-muted">Exam Date:</span>
-                <span>{{ fmtDate(modalResult.examDate) }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-muted">Company:</span>
-                <span>{{ modalResult.companyName || '-' }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-muted">Branch:</span>
-                <span>{{ modalResult.branchName || '-' }}</span>
-              </div>
+              <dl class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Nama Lengkap:
+                  </dt>
+                  <dd class="font-semibold">
+                    {{ modalResult.patientName }}
+                  </dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Jenis Kelamin:
+                  </dt>
+                  <dd>{{ genderLabel(modalResult.patientGender) }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Umur:
+                  </dt>
+                  <dd>{{ modalResult.patientAge != null ? `${modalResult.patientAge} tahun` : (modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-') }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    No. RM:
+                  </dt>
+                  <dd>{{ modalResult.patientCode || '-' }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Perusahaan:
+                  </dt>
+                  <dd>{{ modalResult.companyName || '-' }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Status Pernikahan:
+                  </dt>
+                  <dd>{{ maritalLabel(modalResult.patientMaritalStatus) }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Alamat Rumah:
+                  </dt>
+                  <dd>{{ modalResult.patientAddress || '-' }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Telepon:
+                  </dt>
+                  <dd>{{ modalResult.patientPhone || '-' }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Registrasi:
+                  </dt>
+                  <dd>{{ modalResult.registrationRef }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Exam Date:
+                  </dt>
+                  <dd>{{ fmtDate(modalResult.examDate) }}</dd>
+                </div>
+                <div class="flex items-center gap-2">
+                  <dt class="text-muted shrink-0">
+                    Branch:
+                  </dt>
+                  <dd>{{ modalResult.branchName || '-' }}</dd>
+                </div>
+              </dl>
             </div>
-            <div class="border-t border-default pt-3">
+
+            <div class="rounded-lg border border-default">
+              <div class="px-4 py-2 bg-elevated rounded-t-lg border-b border-default">
+                <p class="text-sm font-semibold">
+                  ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA
+                </p>
+              </div>
               <div v-if="modalLoading" class="flex items-center justify-center py-6">
                 <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
               </div>
-              <div v-else-if="!modalData?.answers?.length" class="text-sm text-muted">
+              <div v-else-if="!modalData?.answers?.length" class="px-4 py-4 text-sm text-muted">
                 Tidak ada jawaban tersimpan untuk questionnaire ini.
               </div>
-              <div v-else class="space-y-3">
+              <div v-else class="divide-y divide-default">
                 <div
                   v-for="(a, i) in modalData.answers"
                   :key="a.questionId || i"
-                  class="p-3 bg-elevated rounded-lg"
+                  class="flex items-start gap-3 px-4 py-3"
                 >
-                  <p class="text-xs text-muted mb-1">
-                    {{ a.questionText }}
-                  </p>
-                  <p class="text-sm font-semibold">
-                    {{ formatAnswer(a) }}
-                  </p>
+                  <span class="text-sm font-semibold text-muted shrink-0 w-6">{{ i + 1 }}.</span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm text-muted">
+                      {{ a.questionText }}
+                    </p>
+                    <p class="text-sm font-semibold mt-0.5">
+                      {{ formatAnswer(a) }}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
