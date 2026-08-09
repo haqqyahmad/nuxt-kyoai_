@@ -423,6 +423,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
         {
           label: 'Patient Appointment',
           to: '/front-office/registration-patient'
+        },
+        {
+          label: 'Hasil Questionnaire',
+          to: '/front-office/questionnaire-results'
         }
       ]
     },

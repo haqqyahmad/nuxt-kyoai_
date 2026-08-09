@@ -1,8 +1,45 @@
 # Project Task Status
 
-Last updated: 2026-08-06
+Last updated: 2026-08-08
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-08: Hasil Questionnaire — view answers & print gaya form KUESIONER MCU
+
+**Perintah:** Ubah tampilan view answers (modal) agar menyerupai print form MCU1 lama (`ci/application/views/menu/print_quest_mcu2.php`): blok DATA DIRI + pertanyaan bernomor dengan jawaban inline. Modal **dan** print sekaligus, DATA DIRI lengkap (umur, jenis kelamin, status pernikahan, telepon, alamat).
+
+### Backend (express_dash)
+- `questionnaire.service.js` `listResults`: tambah `patientGender`, `patientDob`, `patientAge` (dihitung dari dob), `patientMaritalStatus`, `patientPhone`, `patientAddress` (dari `Address` polimorfik `PATIENT` → detail + district + city + province, diambilkan 1 per patient terbaru via promise paralel).
+- `public-registration.service.js` `getQuestionnaires`: detail `GET /registration/number/:id_reg/questionnaires` kini mengembalikan **semua** soal berurutan (tidak difilter yang terjawab) + flag `answered` per soal, agar form bernomor lengkap seperti print form.
+- Verifikasi: `GET /api/questionnaire/results` mengembalikan field baru; detail questionnaires mengembalikan semua soal + `answered`.
+
+### Frontend (my-app)
+- `pages/front-office/questionnaire-results.vue`: modal "View answers" dirombak jadi gaya form — blok **DATA DIRI** (Nama Lengkap + Jenis Kelamin, Umur, No. RM, Perusahaan, Status Pernikahan, Alamat Rumah, Telepon, Registrasi, Exam Date, Branch) lalu bagian **"ISILAH PERTANYAAN DIBAWAH INI DENGAN SEBENARNYA"** dengan soal bernomor (1., 2., …) dan jawaban inline (jawaban kosong tampil "-"). Helper baru: `genderLabel`, `maritalLabel`, `dataDiriRows`. Print (`printSingle`) juga dibuat gaya form serupa: judul KUESIONER MEDICAL CHECK-UP + DATA DIRI + tabel No/Pertanyaan/Jawaban + area tanda tangan Pasien & Dokter.
+- Verifikasi: lint bersih, typecheck tanpa error untuk file ini, headless Chrome — modal menampilkan 11 baris DATA DIRI + soal bernomor dengan jawaban inline.
+
+## Completed — 2026-08-08: View Answers Hasil Questionnaire gaya form KUESIONER MCU (paper-document)
+
+**Perubahan terakhir:** ritel modal & print agar menyerupai referensi `gemini-code-1786166780281.html`:
+- BE `listResults` tambah `patientPosition` (dari `PatientCompanyHistory`, current position); detail `GET /registration/number/:id_reg/questionnaires` sertakan `sectionTitle` per soal + kirim semua soal (bukan hanya terjawab) + flag `answered`.
+- FE modal view answers: paparan paper-document — blok DATA DIRI sebagai tabel `label : value` (Nama Lengkap+gender, Tgl Lahir+Umur, Perusahaan, Status Pernikahan, Alamat, Telepon, **Posisi Pekerjaan**, No. RM/Registrasi, Exam Date, Branch), soal dikelompokkan per **section** (e.g. KHUSUS WANITA) dengan numbering, hanya soal **berjawab** yang tampil, consent (PERNYATAAN & PERSETUJUAN — 2 poin izin), area tanda tangan (JAKARTA, tanggal, (ttd)), footer "Page 1". Print (`printSingle`) serupa (tanpa grup section — satu daftar terjawab, plus posisi, consent, ttd, footer).
+- Verifikasi: lint + typecheck bersih, headless Chrome — 8 baris DATA DIRI, numbering decimal, adanya consent/ttd/Page 1.
+
+## Completed — 2026-08-08: Hasil Questionnaire di Front Office (list lintas pasien)
+
+**Perintah:** Buat list "Hasil Questionnaire" dari data pasien di menu Front Office — tabel pasien + status questionnaire, filter company/branch/tanggal/status, tombol lihat & print.
+
+### Backend (express_dash)
+- `questionnaire.service.js`: tambah `listResults({ companyId, branchId, dateFrom, dateTo, status })` — query `qstAnswer` yang sudah punya `registrationId` saja (**hanya registrasi yang sudah di-approve**, temp dari portal dieksklusi), group per `registrationId`, gabung `Registration` (+patient), map nama branch/customer. Filter: company (match `String(companyId)`), branch, tanggal (thd `examDate`), status (`Completed` jika ada baris jawaban non-kosong, else `Pending`). Output per (registrasi × questionnaire): `registrationKey`, `registrationRef` (`id_reg`), `patientCode` (`PatientId`), `patientName`, `companyId/companyName`, `branchId/branchName`, `examDate`, `questionnaire_id/name`, `status`, `completionDate`.
+- `questionnaire.controller.js`: tambah `listResults` (baca `req.query`, response.success).
+- `questionnaire.route.js`: route `GET /results` (auth + `permit("questionnaire:read")`) **sebelum** `GET /:id` agar "results" tidak dianggap sebagai id.
+- Verifikasi: list 10 baris (semua punya `registrationRef` REG-..., tidak ada UUID temp), filter company/branch/date/status bekerja.
+
+### Frontend (my-app)
+- `pages/front-office/questionnaire-results.vue` (baru): UTable pasien × questionnaire dengan filter bar (company/branch/date from/to/status), kolom Patient (nama + RM), Regist, Exam Date, Company, Branch, Questionnaire, Status (badge), Completion, aksi dropdown Lihat/Print. Modal detail memakai endpoint `GET /registration/number/:id_reg/questionnaires` + print via `window.open`. Pola pagination/display-control meniru `registration-patient/index.vue`.
+- `constants/menu.ts`: tambah `/front-office/questionnaire-results` ke `frontOfficeAllowedRoutes` + menu item "Hasil Questionnaire" di Front Office.
+- `layouts/default.vue`: tambah menu item "Hasil Questionnaire" di grup Front Office.
+- `constants/seo/front-office.ts`: SEO entry baru.
+- Verifikasi: lint bersih untuk file diubah, typecheck tidak ada error untuk file baru, route HTTP 200.
 
 ## Completed — 2026-08-06: Portal — Fix pilih Company di /registration (pasien baru)
 

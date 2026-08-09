@@ -123,6 +123,17 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-08-08 — View Answers Hasil Questionnaire gaya form KUESIONER MCU
+- BE `express_dash`: `listResults` tambah field DATA DIRI (patientGender, patientDob, patientAge, patientMaritalStatus, patientPhone, patientAddress dari Address polimorfik PATIENT) + `patientPosition` (Posisi Pekerjaan dari PatientCompanyHistory).
+- BE `express_dash`: detail `GET /registration/number/:id_reg/questionnaires` kembalikan SEMUA soal berurutan + flag `answered` + `sectionTitle` per soal (untuk grouping seperti KHUSUS WANITA).
+- my-app: modal + print view answers di `/front-office/questionnaire-results` jadi gaya paper-document — DATA DIRI tabel label:colon:value (termasuk Posisi Pekerjaan), soal dikelompokkan per section, consent (PERNYATAAN & PERSETUJUAN), area tanda tangan (JAKARTA, tanggal, (ttd)), footer "Page 1".
+- Detail: `docs/task-status.md`.
+
+### 2026-08-08 — Hasil Questionnaire di Front Office
+- BE `express_dash`: endpoint `GET /api/questionnaire/results` — list lintas pasien (group `qstAnswer` per `registrationId ?? regId`, gabung Registration/RegistrationTemp, map branch/customer), filter company/branch/tanggal/status. Route diletakkan sebelum `/:id`.
+- my-app: halaman baru `/front-office/questionnaire-results` — tabel pasien × questionnaire + filter + modal detail + print. Daftar di `frontOfficeAllowedRoutes` + menu Front Office + SEO.
+- Detail: `docs/task-status.md`.
+
 ### 2026-08-06 — Questionnaire per Company/Branch di Portal
 - BE: `getDefaultByCompany` return array (MCU default + mapping company/branch aktif) + CRUD `CompanyQuestionnaire` di `/settings/company-questionnaires`.
 - Portal: steps dinamis (tiap questionnaire = step terpisah), `MCUQuestionnaire` pre-loaded, submit semua jawaban per questionnaire.

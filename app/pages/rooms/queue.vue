@@ -979,7 +979,7 @@ watch(
   <UDashboardPanel id="room-queue-history">
     <template #header>
       <UDashboardNavbar
-        title="Room Queue History"
+        title="Room Queue"
         subtitle="Histori queue selesai dan daftar pasien waiting"
       >
         <template #leading>
@@ -988,6 +988,7 @@ watch(
 
         <template #right>
           <UBadge
+            class="hidden sm:inline-flex"
             :color="activeRoomSession ? 'success' : 'neutral'"
             variant="subtle"
             :label="roomSessionPending ? 'Mengecek sesi room...' : getRoomSessionLabel()"
@@ -1001,7 +1002,7 @@ watch(
             :loading="assignmentPending || roomEnterActionLoading"
             @click="openEnterRoomModal"
           >
-            Masuk Room
+            <span class="hidden lg:inline">Masuk Room</span>
           </UButton>
 
           <UButton
@@ -1012,7 +1013,7 @@ watch(
             :loading="roomExitActionLoading"
             @click="openExitRoomModal"
           >
-            Keluar Room
+            <span class="hidden lg:inline">Keluar Room</span>
           </UButton>
 
           <UButton
@@ -1021,7 +1022,7 @@ watch(
             variant="soft"
             @click="openWaitingPatientsModal"
           >
-            Lihat Pasien Menunggu
+            <span class="hidden lg:inline">Lihat Pasien Menunggu</span>
           </UButton>
 
           <UButton
@@ -1031,14 +1032,22 @@ watch(
             :loading="assignmentPending || historyPending || waitingPending"
             @click="refreshAll"
           >
-            Refresh
+            <span class="hidden lg:inline">Refresh</span>
           </UButton>
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <div class="space-y-4">
+      <div class="w-full max-w-7xl mx-auto space-y-4">
+        <div class="flex justify-start sm:hidden">
+          <UBadge
+            :color="activeRoomSession ? 'success' : 'neutral'"
+            variant="subtle"
+            :label="roomSessionPending ? 'Mengecek sesi room...' : getRoomSessionLabel()"
+          />
+        </div>
+
         <UAlert
           v-if="assignment && !activeRoomSession"
           color="info"
@@ -1049,22 +1058,20 @@ watch(
         />
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div class="space-y-3">
-              <div>
-                <p class="text-sm font-medium text-muted">
-                  Assignment room hari ini
-                </p>
-                <h2 class="mt-1 text-xl font-semibold text-highlighted">
-                  {{ assignment?.roomType?.name || 'Belum ada assignment room' }}
-                </h2>
-                <p class="mt-1 text-sm text-muted">
-                  {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
-                  {{ assignment?.room?.name || 'Histori tetap bisa dilihat tanpa masuk room.' }}
-                </p>
-              </div>
+          <div class="space-y-5">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wider text-muted">
+                Assignment room hari ini
+              </p>
+              <h2 class="mt-1 text-xl font-bold text-highlighted sm:text-2xl">
+                {{ assignment?.roomType?.name || 'Belum ada assignment room' }}
+              </h2>
+              <p class="mt-0.5 text-xs font-medium text-muted sm:text-sm">
+                {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
+                {{ assignment?.room?.name || 'Histori tetap bisa dilihat tanpa masuk room.' }}
+              </p>
 
-              <div class="flex flex-wrap gap-2">
+              <div class="mt-3 flex flex-wrap items-center gap-2">
                 <UBadge
                   :color="isSuperAdmin ? 'success' : (roomTypeId ? 'info' : 'warning')"
                   variant="subtle"
@@ -1078,37 +1085,37 @@ watch(
                 />
               </div>
 
-              <p class="text-sm text-muted">
+              <p class="mt-3 text-xs text-muted">
                 {{ assignment?.notes || 'Histori queue hanya menampilkan data yang sudah selesai diproses.' }}
               </p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 lg:min-w-80 lg:grid-cols-3">
-              <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">
+            <div class="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3 sm:gap-4">
+              <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
+                <span class="text-xs font-medium text-muted">
                   Selesai
-                </p>
-                <p class="mt-1 text-2xl font-semibold text-highlighted">
+                </span>
+                <div class="mt-2 text-2xl font-extrabold text-highlighted sm:text-3xl">
                   {{ historyStats.completed }}
-                </p>
+                </div>
               </div>
 
-              <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">
+              <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
+                <span class="text-xs font-medium text-muted">
                   Waiting
-                </p>
-                <p class="mt-1 text-2xl font-semibold text-highlighted">
+                </span>
+                <div class="mt-2 text-2xl font-extrabold text-highlighted sm:text-3xl">
                   {{ historyStats.waiting }}
-                </p>
+                </div>
               </div>
 
-              <div class="rounded-lg border border-default bg-muted/30 p-3">
-                <p class="text-xs text-muted">
+              <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
+                <span class="text-xs font-medium text-muted">
                   Akses
-                </p>
-                <p class="mt-1 text-sm font-medium text-highlighted">
+                </span>
+                <div class="mt-3 text-base font-bold text-highlighted sm:text-lg">
                   {{ historyStats.access }}
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1129,47 +1136,51 @@ watch(
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 class="text-base font-semibold text-highlighted">
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div class="max-w-md space-y-1">
+                <h3 class="text-base font-bold text-highlighted">
                   Histori Queue
                 </h3>
-                <p class="text-sm text-muted">
+                <p class="text-xs leading-relaxed text-muted">
                   Histori queue room. Gunakan filter status untuk melihat data lain. Bagian ini read-only.
                 </p>
               </div>
-              <div class="flex items-center gap-3">
+
+              <div class="flex w-full flex-wrap items-center gap-3 sm:items-center xl:w-auto xl:justify-end">
                 <USelect
                   v-if="isSuperAdmin"
                   v-model="selectedHistoryRoomTypeId"
                   :items="roomTypeOptions"
                   :loading="roomTypesPending"
                   placeholder="Pilih room type"
-                  class="w-56"
+                  class="w-full sm:w-56"
                 />
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-medium text-muted">Exam Date</span>
+
+                <div class="flex w-full items-center gap-2 sm:w-auto">
+                  <span class="shrink-0 text-xs font-medium text-muted">Exam Date</span>
                   <UInput
                     v-model="examDateFromFilter"
                     type="date"
                     size="sm"
-                    class="w-36"
+                    class="min-w-0 flex-1 sm:w-36 sm:flex-initial"
                     aria-label="Exam date from"
                   />
-                  <span class="text-xs text-muted">s/d</span>
+                  <span class="shrink-0 text-xs text-muted">s/d</span>
                   <UInput
                     v-model="examDateToFilter"
                     type="date"
                     size="sm"
-                    class="w-36"
+                    class="min-w-0 flex-1 sm:w-36 sm:flex-initial"
                     aria-label="Exam date to"
                   />
                 </div>
+
                 <USelect
                   v-model="historyStatusFilter"
                   :items="historyStatusOptions"
-                  class="w-44"
+                  class="w-full sm:w-44"
                 />
+
                 <UBadge
                   variant="soft"
                   color="neutral"
