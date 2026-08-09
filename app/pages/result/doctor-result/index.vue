@@ -223,7 +223,7 @@ async function load() {
 
 function openDoctorResult(exam: ExamListItem) {
   const id = exam.examId ?? exam.id
-  router.push(`/rooms/doctor-result/${id}`)
+  router.push(`/result/doctor-result/${id}`)
 }
 
 function getPatientName(exam: ExamListItem) {

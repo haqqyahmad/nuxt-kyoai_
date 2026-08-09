@@ -85,7 +85,7 @@ async function loadResult() {
 
 async function goBackToResults() {
   await router.push({
-    path: '/rooms/exam-results',
+    path: '/result/exam-results',
     query: department.value ? { department: department.value } : {}
   })
 }
@@ -114,12 +114,24 @@ onMounted(() => {
 
       <!-- Dental: editor + view khusus dental -->
       <div v-else-if="isDental && examId" class="h-full overflow-auto">
-        <DentalResultPanel
-          :exam-id="examId"
-          :exam-item-id="String(route.params.id)"
-          :room-type-id="roomTypeId"
-          :department-id="(result as any)?.departmentId"
-        />
+        <div class="flex items-center gap-3 px-2 pt-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-arrow-left"
+            @click="goBackToResults"
+          >
+            Back
+          </UButton>
+        </div>
+        <div class="p-4">
+          <DentalResultPanel
+            :exam-id="examId"
+            :exam-item-id="String(route.params.id)"
+            :room-type-id="roomTypeId"
+            :department-id="(result as any)?.departmentId"
+          />
+        </div>
       </div>
 
       <!-- Non-dental: generic result drawer -->

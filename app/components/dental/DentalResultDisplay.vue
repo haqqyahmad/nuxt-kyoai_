@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DENTAL_GRADE_CONFIG, TOOTH_GROUPS } from '~/types/dental'
+import { DENTAL_GRADE_CONFIG, DENTAL_CHART_GROUPS } from '~/types/dental'
 import type { DentalExamData } from '~/types/dental'
 
 const props = defineProps<{ data: DentalExamData | null }>()
@@ -29,6 +29,18 @@ function findingCount(tooth: string) {
 function findingConditions(tooth: string) {
   return props.data?.findings?.find(f => f.toothNumber === tooth)?.conditions ?? []
 }
+
+// Ringkasan kondisi: condition -> daftar nomor gigi yang mengalaminya
+const conditionSummary = computed<Record<string, string[]>>(() => {
+  const map: Record<string, string[]> = {}
+  for (const f of props.data?.findings ?? []) {
+    for (const c of f.conditions ?? []) {
+      if (!map[c]) map[c] = []
+      map[c].push(f.toothNumber)
+    }
+  }
+  return map
+})
 </script>
 
 <template>
@@ -118,35 +130,86 @@ function findingConditions(tooth: string) {
       </div>
     </div>
 
-    <!-- Dental Chart -->
-    <div class="rounded-xl border border-default p-4">
-      <h4 class="mb-3 text-sm font-semibold text-highlighted">
-        Dental Chart
-      </h4>
-      <div class="space-y-4">
-        <div v-for="(teeth, label) in TOOTH_GROUPS" :key="label" class="print-break-inside">
-          <p class="mb-2 text-xs font-semibold text-muted">
-            {{ label === 'permanentUpper' ? 'Permanent — Upper Jaw' : label === 'permanentLower' ? 'Permanent — Lower Jaw' : label === 'primaryUpper' ? 'Primary — Upper Jaw' : 'Primary — Lower Jaw' }}
-          </p>
-          <div class="grid grid-cols-8 gap-1.5" :class="teeth.length <= 10 ? 'md:grid-cols-5' : ''">
-            <button
-              v-for="tooth in teeth"
-              :key="tooth"
-              type="button"
-              disabled
-              class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold"
-              :class="findingCount(tooth) ? 'border-primary bg-primary/5' : 'border-default bg-default'"
-              :title="findingConditions(tooth).join(', ')"
-            >
-              <span class="text-lg text-muted">🦷</span>
-              <span>{{ tooth }}</span>
-              <span v-if="findingCount(tooth)" class="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">
-                {{ findingCount(tooth) }}
-              </span>
-            </button>
+    <!-- Dental Chart (kiri) + Kondisi Gigi (kanan) -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
+      <!-- Dental Chart -->
+      <div class="rounded-xl border border-default p-4">
+        <h4 class="mb-3 text-sm font-semibold text-highlighted">
+          Dental Chart
+        </h4>
+        <div class="space-y-4">
+          <div v-for="group in DENTAL_CHART_GROUPS" :key="group.label" class="print-break-inside">
+            <p class="mb-2 text-xs font-semibold text-muted">
+              {{ group.label }}
+            </p>
+            <div class="space-y-3">
+              <div
+                v-for="(halves, rowIdx) in group.rows"
+                :key="rowIdx"
+                class="flex items-stretch gap-1.5"
+              >
+                <div class="grid min-w-0 flex-1 gap-1.5" :class="halves[0].length === 8 ? 'grid-cols-8' : 'grid-cols-5'">
+                  <button
+                    v-for="tooth in halves[0]"
+                    :key="tooth"
+                    type="button"
+                    disabled
+                    class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold"
+                    :class="findingCount(tooth) ? 'border-primary bg-primary/5' : 'border-default bg-default'"
+                    :title="findingConditions(tooth).join(', ')"
+                  >
+                    <span class="text-lg text-muted">🦷</span>
+                    <span>{{ tooth }}</span>
+                    <span v-if="findingCount(tooth)" class="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">
+                      {{ findingCount(tooth) }}
+                    </span>
+                  </button>
+                </div>
+                <div class="w-px shrink-0 self-stretch bg-default/60" />
+                <div class="grid min-w-0 flex-1 gap-1.5" :class="halves[1].length === 8 ? 'grid-cols-8' : 'grid-cols-5'">
+                  <button
+                    v-for="tooth in halves[1]"
+                    :key="tooth"
+                    type="button"
+                    disabled
+                    class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold"
+                    :class="findingCount(tooth) ? 'border-primary bg-primary/5' : 'border-default bg-default'"
+                    :title="findingConditions(tooth).join(', ')"
+                  >
+                    <span class="text-lg text-muted">🦷</span>
+                    <span>{{ tooth }}</span>
+                    <span v-if="findingCount(tooth)" class="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">
+                      {{ findingCount(tooth) }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div v-if="teeth.length <= 10" class="sr-only">
-            {{ teeth.join(' ') }}
+        </div>
+      </div>
+
+      <!-- Kondisi Gigi -->
+      <div class="rounded-xl border border-default p-4">
+        <h4 class="mb-3 text-sm font-semibold text-highlighted">
+          Kondisi Gigi
+        </h4>
+        <div v-if="!Object.keys(conditionSummary).length" class="rounded-lg border border-dashed border-default py-6 text-center text-sm text-muted">
+          Tidak ada kondisi ditemukan.
+        </div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="(teeth, condition) in conditionSummary"
+            :key="condition"
+            class="rounded-xl border border-default bg-muted/20 p-3"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ condition }}</span>
+              <span class="text-xs text-muted">{{ teeth.length }} gigi</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span v-for="tooth in teeth" :key="tooth" class="rounded-full border border-default bg-default px-2 py-0.5 text-xs font-semibold text-highlighted">{{ tooth }}</span>
+            </div>
           </div>
         </div>
       </div>

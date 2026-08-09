@@ -407,7 +407,7 @@ watch(results, () => {
 // View detail
 async function viewDetail(result: ExamResult) {
   await router.push({
-    path: `/rooms/exam-results/${result.id}`,
+    path: `/result/exam-results/${result.id}`,
     query: isExternalDoctor.value
       ? {}
       : {

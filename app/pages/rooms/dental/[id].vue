@@ -23,7 +23,7 @@ const { data, pending } = await useAsyncData<DentalExamData | null>(
 )
 
 function goBack() {
-  router.push('/rooms/exam-results')
+  router.push('/result/exam-results')
 }
 </script>
 

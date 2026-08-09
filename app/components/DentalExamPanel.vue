@@ -6,7 +6,7 @@ import {
   DENTAL_CONDITIONS,
   OTHER_DENTAL_OPTIONS,
   DENTAL_GRADE_CONFIG,
-  TOOTH_GROUPS
+  DENTAL_CHART_GROUPS
 } from '~/types/dental'
 import type { DentalExamData, DentalFinding, DentalGrade } from '~/types/dental'
 
@@ -375,207 +375,151 @@ if (props.data) seed()
       </div>
     </UCard>
 
-    <!-- Dental Chart -->
-    <UCard class="border border-default/80 shadow-sm">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-base font-semibold text-highlighted">
-            Dental Chart
-          </h3>
-          <UBadge :label="state.selectedTooth ? `Gigi ${state.selectedTooth} dipilih` : 'Belum ada gigi dipilih'" color="neutral" variant="subtle" />
-        </div>
-      </template>
-
-      <div class="space-y-5">
-        <div>
-          <p class="mb-2 text-sm font-bold">
-            Permanent Teeth — Upper Jaw
-          </p>
-          <div class="grid grid-cols-8 gap-1.5">
-            <button
-              v-for="tooth in TOOTH_GROUPS.permanentUpper"
-              :key="tooth"
-              type="button"
-              class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
-              :class="[
-                state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
-                state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
-              ]"
-              :disabled="disabled"
-              @click="selectTooth(tooth)"
-            >
-              <span class="text-lg text-muted">🦷</span>
-              <span>{{ tooth }}</span>
-              <span
-                v-if="state.findings[tooth]?.conditions.length"
-                class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
-              >
-                {{ state.findings[tooth]!.conditions.length }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <p class="mb-2 text-sm font-bold">
-            Permanent Teeth — Lower Jaw
-          </p>
-          <div class="grid grid-cols-8 gap-1.5">
-            <button
-              v-for="tooth in TOOTH_GROUPS.permanentLower"
-              :key="tooth"
-              type="button"
-              class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
-              :class="[
-                state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
-                state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
-              ]"
-              :disabled="disabled"
-              @click="selectTooth(tooth)"
-            >
-              <span class="text-lg text-muted">🦷</span>
-              <span>{{ tooth }}</span>
-              <span
-                v-if="state.findings[tooth]?.conditions.length"
-                class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
-              >
-                {{ state.findings[tooth]!.conditions.length }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <details class="rounded-xl border border-default p-3">
-          <summary class="cursor-pointer font-bold">
-            Primary Teeth
-          </summary>
-          <div class="mb-4 mt-3">
-            <p class="mb-2 text-sm font-bold">
-              Upper Jaw
-            </p>
-            <div class="grid grid-cols-5 gap-1.5">
-              <button
-                v-for="tooth in TOOTH_GROUPS.primaryUpper"
-                :key="tooth"
-                type="button"
-                class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
-                :class="[
-                  state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
-                  state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
-                ]"
-                :disabled="disabled"
-                @click="selectTooth(tooth)"
-              >
-                <span class="text-lg text-muted">🦷</span>
-                <span>{{ tooth }}</span>
-                <span
-                  v-if="state.findings[tooth]?.conditions.length"
-                  class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
-                >
-                  {{ state.findings[tooth]!.conditions.length }}
-                </span>
-              </button>
-            </div>
-          </div>
-          <div>
-            <p class="mb-2 text-sm font-bold">
-              Lower Jaw
-            </p>
-            <div class="grid grid-cols-5 gap-1.5">
-              <button
-                v-for="tooth in TOOTH_GROUPS.primaryLower"
-                :key="tooth"
-                type="button"
-                class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
-                :class="[
-                  state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
-                  state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
-                ]"
-                :disabled="disabled"
-                @click="selectTooth(tooth)"
-              >
-                <span class="text-lg text-muted">🦷</span>
-                <span>{{ tooth }}</span>
-                <span
-                  v-if="state.findings[tooth]?.conditions.length"
-                  class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
-                >
-                  {{ state.findings[tooth]!.conditions.length }}
-                </span>
-              </button>
-            </div>
-          </div>
-        </details>
-
-        <UAlert
-          v-if="selectedFinding && selectedFinding.conditions.length > 0"
-          color="primary"
-          variant="soft"
-          :title="`Gigi ${selectedFinding.toothNumber}`"
-        >
-          <template #description>
-            <div class="flex flex-wrap gap-2">
-              <span v-for="condition in selectedFinding.conditions" :key="condition" class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                {{ condition }}
-              </span>
-            </div>
-          </template>
-        </UAlert>
-      </div>
-    </UCard>
-
-    <!-- Selected Tooth Conditions -->
-    <UCard
-      v-if="state.selectedTooth"
-      ref="conditionsPanel"
-      class="scroll-mt-24 border border-primary/30 shadow-sm"
-    >
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
+    <!-- Dental Chart (kiri) + Kondisi Gigi (kanan) -->
+    <div class="grid grid-cols-1 gap-4" :class="state.selectedTooth ? 'lg:grid-cols-[4fr_1fr]' : 'lg:grid-cols-1'">
+      <!-- Dental Chart -->
+      <UCard class="border border-default/80 shadow-sm">
+        <template #header>
+          <div class="flex flex-wrap items-center justify-between gap-3">
             <h3 class="text-base font-semibold text-highlighted">
-              Kondisi Gigi {{ state.selectedTooth }}
+              Dental Chart
             </h3>
-            <p class="text-xs text-muted">
-              Klik beberapa kondisi. Dental Findings akan diperbarui langsung.
-            </p>
+            <UBadge :label="state.selectedTooth ? `Gigi ${state.selectedTooth} dipilih` : 'Belum ada gigi dipilih'" color="neutral" variant="subtle" />
           </div>
-          <UButton
-            color="error"
+        </template>
+
+        <div class="space-y-5">
+          <div v-for="group in DENTAL_CHART_GROUPS" :key="group.label">
+            <p class="mb-3 text-sm font-bold">
+              {{ group.label }}
+            </p>
+            <div class="space-y-3">
+              <div
+                v-for="(halves, rowIdx) in group.rows"
+                :key="rowIdx"
+                class="flex items-stretch gap-1.5"
+              >
+                <div class="grid min-w-0 flex-1 gap-1.5" :class="halves[0].length === 8 ? 'grid-cols-8' : 'grid-cols-5'">
+                  <button
+                    v-for="tooth in halves[0]"
+                    :key="tooth"
+                    type="button"
+                    class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
+                    :class="[
+                      state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
+                      state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
+                    ]"
+                    :disabled="disabled"
+                    @click="selectTooth(tooth)"
+                  >
+                    <span class="text-lg text-muted">🦷</span>
+                    <span>{{ tooth }}</span>
+                    <span
+                      v-if="state.findings[tooth]?.conditions.length"
+                      class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
+                    >
+                      {{ state.findings[tooth]!.conditions.length }}
+                    </span>
+                  </button>
+                </div>
+                <div class="w-px shrink-0 self-stretch bg-default/60" />
+                <div class="grid min-w-0 flex-1 gap-1.5" :class="halves[1].length === 8 ? 'grid-cols-8' : 'grid-cols-5'">
+                  <button
+                    v-for="tooth in halves[1]"
+                    :key="tooth"
+                    type="button"
+                    class="relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-xs font-bold transition hover:-translate-y-0.5"
+                    :class="[
+                      state.selectedTooth === tooth ? 'border-primary bg-primary/10' : 'border-default',
+                      state.findings[tooth]?.conditions.length ? 'bg-primary/5' : 'bg-default'
+                    ]"
+                    :disabled="disabled"
+                    @click="selectTooth(tooth)"
+                  >
+                    <span class="text-lg text-muted">🦷</span>
+                    <span>{{ tooth }}</span>
+                    <span
+                      v-if="state.findings[tooth]?.conditions.length"
+                      class="absolute -right-1.5 -top-1.5 flex size-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm"
+                    >
+                      {{ state.findings[tooth]!.conditions.length }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <UAlert
+            v-if="selectedFinding && selectedFinding.conditions.length > 0"
+            color="primary"
             variant="soft"
-            size="sm"
-            icon="i-lucide-trash"
-            :disabled="disabled"
-            @click="clearTooth"
+            :title="`Gigi ${selectedFinding.toothNumber}`"
           >
-            Hapus temuan
-          </UButton>
+            <template #description>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="condition in selectedFinding.conditions" :key="condition" class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {{ condition }}
+                </span>
+              </div>
+            </template>
+          </UAlert>
         </div>
-      </template>
+      </UCard>
 
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="condition in DENTAL_CONDITIONS"
-          :key="condition"
-          type="button"
-          class="rounded-full border px-3 py-1.5 text-sm transition"
-          :class="state.findings[state.selectedTooth]?.conditions.includes(condition) ? 'border-primary bg-primary text-white' : 'border-default hover:border-primary'"
-          :disabled="disabled"
-          @click="toggleFindingCondition(condition)"
-        >
-          {{ condition }}
-        </button>
-      </div>
+      <!-- Selected Tooth Conditions -->
+      <UCard
+        v-if="state.selectedTooth"
+        ref="conditionsPanel"
+        class="scroll-mt-24 border border-primary/30 shadow-sm"
+      >
+        <template #header>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-semibold text-highlighted">
+                Kondisi Gigi {{ state.selectedTooth }}
+              </h3>
+              <p class="text-xs text-muted">
+                Klik beberapa kondisi. Dental Findings akan diperbarui langsung.
+              </p>
+            </div>
+            <UButton
+              color="error"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-trash"
+              :disabled="disabled"
+              @click="clearTooth"
+            >
+              Hapus temuan
+            </UButton>
+          </div>
+        </template>
 
-      <UFormField label="Catatan khusus gigi" class="mt-4">
-        <UInput
-          v-if="state.findings[state.selectedTooth]"
-          v-model="state.findings[state.selectedTooth].note"
-          :disabled="disabled"
-          placeholder="Contoh: karies pada permukaan distal"
-        />
-      </UFormField>
-    </UCard>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            v-for="condition in DENTAL_CONDITIONS"
+            :key="condition"
+            type="button"
+            class="rounded-full border px-2.5 py-2 text-sm transition"
+            :class="state.findings[state.selectedTooth]?.conditions.includes(condition) ? 'border-primary bg-primary text-white' : 'border-default hover:border-primary'"
+            :disabled="disabled"
+            @click="toggleFindingCondition(condition)"
+          >
+            {{ condition }}
+          </button>
+        </div>
+
+        <UFormField label="Catatan khusus gigi" class="mt-4">
+          <UInput
+            v-if="state.findings[state.selectedTooth]"
+            v-model="state.findings[state.selectedTooth].note"
+            :disabled="disabled"
+            placeholder="Contoh: karies pada permukaan distal"
+          />
+        </UFormField>
+      </UCard>
+    </div>
 
     <!-- Dental Findings -->
     <UCard class="border border-default/80 shadow-sm">

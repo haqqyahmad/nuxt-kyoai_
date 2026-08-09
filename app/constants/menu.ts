@@ -7,7 +7,7 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/assignments',
   '/rooms/queue',
   '/rooms/sample-collection',
-  '/rooms/exam-results',
+  '/result/exam-results',
   '/rooms/queue-work',
   '/settings',
   '/settings/roles',
@@ -32,7 +32,7 @@ export function getAllowedRoutes(roleName: string): string[] {
 }
 
 export const externalDoctorAllowedRoutes: string[] = [
-  '/rooms/exam-results',
+  '/result/exam-results',
   '/settings',
   '/settings/security'
 ]
@@ -115,32 +115,32 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         {
           label: 'Hasil Exam Lab',
-          to: '/rooms/exam-results?department=lab',
+          to: '/result/exam-results?department=lab',
           resultDepartmentCode: 'LAB'
         },
         {
           label: 'Hasil Exam Radiology',
-          to: '/rooms/exam-results?department=radiology',
+          to: '/result/exam-results?department=radiology',
           resultDepartmentCode: 'RAD'
         },
         {
           label: 'Hasil Exam Nurse',
-          to: '/rooms/exam-results?department=nurse',
+          to: '/result/exam-results?department=nurse',
           resultDepartmentCode: 'NURSE'
         },
         {
           label: 'Hasil Exam Dokter',
-          to: '/rooms/exam-results?department=dokter',
+          to: '/result/exam-results?department=dokter',
           resultDepartmentCode: 'DOK'
         },
         {
           label: 'Hasil Exam Dental',
-          to: '/rooms/exam-results?department=dental',
+          to: '/result/exam-results?department=dental',
           resultDepartmentCode: 'DENTAL'
         },
         {
           label: 'Doctor Result MCU',
-          to: '/rooms/doctor-result'
+          to: '/result/doctor-result'
         }
       ]
     },

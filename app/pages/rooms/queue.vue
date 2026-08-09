@@ -653,7 +653,7 @@ function openProcessedDocument(row: QueueHistoryRow) {
   if (!row.registrationId) return
 
   router.push({
-    path: '/rooms/exam-results',
+    path: '/result/exam-results',
     query: {
       registrationId: String(row.registrationId),
       status: 'completed'

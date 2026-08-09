@@ -45,7 +45,7 @@ const menuGroups: Record<string, string[]> = {
     '/rooms/sample-collection'
   ],
   'Results': [
-    '/rooms/exam-results'
+    '/result/exam-results'
   ],
   'Lab': [
     '/rooms/sample-reception'
@@ -345,41 +345,41 @@ const links = computed<NavigationMenuItem[][]>(() => [
       open: menuOpenState.value['Results'],
       onUpdateOpen: (val: boolean) => updateMenuState('Results', val),
       children: [
-        ...(isExternalDoctor.value ? [{ label: 'Pekerjaan Dokter Luar', to: '/rooms/exam-results', active: true }] : []),
+        ...(isExternalDoctor.value ? [{ label: 'Pekerjaan Dokter Luar', to: '/result/exam-results', active: true }] : []),
         {
           label: 'Hasil Exam Lab',
-          to: '/rooms/exam-results?department=lab',
+          to: '/result/exam-results?department=lab',
           active: activeResultDepartment.value === 'lab',
           resultDepartmentCode: 'LAB'
         },
         {
           label: 'Hasil Exam Radiology',
-          to: '/rooms/exam-results?department=radiology',
+          to: '/result/exam-results?department=radiology',
           active: activeResultDepartment.value === 'radiology',
           resultDepartmentCode: 'RAD'
         },
         {
           label: 'Hasil Exam Nurse',
-          to: '/rooms/exam-results?department=nurse',
+          to: '/result/exam-results?department=nurse',
           active: activeResultDepartment.value === 'nurse',
           resultDepartmentCode: 'NURSE'
         },
         {
           label: 'Hasil Exam Dokter',
-          to: '/rooms/exam-results?department=dokter',
+          to: '/result/exam-results?department=dokter',
           active: activeResultDepartment.value === 'dokter',
           resultDepartmentCode: 'DOK'
         },
         {
           label: 'Hasil Exam Dental',
-          to: '/rooms/exam-results?department=dental',
+          to: '/result/exam-results?department=dental',
           active: activeResultDepartment.value === 'dental',
           resultDepartmentCode: 'DENTAL'
         },
         {
           label: 'Doctor Result MCU',
-          to: '/rooms/doctor-result',
-          active: route.path.startsWith('/rooms/doctor-result')
+          to: '/result/doctor-result',
+          active: route.path.startsWith('/result/doctor-result')
         }
       ].filter((item) => {
         if (isExternalDoctor.value) return !item.resultDepartmentCode
@@ -510,6 +510,8 @@ const hideSidebar = computed(() => {
   if (/^\/rooms\/doctor-result\/[A-Za-z0-9_-]+$/.test(route.path)) return true
   // Sembunyikan untuk external doctor di halaman exam-results detail
   if (hideNavigationForExternalDoctor.value) return true
+  // Sembunyikan sidebar di halaman detail dental (full-width layout)
+  if (/^\/result\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path) && route.query.department === 'dental') return true
   return false
 })
 

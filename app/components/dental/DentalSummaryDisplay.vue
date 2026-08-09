@@ -18,7 +18,7 @@ function formatDate(value: string | null | undefined) {
 
 function goToDentalDetail() {
   if (props.examItemId) {
-    router.push(`/rooms/exam-results/${props.examItemId}?department=dental&examId=${props.examId}`)
+    router.push(`/result/exam-results/${props.examItemId}?department=dental&examId=${props.examId}`)
   }
 }
 </script>

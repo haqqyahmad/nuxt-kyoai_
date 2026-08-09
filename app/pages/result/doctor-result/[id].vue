@@ -239,7 +239,7 @@ function setupScrollSpy() {
 }
 
 function goBack() {
-  router.push('/rooms/doctor-result')
+  router.push('/result/doctor-result')
 }
 
 function normalizedFlag(flag: string) {
@@ -301,7 +301,7 @@ function renderGradeCell(item: DoctorResultItem) {
 
 async function submitResult() {
   const result = await submit()
-  if (result) router.push('/rooms/doctor-result')
+  if (result) router.push('/result/doctor-result')
 }
 
 watch(departments, () => {

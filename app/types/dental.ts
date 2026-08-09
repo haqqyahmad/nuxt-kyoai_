@@ -106,3 +106,28 @@ export const TOOTH_GROUPS: Record<string, string[]> = {
   primaryUpper: ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65'],
   primaryLower: ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75']
 }
+
+// Belah satu rahang jadi dua kuadran (kiri | kanan)
+export function splitToothGroup(teeth: readonly string[]): [string[], string[]] {
+  const mid = Math.floor(teeth.length / 2)
+  return [teeth.slice(0, mid), teeth.slice(mid)]
+}
+
+// Susunan chart: PERMANENT TEETH (32) dan PRIMARY TEETH (20),
+// tiap rahang dua baris, tiap baris dipisah garis tengah.
+export const DENTAL_CHART_GROUPS: { label: string, rows: [string[], string[]][] }[] = [
+  {
+    label: 'Permanent Teeth (32 Teeth)',
+    rows: [
+      splitToothGroup(TOOTH_GROUPS.permanentUpper),
+      splitToothGroup(TOOTH_GROUPS.permanentLower)
+    ]
+  },
+  {
+    label: 'Primary Teeth (20 Teeth)',
+    rows: [
+      splitToothGroup(TOOTH_GROUPS.primaryUpper),
+      splitToothGroup(TOOTH_GROUPS.primaryLower)
+    ]
+  }
+]
