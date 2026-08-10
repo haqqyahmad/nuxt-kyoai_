@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import PhysicalExaminationDoctor from '~/components/rooms/PhysicalExaminationDoctor.vue'
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
+import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
+import { useAudit } from '~/composables/useAudit'
 
 type Patient = {
   id: string | number
@@ -181,7 +183,7 @@ type RoomExamItem = {
     id: string
     externalAssignment?: {
       id: string
-      status: 'ASSIGNED' | 'CANCELLED' | 'FILLED'
+      status: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED'
       assignedExternalUserId?: number | null
       attachmentUrl?: string | null
       assignedAt?: string | null
@@ -282,6 +284,7 @@ const itemActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
 const resultDrafts = reactive<Record<string, Record<string, ResultDraft>>>({})
 const itemNotes = reactive<Record<string, string>>({})
+const { loading: auditLoading, entries: auditEntries, resetAudit } = useAudit()
 const isItemActionModalOpen = ref(false)
 const selectedItemAction = ref<RoomExamItem | null>(null)
 const selectedItemActionType = ref<'skip' | 'reschedule' | 'retest' | 'refuse' | null>(null)
@@ -439,20 +442,16 @@ function formatProfileSuffix(sex?: string | null, ageMin?: number | null, ageMax
 
 function getNumericNormalRanges(inputan: ExamInput) {
   const ranges = inputan.nilaiNormalNum ?? []
-  const matched = ranges.filter(range =>
+  return ranges.filter(range =>
     matchesPatientProfile(range.sex, range.ageMin, range.ageMax)
   )
-
-  return matched.length ? matched : ranges
 }
 
 function getSelectedNormalRanges(inputan: ExamInput) {
   const ranges = inputan.nilaiNormalSel ?? []
-  const matched = ranges.filter(range =>
+  return ranges.filter(range =>
     matchesPatientProfile(range.sex, range.ageMin, range.ageMax)
   )
-
-  return matched.length ? matched : ranges
 }
 
 function formatNumericNormalRange(inputan: ExamInput, range: NumericNormalRange) {
@@ -760,6 +759,12 @@ const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDent
 
 const selectedItemId = ref('')
 const isDrawerOpen = ref(false)
+const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
+  'erp-kyoai:queue-work:input-columns',
+  { columns: 2 },
+  (value) => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
+)
+const inputColumnsCount = toRef(inputColumns, 'columns') as Ref<1 | 2>
 
 const masterItems = computed(() => {
   const items = [...nonDentalItems.value, ...dentalItems.value]
@@ -783,6 +788,32 @@ const selectedMaster = computed(() =>
   masterItems.value.find(m => m.id === selectedItemId.value) ?? null
 )
 
+const selectedQueueCode = computed(() => roomQueueDetail.value?.queueEntry?.queueCode ?? '')
+
+async function fetchSelectedItemHistory() {
+  const item = selectedItem.value
+  if (!item?.id) {
+    resetAudit()
+    return
+  }
+
+  auditLoading.value = true
+  try {
+    const examId = item.trxExamItem?.exam?.id ?? null
+    const examItemId = item.trxExamItem?.id ?? item.id
+    const [roomLogs, externalLogs, examLogs] = await Promise.all([
+      api.get(`/audit/RoomExamItem/${item.id}`).then(r => r.data?.data ?? []).catch(() => []),
+      api.get(`/audit/ExternalResultAssignment/${examItemId}`).then(r => r.data?.data ?? []).catch(() => []),
+      examId ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([])
+    ])
+    auditEntries.value = [...roomLogs, ...externalLogs, ...examLogs].sort((a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
+  } finally {
+    auditLoading.value = false
+  }
+}
+
 const selectedBadgeColor = computed(() => {
   if (!selectedItem.value) return 'neutral'
   return getOperationalStatusColor(selectedItem.value)
@@ -792,6 +823,10 @@ const completedItemCount = computed(() =>
   roomExamItems.value.filter(item => item.status === 'DONE').length
 )
 const totalItemCount = computed(() => roomExamItems.value.length)
+
+watch(selectedItemId, () => {
+  void fetchSelectedItemHistory()
+})
 
 watch(masterItems, (list) => {
   if (list.length === 0) {
@@ -884,7 +919,7 @@ function canDoneItem(item: RoomExamItem) {
   if (item.status !== 'IN_PROGRESS') return false
   if (item.trxExamItem?.item?.externalResult) {
     const assignment = item.trxExamItem.externalAssignment
-    if (!assignment || !['ASSIGNED', 'FILLED'].includes(assignment.status)) {
+    if (!assignment || !['ASSIGNED', 'PROCESSING', 'FILLED'].includes(assignment.status)) {
       return false
     }
     return !item.trxExamItem.item.requiresAttachmentForDone
@@ -897,7 +932,7 @@ function canDoneItem(item: RoomExamItem) {
 }
 function getExternalDoneBlockReason(item: RoomExamItem) {
   const assignment = item.trxExamItem?.externalAssignment
-  if (!assignment || !['ASSIGNED', 'FILLED'].includes(assignment.status)) {
+  if (!assignment || !['ASSIGNED', 'PROCESSING', 'FILLED'].includes(assignment.status)) {
     return 'Tugaskan dokter luar terlebih dahulu.'
   }
   if (
@@ -1325,6 +1360,8 @@ async function loadPage(showRefreshState = false) {
     roomQueueDetail.value = detailRes.data?.data ?? detailRes.data ?? null
     await loadPatientDetail(queuePatient.value?.id ?? null)
     roomExamItems.value = examItemsRes.data?.data ?? examItemsRes.data ?? []
+    await nextTick()
+    await fetchSelectedItemHistory()
   } catch (error: unknown) {
     toast.add({
       title: 'Gagal memuat data pemeriksaan',
@@ -1830,7 +1867,7 @@ async function handleSubmitItemAction() {
         />
 
         <template v-else>
-          <div class="rounded-2xl border border-default/80 bg-white p-4 shadow-sm sm:p-5">
+          <div class="rounded-2xl border border-default/80 bg-default p-4 shadow-sm sm:p-5">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div class="flex items-center gap-2">
@@ -1949,13 +1986,13 @@ async function handleSubmitItemAction() {
 
           <div class="grid grid-cols-12 items-start gap-5">
             <div
-              class="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+              class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
               :class="isDrawerOpen ? 'block' : 'hidden'"
               @click="toggleDrawer()"
             />
 
             <aside
-              class="fixed left-0 top-0 z-40 flex h-full w-80 flex-col gap-2 border-r border-default/80 bg-white p-4 transition-transform duration-300 ease-in-out lg:static lg:z-0 lg:h-auto lg:w-auto lg:translate-x-0 lg:border-none lg:bg-transparent lg:p-0 lg:col-span-4"
+              class="fixed left-0 top-0 z-40 flex h-full w-80 flex-col gap-2 border-r border-default/80 bg-default p-4 transition-transform duration-300 ease-in-out lg:static lg:z-0 lg:h-auto lg:w-auto lg:translate-x-0 lg:border-none lg:bg-transparent lg:p-0 lg:col-span-4"
               :class="isDrawerOpen ? 'translate-x-0' : '-translate-x-full'"
             >
               <div class="flex items-center justify-between border-b border-default/80 pb-3 lg:hidden">
@@ -1971,7 +2008,7 @@ async function handleSubmitItemAction() {
                 />
               </div>
 
-              <div class="space-y-2 rounded-2xl border border-default/80 bg-white p-3 shadow-sm">
+              <div class="space-y-2 rounded-2xl border border-default/80 bg-default p-3 shadow-sm">
                 <button
                   v-for="master in masterItems"
                   :key="master.id"
@@ -2008,7 +2045,7 @@ async function handleSubmitItemAction() {
               </div>
             </aside>
 
-            <div class="col-span-12 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-white shadow-sm lg:col-span-8">
+            <div class="col-span-12 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-default shadow-sm lg:col-span-8">
               <template v-if="selectedItem">
                 <DentalExamWorkPanel
                   v-if="isDentalExamItem(selectedItem)"
@@ -2036,6 +2073,17 @@ async function handleSubmitItemAction() {
                       <h3 class="text-sm font-bold text-highlighted">
                         {{ selectedItem.trxExamItem?.item?.name || '-' }}
                       </h3>
+                      <p
+                        v-if="queuePatient?.dob || queuePatient?.gender"
+                        class="mt-1 text-xs text-muted"
+                      >
+                        <template v-if="queuePatient?.gender">
+                          {{ queuePatient.gender === 'MALE' ? 'Laki-laki' : 'Perempuan' }}
+                        </template>
+                        <template v-if="queuePatient?.dob">
+                          · {{ getPatientAgeAtDate(queuePatient.dob, selectedItem.createdAt) }} tahun
+                        </template>
+                      </p>
                     </div>
                     <UBadge
                       :label="selectedMaster?.statusLabel"
@@ -2082,6 +2130,25 @@ async function handleSubmitItemAction() {
                       v-if="canRenderExamInputs(selectedItem) && !isPhysicalExamItem(selectedItem)"
                       class="space-y-3"
                     >
+                      <div class="flex items-center justify-between gap-3 px-0.5">
+                        <p class="text-xs font-medium text-muted">
+                          {{ selectedItem.trxExamItem?.item?.inputans?.length || 0 }} inputan
+                        </p>
+                        <UTabs
+                          v-model="inputColumnsCount"
+                          :items="[
+                            { label: '1 Kolom', value: 1 },
+                            { label: '2 Kolom', value: 2 }
+                          ]"
+                          size="xs"
+                        />
+                      </div>
+
+                      <div
+                        :class="inputColumnsCount === 2
+                          ? 'grid grid-cols-1 gap-3 sm:grid-cols-2'
+                          : 'space-y-3'"
+                      >
                       <div
                         v-for="inputan in selectedItem.trxExamItem?.item?.inputans || []"
                         :key="inputan.id"
@@ -2174,6 +2241,7 @@ async function handleSubmitItemAction() {
                           </p>
                         </div>
                       </div>
+                      </div>
                     </div>
 
                     <div v-if="canRenderItemNotes(selectedItem)">
@@ -2233,6 +2301,12 @@ async function handleSubmitItemAction() {
                       variant="soft"
                       title="Item belum bisa diselesaikan"
                       :description="getExternalDoneBlockReason(selectedItem) || undefined"
+                    />
+
+                    <HistoryTimeline
+                      :loading="auditLoading"
+                      :entries="auditEntries"
+                      :queue-code="selectedQueueCode"
                     />
                   </div>
 

@@ -71,6 +71,40 @@ const {
   deleteAssignment
 } = await useRoomAssignments()
 
+type ActiveRoomSession = {
+  roomId: string
+  roomCode: string
+  roomName: string
+  roomTypeId: string
+  roomTypeName?: string | null
+  staffCapacity: number
+  activeCount: number
+  staff: Array<{
+    sessionId: string
+    userId: number
+    name: string
+    startedAt: string
+  }>
+}
+
+const {
+  data: activeRoomSessions,
+  pending: activeSessionsPending,
+  refresh: refreshActiveSessions
+} = await useAsyncData<ActiveRoomSession[]>(
+  'room-sessions-active',
+  async () => {
+    try {
+      const res = await api.get('/medical/rooms/sessions/active')
+      const payload = res.data?.data ?? res.data ?? []
+      return Array.isArray(payload) ? payload : []
+    } catch {
+      return []
+    }
+  },
+  { default: () => [], server: false }
+)
+
 const isTransferOpen = ref(false)
 const isDeleteOpen = ref(false)
 const singleSaving = ref(false)
@@ -233,6 +267,41 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback
+}
+
+function formatSessionTime(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('id-ID', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+  })
+}
+
+const endingSessionId = ref<string | null>(null)
+
+async function handleEndSession(sessionId: string, staffName: string) {
+  if (endingSessionId.value) return
+  if (!confirm(`Akhiri sesi room ${staffName}? Sesi akan diakhiri paksa dan room terbebas dari petugas ini.`)) return
+
+  endingSessionId.value = sessionId
+  try {
+    await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
+    toast.add({
+      title: 'Berhasil',
+      description: `Sesi room ${staffName} berhasil diakhiri.`,
+      color: 'success'
+    })
+    await refreshActiveSessions()
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal mengakhiri sesi',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengakhiri sesi room.'),
+      color: 'error'
+    })
+  } finally {
+    endingSessionId.value = null
+  }
 }
 
 function resetSingleForm() {
@@ -637,6 +706,103 @@ onMounted(async () => {
                 : 'Akun ini belum memiliki akses room assignment.'
           "
         />
+
+        <UCard>
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-semibold text-highlighted">
+                  Room Terisi Saat Ini
+                </h2>
+                <p class="text-sm text-muted">
+                  Daftar room yang sedang ada petugas aktif di dalamnya
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                :loading="activeSessionsPending"
+                @click="refreshActiveSessions"
+              >
+                Refresh
+              </UButton>
+            </div>
+          </template>
+
+          <div
+            v-if="activeSessionsPending"
+            class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            <USkeleton v-for="index in 3" :key="index" class="h-28 rounded-xl" />
+          </div>
+
+          <div
+            v-else-if="activeRoomSessions.length === 0"
+            class="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-default p-8 text-center"
+          >
+            <UIcon name="i-lucide-door-open" class="mb-2 size-8 text-muted" />
+            <p class="text-sm font-medium text-highlighted">
+              Tidak ada room yang terisi
+            </p>
+            <p class="mt-1 text-xs text-muted">
+              Belum ada petugas yang masuk room saat ini.
+            </p>
+          </div>
+
+          <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="room in activeRoomSessions"
+              :key="room.roomId"
+              class="rounded-xl border p-4"
+              :class="room.activeCount >= room.staffCapacity
+                ? 'border-error/40 bg-error/5'
+                : 'border-default bg-muted/20'"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-highlighted">
+                    {{ room.roomCode ? `${room.roomCode} - ` : '' }}{{ room.roomName }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-muted">
+                    {{ room.roomTypeName || '-' }}
+                  </p>
+                </div>
+                <UBadge
+                  :label="`${room.activeCount}/${room.staffCapacity}`"
+                  :color="room.activeCount >= room.staffCapacity ? 'error' : 'success'"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="mt-3 space-y-1.5">
+                <div
+                  v-for="staff in room.staff"
+                  :key="staff.sessionId"
+                  class="flex items-center gap-2 rounded-lg border border-default bg-background px-2.5 py-1.5"
+                >
+                  <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0 text-primary" />
+                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-highlighted">
+                    {{ staff.name }}
+                  </span>
+                  <span class="shrink-0 text-[10px] text-muted">
+                    {{ formatSessionTime(staff.startedAt) }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-log-out"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    :loading="endingSessionId === staff.sessionId"
+                    title="Akhiri sesi paksa"
+                    @click="handleEndSession(staff.sessionId, staff.name)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </UCard>
 
         <div
           v-if="canManageAssignments"
@@ -1109,7 +1275,7 @@ onMounted(async () => {
                   color="neutral"
                   variant="soft"
                   :loading="pending || roomsPending || roomTypesPending || usersPending"
-                  @click="syncRoomAccess(); forceRefresh(); refresh(); refreshUser(); refreshRooms()"
+                  @click="syncRoomAccess(); forceRefresh(); refresh(); refreshUser(); refreshRooms(); refreshActiveSessions()"
                 >
                   Refresh
                 </UButton>

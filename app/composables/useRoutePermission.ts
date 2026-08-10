@@ -55,6 +55,7 @@ export function useRoutePermission() {
   function hasRouteAccess(path: string, userPermissions: string[]): boolean {
     const docType = getDocTypeForRoute(path)
     if (!docType) return true
+    if (userPermissions.includes('*:*')) return true
     return userPermissions.some(p => p.startsWith(`${docType}:`))
   }
 

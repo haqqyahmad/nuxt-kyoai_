@@ -5,12 +5,13 @@ import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDocto
 
 const route = useRoute()
 const toast = useToast()
-const { permissions, roles, isExternalDoctor, allowedResultDepartmentCodes } = await useCurrentUser()
+const { permissions, roles, isExternalDoctor, allowedResultDepartmentCodes, isSuperAdmin } = await useCurrentUser()
 const { hasRouteAccess } = useRoutePermission()
 
 const restrictedRoles = restrictedRolesList
+
 const isRestrictedUser = computed(() =>
-  roles.value.some(r => restrictedRoles.includes(r))
+  !isSuperAdmin.value && roles.value.some(r => restrictedRoles.includes(r))
 )
 
 const currentRoleName = computed(() => roles.value[0] ?? '')
@@ -45,7 +46,8 @@ const menuGroups: Record<string, string[]> = {
     '/rooms/sample-collection'
   ],
   'Results': [
-    '/result/exam-results'
+    '/result/exam-results',
+    '/result/exam-status'
   ],
   'Lab': [
     '/rooms/sample-reception'
@@ -201,7 +203,7 @@ watch(
   { immediate: true }
 )
 
-const canAccessAllResults = computed(() => roles.value.includes('superadmin'))
+const canAccessAllResults = computed(() => isSuperAdmin.value)
 
 function canAccessResultDepartment(code?: string) {
   if (!code) return true
@@ -380,6 +382,12 @@ const links = computed<NavigationMenuItem[][]>(() => [
           label: 'Doctor Result MCU',
           to: '/result/doctor-result',
           active: route.path.startsWith('/result/doctor-result')
+        },
+        {
+          label: 'Status Examination',
+          icon: 'i-lucide-activity',
+          to: '/result/exam-status',
+          active: route.path.startsWith('/result/exam-status')
         }
       ].filter((item) => {
         if (isExternalDoctor.value) return !item.resultDepartmentCode
@@ -512,10 +520,10 @@ const hideNavigationForExternalDoctor = computed(() => {
 const hideSidebar = computed(() => {
   // Sembunyikan sidebar di halaman detail doctor-result (full-width)
   if (/^\/rooms\/doctor-result\/[A-Za-z0-9_-]+$/.test(route.path)) return true
-  // Sembunyikan untuk external doctor di halaman exam-results detail
+  // Sembunyikan sidebar di semua halaman detail exam-results (full-width)
+  if (/^\/result\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path)) return true
+  // Sembunyikan untuk external doctor di halaman exam-results detail legacy
   if (hideNavigationForExternalDoctor.value) return true
-  // Sembunyikan sidebar di halaman detail dental (full-width layout)
-  if (/^\/result\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path) && route.query.department === 'dental') return true
   return false
 })
 

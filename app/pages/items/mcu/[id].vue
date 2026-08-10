@@ -60,6 +60,8 @@ type ItemDetail = {
   code: string
   name: string
   resultTiming?: 'inline' | 'deferred'
+  externalResult?: boolean
+  externalProcessSlaDays?: number | null
   isActive: boolean
   description?: string | null
   createdAt?: string
@@ -375,6 +377,21 @@ async function handleReload() {
                 :color="resultTimingColor[item.resultTiming ?? 'inline']"
                 variant="subtle"
               />
+            </div>
+            <div class="rounded-xl border border-default bg-background px-4 py-3">
+              <p class="text-xs text-muted">External Result</p>
+              <UBadge
+                class="mt-1"
+                :label="item.externalResult ? 'Yes (dokter luar)' : 'No'"
+                :color="item.externalResult ? 'warning' : 'neutral'"
+                variant="subtle"
+              />
+            </div>
+            <div class="rounded-xl border border-default bg-background px-4 py-3">
+              <p class="text-xs text-muted">SLA Proses Dokter Luar</p>
+              <p class="mt-1 text-sm font-semibold">
+                {{ item.externalProcessSlaDays ?? 3 }} hari
+              </p>
             </div>
           </div>
 
