@@ -693,78 +693,80 @@ watch(currentPage, (page) => {
                 DATA DIRI
               </div>
               <table class="qr-data-diri">
-                <tr>
-                  <td class="qr-label">
-                    Nama Lengkap
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientName }} &nbsp;&nbsp;&nbsp; ( {{ genderLabel(modalResult.patientGender) }} )</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Tgl, Bln, Tahun Lahir
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-' }} &nbsp;&nbsp;&nbsp; ( Umur : {{ modalResult.patientAge != null ? `${modalResult.patientAge} Tahun` : '-' }} )</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Perusahaan
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.companyName || '-' }}</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Status Pernikahan
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ maritalLabel(modalResult.patientMaritalStatus) }}</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Alamat Rumah
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientAddress || '-' }}</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Telepon
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientPhone || '-' }}</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    Posisi Pekerjaan
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientPosition || '-' }}</td>
-                </tr>
-                <tr>
-                  <td class="qr-label">
-                    No. RM / Registrasi
-                  </td>
-                  <td class="qr-colon">
-                    :
-                  </td>
-                  <td>{{ modalResult.patientCode || '-' }} / {{ modalResult.registrationRef }}</td>
-                </tr>
+                <tbody>
+                  <tr>
+                    <td class="qr-label">
+                      Nama Lengkap
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientName }} &nbsp;&nbsp;&nbsp; ( {{ genderLabel(modalResult.patientGender) }} )</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Tgl, Bln, Tahun Lahir
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-' }} &nbsp;&nbsp;&nbsp; ( Umur : {{ modalResult.patientAge != null ? `${modalResult.patientAge} Tahun` : '-' }} )</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Perusahaan
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.companyName || '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Status Pernikahan
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ maritalLabel(modalResult.patientMaritalStatus) }}</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Alamat Rumah
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientAddress || '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Telepon
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientPhone || '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      Posisi Pekerjaan
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientPosition || '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="qr-label">
+                      No. RM / Registrasi
+                    </td>
+                    <td class="qr-colon">
+                      :
+                    </td>
+                    <td>{{ modalResult.patientCode || '-' }} / {{ modalResult.registrationRef }}</td>
+                  </tr>
+                </tbody>
               </table>
 
               <div v-if="modalLoading" class="flex items-center justify-center py-8">
