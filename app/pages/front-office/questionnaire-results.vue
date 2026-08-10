@@ -185,7 +185,7 @@ const answeredBySection = computed((): Array<{ section: string, items: AnswerIte
 
 const signCityDate = computed(() => {
   const city = (modalResult.value?.branchName || '').split(' - ')[0]?.trim() || ''
-  const date = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()
+  const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   return city ? `${city.toUpperCase()}, ${date}` : date
 })
 
@@ -271,6 +271,8 @@ function printSingle(row: QuestionnaireResult) {
           .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
           .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
           .signature-space { height: 60px; }
+          .sign-ttd { text-align: center; margin-right: -40px; }
+          .sign-name { text-align: center; margin-right: -40px; }
           .consent-section { margin-top: 20px; line-height: 1.3; }
           .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
           .consent-list li { margin-bottom: 5px; }
@@ -313,10 +315,10 @@ function printSingle(row: QuestionnaireResult) {
           </div>
 
           <div class="signature-area">
-            <div>${(row.branchName || '').split(' - ')[0]?.trim()?.toUpperCase() || ''}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}</div>
+            <div class="sign-city">${(row.branchName || '').split(' - ')[0]?.trim()?.toUpperCase() || ''}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             <div class="signature-space"></div>
-            <div>( ttd )</div>
-            <div>${row.patientName}</div>
+            <div class="sign-ttd">( ttd )</div>
+            <div class="sign-name">${row.patientName}</div>
           </div>
 
           <div class="footer-page">Page 1</div>`
@@ -976,6 +978,16 @@ watch(currentPage, (page) => {
   border-top: 1px solid #333;
   margin-top: 48px;
   padding-top: 4px;
+}
+
+.qr-sign-label {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.qr-sign-name {
+  text-align: center;
+  margin-top: 2px;
 }
 
 .qr-footer {
