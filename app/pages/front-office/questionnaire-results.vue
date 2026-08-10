@@ -269,6 +269,10 @@ function printSingle(row: QuestionnaireResult) {
           .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
           .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
           .signature-space { height: 60px; }
+          .consent-section { margin-top: 20px; line-height: 1.3; }
+          .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
+          .consent-list li { margin-bottom: 5px; }
+          .footer-page { margin-top: 30px; text-align: center; font-style: italic; font-size: 11px; }
           @media print {
             body { background-color: white; padding: 0; }
             .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
@@ -297,12 +301,23 @@ function printSingle(row: QuestionnaireResult) {
             ${questionsHtml}
           </ol>
 
+          <div class="consent-section">
+            <strong>Isian diatas telah saya isi dengan sadar dan benar</strong><br>
+            <strong>Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:</strong>
+            <ol class="consent-list">
+              <li><strong>Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut</strong></li>
+              <li><strong>Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)</strong></li>
+            </ol>
+          </div>
+
           <div class="signature-area">
             <div>${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}</div>
             <div class="signature-space"></div>
             <div>( ttd )</div>
             <div>${row.patientName}</div>
-          </div>`
+          </div>
+
+          <div class="footer-page">Page 1</div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
         </div>
       </body>
