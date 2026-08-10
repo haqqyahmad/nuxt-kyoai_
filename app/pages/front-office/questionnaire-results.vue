@@ -183,9 +183,11 @@ const answeredBySection = computed((): Array<{ section: string, items: AnswerIte
   return groups
 })
 
-const signCityDate = computed(() =>
-  new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()
-)
+const signCityDate = computed(() => {
+  const city = (modalResult.value?.branchName || '').split(' - ')[0]?.trim() || ''
+  const date = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()
+  return city ? `${city.toUpperCase()}, ${date}` : date
+})
 
 function genderLabel(g?: string | null): string {
   if (!g) return '-'
@@ -311,7 +313,7 @@ function printSingle(row: QuestionnaireResult) {
           </div>
 
           <div class="signature-area">
-            <div>${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}</div>
+            <div>${(row.branchName || '').split(' - ')[0]?.trim()?.toUpperCase() || ''}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}</div>
             <div class="signature-space"></div>
             <div>( ttd )</div>
             <div>${row.patientName}</div>
