@@ -20,6 +20,7 @@ type Questionnaire = {
   description: string
   version: string
   portalKey?: string | null
+  printTemplate?: string | null
   isActive?: boolean
   createdAt: string
 }
@@ -94,6 +95,7 @@ async function deleteSelectedQuestionnaires() {
 }
 
 const isDeleteModalOpen = ref(false)
+const printTemplateRow = ref<Questionnaire | null>(null)
 
 function getRowItems(row: Row<Questionnaire>) {
   return [
@@ -114,6 +116,17 @@ function getRowItems(row: Row<Questionnaire>) {
       to: `/questionnaire/${row.original.questionnaire_id}/preview`,
       external: true,
       target: '_blank'
+    },
+
+    {
+      label: 'Print Template',
+      icon: 'i-lucide-printer',
+      onSelect() {
+        printTemplateRow.value = null
+        nextTick(() => {
+          printTemplateRow.value = row.original
+        })
+      }
     },
 
     {
@@ -479,6 +492,10 @@ watch(currentPage, (page) => {
         :count="1"
         entity="questionnaire"
         @confirm="handleDeleteById"
+      />
+      <QuestionnairePrintTemplateModal
+        :row="printTemplateRow"
+        @saved="refresh"
       />
     </template>
   </UDashboardPanel>

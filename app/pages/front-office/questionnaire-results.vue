@@ -4,6 +4,13 @@ import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import type { HeaderContext } from '@tanstack/table-core'
+import {
+  renderQuestionnaireTemplate,
+  buildQuestionnairePrintContext,
+  buildPageChromeCss,
+  extractTemplateStyles,
+  extractBranchCity
+} from '~/composables/questionnaire/useQuestionnairePrint'
 
 const UButton = resolveComponent('UButton')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
@@ -116,6 +123,7 @@ await fetchResults()
 type TempQuestionnaire = {
   questionnaire_id: string
   questionnaire_name: string
+  print_template?: string | null
   status: 'Completed' | 'Pending'
   completionDate: string | null
   answers?: Array<{
@@ -184,7 +192,7 @@ const answeredBySection = computed((): Array<{ section: string, items: AnswerIte
 })
 
 const signCityDate = computed(() => {
-  const city = (modalResult.value?.branchName || '').split(' - ')[0]?.trim() || ''
+  const city = extractBranchCity(modalResult.value?.branchName)
   const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   return city ? `${city.toUpperCase()}, ${date}` : date
 })
@@ -235,10 +243,37 @@ function fmtDate(d?: string) {
   return d
 }
 
-function printSingle(row: QuestionnaireResult) {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
+const printCss = `
+  * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
+  body { background-color: #f0f2f5; margin: 0; padding: 20px; }
+  .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; min-height: 1050px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; }
+  h1 { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; margin-top: 0; margin-bottom: 25px; text-transform: uppercase; }
+  .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
+  .section-subtitle { font-weight: bold; margin-top: 10px; margin-bottom: 6px; }
+  .data-diri-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+  .data-diri-table td { padding: 2px 0; vertical-align: top; }
+  .data-diri-table td.label { width: 180px; }
+  .data-diri-table td.colon { width: 15px; }
+  .question-list { margin: 0; padding-left: 20px; }
+  .question-item { margin-bottom: 6px; line-height: 1.3; }
+  .answer { font-weight: bold; }
+  .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
+  .signature-space { height: 60px; }
+  .sign-ttd { text-align: center; margin-right: -40px; }
+  .sign-name { text-align: center; margin-right: -40px; }
+  .consent-section { margin-top: 20px; line-height: 1.3; }
+  .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
+  .consent-list li { margin-bottom: 5px; }
+  .document-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid #d9dee7; color: #6b7280; font-size: 7.5pt; page-break-inside: avoid; }
+  @media print {
+    body { background-color: white; padding: 0; }
+    .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
+    h1 { display: none; }
+  }
+`
 
+function legacyPrintHtml(row: QuestionnaireResult): string {
   const answers = (modalData.value?.answers ?? []).filter(a => a.answered === true)
   const questionsHtml = answers.length
     ? answers.map(a => `
@@ -251,37 +286,11 @@ function printSingle(row: QuestionnaireResult) {
       `).join('')
     : ''
 
-  const html = `
+  return `
     <html lang="id">
       <head>
         <title>${row.questionnaire_name} - ${row.patientName}</title>
-        <style>
-          * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
-          body { background-color: #f0f2f5; margin: 0; padding: 20px; }
-          .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; min-height: 1050px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; }
-          h1 { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; margin-top: 0; margin-bottom: 25px; text-transform: uppercase; }
-          .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
-          .data-diri-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-          .data-diri-table td { padding: 2px 0; vertical-align: top; }
-          .data-diri-table td.label { width: 180px; }
-          .data-diri-table td.colon { width: 15px; }
-          .question-list { margin: 0; padding-left: 20px; }
-          .question-item { margin-bottom: 6px; line-height: 1.3; }
-          .answer { font-weight: bold; }
-          .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-          .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
-          .signature-space { height: 60px; }
-          .sign-ttd { text-align: center; margin-right: -40px; }
-          .sign-name { text-align: center; margin-right: -40px; }
-          .consent-section { margin-top: 20px; line-height: 1.3; }
-          .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
-          .consent-list li { margin-bottom: 5px; }
-          .footer-page { margin-top: 30px; text-align: center; font-style: italic; font-size: 11px; }
-          @media print {
-            body { background-color: white; padding: 0; }
-            .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
-          }
-        </style>
+        <style>${printCss}${buildPageChromeCss(row.patientName, row.patientCode)}</style>
       </head>
       <body>
         <div class="document-page">
@@ -315,18 +324,85 @@ function printSingle(row: QuestionnaireResult) {
           </div>
 
           <div class="signature-area">
-            <div class="sign-city">${(row.branchName || '').split(' - ')[0]?.trim()?.toUpperCase() || ''}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             <div class="signature-space"></div>
             <div class="sign-ttd">( ttd )</div>
             <div class="sign-name">${row.patientName}</div>
           </div>
 
-          <div class="footer-page">Page 1</div>`
+          <div class="document-footer">
+            <div>${row.patientName} &nbsp;|&nbsp; ${row.patientCode || '-'}</div>
+          </div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
         </div>
       </body>
     </html>
   `
+}
+
+function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
+  const ctx = buildQuestionnairePrintContext({
+    documentTitle: modalData.value?.questionnaire_name || row.questionnaire_name,
+    patientName: row.patientName,
+    patientGender: row.patientGender,
+    patientDob: row.patientDob,
+    patientAge: row.patientAge,
+    patientMaritalStatus: row.patientMaritalStatus,
+    patientPhone: row.patientPhone,
+    patientAddress: row.patientAddress,
+    patientPosition: row.patientPosition,
+    patientCode: row.patientCode,
+    registrationRef: row.registrationRef,
+    companyName: row.companyName,
+    branchName: row.branchName,
+    examDate: row.examDate,
+    answers: (modalData.value?.answers ?? []).map(a => ({
+      questionId: a.questionId,
+      questionText: a.questionText,
+      questionType: a.questionType,
+      sectionTitle: a.sectionTitle,
+      optionId: a.optionId,
+      optionText: a.optionText,
+      answerText: a.answerText,
+      answered: a.answered
+    }))
+  })
+  const { styles, body } = extractTemplateStyles(tpl)
+  const rendered = renderQuestionnaireTemplate(body, ctx)
+  const logoMatch = tpl.match(/src="(data:image[^"]*)"/)
+  const optsMatch = tpl.match(/<!--print-opts--><style>:root\{([^}]*)\}<\/style>/)
+  const optsText = optsMatch?.[1] ?? ''
+  const opts = {
+    topMm: Number((optsText.match(/--hdr-top:\s*([\d.]+)mm/) ?? [])[1]) || 0,
+    leftMm: Number((optsText.match(/--hdr-left:\s*([\d.]+)mm/) ?? [])[1]) || 5
+  }
+  const pageCss = buildPageChromeCss(ctx.patientName, ctx.patientCode, ctx.documentTitle, logoMatch?.[1], opts)
+  return `
+    <html lang="id">
+      <head>
+        <title>${ctx.documentTitle} - ${ctx.patientName}</title>
+        <style>${printCss}</style>
+        ${styles}
+        <style>${pageCss}</style>
+      </head>
+      <body>
+        <div class="document-page">
+          ${rendered}
+        </div>
+      </body>
+    </html>
+  `
+}
+
+function printSingle(row: QuestionnaireResult) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const tpl = modalData.value?.print_template?.trim()
+  const html = tpl
+    ? templatePrintHtml(row, tpl)
+    : legacyPrintHtml(row)
+
   printWindow.document.write(html)
   printWindow.document.close()
   printWindow.onload = () => {
@@ -851,9 +927,6 @@ watch(currentPage, (page) => {
                     {{ modalResult.patientName || '-' }}
                   </div>
                 </div>
-                <div class="qr-footer">
-                  Page 1
-                </div>
               </div>
             </div>
           </div>
@@ -988,12 +1061,5 @@ watch(currentPage, (page) => {
 .qr-sign-name {
   text-align: center;
   margin-top: 2px;
-}
-
-.qr-footer {
-  margin-top: 20px;
-  text-align: center;
-  font-style: italic;
-  font-size: 11px;
 }
 </style>

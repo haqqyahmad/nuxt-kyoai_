@@ -123,6 +123,33 @@ Algoritma matching di `useRoutePermission.getDocTypeForRoute()` generate candida
 
 ## Sejarah Pengerjaan (perubahan besar)
 
+### 2026-08-10 — Footer print dinamis "Page X of Y"
+- `counter(page)` tidak bekerja di elemen fixed Chrome → pakai `@page { @bottom-right { content: "Page " counter(page) " of " counter(pages) } }` + `.document-footer` fixed bottom (nama pasien berulang tiap halaman).
+- Diterapkan di template default, `previewCss`, dan `printCss`/`legacyPrintHtml` questionnaire-results.
+- Detail: `docs/task-status.md`.
+
+### 2026-08-10 — Fix nama kota di area tanda tangan
+- `useQuestionnairePrint.ts`: helper `extractBranchCity` (heuristik daftar kota dikenal + segmen terakhir) — sebelumnya `split(' - ')[0]` menghasilkan kode cabang (mis. "JKT") bukan kota.
+- Detail: `docs/task-status.md`.
+
+### 2026-08-10 — Print Template: template default baru (layout paper-document profesional)
+- `QuestionnairePrintTemplateModal.vue`: `defaultTemplate` diganti dengan CSS + HTML lengkap (header/LOGO, document-info, data diri, summary, loop section bernomor, consent, signature, footer, responsive & print media). Style terekstrak otomatis ke `<head>`.
+- Detail: `docs/task-status.md`.
+
+### 2026-08-10 — Print Template: dukungan `<style>` di template + fix modal editor
+- `useQuestionnairePrint.ts`: tambah `extractTemplateStyles(tpl)` (pisahkan `<style>` dari body); `printQuestionnaireHtml` sisipkan style template di `<head>`.
+- `QuestionnairePrintTemplateModal.vue`: konten modal scrollable + textarea 12 baris agar "Placeholder yang tersedia" terlihat; preview iframe & print window pakai style template.
+- `questionnaire-results.vue` `templatePrintHtml`: style template ikut di-render.
+- Detail: `docs/task-status.md`.
+
+### 2026-08-10 — Dynamic Print Template Questionnaire (ala Jinja/Frappe)
+- BE `express_dash`: tambah kolom `printTemplate` (MediumText) di `QstQuestionnaire` (schema + `prisma db push`).
+- BE `express_dash`: expose `print_template` di list/detail (`toListItem`/`toDetail`) + terima di create/update (dukung `printTemplate` & `print_template`); detail `GET /registration/number/:id_reg/questionnaires` ikut sertakan `print_template`.
+- my-app: composable baru `useQuestionnairePrint.ts` — renderer template Jinja-like (`{{ var }}`, `{% for x in list %}`, `{% if %}`/`{% else %}`, `loop.index`, filter `upper`/`lower`/`capitalize`/`trim`/`default`/`safe`) tanpa dependency baru + `buildQuestionnairePrintContext` (data pasien, jawaban per section, meta) + helper print HTML.
+- my-app: `QuestionnairePrintTemplateModal.vue` di `/questionnaire` (dropdown row "Print Template") — textarea template + tombol "Gunakan Template Default", "Preview" (iframe), "Buka di Print Window", Simpan (PUT `print_template`).
+- my-app: `printSingle` di `/front-office/questionnaire-results` render dari `print_template` questionnaire; jika kosong → fallback layout paper-document lama.
+- Detail: `docs/task-status.md`.
+
 ### 2026-08-08 — View Answers Hasil Questionnaire gaya form KUESIONER MCU
 - BE `express_dash`: `listResults` tambah field DATA DIRI (patientGender, patientDob, patientAge, patientMaritalStatus, patientPhone, patientAddress dari Address polimorfik PATIENT) + `patientPosition` (Posisi Pekerjaan dari PatientCompanyHistory).
 - BE `express_dash`: detail `GET /registration/number/:id_reg/questionnaires` kembalikan SEMUA soal berurutan + flag `answered` + `sectionTitle` per soal (untuk grouping seperti KHUSUS WANITA).

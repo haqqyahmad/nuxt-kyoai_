@@ -1,8 +1,311 @@
 # Project Task Status
 
-Last updated: 2026-08-08
+Last updated: 2026-08-11
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-11: Kontrol posisi/ukuran logo di modal (kembali) — Lebar px, Atas mm, Kiri mm
+
+**Perintah:** "Tidak bisa lagi mengubah posisi logo lewat modal seperti sebelumnya" + header print & preview masih belum sesuai.
+
+**Riset empiris (Chrome print):** margin box `@top-left` dengan `padding-left`/`padding-top` BERHASIL menggeser gambar logo (x0 42.8→57→84.8 sesuai mm; y0 turun bersama judul & No.RM). Karena margin box content di-center di area top-margin, konten ketiganya turun bersama saat `padding-top` ditambah → alignment terjaga.
+
+**Perubahan:**
+- `useQuestionnairePrint.ts`: `buildPageChromeCss` + `printQuestionnaireHtml` terima `PageChromeOpts { topMm?, leftMm? }`. CSS: `@top-left { padding-top: topMm; padding-left: leftMm }`, `@top-center { padding-top: 8+topMm }`, `@top-right { padding-top: topMm; padding-right: 5mm }`.
+- `QuestionnairePrintTemplateModal.vue`:
+  - Refs baru `logoWidth` (px, default 96), `logoTop` (mm, default 0), `logoLeft` (mm, default 5) + `setLogoOpt()`.
+  - `resizeHeaderLogo(dataUrl, widthPx)` — resize panjang-terpanjang ke `logoWidth` (idempotent, tidak lagi bake padding).
+  - `watch([logoWidth, logoLeft, logoTop])` debounce 300ms → re-resize + re-preview.
+  - `embeddedTemplate()` sisipkan `<!--print-opts--><style>:root{--hdr-left;--hdr-top;--hdr-width}</style>` di akhir template (persist antar save/reopen); `openPrintPreview` teruskan `{topMm, leftMm}`.
+  - Watch reopen: parse var `--hdr-*` lalu strip tag, extract logo → set logoUrl.
+  - Template default CSS: `.header-logo-img { width: var(--hdr-width,96px); height:auto; padding-left: var(--hdr-left,5mm) }`, `.document-header { margin-top: var(--hdr-top,0mm) }`.
+  - UI: baris kontrol "Posisi Logo" (Lebar px / Atas mm / Kiri mm) muncul saat logo ada.
+- `questionnaire-results.vue` `templatePrintHtml`: parse `--hdr-top`/`--hdr-left` dari template → teruskan ke `buildPageChromeCss`.
+
+**Verifikasi:** render default template + logo (40 jawaban) lewat `printQuestionnaireHtml`:
+- default {top0,left5}: logo x0=57, judul y0=43.6, No.RM y0=40.8.
+- +{top8,left15}: logo x0=84.8 (naik 27.8≈10mm), y0=22.5, judul/No.RM turun ~11pt bersama → alignment terjaga.
+`eslint` 0 error, `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Template default disesuaikan dengan header print (layar = print)
+
+**Perintah:** "apakah template defaultnya sudah disesuaikan juga?"
+
+**Penjelasan:** Header print sepenuhnya berasal dari `buildPageChromeCss` (margin box) yang di-inject otomatis saat print — jadi template apa pun (termasuk default) menghasilkan header print yang benar tanpa perlu ubah template. Yang perlu disesuaikan adalah **tampilan layar (preview)** agar konsisten dengan hasil print.
+
+**Perbaikan (`app/components/questionnaire/QuestionnairePrintTemplateModal.vue` defaultTemplate CSS):**
+- `.header-logo-img` 60px → **90px** (mengikuti ukuran logo print yang kini lebih besar).
+- `.header-code` tambah `padding-right: 5px` (No.RM tidak menempel pojok, mengikuti `@top-right` print).
+
+**Verifikasi:** render template default 40 jawaban → print 3 halaman: tiap halaman ada judul + No.RM (header margin box ter-inject); layar preview tampilkan logo 90px. `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Penyesuaian header print — logo besar & sejajar, No.RM tidak ke pojok
+
+**Perintah:** (1) posisi No. RM terlalu ke pojok saat print; (2) logo kurang besar, blur, dan kurang ke atas (tidak sejajar dengan judul).
+
+**Perbaikan (`app/composables/questionnaire/useQuestionnairePrint.ts` `buildPageChromeCss`):**
+- `@top-left` logo: hapus `width/height/vertical-align` (diabaikan Chrome di margin box); gambar tampil pada ukuran intrinsik (resize menentukan).
+- `@top-center`: judul+subtitle + `border-bottom: 2px solid #24364f; width:100%; padding-top: 8mm` — `padding-top` MENARIK judul turun sehingga sejajar dengan logo (hanya padding yang berpengaruh di margin box, bukan vertical-align/margin/height).
+- `@top-right`: No.RM + `padding-right: 5mm` — ditarik sedikit ke dalam (tidak menempel pojok kanan).
+- `@page margin: 36mm 15mm 18mm` (margin atas diperbesar untuk logo besar).
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`: `HEADER_LOGO_MAX` 64 → **96** (logo lebih besar ±25mm dan lebih tajam).
+
+**Verifikasi (headless Chrome print → PyMuPDF):** halaman 1, 2, 3 — logo besar di kiri sejajar judul, judul+subtitle center, No.RM agak ke dalam, garis bawah full-width, footer tiap halaman. `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Header print (logo + judul + No.RM + garis bawah) berulang di semua halaman — SOLUSI FINAL
+
+**Perintah:** (1) header (logo + judul + No.RM) muncul di SETIAP halaman print seperti reference `Screenshot 2026-08-11 095437.png` (ada garis bawah); (2) logo ukuran pas, tidak besar & tidak blur; (3) save → buka kembali → template tersimpan benar (gambar tidak broken).
+
+**Temuan teknis (diverifikasi via headless Chrome + PyMuPDF):**
+- `@page` margin box untuk teks → andal berulang di semua halaman.
+- `position: fixed` untuk ELEMEN IMG → berulang semua halaman TAPI **konflik** jika ada `@page` margin box (gambar terlempar ke bawah halaman).
+- `position: fixed` untuk TEKS (flex/block) → teks ter-render di BOTTOM halaman (bug Chrome).
+- Margin box `content: url()` TIDAK bisa di-scale (width/height/max-width diabaikan) → ukuran = px intrinsik × 0.75pt (96dpi efektif).
+- `@top-center` dengan `border-bottom: 2px solid` + `width:100%` + `height:34mm` → **garis bawah full-width** di bawah judul, berfungsi.
+- SVG-wrap di margin box tidak ter-render → gunakan PNG langsung.
+
+**Solusi final (semua di margin box, TANPA fixed element):**
+- `@top-left` → logo: `content: url("data:image/png;base64,...")` (fallback teks "LOGO"); logo di-resize ke 64px saat upload → tampil ±48pt (±16mm).
+- `@top-center` → judul + subtitle + `border-bottom: 2px solid #24364f; width:100%; height:34mm`.
+- `@top-right` → "No. RM" + kode pasien.
+- `@bottom-left` + `@bottom-right` → footer (nama pasien | no, "Page X of Y").
+- `@page { margin: 34mm 15mm 18mm }`.
+- `@media print { .document-header, .header-placeholder, .document-footer { display:none !important } }` — flow header disembunyikan (margin box yang tampil), mencegah duplikasi.
+
+**File yang diubah:**
+- `app/composables/questionnaire/useQuestionnairePrint.ts`: `buildPageChromeCss(patientName, patientCode, documentTitle?, logoUrl?)` — margin box header+footer lengkap (logo @top-left, judul+border @top-center, No.RM @top-right, footer @bottom-*). `printQuestionnaireHtml` meneruskan `ctx.logoUrl`.
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - Kembalikan struktur template: `<img class="header-logo-img">` DI DALAM `.document-header > .header-top` (layout layar normal).
+  - Hapus `imgPositionStyle`, `composedTemplate`, input posisi (Atas/Kiri/Lebar), CSS fixed-logo `top:-14mm`.
+  - Tambah `resizeHeaderLogo(dataUrl)` → resize logo maks 64px (canvas, PNG) — dipakai saat upload & saat membuka template lama.
+  - `embeddedTemplate()` sederhana (tanpa strip if-blocks — tidak diperlukan lagi).
+  - Watch: parse `src="data:image..."` → resize → set logoUrl + restore placeholder.
+- `app/pages/front-office/questionnaire-results.vue`: `templatePrintHtml` ekstrak `src="data:image..."` dari template → diteruskan ke `buildPageChromeCss` (logo margin box ikut tampil di print hasil).
+
+**Verifikasi (headless Chrome print-to-pdf → PyMuPDF screenshot):**
+- Dengan logo (64px): halaman 1, 2, 3 — header IDENTIK (logo kiri, judul+subtitle tengah, No.RM kanan, garis bawah full-width), footer tiap halaman.
+- Tanpa logo: teks "LOGO" di kiri-atas + judul + No.RM + garis bawah.
+- `eslint` 0 error + `vue-tsc --noEmit` lulus.
+- Catatan: trade-off 96dpi efektif untuk logo di margin box (inkeharen sebesar ~16mm dari 64px) — untuk logo header kecil ini dapat diterima; gambar tampil tajam di layar, agak soft saat print 300dpi.
+
+## Completed — 2026-08-10: Hapus "Page 1" statis yang tersisa (fallback layar)
+
+**Perintah:** "Page 1" non-dinamis masih muncul.
+
+**Penyebab:** Sisa 3 titik "Page 1" statis:
+1. `.page-number::after { content: "Page 1" }` di template default & `previewCss` (modal) — fallback untuk tampilan layar (print window/preview) sehingga tampil "Page 1" padahal dokumen bisa multi-halaman.
+2. `printCss` questionnaire-results — fallback yang sama.
+3. Modal view answers: `<div class="qr-footer">Page 1</div>` hardcode di layar.
+
+**Perbaikan:**
+- Hapus semua `.page-number::after { content: "Page 1" }` (template default, `previewCss`, `printCss`) — nomor halaman hanya dihasilkan saat print via `@page @bottom-right` (dynamic), footer nama pasien tetap `position: fixed` di print.
+- Hapus `<div class="qr-footer">Page 1</div>` di modal view answers + CSS `.qr-footer` yang tidak terpakai.
+- Hapus CSS `.footer-page` yang sudah tidak terpakai di `previewCss` & `printCss`.
+- Verifikasi: print template default 40 jawaban → PDF hanya "Page 1 of 3 / 2 of 3 / 3 of 3" (tanpa "Page 1" statis); grep memastikan tidak ada `content: "Page 1"` / `>Page 1<` tersisa; lint bersih.
+
+## Completed — 2026-08-10: Footer print "nama pasien | no pasien" + "Page X of Y" sejajar & tampil di print
+
+**Perintah:** (1) "Page 1 of 2" berada di bawah, tidak sejajar dengan nama pasien | no pasien.
+(2) "nama pasien | no pasien" tidak tampil saat mau diprint.
+
+**Akar:** Footer pakai `position: fixed` (nama pasien) dan `@bottom-right` margin box (nomor halaman) → berada di *band* berbeda (area konten vs area margin), jadi tidak sejajar. Fixed footer juga tak Selalu tampil di Chrome print preview.
+
+**Perbaikan:**
+- `composables/questionnaire/useQuestionnairePrint.ts`: tambah `buildPageFooterCss(patientName, patientCode)` — menghasilkan `@page` dengan `@bottom-left { content: "nama | kode" }` + `@bottom-right { content: "Page " counter(page) " of " counter(pages) }` (font/saat-warna sama) serta `@media print { .document-footer { display: none !important } }`.
+- `printQuestionnaireHtml`: inject `buildPageFooterCss` **setelah** style template (cascade menimpa `@page` milik template), dengan `!important` untuk menonaktifkan fixed footer template.
+- `QuestionnairePrintTemplateModal.vue` (`defaultTemplate`): hapus `@page`, `@bottom-right`, aturan fixed `.document-footer` & `.page-number` pada `@media print`, serta `<div class="page-number"></div>` kosong. Footer tampil di layar (preview iframe) via flex `.document-footer`; print memakai margin boxes.
+- `previewCss` (modal): sama — hapus `@page`/`@bottom-right` + fixed footer; `printQuestionnaireHtml` (via tombol "Buka di Print Window") sudah inject footer dinamis.
+- `pages/front-office/questionnaire-results.vue`:
+  - `printCss`: hapus `@page`/`@bottom-right` + fixed footer.
+  - `legacyPrintHtml`: `<style>` gabungkan `printCss` + `buildPageFooterCss(row.patientName, row.patientCode)`.
+  - `templatePrintHtml`: inject `<style>${buildPageFooterCss(ctx.patientName, ctx.patientCode)}</style>` **setelah** `${styles}`.
+  - Hapus `<div class="page-number"></div>` kosong.
+- CSS nama pasien di `bottom-left` (margin box kiri) dan nomor halaman di `bottom-right` (margin box kanan) → **satu baris sejajar**, berulang tiap halaman, selalu terlihat di print preview.
+
+**Verifikasi:** headless Chrome print template default dengan 40 jawaban → PDF tiap halaman footer: `Tes Sinkron | PAT-20260810-BR-001` (kiri) + `Page X of Y` (kanan) pada satu baris; tidak ada `>Page 1<` / `content: "Page 1"` tersisa; `eslint` pada 3 file yang diubah bersih; `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-10: Footer print dinamis — "Page X of Y" per halaman
+
+**Perintah:** "Page 1" di footer print masih hardcoded dan tidak dinamis (tidak mengikuti halaman saat dokumen multi-halaman).
+
+**Masalah:** `counter(page)` TIDAK bekerja di elemen `position: fixed` di Chrome (test headless print → "Page 0" di semua halaman). Solusi yang benar: CSS `@page` margin box `@bottom-right { content: "Page " counter(page) " of " counter(pages) }` — diverifikasi menghasilkan "Page 1 of 3", "Page 2 of 3", "Page 3 of 3" di Chrome.
+
+**Perbaikan (diterapkan konsisten di 3 tempat):**
+- `components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - Template default: tambah `@page { margin: 20mm 15mm 18mm; @bottom-right { content: "Page " counter(page) " of " counter(pages) } }`; `.document-footer` jadi `position: fixed; bottom: 0; padding: 4px 15mm` di `@media print` (nama pasien berulang tiap halaman); `.page-number { display: none }` di print (diganti margin box). HTML footer: `<div class="page-number"></div>` (tanpa "Page 1" hardcode).
+  - `previewCss`: aturan `@page` + fixed footer + `.page-number` display:none yang sama.
+- `pages/front-office/questionnaire-results.vue`: `printCss` sama; `legacyPrintHtml` footer jadi `.document-footer` (nama + `<div class="page-number"></div>`).
+  - Verifikasi: render template default (40 jawaban → 3 halaman) → headless Chrome print-to-pdf → pdftotext menampilkan footer "Tes Sinkron | PAT-..." di tiap halaman + "Page 1 of 3 / 2 of 3 / 3 of 3"; 8/8 static checks PASS; lint bersih.
+
+## Completed — 2026-08-10: Tombol upload gambar di Print Template (logo Nordic Questionnaire)
+
+**Perintah:** "di modal Print Template tidak ada tombol untuk menambahkan gambar"; ingin menaruh gambar (mis. logo Nordic Questionnaire) di posisi tertentu.
+
+**Perbaikan:**
+- `app/composables/questionnaire/useQuestionnairePrint.ts`:
+  - `buildQuestionnairePrintContext` menerima & meneruskan opsi/ctx `logoUrl`.
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - State: `logoUrl` (data URL), `logoFile` ref, `imgTop/imgLeft/imgWidth` (default 120/300/120).
+  - Tombol **Upload Gambar** (`ref="logoFile"` tersembunyi, `accept="image/*"`, `onUploadLogo` via `FileReader` → base64 ke `logoUrl`; normalisasi literal `src="data:image..."` kembali ke placeholder `{{ logoUrl }}` agar re-edit bersih; panggil `runPreview`).
+  - Input angka **Atas/Kiri/Lebar (px)** mengendalikan kotak posisi via `imgPositionStyle` computed (prepend `<style>.print-img-1 { position:absolute !important; top/left/width ... }</style>` ke template) — **tersimpan ke `print_template`** sehingga posisi persisten.
+  - `defaultTemplate`: placeholder `{% if logoUrl %}<img src="{{ logoUrl }}" class="print-img-1" />{% endif %}` + CSS `.print-img-1` (absolute, width).
+  - `runPreview`/`openPrintPreview`/`submit` memakai `composedTemplate` (`imgPositionStyle` + `template.value`); `ctxWithLogo` meng‑inject `logoUrl` pada preview/print.
+  - `submit` embed literal data URL ke dalam `print_template` (ganti `{{ logoUrl }}`) → template **self-contained**, jalan juga dari print di halaman `/front-office/questionnaire-results`.
+  - Watch `props.row`: saat buka kembali, parse `src="data:image..."` dan nilai posisi dari `print_template` yang tersimpan → restore `logoUrl` + `imgTop/Left/Width` + placeholder.
+  - Daftar placeholder di textarea termasuk `{{ logoUrl }}`.
+- `app/pages/front-office/questionnaire-results.vue`: `templatePrintHtml`/`legacyPrintHtml` tidak berubah — sudah pakai `buildQuestionnairePrintContext` (tidak set logoUrl) sehingga `{{ logoUrl }}` kosong → img tidak tampil di sana kecuali template menyimpan literal data URL (yang disimpan via submit di atas) — karena submit menulis literal, print dari results **akan** menampilkan gambar.
+- Catatan: posisi logo berlaku sampai halaman ke-1 saja pada `@page`-less screen CSS; di print, `.print-img-1` position absolute relatif `.document-page`.
+
+**Verifikasi:** render `printQuestionnaireHtml` dengan default template + logo 1×1 PNG + 12 jawaban (2 halaman) → headless Chrome print-to-pdf → footer tiap halaman `Tes Sinkron | PAT-456` + `Page X of 2`; logo data URL ter-embed di HTML; `eslint` (0 error) + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Fix logo header print blur + tidak bisa di-scale di margin box
+
+**Perintah:** Setelah resize 64px, logo jadi blur; sebelumnya (margin box) logo besar.
+
+**Akar:** 
+1. Margin box (`@page @top-left`) **tidak bisa menskalakan gambar** — `width`/`max-width`/`width:100%` semua diabaikan, gambar selalu ukuran intrinsik (diverifikasi: PNG 200px → 150pt). Logo margin box selalu 96dpi efektif → tidak mungkin kecil & tajam sekaligus.
+2. Resize canvas ke 64px (fix sebelumnya) menurunkan resolusi → blur di print (~300dpi butuh ~200px).
+
+**Perbaikan (logo tajam + kecil + berulang):**
+- Logo dipindah dari margin box ke **elemen `position: fixed`** dalam template: `@media print { .print-img-1 { position: fixed !important; top: -14mm !important; left: 15mm !important; width: 16mm !important; height: 16mm !important; object-fit: contain !important; z-index: 10 !important; } }`. Elemen fixed BISA di-scale CSS (16mm) tanpa kehilangan resolusi sumber → tajam (~317dpi efektif). Diverifikasi berulang di SEMUA halaman termasuk halaman terakhir.
+- `buildPageChromeCss`: hapus `@top-left` logo; judul tetap `@top-center`, No.RM `@top-right`, footer `@bottom-*`; list hide print jadi `.document-header, .header-placeholder, .document-footer` (logo `.print-img-1` tidak disembunyikan).
+- `buildPageChromeCss` signature: `(patientName, patientCode, documentTitle?)` — parameter `logoUrl` dihapus; caller di-results di-update.
+- Modal template: img `.print-img-1` dipindah keluar `.document-header` (sibling), header-top jadi `{% if logoUrl %}{% else %}<div class="header-logo">LOGO</div>{% endif %}` — box "LOGO" hanya tampil saat tanpa logo di layar; print logo fixed di kiri-atas.
+- Hapus resize 64px (`resizeHeaderLogo`, `HEADER_LOGO_MAX`) — pakai resolusi asli upload.
+
+**Verifikasi:** print template 45 jawaban (4 halaman) → tiap halaman: logo `LTFigure w=45×45.7pt` (16mm) di kiri (x0=85.5), judul center (x0=188), No.RM kanan (x0=488), tanpa overlap; logo muncul di 4/4 halaman termasuk terakhir; tanpa logo → judul+No.RM saja di tiap halaman; `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Fix logo margin box tampil terlalu besar
+
+**Perintah:** Gambar logo di header print tampil sangat besar (memenuhi area header).
+
+**Akar:** `content: url("data:...")` di `@page @top-left` margin box menampilkan gambar pada **ukuran intrinsik** (tanpa scaling). `width:50px/height:50px` pada margin box TIDAK mengekang gambar (diverifikasi: PNG 64px → 48pt; SVG 200px → 150pt). Jadi logo besar yang di-upload tampil raksasa.
+
+**Perbaikan:**
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - `resizeHeaderLogo(dataUrl)` — canvas resize ke maks 64px pada sisi terpanjang (jika sudah kecil, tetap asli); dikonversi ke PNG.
+  - `onUploadLogo` & watch reopen: `logoUrl` di-resize via `resizeHeaderLogo` sebelum dipakai → intrinsic size ≤64px → margin box menampilkan ~48pt (±16mm), ukuran wajar untuk header.
+  - Efek lanjutan: saat save ulang, data URL yang ter-embed otomatis kecil (template juga lebih ringan).
+- Verifikasi: PNG 64×64 → PDF `LTFigure w=48×48pt` di pojok kiri-atas header; judul tetap tercentering; `eslint` 0 error + `vue-tsc --noEmit` lulus.
+- Catatan: template lama yang di-save SEBELUM fix (logo besar) perlu dibuka & di-save ulang sekali agar print di halaman hasil ikut memakai logo kecil.
+
+## Completed — 2026-08-11: Header (logo + judul + No. RM) berulang di setiap halaman print
+
+**Perintah:** "saya mau bagian ini jadi header untuk setiap halamannya" — header template (logo + judul + No. RM) ingin muncul di tiap halaman saat print.
+
+**Temuan:** `position: fixed` di print **tidak reliabel** untuk header berulang:
+- Header fixed + placeholder hanya bekerja di halaman 1; konten halaman 2+ mengalir dari atas area halaman dan **menimpa** header (diverifikasi via pdfminer: section "2 KHUSUS WANITA" y=718 tumpang-tindih header y=688-720).
+- Pendekatan `top` negatif (header ditaruh di zona margin) juga gagal — header hilang di halaman terakhir.
+
+**Solusi (terbukti):** pindahkan header ke **`@page` margin box** (sama seperti footer yang sudah berjalan):
+- `@top-left`: logo (`content: url("data:...")`) atau teks "LOGO".
+- `@top-center`: judul dokumen (`content: "<documentTitle>"`).
+- `@top-right`: "No. RM" + kode pasien (dengan `\A` newline).
+- `@bottom-left` / `@bottom-right`: footer yang sudah ada (nama pasien | no, "Page X of Y").
+- `@page { margin: 32mm 15mm 18mm }` — top margin diperbesar untuk menampung header.
+- `@media print { .document-header, .header-placeholder, .print-img-1, .document-footer { display: none !important } }` — flow header/footer disembunyikan saat print (margin box yang tampil), mencegah duplikasi.
+
+**File yang diubah:**
+- `app/composables/questionnaire/useQuestionnairePrint.ts`: `buildPageFooterCss` → `buildPageChromeCss(patientName, patientCode, documentTitle?, logoUrl?)` (header + footer margin boxes + hide flow header/footer); `printQuestionnaireHtml` pakai `buildPageChromeCss(ctx.patientName, ctx.patientCode, ctx.documentTitle, ctx.logoUrl)`.
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`: revert CSS header fixed + placeholder (kembali flow normal untuk screen/preview); `.header-placeholder` dihapus dari body.
+- `app/pages/front-office/questionnaire-results.vue`: import `buildPageChromeCss`; `legacyPrintHtml` pakai `buildPageChromeCss(row.patientName, row.patientCode)`; `templatePrintHtml` ekstrak `src="data:image..."` dari template untuk logo margin box; `printCss` `@media print` sembunyikan `h1` (legacy, mencegah judul duplikat).
+- Efek: print dari modal ("Buka di Print Window"), halaman hasil, dan print template — semua dapat header + footer berulang di tiap halaman.
+
+**Verifikasi:** render template default 45 jawaban (4 halaman) → headless Chrome print-to-pdf → pdfminer: header-title=1 di **setiap** halaman (4/4), konten di bawah tanpa overlap (DATA DIRI y=662 vs header y=740-756), flow header tersembunyi; `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-10: Fix Print Template — setelah save, buka ulang kembali ke awal
+
+**Perintah:** Setelah berhasil save dan membuka kembali modal Print Template, template yang tersimpan hilang/kembali ke awal.
+
+**Akar masalah:** Modal membaca `print_template` dari objek **row list** (`props.row`). Data list bisa stale (belum ter-refresh setelah save) atau tidak memuat `print_template` sama sekali → saat buka ulang, `stored = ''` → textarea kosong / "kembali ke awal".
+
+**Perbaikan:** Saat modal dibuka (watch `props.row`), fetch **detail** `GET /questionnaire/:id` (endpoint yang juga dipakai preview/builder) untuk mendapat `print_template` otoritatif dari server: `detail.print_template ?? detail.printTemplate ?? row.print_template ?? row.printTemplate`. Fallback ke row list bila fetch gagal. Sekalian rapikan urutan: parse posisi logo (`top/left/width`) dari style injected **sebelum** strip blok style (agar nilai tersimpan tidak ter-reset ke default).
+
+**Verifikasi:** `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-10: Fix bug Print Template — kotak "LOGO" tetap tampil, template tidak tersimpan, dsb
+
+**Perintah:** (1) kotak "LOGO" masih muncul padahal sudah upload gambar; (2) template default sepertinya tidak bisa disimpan; (3) "coba cek lagi masih ada bug kayaknya".
+
+**Bug yang ditemukan & diperbaiki:**
+1. **Kotak "LOGO" tetap tampil saat ada gambar** — default template menaruh `.print-img-1` (positioned img) TERPISAH dari `.header-logo` berisi teks "LOGO". Fix: blok `{% if logoUrl %}` → tampilkan `<img class="print-img-1">`; `{% else %}` → box "LOGO". Jadi saat ada gambar, box "LOGO" hilang.
+2. **Template tidak bisa disimpan (terasa)** — modal membaca `row.printTemplate` (camelCase), padahal BE mengembalikan `print_template` (snake_case) → `stored = ''` tiap dibuka, template tersimpan tampak kosong. Fix: `row.print_template ?? row.printTemplate`.
+3. **Modal tidak bisa dibuka ulang untuk baris yang sama** — watch `props.row` hanya re-fire jika referensi berubah; `printTemplateRow.value = row.original` selalu objek sama. Fix di `pages/questionnaire/index.vue`: set `null` dulu lalu `nextTick` set row.
+4. **CSS `.print-img-1 img` salah** — `.print-img-1` adalah elemen `<img>` itu sendiri, jadi `.print-img-1 img` tidak pernah match; diganti `.print-img-1 { width; height:auto; display:block }`.
+5. **Logo tidak tampil di print hasil** — saat save, literal data URL ter-embed tapi tetap dibungkus `{% if logoUrl %}`; di halaman `/front-office/questionnaire-results` ctx tanpa `logoUrl` → kondisi false → img disembunyikan. Fix `embeddedTemplate()`: setelah embed literal, strip blok `{% if logoUrl %}...{% endif %}` dan sisakan hanya `<img ...>`.
+6. **Style posisi menggandakan tiap save** — `imgPositionStyle` di-prepend ke `composedTemplate`; saat reopen `template.value` menyimpan blok style itu lagi → setiap save blok bertambah. Fix: saat watch row, strip blok style yang mengandung `top: Npx !important` (ciri khusus injected; aman karena style template tidak punya `top:...!important`).
+
+**Verifikasi:** simulasi save→reopen→save ulang: `{% if logoUrl %}` hilang, `<style>` tetap 2 (injected+template), `.no-print` utuh, placeholder `{{ logoUrl }}` restor, tidak ada doubling; render tanpa logo → box "LOGO" tampil, dengan logo → `print-img-1` tampil tanpa box; `eslint` 0 error + `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-10: Fix preview iframe — logo tampil broken (data URL diblokir di `srcdoc`)
+
+**Perintah:** Saat preview di modal, gambar logo muncul broken (ikon + alt "Gambar dokumen"), padahal render HTML benar (terverifikasi: `<img src="data:image/png;base64,...">` valid).
+
+**Akar masalah:** Iframe preview memakai `:srcdoc="previewDoc"`. Chrome memblokir `data:` URL di dalam `srcdoc` iframe (unique opaque origin) → gambar tidak pernah dimuat. (Tes headless Chrome: srcdoc dengan data:image → broken; `document.write()` di iframe inherited-origin → `data:` gambar justru bisa dimuat.)
+
+**Perbaikan:**
+- `app/components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - Ganti `<iframe :srcdoc="previewDoc" />` → `<iframe ref="previewIframeRef" />`.
+  - Tambah `writePreviewDoc()` yang menulis `previewDoc.value` via `iframe.contentDocument.open()/write()/close()`.
+  - `watch(previewDoc)` → tulis ulang saat konten preview berubah; `watch(previewOpen)` + `nextTick` → tulis saat modal preview terbuka (iframe sudah ter-mount).
+  - `embeddedTemplate()` helper (pre-replace `{{ logoUrl }}` dengan literal data URL) dipakai di `runPreview`, `openPrintPreview`, dan `submit` — memastikan `src` img selalu literal dan tidak tergantung resolusi variabel renderer.
+- Verifikasi: `eslint` (0 error) + `vue-tsc --noEmit` lulus. (Catatan: Chrome headless `--screenshot` tidak me-render konten iframe sama sekali — bukan indikasi bug; print window `window.open + document.write` terbukti memuat data:image dari test sebelumnya.)
+
+## Completed — 2026-08-10: Fix nama kota di area tanda tangan (sign-city)
+
+**Perintah:** Nama kota di area tanda tangan hanya menampilkan 3 huruf (mis. "JKT") padahal seharusnya "Jakarta".
+
+**Penyebab:** `branchName.split(' - ')[0]` mengambil bagian pertama `nameBranch` sebelum `" - "` — itu adalah kode cabang, bukan nama kota (mis. `"JKT - Jakarta"` → `"JKT"`). Format `nameBranch` di DB tidak seragam: `"Jakarta - Wisma Keiai (Main Clinic)"`, `"KIIC - Karawang"`, `"Delta Mas - Cikarang"`, `"Kyoai Medical EJIP Cikarang"`, dll.
+
+**Perbaikan (heuristik cerdas):**
+- `composables/questionnaire/useQuestionnairePrint.ts`: tambah `extractBranchCity(branchName)` + daftar `KNOWN_CITIES` (Jakarta, Cikarang, Karawang, Bekasi, Bogor, Depok, Tangerang, Bandung, Semarang, Yogyakarta, Surabaya, Sidoarjo, Gresik, Malang, Denpasar, Bali, Medan, Batam, Pekanbaru, Palembang, Lampung, Makassar, Manado, Balikpapan, Samarinda, Solo). Algoritma: (1) cari kota dikenal dalam seluruh string via regex word-boundary; (2) jika tidak ada, ambil segmen terakhir setelah `" - "` (bukan pertama); (3) fallback nama lengkap.
+- `buildQuestionnairePrintContext`: `branchCity` memakai `extractBranchCity`.
+- `pages/front-office/questionnaire-results.vue`: `signCityDate` (modal) dan `sign-city` (print legacy) memakai `extractBranchCity`.
+- Verifikasi: 12 kasus test (JKT - Jakarta, KIIC - Karawang, Delta Mas - Cikarang, Kyoai Medical EJIP Cikarang, Bali, null/undefined/kosong) semua PASS; lint bersih.
+
+## Completed — 2026-08-10: Print Template — template default baru (layout paper-document profesional)
+
+**Perintah:** Ganti template default ("Gunakan Template Default") di modal Print Template dengan template CSS + HTML lengkap bergaya form MCU profesional.
+
+- `components/questionnaire/QuestionnairePrintTemplateModal.vue`: `defaultTemplate` diganti penuh —
+  - `<style>` block besar di atas template (reset, header, document-info grid 3 kolom, section-title/subtitle dengan nomor bulat, data-diri-table striped, answer-summary, question-list dengan answer box, consent, signature, footer, page-break, `@media print`, responsive preview) yang otomatis terekstrak & ditaruh di `<head>` saat render (fitur `extractTemplateStyles`).
+  - Konten: header (LOGO + title + No. RM), document-info (No. Registrasi, Tanggal Pemeriksaan, Perusahaan), DATA DIRI 8 baris, summary Terjawab/Total, loop section + loop pertanyaan dengan `loop.index` & nested `{% if q.answerValue %}`/`{% else %}` ("Belum diisi"), consent, signature, footer "Page 1", plus blok `{% else %}` "Belum terdapat pertanyaan".
+- Verifikasi: render test via Node (template diekstrak dari file modal, di-render dengan `renderQuestionnaireTemplate` + sample context) — style terekstrak, title/gender label/loop/summary/footer ter-render, tanpa placeholder mentah; lint bersih. (Catatan: `answerValue` kosong menghasilkan `-`, bukan kosong, jadi "Belum diisi" tidak tampil — perilaku existing.)
+
+## Completed — 2026-08-10: Print Template — dukungan `<style>` di dalam template + perbaikan modal
+
+**Perintah:** Dukung CSS di dalam template (tempatkan `<style>` di template agar ikut ter-render saat print), dan perbaiki modal editor agar bagian "Placeholder yang tersedia" terlihat (tidak terpotong).
+
+- `composables/questionnaire/useQuestionnairePrint.ts`: tambah `extractTemplateStyles(tpl)` — ekstrak semua tag `<style>` dari template → `{ styles, body }`. `printQuestionnaireHtml` kini memakai `extractTemplateStyles` lalu render body dan menyisipkan `styles` di `<head>` (setelah CSS bawaan). Dengan ini user bisa menulis `<style>` di bagian atas template, dan saat print/preview style tersebut di-apply.
+- `components/questionnaire/QuestionnairePrintTemplateModal.vue`:
+  - Konten modal dibuat scrollable (`max-h-[62vh] overflow-y-auto`) dan textarea dikurangi ke 12 baris (`shrink-0`) agar blok "Placeholder yang tersedia" di bawah selalu terlihat.
+  - `runPreview` ekstrak style template → disimpan di `previewCssExtra`; iframe preview kini memakai computed `previewDoc` (HTML lengkap: `<head>` berisi `previewCss` + style template, body berisi `.document-page`).
+  - `openPrintPreview` memakai `printQuestionnaireHtml` (seragam dengan hasil print nyata, termasuk style template).
+  - Tambah panduan: "Styling: tulis `<style>` di dalam template ... akan ikut di-render saat print/preview."
+- `pages/front-office/questionnaire-results.vue`: `templatePrintHtml` memakai `extractTemplateStyles` sehingga style di dalam template ikut di-render.
+- Verifikasi: lint bersih; typecheck tanpa error untuk file yang diubah (error lain pre-existing di HEAD).
+
+## Completed — 2026-08-10: Dynamic Print Template Questionnaire (ala Jinja/Frappe)
+
+**Perintah:** Buat template print questionnaire agar dinamis dan bisa diatur di `/questionnaire`. Diputuskan menyimpan template sebagai **teks HTML + placeholder Jinja-like** di kolom baru `printTemplate` (bukan JSON config), dirender di FE via composable sendiri (tanpa dependency baru).
+
+### Backend (express_dash)
+- `prisma/schema.prisma`: tambah kolom `printTemplate String? @db.MediumText` di model `QstQuestionnaire` + `prisma db push`.
+- `questionnaire.service.js`: `toListItem`/`toDetail` expose `print_template`; `create`/`update` menerima `printTemplate` (camel) dan `print_template` (snake).
+- `public-registration.service.js` `getQuestionnaires`: detail `GET /registration/number/:id_reg/questionnaires` sertakan `print_template` per questionnaire.
+- Verifikasi: list mengembalikan `print_template`; PUT `print_template` tersimpan & muncul di list; detail menyertakan `print_template`.
+
+### Frontend (my-app)
+- `composables/questionnaire/useQuestionnairePrint.ts` (baru): renderer template Jinja-like —
+  - `{{ var }}` (path dot, literals string/angka/boolean/null),
+  - `{% for x in list %}` + `loop.index`/`loop.index0`, `{% if %}`/`{% else %}`/`{% endif %}` (nested didukung),
+  - filter `upper`/`lower`/`capitalize`/`trim`/`default('x')`/`safe`,
+  - `buildQuestionnairePrintContext` — data pasien (nama, gender label, tgl lahir long-format, umur, marital label, telepon, alamat, posisi, No RM/registrasi), company/branch/city (`branchName.split(' - ')[0]`), signature (`CITY, tanggal`), examDate, jawaban (`answers`), dikelompokkan per section (`sections[]` dengan `section.questions[]` + `q.answerValue`).
+  - `printQuestionnaireHtml` helper untuk HTML lengkap + CSS bawaan.
+- `components/questionnaire/QuestionnairePrintTemplateModal.vue` (baru): editor di `/questionnaire` (dropdown row "Print Template") — textarea HTML, tombol "Gunakan Template Default", "Preview" (iframe srcdoc dari sample context), "Buka di Print Window", Simpan (PUT `print_template`), panduan placeholder/loop/filter.
+- `pages/questionnaire/index.vue`: type `Questionnaire` + `printTemplate`; aksi "Print Template" di dropdown baris; modal terpasang.
+- `pages/front-office/questionnaire-results.vue`: `printSingle` kini render dari `print_template` questionnaire (melalui `buildQuestionnairePrintContext` + `renderQuestionnaireTemplate`); jika template kosong → fallback `legacyPrintHtml` (layout paper-document lama). TempQuestionnaire type + `print_template`.
+- Verifikasi: unit test renderer (loop, if/else, nested, loop.index, filter, default) semua PASS; lint bersih; typecheck bersih untuk file yang diubah (error `questionnaire/index.vue` TS7022/7023 pre-existing di HEAD); headless Chrome — menu "Print Template" muncul, modal editor terbuka, simpan berhasil, print dari hasil questionnaire ter-render dari template (data pasien tersubstitusi, section loop, consent, ttd, footer "Page 1"), fallback tanpa placeholder mentah.
 
 ## Completed — 2026-08-08: Hasil Questionnaire — view answers & print gaya form KUESIONER MCU
 
