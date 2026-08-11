@@ -191,6 +191,15 @@ function parseLocalDate(d: string): Date | null {
   return null
 }
 function getExamItemStatus(ei: ExamItem) {
+  // Lab sample-based: jika semua sample sudah RECEIVED → status FO = selesai
+  const samples = getSampleCollectionsForItem(ei.item.id)
+  if (samples.length > 0) {
+    if (samples.every(s => s.status === 'RECEIVED')) return 'DONE'
+    if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
+    if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
+    return 'WAITING_SAMPLE'
+  }
+
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
   if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
@@ -210,6 +219,8 @@ function getExamItemStatusLabel(status: string) {
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Menolak'
   if (status === 'RETEXT') return 'Retest'
+  if (status === 'WAITING_SAMPLE') return 'Menunggu Sample'
+  if (status === 'REJECTED') return 'Sample Ditolak'
   return 'Menunggu'
 }
 
@@ -220,6 +231,8 @@ function getExamItemStatusColor(status: string) {
   if (['SKIPPED', 'RESCHEDULED'].includes(status)) return 'neutral'
   if (status === 'REFUSED') return 'error'
   if (status === 'RETEXT') return 'warning'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'WAITING_SAMPLE') return 'warning'
   return 'neutral'
 }
 
@@ -229,6 +242,8 @@ function getExamItemStatusIcon(status: string) {
   if (status === 'CALLED') return 'i-lucide-bell'
   if (status === 'REFUSED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
+  if (status === 'REJECTED') return 'i-lucide-ban'
+  if (status === 'WAITING_SAMPLE') return 'i-lucide-test-tube'
   return 'i-lucide-clock'
 }
 
@@ -444,6 +459,9 @@ function statusHistoryDesc(item: StatusHistoryItem): string {
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
 const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
 const isMCU = computed(() => reg.value?.serviceType === 'MCU')
+const canUndoCheckin = computed(() =>
+  checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
+)
 
 const examType = computed(() => reg.value?.examType ?? (isMCU.value ? 'MCU' : 'RAWAT_JALAN'))
 
@@ -465,7 +483,6 @@ async function loadCheckinPreview() {
     checkinPreview.value = null
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal memuat preview check-in'
     toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
-    throw err
   } finally {
     checkinPreviewLoading.value = false
   }
@@ -546,9 +563,57 @@ async function cancelRegistration() {
   }
 }
 
+// ─── Check Out (FO) ────────────────────────────────────────────────
+const checkoutLoading = ref(false)
+const checkoutEligibility = ref<{
+  canCheckout: boolean
+  reasons: string[]
+  nonFinalItems?: Array<{ itemName?: string, reason?: string }>
+} | null>(null)
+
+async function loadCheckoutEligibility() {
+  if (!reg.value || !isCheckedIn.value || reg.value.statusRegistration === 'CheckOut') {
+    checkoutEligibility.value = null
+    return
+  }
+  try {
+    const res = await api.get(`/registration/${reg.value.id_reg}/checkout-eligibility`)
+    checkoutEligibility.value = res.data?.data ?? null
+  } catch {
+    checkoutEligibility.value = null
+  }
+}
+
+async function confirmCheckout() {
+  if (!reg.value || checkoutLoading.value) return
+  checkoutLoading.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id_reg}/checkout`)
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien telah check-out dan dapat dipulangkan.',
+      color: 'success'
+    })
+    await refresh()
+    await loadStatusHistory()
+    await loadCheckoutEligibility()
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      ?? 'Gagal check-out pasien.'
+    toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
+  } finally {
+    checkoutLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadQuestionnaires()
   loadStatusHistory()
+  void loadCheckoutEligibility()
+})
+
+watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
+  void loadCheckoutEligibility()
 })
 </script>
 
@@ -584,7 +649,16 @@ onMounted(() => {
               :to="`/result/exam-status/${reg.id_reg}`"
             />
             <UButton
-              v-if="!isCancelled"
+              v-if="isCheckedIn && checkoutEligibility?.canCheckout"
+              icon="i-lucide-log-out"
+              color="success"
+              label="Check Out"
+              :loading="checkoutLoading"
+              title="Semua item selesai — pasien dapat dipulangkan."
+              @click="confirmCheckout"
+            />
+            <UButton
+              v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-x-circle"
               color="error"
               variant="outline"
@@ -593,7 +667,7 @@ onMounted(() => {
               @click="cancelRegistration"
             />
             <UButton
-              v-if="!isCancelled && isCheckedIn"
+              v-if="!isCancelled && isCheckedIn && reg.statusRegistration !== 'CheckOut' && canUndoCheckin"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
@@ -655,6 +729,30 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <UAlert
+          v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
+          :color="checkoutEligibility.canCheckout ? 'success' : 'warning'"
+          variant="soft"
+          :icon="checkoutEligibility.canCheckout ? 'i-lucide-log-out' : 'i-lucide-alert-circle'"
+          :title="checkoutEligibility.canCheckout
+            ? 'Semua pemeriksaan selesai — pasien dapat dipulangkan'
+            : 'Pasien belum bisa dipulangkan'"
+          :description="checkoutEligibility.canCheckout
+            ? 'Klik tombol Check Out untuk menandai pasien selesai dan dapat pulang.'
+            : checkoutEligibility.reasons?.join('; ') || 'Masih ada item pemeriksaan yang belum selesai.'"
+        >
+          <template v-if="checkoutEligibility.nonFinalItems?.length" #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
+              <ul class="list-disc pl-5 text-xs">
+                <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
+                  {{ item.itemName }} — {{ item.reason }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </UAlert>
 
         <div class="grid grid-cols-12 gap-5">
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">

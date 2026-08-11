@@ -34,6 +34,8 @@ type Patient = {
   company?: string
   createdAt: string
   examDate: string
+  canCheckout?: boolean
+  checkoutDone?: boolean
 
 }
 
@@ -63,6 +65,9 @@ function mapPatient(item: any): Patient & { id_reg: string } {
     examDate: item.examDate,
     createdAt: item.createdAt,
     serviceType: item.serviceType,
+
+    canCheckout: item.canCheckout,
+    checkoutDone: item.checkoutDone,
 
     // 🔥 penting
     id_reg: item.id_reg
@@ -375,12 +380,24 @@ const columns: TableColumn<Patient>[] = [
     },
     cell: ({ row }) => {
       const status = row.getValue('statusRegistration') as string
+      const p = row.original
+      const canCheckout = Boolean(p.canCheckout)
 
-      return h(UBadge, {
-        label: STATUS_LABEL[status] ?? status ?? '-',
-        color: STATUS_COLOR[status] ?? 'neutral',
-        variant: 'subtle'
-      })
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(UBadge, {
+          label: STATUS_LABEL[status] ?? status ?? '-',
+          color: STATUS_COLOR[status] ?? 'neutral',
+          variant: 'subtle'
+        }),
+        canCheckout
+          ? h(UBadge, {
+              label: 'Siap Check-out',
+              color: 'success',
+              variant: 'outline',
+              icon: 'i-lucide-log-out'
+            })
+          : null
+      ])
     }
   },
   {

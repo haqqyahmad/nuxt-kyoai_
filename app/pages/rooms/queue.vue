@@ -383,11 +383,6 @@ const myRoom = computed(() => myRoomData.value ?? null)
 const myStageIds = computed(() =>
   (myRoom.value?.stageLinks ?? []).map(link => link.stageId)
 )
-const isSampleReceptionRoom = computed(() =>
-  (myRoom.value?.stageLinks ?? []).some(link =>
-    link.stage?.code === 'RECEIVE'
-  )
-)
 const myRoomId = computed(() => assignment.value?.roomId ?? null)
 const activeRoomSession = computed(() => {
   if (!roomSession.value?.id || roomSession.value.endedAt) return null
@@ -1341,12 +1336,6 @@ watch(
           color="warning"
           title="Belum ada assignment aktif"
           description="Histori queue tetap bisa dibuka. Untuk melihat daftar pasien waiting, user harus punya assignment room."
-        />
-
-        <RoomsSampleReceptionPanel
-          v-if="isSampleReceptionRoom"
-          :active-room-session="activeRoomSession"
-          :is-super-admin="isSuperAdmin"
         />
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">

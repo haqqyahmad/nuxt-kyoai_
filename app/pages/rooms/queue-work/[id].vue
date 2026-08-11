@@ -757,6 +757,12 @@ function isDentalExamItem(item: RoomExamItem) {
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
+// [DENTAL] State shared ke layout default untuk sembunyikan sidebar + aside list
+const isDentalWork = computed(() => dentalItems.value.length > 0 && nonDentalItems.value.length === 0)
+const dentalWorkState = useState<boolean>('queue-work-dental', () => false)
+watch(isDentalWork, (v) => { dentalWorkState.value = v }, { immediate: true })
+onBeforeUnmount(() => { dentalWorkState.value = false })
+
 const selectedItemId = ref('')
 const isDrawerOpen = ref(false)
 const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
@@ -925,6 +931,8 @@ function canDoneItem(item: RoomExamItem) {
     return !item.trxExamItem.item.requiresAttachmentForDone
       || Boolean(assignment.attachmentUrl)
   }
+  // Dental disimpan sebagai draft di room; submit final dilakukan dari menu Result.
+  if (isDentalExamItem(item)) return true
   // Deferred: hasil diisi belakangan, item tetap bisa diselesaikan sekarang
   if (item.trxExamItem?.item?.resultTiming === 'deferred') return true
   if (!hasStructuredInputs(item)) return true
@@ -1986,12 +1994,14 @@ async function handleSubmitItemAction() {
 
           <div class="grid grid-cols-12 items-start gap-5">
             <div
+              v-if="!isDentalWork"
               class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
               :class="isDrawerOpen ? 'block' : 'hidden'"
               @click="toggleDrawer()"
             />
 
             <aside
+              v-if="!isDentalWork"
               class="fixed left-0 top-0 z-40 flex h-full w-80 flex-col gap-2 border-r border-default/80 bg-default p-4 transition-transform duration-300 ease-in-out lg:static lg:z-0 lg:h-auto lg:w-auto lg:translate-x-0 lg:border-none lg:bg-transparent lg:p-0 lg:col-span-4"
               :class="isDrawerOpen ? 'translate-x-0' : '-translate-x-full'"
             >
@@ -2045,7 +2055,7 @@ async function handleSubmitItemAction() {
               </div>
             </aside>
 
-            <div class="col-span-12 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-default shadow-sm lg:col-span-8">
+            <div :class="['flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-default shadow-sm', isDentalWork ? 'col-span-12' : 'col-span-12 lg:col-span-8']">
               <template v-if="selectedItem">
                 <DentalExamWorkPanel
                   v-if="isDentalExamItem(selectedItem)"
@@ -2062,6 +2072,7 @@ async function handleSubmitItemAction() {
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
                   @refreshed="loadPage(true)"
+                  @back="router.push('/rooms/queue')"
                 />
 
                 <template v-else>
