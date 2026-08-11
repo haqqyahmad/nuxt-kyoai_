@@ -86,6 +86,14 @@ export async function useCurrentUser() {
     Boolean(user.value?.isExternal) || roles.value.includes('dokter-external')
   )
 
+  function normalizeRoleName(role?: string | null) {
+    return (role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+  }
+
+  const isSuperAdmin = computed(() =>
+    roles.value.some(role => normalizeRoleName(role).includes('superadmin'))
+  )
+
   const permissions = computed(() => {
     const allowed = new Set<string>()
 
@@ -152,6 +160,7 @@ export async function useCurrentUser() {
     allowedSelfRoomTypeCodes,
     allowedResultDepartments,
     allowedResultDepartmentCodes,
+    isSuperAdmin,
     pending,
     refresh
   }

@@ -72,6 +72,7 @@ const form = reactive({
   name: '',
   resultTiming: 'inline',
   externalResult: false,
+  externalProcessSlaDays: 3,
   requiresAttachmentForDone: false,
   departmentId: '',
   roomTypeId: '',
@@ -89,6 +90,7 @@ watch(() => props.item, (item) => {
     form.name = item.name
     form.resultTiming = item.resultTiming
     form.externalResult = Boolean(item.externalResult)
+    form.externalProcessSlaDays = item.externalProcessSlaDays ?? 3
     form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
     form.departmentId = item.departmentId || ''
     form.roomTypeId = item.roomTypeId
@@ -205,6 +207,7 @@ function resetAll() {
   form.name = ''
   form.resultTiming = 'inline'
   form.externalResult = false
+  form.externalProcessSlaDays = 3
   form.requiresAttachmentForDone = false
   form.departmentId = ''
   form.roomTypeId = ''
@@ -269,6 +272,7 @@ async function ensureItemCreated() {
       name: form.name,
       resultTiming: form.resultTiming,
       externalResult: form.externalResult,
+      externalProcessSlaDays: form.externalProcessSlaDays,
       requiresAttachmentForDone: form.requiresAttachmentForDone,
       departmentId: form.departmentId || null,
       roomTypeId: form.roomTypeId,
@@ -335,6 +339,7 @@ async function submit() {
         name: form.name,
         resultTiming: form.resultTiming,
         externalResult: form.externalResult,
+        externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
@@ -362,6 +367,7 @@ async function submit() {
         name: form.name,
         resultTiming: form.resultTiming,
         externalResult: form.externalResult,
+        externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
@@ -541,6 +547,17 @@ function handleDone() {
                   <div class="flex h-10 items-center">
                     <UCheckbox v-model="form.externalResult" label="Dikerjakan oleh dokter luar" />
                   </div>
+                </UFormField>
+                <UFormField
+                  label="SLA Proses Dokter Luar (hari)"
+                  description="Alert muncul jika hasil belum diproses melewati batas hari setelah dikirim ke dokter."
+                >
+                  <UInput
+                    v-model="form.externalProcessSlaDays"
+                    type="number"
+                    min="0"
+                    class="w-full"
+                  />
                 </UFormField>
                 <UFormField label="Kewajiban PDF">
                   <div class="flex h-10 items-center">

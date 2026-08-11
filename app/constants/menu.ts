@@ -142,6 +142,11 @@ export function buildMenuTree(): MenuItem[] {
         {
           label: 'Doctor Result MCU',
           to: '/result/doctor-result'
+        },
+        {
+          label: 'Status Examination',
+          icon: 'i-lucide-activity',
+          to: '/result/exam-status'
         }
       ]
     },

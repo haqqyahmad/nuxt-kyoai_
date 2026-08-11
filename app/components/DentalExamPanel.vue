@@ -10,11 +10,15 @@ import {
 } from '~/types/dental'
 import type { DentalExamData, DentalFinding, DentalGrade } from '~/types/dental'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   examId: string
   data?: DentalExamData | null
   disabled?: boolean
-}>()
+  showSubmit?: boolean
+}>(), {
+  disabled: false,
+  showSubmit: true
+})
 const emit = defineEmits<{ saved: [] }>()
 const api = useApi()
 const toast = useToast()
@@ -265,6 +269,7 @@ async function submit() {
   saving.value = true
   try {
     await api.post(`/mcu/exams/${props.examId}/dental/submit`, buildPayload())
+    confirmSubmit.value = false
     toast.add({ title: 'Berhasil', description: 'Pemeriksaan gigi disubmit ke department.', color: 'success' })
     emit('saved')
   } catch (error: unknown) {
@@ -697,6 +702,7 @@ if (props.data) seed()
           Simpan Draft
         </UButton>
         <UButton
+          v-if="showSubmit"
           color="primary"
           icon="i-lucide-send"
           :loading="saving"
@@ -708,6 +714,7 @@ if (props.data) seed()
     </UCard>
 
     <UModal
+      v-if="showSubmit"
       v-model:open="confirmSubmit"
       :dismissible="false"
       :close="false"

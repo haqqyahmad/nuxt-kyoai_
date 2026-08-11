@@ -128,6 +128,7 @@ type QueueHistoryRow = {
   checkinAt: string | null
   completedAt: string | null
   registrationId?: number | null
+  roomTypeId?: string | null
 }
 
 type SampleUser = {
@@ -200,7 +201,7 @@ type WaitingRow = {
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
-const { roles, user } = await useCurrentUser()
+const { user, isSuperAdmin } = await useCurrentUser()
 const {
   session: roomSession,
   pending: roomSessionPending,
@@ -224,7 +225,7 @@ type WaitingStatusFilter = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
 type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
 type QueueStoredFilters = {
   waitingRoomTypeId: string
-  historyRoomTypeId: string
+  historyDepartmentId: string
   waitingStatus: WaitingStatusFilter
   historyStatus: HistoryStatusFilter
   examDateFrom: string
@@ -241,8 +242,8 @@ function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | nul
   const waitingRoomTypeId = typeof stored.waitingRoomTypeId === 'string' && uuidPattern.test(stored.waitingRoomTypeId)
     ? stored.waitingRoomTypeId
     : ''
-  const historyRoomTypeId = typeof stored.historyRoomTypeId === 'string' && uuidPattern.test(stored.historyRoomTypeId)
-    ? stored.historyRoomTypeId
+  const historyDepartmentId = typeof stored.historyDepartmentId === 'string' && uuidPattern.test(stored.historyDepartmentId)
+    ? stored.historyDepartmentId
     : ''
 
   const examDateFrom = typeof stored.examDateFrom === 'string' ? stored.examDateFrom : today
@@ -250,13 +251,13 @@ function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | nul
 
   return {
     waitingRoomTypeId,
-    historyRoomTypeId,
+    historyDepartmentId,
     waitingStatus: waitingStatusValues.includes(stored.waitingStatus as WaitingStatusFilter)
       ? stored.waitingStatus as WaitingStatusFilter
       : 'WAITING',
     historyStatus: historyStatusValues.includes(stored.historyStatus as HistoryStatusFilter)
       ? stored.historyStatus as HistoryStatusFilter
-      : 'DONE',
+      : 'ALL',
     examDateFrom,
     examDateTo
   }
@@ -266,16 +267,16 @@ const queueFilterState = useSafeLocalStorageState<QueueStoredFilters>(
   `erp-kyoai:rooms:queue:filters:user:${user.value?.id ?? 'anonymous'}`,
   {
     waitingRoomTypeId: '',
-    historyRoomTypeId: '',
+    historyDepartmentId: '',
     waitingStatus: 'WAITING',
-    historyStatus: 'DONE',
+    historyStatus: 'ALL',
     examDateFrom: today,
     examDateTo: today
   },
   sanitizeQueueFilters
 )
 const selectedWaitingRoomTypeId = toRef(queueFilterState, 'waitingRoomTypeId')
-const selectedHistoryRoomTypeId = toRef(queueFilterState, 'historyRoomTypeId')
+const selectedHistoryDepartmentId = toRef(queueFilterState, 'historyDepartmentId')
 const waitingStatusFilter = toRef(queueFilterState, 'waitingStatus')
 const historyStatusFilter = toRef(queueFilterState, 'historyStatus')
 const examDateFromFilter = toRef(queueFilterState, 'examDateFrom')
@@ -290,12 +291,38 @@ const historyStatusOptions = [
   { label: 'Semua', value: 'ALL' }
 ]
 
-function normalizeRoleName(role?: string | null) {
-  return (role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+type ActiveRoomSession = {
+  roomId: string
+  roomCode: string
+  roomName: string
+  roomTypeId: string
+  roomTypeName?: string | null
+  staffCapacity: number
+  activeCount: number
+  staff: Array<{
+    sessionId: string
+    userId: number
+    name: string
+    startedAt: string
+  }>
 }
 
-const isSuperAdmin = computed(() =>
-  roles.value.some(role => normalizeRoleName(role).includes('superadmin'))
+const {
+  data: activeRoomSessions,
+  pending: activeSessionsPending,
+  refresh: refreshActiveSessions
+} = await useAsyncData<ActiveRoomSession[]>(
+  'room-sessions-active',
+  async () => {
+    try {
+      const res = await api.get('/medical/rooms/sessions/active')
+      const payload = res.data?.data ?? res.data ?? []
+      return Array.isArray(payload) ? payload : []
+    } catch {
+      return []
+    }
+  },
+  { default: () => [], server: false }
 )
 
 const {
@@ -356,11 +383,6 @@ const myRoom = computed(() => myRoomData.value ?? null)
 const myStageIds = computed(() =>
   (myRoom.value?.stageLinks ?? []).map(link => link.stageId)
 )
-const isSampleReceptionRoom = computed(() =>
-  (myRoom.value?.stageLinks ?? []).some(link =>
-    link.stage?.code === 'RECEIVE'
-  )
-)
 const myRoomId = computed(() => assignment.value?.roomId ?? null)
 const activeRoomSession = computed(() => {
   if (!roomSession.value?.id || roomSession.value.endedAt) return null
@@ -370,9 +392,31 @@ const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !active
 const effectiveWaitingRoomTypeId = computed(() =>
   isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
 )
-const effectiveHistoryRoomTypeId = computed(() =>
-  isSuperAdmin.value ? selectedHistoryRoomTypeId.value : roomTypeId.value
-)
+
+// Histori by department — tidak butuh room assignment.
+const departmentOptions = ref<Array<{ id: string, name: string }>>([])
+const departmentOptionsPending = ref(false)
+async function loadDepartmentOptions() {
+  departmentOptionsPending.value = true
+  try {
+    const res = await api.get('/medical/departments')
+    const payload = res.data?.data ?? []
+    departmentOptions.value = Array.isArray(payload) ? payload.map((d: { id: string, name: string }) => ({ id: d.id, name: d.name })) : []
+  } catch {
+    departmentOptions.value = []
+  } finally {
+    departmentOptionsPending.value = false
+  }
+}
+const effectiveHistoryDepartmentId = computed(() => selectedHistoryDepartmentId.value)
+
+const historyPage = ref(1)
+const historyPageSize = ref(20)
+const historyTotal = ref(0)
+
+watch([effectiveHistoryDepartmentId, historyStatusFilter, examDateFromFilter, examDateToFilter], () => {
+  historyPage.value = 1
+})
 
 const {
   data: historyData,
@@ -381,29 +425,32 @@ const {
 } = await useAsyncData<RoomQueueItem[]>(
   'room-queue-history',
   async () => {
-    if (!effectiveHistoryRoomTypeId.value) return []
+    if (!effectiveHistoryDepartmentId.value) return []
 
     // Kirim ALL secara eksplisit agar backend dapat membedakannya dari
     // status kosong yang berarti filter default antrean WAITING/PARTIAL.
     const status = historyStatusFilter.value
 
-    const res = await api.get(`/medical/exams/queue/room/${effectiveHistoryRoomTypeId.value}`, {
+    const res = await api.get(`/medical/exams/queue/department/${effectiveHistoryDepartmentId.value}`, {
       params: {
         examDateFrom: examDateFromFilter.value || undefined,
         examDateTo: examDateToFilter.value || undefined,
         status,
-        limit: 100,
-        page: 1,
+        limit: historyPageSize.value,
+        page: historyPage.value,
         _: Date.now()
       }
     })
 
-    const payload = res.data?.data ?? res.data
-    return Array.isArray(payload) ? payload : payload?.data ?? []
+    const nested = res.data?.data ?? res.data
+    const list = Array.isArray(nested) ? nested : nested?.data ?? []
+    const meta = nested && typeof nested === 'object' && !Array.isArray(nested) ? nested.meta : res.data?.meta ?? null
+    historyTotal.value = Number(meta?.total ?? list.length)
+    return list
   },
   {
     default: () => [],
-    watch: [effectiveHistoryRoomTypeId, historyStatusFilter, examDateFromFilter, examDateToFilter],
+    watch: [effectiveHistoryDepartmentId, historyStatusFilter, examDateFromFilter, examDateToFilter, historyPage, historyPageSize],
     server: false
   }
 )
@@ -522,7 +569,8 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       status: item.status,
       checkinAt: item.queueEntry?.checkinAt ?? null,
       completedAt: item.doneAt ?? item.queueEntry?.doneAt ?? null,
-      registrationId: registration?.id ?? null
+      registrationId: registration?.id ?? null,
+      roomTypeId: item.roomTypeId ?? null
     }
   })
 )
@@ -575,6 +623,15 @@ function formatQueueDate(dateString?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date)
+}
+
+function formatSessionTime(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('id-ID', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+  })
 }
 
 function formatExamDate(dateString?: string | null) {
@@ -649,16 +706,50 @@ function getSampleStatusLabel(status: string) {
   return 'Menunggu Ambil'
 }
 
-function openProcessedDocument(row: QueueHistoryRow) {
-  if (!row.registrationId) return
+async function openProcessedDocument(row: QueueHistoryRow) {
+  if (!row.id) return
 
-  router.push({
-    path: '/result/exam-results',
-    query: {
-      registrationId: String(row.registrationId),
-      status: 'completed'
+  try {
+    const res = await api.get(`/medical/exams/queue/room-item/${row.id}/exam-items`)
+    const payload = res.data?.data ?? res.data ?? []
+    const items: Array<{
+      trxExamItem?: {
+        id: string
+        exam?: { id: string } | null
+        item?: {
+          department?: { code?: string | null } | null
+        } | null
+      } | null
+    }> = Array.isArray(payload) ? payload : []
+    const first = items[0]
+    const examItemId = first?.trxExamItem?.id
+    const examId = first?.trxExamItem?.exam?.id
+
+    if (!examItemId) {
+      toast.add({
+        title: 'Detail dokumen tidak tersedia',
+        description: 'Tidak ada item pemeriksaan yang bisa dibuka hasilnya.',
+        color: 'warning'
+      })
+      return
     }
-  })
+
+    await router.push({
+      path: `/result/exam-results/${examItemId}`,
+      query: {
+        department: first?.trxExamItem?.item?.department?.code || undefined,
+        examId: examId || undefined,
+        roomTypeId: row.roomTypeId || undefined
+      }
+    })
+  } catch (error: unknown) {
+    const response = (error as { response?: { data?: { message?: string } } })?.response
+    toast.add({
+      title: 'Gagal membuka detail dokumen',
+      description: response?.data?.message || 'Terjadi kesalahan saat memuat detail dokumen hasil.',
+      color: 'error'
+    })
+  }
 }
 
 const sampleDetailOpen = ref(false)
@@ -917,8 +1008,36 @@ async function refreshAll() {
   await Promise.all([
     refreshAssignment(),
     refreshHistory(),
-    refreshWaiting()
+    refreshWaiting(),
+    refreshActiveSessions()
   ])
+}
+
+const endingSessionId = ref<string | null>(null)
+
+async function handleEndSession(sessionId: string, staffName: string) {
+  if (endingSessionId.value) return
+  if (!confirm(`Akhiri sesi room ${staffName}? Sesi akan diakhiri paksa dan room terbebas dari petugas ini.`)) return
+
+  endingSessionId.value = sessionId
+  try {
+    await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
+    toast.add({
+      title: 'Berhasil',
+      description: `Sesi room ${staffName} berhasil diakhiri.`,
+      color: 'success'
+    })
+    await refreshActiveSessions()
+  } catch (error: unknown) {
+    const response = (error as { response?: { data?: { message?: string } } })?.response
+    toast.add({
+      title: 'Gagal mengakhiri sesi',
+      description: response?.data?.message || 'Terjadi kesalahan saat mengakhiri sesi room.',
+      color: 'error'
+    })
+  } finally {
+    endingSessionId.value = null
+  }
 }
 
 async function openWaitingPatientsModal() {
@@ -952,14 +1071,12 @@ watch(
 )
 
 watch(
-  [isSuperAdmin, roomTypeOptions, roomTypeId],
-  ([superAdmin, options, assignedRoomTypeId]) => {
+  [isSuperAdmin, departmentOptions, selectedHistoryDepartmentId],
+  ([superAdmin, options]) => {
     if (!superAdmin) return
-    const availableRoomTypeIds = new Set(options.map(option => option.value))
-    if (availableRoomTypeIds.has(selectedHistoryRoomTypeId.value)) return
-    selectedHistoryRoomTypeId.value = availableRoomTypeIds.has(assignedRoomTypeId ?? '')
-      ? assignedRoomTypeId ?? ''
-      : (options[0]?.value ?? '')
+    if (!selectedHistoryDepartmentId.value && options.length) {
+      selectedHistoryDepartmentId.value = options[0].id
+    }
   },
   { immediate: true }
 )
@@ -967,6 +1084,7 @@ watch(
 onMounted(() => {
   refreshAssignment()
   refreshRoomSession()
+  void loadDepartmentOptions()
 })
 
 watch(
@@ -1039,7 +1157,7 @@ watch(
     </template>
 
     <template #body>
-      <div class="w-full max-w-7xl mx-auto space-y-4">
+      <div class="w-full space-y-4">
         <div class="flex justify-start sm:hidden">
           <UBadge
             :color="activeRoomSession ? 'success' : 'neutral'"
@@ -1056,6 +1174,98 @@ watch(
           title="Assignment aktif, tetapi belum masuk room"
           :description="`Anda sudah di-assign ke ${assignment.room?.name || assignment.roomType?.name || 'ruangan'}. Klik 'Masuk Room' di kanan atas untuk memulai sesi, lalu tombol 'Ambil Pasien' akan aktif.`"
         />
+
+        <UCard class="overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-base font-bold text-highlighted">
+                  Room Terisi Saat Ini
+                </h3>
+                <p class="text-xs leading-relaxed text-muted">
+                  Daftar room yang sedang ada petugas aktif di dalamnya.
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                :loading="activeSessionsPending"
+                @click="refreshActiveSessions"
+              >
+                Refresh
+              </UButton>
+            </div>
+          </template>
+
+          <div v-if="activeSessionsPending" class="space-y-2 p-4">
+            <USkeleton class="h-12 rounded-xl" />
+            <USkeleton class="h-12 rounded-xl" />
+          </div>
+
+          <div v-else-if="activeRoomSessions.length === 0" class="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center">
+            <UIcon name="i-lucide-door-open" class="mb-2 size-8 text-muted" />
+            <p class="text-sm font-medium text-highlighted">
+              Tidak ada room yang terisi
+            </p>
+            <p class="mt-1 text-xs text-muted">
+              Belum ada petugas yang masuk room hari ini.
+            </p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div
+              v-for="room in activeRoomSessions"
+              :key="room.roomId"
+              class="rounded-xl border p-4"
+              :class="room.activeCount >= room.staffCapacity
+                ? 'border-error/40 bg-error/5'
+                : 'border-default bg-muted/20'"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-highlighted">
+                    {{ room.roomCode ? `${room.roomCode} - ` : '' }}{{ room.roomName }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-muted">
+                    {{ room.roomTypeName || '-' }}
+                  </p>
+                </div>
+                <UBadge
+                  :label="`${room.activeCount}/${room.staffCapacity}`"
+                  :color="room.activeCount >= room.staffCapacity ? 'error' : 'success'"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="mt-3 space-y-1.5">
+                <div
+                  v-for="staff in room.staff"
+                  :key="staff.sessionId"
+                  class="flex items-center gap-2 rounded-lg border border-default bg-background px-2.5 py-1.5"
+                >
+                  <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0 text-primary" />
+                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-highlighted">
+                    {{ staff.name }}
+                  </span>
+                  <span class="shrink-0 text-[10px] text-muted">
+                    {{ formatSessionTime(staff.startedAt) }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-log-out"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    :loading="endingSessionId === staff.sessionId"
+                    title="Akhiri sesi paksa"
+                    @click="handleEndSession(staff.sessionId, staff.name)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </UCard>
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <div class="space-y-5">
@@ -1128,12 +1338,6 @@ watch(
           description="Histori queue tetap bisa dibuka. Untuk melihat daftar pasien waiting, user harus punya assignment room."
         />
 
-        <RoomsSampleReceptionPanel
-          v-if="isSampleReceptionRoom"
-          :active-room-session="activeRoomSession"
-          :is-super-admin="isSuperAdmin"
-        />
-
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1142,17 +1346,18 @@ watch(
                   Histori Queue
                 </h3>
                 <p class="text-xs leading-relaxed text-muted">
-                  Histori queue room. Gunakan filter status untuk melihat data lain. Bagian ini read-only.
+                  Histori queue per department — tampil tanpa perlu room assignment. Menampilkan pasien yang sudah diambil dari ruang tunggu.
                 </p>
               </div>
 
               <div class="flex w-full flex-wrap items-center gap-3 sm:items-center xl:w-auto xl:justify-end">
                 <USelect
-                  v-if="isSuperAdmin"
-                  v-model="selectedHistoryRoomTypeId"
-                  :items="roomTypeOptions"
-                  :loading="roomTypesPending"
-                  placeholder="Pilih room type"
+                  v-model="selectedHistoryDepartmentId"
+                  :items="departmentOptions"
+                  :loading="departmentOptionsPending"
+                  placeholder="Pilih department"
+                  value-key="id"
+                  label-key="name"
                   class="w-full sm:w-56"
                 />
 
@@ -1184,7 +1389,7 @@ watch(
                 <UBadge
                   variant="soft"
                   color="neutral"
-                  :label="`${historyRows.length} record`"
+                  :label="`${historyTotal} record`"
                 />
               </div>
             </div>
@@ -1202,12 +1407,12 @@ watch(
               class="mb-3 size-10 text-muted"
             />
             <h3 class="text-base font-semibold text-highlighted">
-              {{ isSuperAdmin && !effectiveHistoryRoomTypeId ? 'Pilih room type dulu' : 'Tidak ada histori queue' }}
+              {{ !selectedHistoryDepartmentId ? 'Pilih department dulu' : 'Tidak ada histori queue' }}
             </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
-              {{ isSuperAdmin && !effectiveHistoryRoomTypeId
-                ? 'Super admin perlu memilih room type di atas untuk memuat histori queue.'
-                : 'Data akan muncul setelah pasien selesai diproses di room.' }}
+              {{ !selectedHistoryDepartmentId
+                ? 'Pilih department di atas untuk memuat histori queue.'
+                : 'Data muncul setelah pasien diambil dari ruang tunggu dan diproses.' }}
             </p>
           </div>
 
@@ -1319,12 +1524,33 @@ watch(
               </tbody>
             </table>
           </div>
+
+          <div v-if="historyRows.length" class="flex items-center justify-between border-t border-default px-4 py-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted">Baris per halaman</span>
+              <USelect
+                v-model="historyPageSize"
+                :items="[
+                  { label: '10', value: 10 },
+                  { label: '20', value: 20 },
+                  { label: '50', value: 50 },
+                ]"
+                size="xs"
+                class="w-20"
+              />
+            </div>
+            <UPagination
+              v-model:page="historyPage"
+              :items-per-page="historyPageSize"
+              :total="historyTotal"
+            />
+          </div>
         </UCard>
       </div>
 
       <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
         <template #body>
-          <div class="space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+          <div class="space-y-4 rounded-2xl bg-default p-6 shadow-xl">
             <div class="flex items-start justify-between gap-4">
               <div>
                 <h3 class="text-lg font-semibold text-highlighted">

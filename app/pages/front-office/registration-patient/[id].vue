@@ -9,7 +9,13 @@ type ExamItem = {
   id: string
   source: 'paket' | 'additional'
   sortOrder: number
-  roomExamItems?: Array<{ id: string, status: string, updatedAt?: string | null }>
+  roomExamItems?: Array<{
+    id: string
+    status: string
+    startAt?: string | null
+    doneAt?: string | null
+    updatedAt?: string | null
+  }>
   item: {
     id: string
     code: string
@@ -19,9 +25,20 @@ type ExamItem = {
   }
 }
 
+type QueueSampleCollection = {
+  id: string
+  status: string
+  collectedAt?: string | null
+  receivedAt?: string | null
+  rejectReason?: string | null
+  sampleType?: { id: string, code?: string | null, name?: string | null } | null
+  items?: Array<{ itemId: string }>
+}
+
 type QueueInfo = {
   queueCode: string
   queueNumber: number
+  sampleCollections?: QueueSampleCollection[]
 }
 
 type Registration = {
@@ -174,6 +191,15 @@ function parseLocalDate(d: string): Date | null {
   return null
 }
 function getExamItemStatus(ei: ExamItem) {
+  // Lab sample-based: jika semua sample sudah RECEIVED → status FO = selesai
+  const samples = getSampleCollectionsForItem(ei.item.id)
+  if (samples.length > 0) {
+    if (samples.every(s => s.status === 'RECEIVED')) return 'DONE'
+    if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
+    if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
+    return 'WAITING_SAMPLE'
+  }
+
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
   if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
@@ -193,6 +219,8 @@ function getExamItemStatusLabel(status: string) {
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Menolak'
   if (status === 'RETEXT') return 'Retest'
+  if (status === 'WAITING_SAMPLE') return 'Menunggu Sample'
+  if (status === 'REJECTED') return 'Sample Ditolak'
   return 'Menunggu'
 }
 
@@ -203,6 +231,8 @@ function getExamItemStatusColor(status: string) {
   if (['SKIPPED', 'RESCHEDULED'].includes(status)) return 'neutral'
   if (status === 'REFUSED') return 'error'
   if (status === 'RETEXT') return 'warning'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'WAITING_SAMPLE') return 'warning'
   return 'neutral'
 }
 
@@ -212,7 +242,58 @@ function getExamItemStatusIcon(status: string) {
   if (status === 'CALLED') return 'i-lucide-bell'
   if (status === 'REFUSED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
+  if (status === 'REJECTED') return 'i-lucide-ban'
+  if (status === 'WAITING_SAMPLE') return 'i-lucide-test-tube'
   return 'i-lucide-clock'
+}
+
+function getExamItemUpdatedAt(ei: ExamItem) {
+  const items = ei.roomExamItems ?? []
+  const times = items
+    .map(item => item.updatedAt)
+    .filter((value): value is string => Boolean(value))
+  if (times.length === 0) return null
+  return times.reduce((latest, value) => (value > latest ? value : latest))
+}
+
+function getExamItemStartAt(ei: ExamItem) {
+  const items = ei.roomExamItems ?? []
+  const times = items
+    .map(item => item.startAt)
+    .filter((value): value is string => Boolean(value))
+  if (times.length === 0) return null
+  return times.reduce((earliest, value) => (value < earliest ? value : earliest))
+}
+
+function getExamItemDoneAt(ei: ExamItem) {
+  const items = ei.roomExamItems ?? []
+  const times = items
+    .map(item => item.doneAt)
+    .filter((value): value is string => Boolean(value))
+  if (times.length === 0) return null
+  return times.reduce((latest, value) => (value > latest ? value : latest))
+}
+
+function getSampleCollectionsForItem(itemId: string) {
+  return (reg.value?.queue?.sampleCollections ?? []).filter(collection =>
+    collection.items?.some(item => item.itemId === itemId)
+  )
+}
+
+function getSampleStatusColor(status: string) {
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'warning'
+  return 'neutral'
+}
+
+function getSampleStatusLabel(status: string) {
+  if (status === 'RECEIVED') return 'Diterima Lab'
+  if (status === 'COLLECTED') return 'Sudah Diambil'
+  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  return 'Menunggu Ambil'
 }
 
 const mcuCategories = computed(() => {
@@ -221,7 +302,7 @@ const mcuCategories = computed(() => {
   const grouped = new Map<string, {
     label: string
     icon: string
-    items: { id: string, name: string, status: string, done: boolean }[]
+    items: { id: string, name: string, status: string, done: boolean, sampleCollections: QueueSampleCollection[], updatedAt: string | null, startAt: string | null, doneAt: string | null }[]
   }>()
   const deptIcon: Record<string, string> = {
     Laboratorium: 'i-lucide-flask-conical',
@@ -241,11 +322,18 @@ const mcuCategories = computed(() => {
       })
     }
     const status = getExamItemStatus(ei)
+    const updatedAt = getExamItemUpdatedAt(ei)
+    const startAt = getExamItemStartAt(ei)
+    const doneAt = getExamItemDoneAt(ei)
     grouped.get(deptName)?.items.push({
       id: ei.id,
       name: ei.item.name,
       status,
-      done: status === 'DONE'
+      done: status === 'DONE',
+      sampleCollections: getSampleCollectionsForItem(ei.item.id),
+      updatedAt,
+      startAt,
+      doneAt
     })
   }
 
@@ -371,6 +459,9 @@ function statusHistoryDesc(item: StatusHistoryItem): string {
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
 const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
 const isMCU = computed(() => reg.value?.serviceType === 'MCU')
+const canUndoCheckin = computed(() =>
+  checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
+)
 
 const examType = computed(() => reg.value?.examType ?? (isMCU.value ? 'MCU' : 'RAWAT_JALAN'))
 
@@ -392,7 +483,6 @@ async function loadCheckinPreview() {
     checkinPreview.value = null
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal memuat preview check-in'
     toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
-    throw err
   } finally {
     checkinPreviewLoading.value = false
   }
@@ -473,9 +563,57 @@ async function cancelRegistration() {
   }
 }
 
+// ─── Check Out (FO) ────────────────────────────────────────────────
+const checkoutLoading = ref(false)
+const checkoutEligibility = ref<{
+  canCheckout: boolean
+  reasons: string[]
+  nonFinalItems?: Array<{ itemName?: string, reason?: string }>
+} | null>(null)
+
+async function loadCheckoutEligibility() {
+  if (!reg.value || !isCheckedIn.value || reg.value.statusRegistration === 'CheckOut') {
+    checkoutEligibility.value = null
+    return
+  }
+  try {
+    const res = await api.get(`/registration/${reg.value.id_reg}/checkout-eligibility`)
+    checkoutEligibility.value = res.data?.data ?? null
+  } catch {
+    checkoutEligibility.value = null
+  }
+}
+
+async function confirmCheckout() {
+  if (!reg.value || checkoutLoading.value) return
+  checkoutLoading.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id_reg}/checkout`)
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien telah check-out dan dapat dipulangkan.',
+      color: 'success'
+    })
+    await refresh()
+    await loadStatusHistory()
+    await loadCheckoutEligibility()
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      ?? 'Gagal check-out pasien.'
+    toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
+  } finally {
+    checkoutLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadQuestionnaires()
   loadStatusHistory()
+  void loadCheckoutEligibility()
+})
+
+watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
+  void loadCheckoutEligibility()
 })
 </script>
 
@@ -503,7 +641,24 @@ onMounted(() => {
               label="Print Label"
             />
             <UButton
-              v-if="!isCancelled"
+              v-if="isCheckedIn"
+              icon="i-lucide-activity"
+              color="primary"
+              variant="soft"
+              label="Status Exam"
+              :to="`/result/exam-status/${reg.id_reg}`"
+            />
+            <UButton
+              v-if="isCheckedIn && checkoutEligibility?.canCheckout"
+              icon="i-lucide-log-out"
+              color="success"
+              label="Check Out"
+              :loading="checkoutLoading"
+              title="Semua item selesai — pasien dapat dipulangkan."
+              @click="confirmCheckout"
+            />
+            <UButton
+              v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-x-circle"
               color="error"
               variant="outline"
@@ -512,7 +667,7 @@ onMounted(() => {
               @click="cancelRegistration"
             />
             <UButton
-              v-if="!isCancelled && isCheckedIn"
+              v-if="!isCancelled && isCheckedIn && reg.statusRegistration !== 'CheckOut' && canUndoCheckin"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
@@ -574,6 +729,30 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <UAlert
+          v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
+          :color="checkoutEligibility.canCheckout ? 'success' : 'warning'"
+          variant="soft"
+          :icon="checkoutEligibility.canCheckout ? 'i-lucide-log-out' : 'i-lucide-alert-circle'"
+          :title="checkoutEligibility.canCheckout
+            ? 'Semua pemeriksaan selesai — pasien dapat dipulangkan'
+            : 'Pasien belum bisa dipulangkan'"
+          :description="checkoutEligibility.canCheckout
+            ? 'Klik tombol Check Out untuk menandai pasien selesai dan dapat pulang.'
+            : checkoutEligibility.reasons?.join('; ') || 'Masih ada item pemeriksaan yang belum selesai.'"
+        >
+          <template v-if="checkoutEligibility.nonFinalItems?.length" #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
+              <ul class="list-disc pl-5 text-xs">
+                <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
+                  {{ item.itemName }} — {{ item.reason }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </UAlert>
 
         <div class="grid grid-cols-12 gap-5">
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
@@ -874,13 +1053,14 @@ onMounted(() => {
                       <h4 class="text-sm font-semibold text-highlighted">
                         {{ cat.label }}
                       </h4>
-                      <UBadge
-                        :label="cat.status === 'DONE' ? 'Selesai' : 'Menunggu'"
-                        :color="cat.status === 'DONE' ? 'success' : 'neutral'"
-                        variant="soft"
-                        size="xs"
-                        :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-                      />
+<UBadge
+  :label="cat.status === 'DONE' ? 'Selesai' : 'Menunggu'"
+  :color="cat.status === 'DONE' ? 'success' : 'neutral'"
+  variant="soft"
+  size="xs"
+  :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
+/>
+{{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
                     </div>
                     <p class="mt-1 text-xs text-muted">
                       {{ cat.completed }} selesai dari {{ cat.total }} item
@@ -901,6 +1081,51 @@ onMounted(() => {
                   </div>
                 </div>
 
+                <div
+                  v-if="cat.items.some(item => item.sampleCollections.length)"
+                  class="mt-4 rounded-lg border border-info/30 bg-info/5 p-3"
+                >
+                  <div class="mb-3 flex items-center gap-2">
+                    <UIcon name="i-lucide-test-tube-diagonal" class="text-info" />
+                    <p class="text-xs font-semibold uppercase text-muted">
+                      Status Sample
+                    </p>
+                  </div>
+                  <div class="space-y-3">
+                    <template v-for="item in cat.items" :key="`sample-${item.id}`">
+                      <div
+                        v-for="sample in item.sampleCollections"
+                        :key="sample.id"
+                        class="grid gap-2 rounded-lg border border-default bg-background p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                      >
+                        <div class="min-w-0">
+                          <p class="text-sm font-semibold text-highlighted">
+                            {{ item.name }} · {{ sample.sampleType?.name || sample.sampleType?.code || 'Sample' }}
+                          </p>
+                          <p v-if="sample.rejectReason" class="mt-0.5 text-xs text-error">
+                            {{ sample.rejectReason }}
+                          </p>
+                        </div>
+                        <div class="text-xs text-muted">
+                          <span class="block font-medium text-highlighted">Collect</span>
+                          {{ formatDateTime(sample.collectedAt || undefined) }}
+                        </div>
+                        <div class="text-xs text-muted">
+                          <span class="block font-medium text-highlighted">Received</span>
+                          {{ formatDateTime(sample.receivedAt || undefined) }}
+                        </div>
+                        <UBadge
+                          class="sm:col-start-1"
+                          :label="getSampleStatusLabel(sample.status)"
+                          :color="getSampleStatusColor(sample.status)"
+                          variant="soft"
+                          size="xs"
+                        />
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
                 <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div class="rounded-lg border border-default bg-elevated/40 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
@@ -910,17 +1135,28 @@ onMounted(() => {
                       <UBadge :label="`${cat.pendingItems.length} item`" color="neutral" variant="subtle" size="xs" />
                     </div>
                     <div v-if="cat.pendingItems.length" class="flex flex-wrap gap-2">
-                      <UBadge
+                      <div
                         v-for="item in cat.pendingItems"
                         :key="item.id"
-                        :color="getExamItemStatusColor(item.status)"
-                        variant="soft"
-                        size="lg"
-                        class="max-w-full justify-center whitespace-normal px-3 py-2 text-center text-base font-semibold leading-snug text-highlighted"
+                        class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border px-3 py-2"
+                        :class="getExamItemStatusColor(item.status) === 'error'
+                          ? 'border-error/40 bg-error/10'
+                          : getExamItemStatusColor(item.status) === 'warning'
+                            ? 'border-warning/40 bg-warning/10'
+                            : 'border-default bg-elevated/60'"
                       >
-                        <UIcon :name="getExamItemStatusIcon(item.status)" class="mr-1.5 size-4 shrink-0" />
-                        <span>{{ item.name }}</span>
-                      </UBadge>
+                        <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
+                          <UIcon :name="getExamItemStatusIcon(item.status)" class="size-4 shrink-0" />
+                          {{ item.name }}
+                        </span>
+                        <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
+                          <UIcon name="i-lucide-play" class="size-3" />
+                          Mulai {{ formatDateTime(item.startAt || undefined) }}
+                          <span class="mx-1 text-muted">·</span>
+                          <UIcon name="i-lucide-check" class="size-3" />
+                          Selesai {{ item.done ? formatDateTime(item.doneAt || undefined) : 'Belum' }}
+                        </span>
+                      </div>
                     </div>
                     <p v-else class="text-sm text-muted">
                       Tidak ada item pending.
@@ -935,17 +1171,23 @@ onMounted(() => {
                       <UBadge :label="`${cat.completedItems.length} item`" color="success" variant="subtle" size="xs" />
                     </div>
                     <div v-if="cat.completedItems.length" class="flex flex-wrap gap-2">
-                      <UBadge
+                      <div
                         v-for="item in cat.completedItems"
                         :key="item.id"
-                        color="success"
-                        variant="soft"
-                        size="lg"
-                        class="max-w-full justify-center whitespace-normal px-3 py-2 text-center text-base font-semibold leading-snug text-highlighted"
+                        class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border border-success/30 bg-success/10 px-3 py-2"
                       >
-                        <UIcon name="i-lucide-check-circle-2" class="mr-1.5 size-4 shrink-0" />
-                        <span>{{ item.name }}</span>
-                      </UBadge>
+                        <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
+                          <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0 text-success" />
+                          {{ item.name }}
+                        </span>
+                        <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
+                          <UIcon name="i-lucide-play" class="size-3" />
+                          Mulai {{ formatDateTime(item.startAt || undefined) }}
+                          <span class="mx-1 text-muted">·</span>
+                          <UIcon name="i-lucide-check" class="size-3" />
+                          Selesai {{ formatDateTime(item.doneAt || undefined) }}
+                        </span>
+                      </div>
                     </div>
                     <p v-else class="text-sm text-muted">
                       Belum ada item selesai.

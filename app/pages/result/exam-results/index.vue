@@ -88,7 +88,7 @@ const api = useApi()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const { roles, isExternalDoctor, allowedResultDepartments } = await useCurrentUser()
+const { roles, isExternalDoctor, allowedResultDepartments, isSuperAdmin } = await useCurrentUser()
 const { roomTypes, pending: roomTypesPending } = await useRoomTypes()
 
 // State
@@ -163,15 +163,22 @@ function formatDateTime(dateString?: string | null) {
 }
 
 function getStatusColor(status?: string) {
-  if (status === 'completed') return 'success'
-  if (status === 'pending') return 'warning'
+  if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
+  if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'error'
+  if (status === 'DRAFT') return 'neutral'
   return 'neutral'
 }
 
 function getStatusLabel(status?: string) {
   if (status === 'completed') return 'Completed'
   if (status === 'pending') return 'Pending'
-  return 'Unknown'
+  if (status === 'DEPARTMENT_REVIEW') return 'Menunggu Approval'
+  if (status === 'DEPARTMENT_APPROVED') return 'Disetujui Dept'
+  if (status === 'SUBMITTED_TO_DOCTOR') return 'Dikirim ke Dokter'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'Dikembalikan'
+  if (status === 'DRAFT') return 'Draft'
+  return status || '-'
 }
 
 function getTypeLabel(type?: string) {
@@ -200,6 +207,16 @@ function getQueryValue(value: unknown) {
   if (Array.isArray(value)) return String(value[0] ?? '')
   if (typeof value === 'string') return value
   return ''
+}
+
+function isStatusMatchFilter(filter: string, status: string) {
+  if (filter === 'completed') {
+    return ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(status)
+  }
+  if (filter === 'pending') {
+    return ['pending', 'DRAFT', 'DEPARTMENT_REVIEW', 'RETURNED_TO_DEPARTMENT'].includes(status)
+  }
+  return true
 }
 
 function applyRouteFilters() {
@@ -268,7 +285,7 @@ const filteredResults = computed(() => {
     }
 
     // Status filter
-    if (statusFilter.value !== 'all' && result.status !== statusFilter.value) {
+    if (statusFilter.value !== 'all' && !isStatusMatchFilter(statusFilter.value, result.status)) {
       return false
     }
 
@@ -312,7 +329,7 @@ const filteredResults = computed(() => {
 async function loadDepartments() {
   departmentsLoading.value = true
   try {
-    if (!roles.value.includes('superadmin')) {
+    if (!isSuperAdmin.value) {
       departments.value = allowedResultDepartments.value
         .filter((department): department is Department => Boolean(
           department.id && department.code && department.name

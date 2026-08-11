@@ -39,6 +39,7 @@ const emit = defineEmits<{
   reschedule: []
   retest: []
   refreshed: []
+  back: []
 }>()
 
 const isFinal = computed(() =>
@@ -78,6 +79,14 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-arrow-left"
+            @click="emit('back')"
+          >
+            Kembali
+          </UButton>
           <UBadge
             :label="isFinal ? 'Selesai' : item.status === 'IN_PROGRESS' ? 'Sedang dikerjakan' : 'Menunggu'"
             :color="item.status === 'DONE' ? 'success' : item.status === 'IN_PROGRESS' ? 'warning' : 'neutral'"
@@ -101,8 +110,8 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
         <div class="flex items-start gap-2">
           <UIcon name="i-lucide-sparkles" class="mt-0.5 size-4 shrink-0" />
           <p>
-            Formulir pemeriksaan gigi mengikuti template department Dental. Isi temuan gigi,
-            oral, dan grade lalu submit sebelum menyelesaikan item.
+            Formulir pemeriksaan gigi mengikuti template department Dental. Di room ini simpan sebagai draft,
+            lalu selesaikan item dan room. Submit final hasil dental dilakukan dari menu Result setelah item selesai.
           </p>
         </div>
       </div>
@@ -111,6 +120,7 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
         v-if="examId"
         :exam-id="examId"
         :disabled="item.status !== 'IN_PROGRESS'"
+        :show-submit="false"
         @saved="emit('refreshed')"
       />
 

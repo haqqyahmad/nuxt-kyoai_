@@ -17,7 +17,7 @@ type EcgOverview = {
     attachments: Attachment[]
     warning?: string | null
     externalAssignment?: {
-      status: 'ASSIGNED' | 'CANCELLED' | 'FILLED'
+      status: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED'
       assignedExternalUserId?: number | null
     } | null
   }
@@ -45,7 +45,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const rejectReason = ref('')
 
 const fileSize = (size: number) => `${(size / 1024 / 1024).toFixed(2)} MB`
-const externalStatusColor = { ASSIGNED: 'warning', CANCELLED: 'neutral', FILLED: 'success' } as const
+const externalStatusColor = { ASSIGNED: 'warning', PROCESSING: 'info', CANCELLED: 'neutral', FILLED: 'success' } as const
 const canClear = computed(() => ['PENDING_DOCTOR', 'REJECTED'].includes(overview.value?.treadmill?.clearanceStatus ?? ''))
 
 function errorMessage(error: unknown, fallback: string) {

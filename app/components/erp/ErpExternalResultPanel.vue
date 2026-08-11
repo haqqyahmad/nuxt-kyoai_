@@ -1,7 +1,7 @@
 <script setup lang="ts">
 type Assignment = {
   id: string
-  status: 'ASSIGNED' | 'CANCELLED' | 'FILLED'
+  status: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED'
   assignedExternalUserId?: number | null
   attachmentUrl?: string | null
   assignedExternalUser?: { id: number, name: string } | null
@@ -38,6 +38,7 @@ const action = ref<'assign' | 'cancel' | 'upload' | 'open' | null>(null)
 
 const statusMeta = {
   ASSIGNED: { label: 'Ditugaskan', color: 'warning' },
+  PROCESSING: { label: 'Sedang Diproses', color: 'info' },
   CANCELLED: { label: 'Dibatalkan', color: 'neutral' },
   FILLED: { label: 'Hasil diisi', color: 'success' }
 } as const

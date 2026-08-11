@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch, onMounted } from 'vue'
 
 import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
+import HistoryTimeline from './HistoryTimeline.vue'
 
 const { isExternalDoctor } = await useCurrentUser()
 
@@ -104,10 +105,12 @@ type ExamResultDetail = {
     id: string
     examType?: 'MCU' | 'RAWAT_JALAN' | null
     examCode?: string | null
-    externalStatus?: 'ASSIGNED' | 'CANCELLED' | 'FILLED' | null
+    externalStatus?: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED' | null
     assignedExternalUserId?: number | null
     assignedExternalUser?: { id: number, name: string } | null
     externalAssignedAt?: string | null
+    externalProcessingStartedAt?: string | null
+    externalProcessingDeadline?: string | null
     externalFilledAt?: string | null
     attachmentUrl?: string | null
     externalAttachment?: {
@@ -123,6 +126,7 @@ type ExamResultDetail = {
     workUpdatedByUser?: { id: number, name: string } | null
     resultSubmittedBy?: number | null
     resultSubmittedByUser?: { id: number, name: string } | null
+    externalProcessSlaDays?: number | null
     results?: Array<{
       inputanId: string
       valueString?: string | null
@@ -172,9 +176,43 @@ const emit = defineEmits<{
 
 const result = computed(() => props.result)
 
+const externalContextOpen = ref(true)
+
 const api = useApi()
 const toast = useToast()
-const { loading: auditLoading, entries: auditEntries, fetchAudit, resetAudit } = useAudit()
+const { loading: auditLoading, entries, resetAudit } = useAudit()
+async function fetchAllAudit() {
+  if (!props.result?.id) {
+    resetAudit()
+    return
+  }
+  auditLoading.value = true
+  try {
+    // View petugas (groupBy exam): result.id = examId, item id ada di result.items.
+    // View dokter luar (groupBy item): result.id = examItemId.
+    const examId = props.result.exam?.id ?? (props.result as any).examId ?? null
+    const examItemIds = (props.result as any).items?.length
+      ? (props.result as any).items.map((it: any) => it.id)
+      : [props.result.id]
+
+    const [roomLogs, externalLogs, examLogs] = await Promise.all([
+      Promise.all(examItemIds.map((id: string) =>
+        api.get(`/audit/RoomExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => [])
+      )).then(rows => rows.flat()),
+      Promise.all(examItemIds.map((id: string) =>
+        api.get(`/audit/ExternalResultAssignment/${id}`).then(r => r.data?.data ?? []).catch(() => [])
+      )).then(rows => rows.flat()),
+      examId
+        ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => [])
+        : Promise.resolve([])
+    ])
+    entries.value = [...roomLogs, ...externalLogs, ...examLogs].sort((a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
+  } finally {
+    auditLoading.value = false
+  }
+}
 
 const groupGradingItems: Array<{ label: string, value: GradingValue }> = [
   { label: 'Normal', value: 'NORMAL' },
@@ -193,18 +231,134 @@ const groupGradingSaving = ref(false)
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
 const canEditCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus !== 'FILLED'
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus === 'PROCESSING'
   return props.result?.canEditResult ?? props.result?.status === 'pending'
 })
 const canSubmitCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus !== 'FILLED' && Boolean(props.result.exam?.attachmentUrl)
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus === 'PROCESSING'
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
 const isExternalResultFilled = computed(() =>
   props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
 )
-console.log('isExternalResultFilled', props.result?.isExternalResult, props.result?.exam?.externalStatus, isExternalResultFilled.value)
-console.log('props.result', props.result)
+
+const externalProcessingDeadline = computed(() => {
+  if (props.result?.exam?.externalStatus !== 'PROCESSING') return null
+  return props.result?.exam?.externalProcessingDeadline ?? null
+})
+const externalProcessingOverdue = computed(() => {
+  if (!externalProcessingDeadline.value) return false
+  return new Date() > new Date(externalProcessingDeadline.value)
+})
+const externalProcessingRemainingLabel = computed(() => {
+  const deadline = props.result?.exam?.externalProcessingDeadline
+  if (!deadline) return ''
+  const ms = new Date(deadline).getTime() - Date.now()
+  if (ms <= 0) return 'sudah lewat batas waktu (3 jam)'
+  const hours = Math.floor(ms / 3600000)
+  const minutes = Math.floor((ms % 3600000) / 60000)
+  return `${hours} jam ${minutes} menit tersisa`
+})
+
+const externalStarting = ref(false)
+async function startExternalProcessing() {
+  const examItemId = getExternalExamItemId()
+  if (!props.result?.exam?.id || !examItemId || externalStarting.value) return
+  externalStarting.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result.exam.id}/external-processing/start`, { examItemId })
+    toast.add({ title: 'Berhasil', description: 'Pemeriksaan dokter luar dimulai. Batas waktu submit 3 jam.', color: 'success' })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal memulai pemeriksaan dokter luar.'), color: 'error' })
+  } finally {
+    externalStarting.value = false
+  }
+}
+
+const slaDays = computed(() => props.result?.exam?.externalProcessSlaDays ?? 3)
+const slaDeadline = computed(() => {
+  const assignedAt = props.result?.exam?.externalAssignedAt
+  if (!assignedAt) return null
+  const deadline = new Date(assignedAt)
+  deadline.setDate(deadline.getDate() + (slaDays.value || 0))
+  return deadline
+})
+const slaOverdue = computed(() => {
+  if (props.result?.exam?.externalStatus !== 'ASSIGNED') return false
+  if (!slaDeadline.value) return false
+  return new Date() > slaDeadline.value
+})
+const slaRemainingLabel = computed(() => {
+  if (!slaDeadline.value) return ''
+  const ms = slaDeadline.value.getTime() - Date.now()
+  if (ms <= 0) return 'sudah lewat batas waktu'
+  const hours = Math.floor(ms / 3600000)
+  const days = Math.floor(hours / 24)
+  if (days > 0) return `${days} hari ${hours % 24} jam tersisa`
+  return `${hours} jam tersisa`
+})
+
+const resultStatusOptions = [
+  { label: 'Belum Siap (NOT_READY)', value: 'NOT_READY' },
+  { label: 'Siap (READY)', value: 'READY' },
+  { label: 'Draft (DRAFT)', value: 'DRAFT' },
+  { label: 'Tersubmit (SUBMITTED)', value: 'SUBMITTED' },
+  { label: 'Dikembalikan (RETURNED)', value: 'RETURNED' }
+]
+const selectedResultStatus = ref<string>('')
+const statusSaving = ref(false)
+
+watch(() => props.result?.resultStatus, (value) => {
+  selectedResultStatus.value = value || 'NOT_READY'
+}, { immediate: true })
+
+async function handleUpdateResultStatus() {
+  if (!props.result?.exam?.id || statusSaving.value) return
+  if (!selectedResultStatus.value || selectedResultStatus.value === props.result.resultStatus) return
+
+  statusSaving.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result.exam.id}/results/status`, {
+      examItemId: props.result.id,
+      resultStatus: selectedResultStatus.value
+    })
+    toast.add({ title: 'Status proses diperbarui', color: 'success' })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal update status',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status.'),
+      color: 'error'
+    })
+  } finally {
+    statusSaving.value = false
+  }
+}
+
+async function setResultStatus(status: string) {
+  if (!props.result?.exam?.id || statusSaving.value) return
+  if (status === props.result.resultStatus) return
+
+  statusSaving.value = true
+  try {
+    await api.post(`/mcu/exams/${props.result.exam.id}/results/status`, {
+      examItemId: props.result.id,
+      resultStatus: status
+    })
+    selectedResultStatus.value = status
+    toast.add({ title: 'Status proses diperbarui', color: 'success' })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal update status',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status.'),
+      color: 'error'
+    })
+  } finally {
+    statusSaving.value = false
+  }
+}
 const resultWorkflowLabel = computed(() => {
   if (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW') return 'Waiting Approval'
   if (props.result?.departmentResultStatus === 'DEPARTMENT_APPROVED') return 'Department Approved'
@@ -306,6 +460,7 @@ function getErrorMessage(error: unknown, fallback = 'Terjadi kesalahan'): string
 
 const externalStatusColor: Record<string, BadgeColor> = {
   ASSIGNED: 'warning',
+  PROCESSING: 'info',
   CANCELLED: 'neutral',
   FILLED: 'success'
 }
@@ -823,12 +978,18 @@ function getDepartmentLabel(dept?: Department | null) {
 function getStatusLabel(status?: string) {
   if (status === 'completed') return 'Completed'
   if (status === 'pending') return 'Pending'
-  return 'Unknown'
+  if (status === 'DEPARTMENT_REVIEW') return 'Menunggu Approval'
+  if (status === 'DEPARTMENT_APPROVED') return 'Disetujui Dept'
+  if (status === 'SUBMITTED_TO_DOCTOR') return 'Dikirim ke Dokter'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'Dikembalikan'
+  if (status === 'DRAFT') return 'Draft'
+  return status || '-'
 }
 
 function getStatusColor(status?: string) {
-  if (status === 'completed') return 'success'
-  if (status === 'pending') return 'warning'
+  if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
+  if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'error'
   return 'neutral'
 }
 
@@ -1231,7 +1392,7 @@ watch(
     if (props.result) {
       seedDraftsFromExistingResults()
       if (props.result.id) {
-        fetchAudit('RoomExamItem', props.result.id)
+        fetchAllAudit()
         loadGroupResults()
         void loadExternalAttachmentPreview()
       } else {
@@ -1320,7 +1481,7 @@ onBeforeUnmount(() => {
         />
 
         <div
-          v-if="embedded && result?.status === 'pending'"
+          v-if="embedded && result?.status === 'pending' && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
           <UButton
@@ -1336,7 +1497,7 @@ onBeforeUnmount(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
+            :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample || (hasExternalResultContext && externalProcessingOverdue)"
             icon="i-lucide-send"
             @click="handleSubmitResult"
           >
@@ -1349,7 +1510,7 @@ onBeforeUnmount(() => {
     <template #body>
       <div
         v-if="result && isExternalDoctorWorkspace"
-        class="flex h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
+        class="flex h-[calc(120dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
       >
         <UCard class="mb-4 shrink-0 overflow-hidden border border-default/80 shadow-sm">
           <template #header>
@@ -1357,9 +1518,81 @@ onBeforeUnmount(() => {
               <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
                 Konteks Pemeriksaan
               </h4>
-              <UBadge :label="result.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
+              <div class="flex items-center gap-2">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-chevron-up"
+                  aria-label="Tutup atau buka konteks"
+                  :class="externalContextOpen ? '' : 'rotate-180'"
+                  @click="externalContextOpen = !externalContextOpen"
+                />
+                <UBadge
+                  :label="`Status: ${resultWorkflowLabel || result.resultStatus || '-'}`"
+                  :color="getStatusColor(result.resultStatus === 'SUBMITTED' ? 'completed' : result.resultStatus === 'RETURNED' ? 'error' : 'pending')"
+                  variant="soft"
+                  size="sm"
+                />
+                <UBadge :label="result.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
+              </div>
             </div>
           </template>
+
+          <div v-show="externalContextOpen">
+          <!-- Batas waktu pengerjaan dokter luar: 3 jam setelah mulai diproses -->
+          <div
+            v-if="result.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
+            class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
+            :class="externalProcessingOverdue ? 'border-error/40 bg-error/5' : 'border-primary/20 bg-primary/5'"
+          >
+            <UIcon
+              :name="externalProcessingOverdue ? 'i-lucide-alert-triangle' : 'i-lucide-clock'"
+              class="size-5 shrink-0"
+              :class="externalProcessingOverdue ? 'text-error' : 'text-primary'"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold" :class="externalProcessingOverdue ? 'text-error' : 'text-highlighted'">
+                {{ externalProcessingOverdue ? 'Batas waktu submit sudah lewat' : 'Pemeriksaan sedang diproses dokter luar' }}
+              </p>
+              <p class="text-xs text-muted">
+                Mulai {{ formatDateTime(result.exam?.externalProcessingStartedAt) }} ·
+                Deadline {{ formatDateTime(result.exam?.externalProcessingDeadline) }} ·
+                <span class="font-semibold" :class="externalProcessingOverdue ? 'text-error' : 'text-primary'">
+                  {{ externalProcessingRemainingLabel }}
+                </span>
+              </p>
+            </div>
+            <UBadge
+              label="Batas 3 jam"
+              :color="externalProcessingOverdue ? 'error' : 'primary'"
+              variant="solid"
+              size="sm"
+            />
+          </div>
+          <div
+            v-else-if="result.exam?.externalStatus === 'ASSIGNED'"
+            class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-default/70 bg-muted/30 px-4 py-3"
+          >
+            <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-highlighted">
+                Pemeriksaan belum diproses
+              </p>
+              <p class="text-xs text-muted">
+                Mulai pemeriksaan untuk mengaktifkan form hasil. Batas waktu submit 3 jam setelah mulai.
+              </p>
+            </div>
+            <UButton
+              size="sm"
+              color="primary"
+              :loading="externalStarting"
+              icon="i-lucide-play"
+              @click="startExternalProcessing"
+            >
+              Mulai Proses
+            </UButton>
+          </div>
           <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
             <div class="min-w-0">
               <dt class="text-xs uppercase tracking-wide text-muted">
@@ -1404,11 +1637,12 @@ onBeforeUnmount(() => {
               </dd>
             </div>
           </dl>
+          </div> <!-- v-show externalContextOpen -->
         </UCard>
 
         <div class="grid min-h-0 flex-1 gap-4" :class="isExternalInputTwoColumns ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]' : 'xl:grid-cols-[minmax(760px,1.55fr)_minmax(360px,.75fr)]'">
-          <UCard class="min-h-0 overflow-hidden border border-default/80 shadow-sm xl:sticky xl:top-0 xl:self-start" :ui="{ body: 'p-0 sm:p-0' }">
-            <div class="mx-4 mt-4 h-[calc(100dvh-20rem)] min-h-[440px] overflow-hidden rounded-t-lg bg-muted/30">
+          <UCard class="flex min-h-0 flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }">
+            <div class="mx-4 mt-4 mb-4 flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-t-lg bg-muted/30">
               <div v-if="externalAttachmentLoading" class="flex h-full items-center justify-center text-sm text-muted">
                 <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat PDF...
               </div>
@@ -1416,7 +1650,7 @@ onBeforeUnmount(() => {
                 v-else-if="externalAttachmentPreviewUrl"
                 :src="externalAttachmentPreviewUrl"
                 title="PDF hasil pemeriksaan"
-                class="h-full w-full border-0 bg-muted/30"
+                class="h-full w-full flex-1 border-0 bg-muted/30"
               />
               <div v-else class="flex h-full items-center justify-center p-6">
                 <UAlert
@@ -1434,7 +1668,7 @@ onBeforeUnmount(() => {
             </div>
           </UCard>
 
-          <UCard class="flex min-h-0 max-h-[calc(100dvh-20rem)] flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }">
+          <UCard class="flex min-h-0 max-h-full flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }">
             <template #header>
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
@@ -1530,25 +1764,84 @@ onBeforeUnmount(() => {
               />
             </div>
             <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10">
-              <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  :loading="saving"
-                  :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
-                  icon="i-lucide-save"
-                  @click="handleSaveResult"
-                >
-                  Simpan Draft
-                </UButton><UButton
-                  color="primary"
-                  :loading="submitting"
-                  :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
-                  icon="i-lucide-send"
-                  @click="handleSubmitResult"
-                >
-                  Submit Hasil
-                </UButton>
+              <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                <!-- Status manual hanya untuk item bukan external result -->
+                <template v-if="!hasExternalResultContext">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted">Ubah Status:</span>
+                    <USelect
+                      v-model="selectedResultStatus"
+                      :items="resultStatusOptions"
+                      size="xs"
+                      class="w-56"
+                    />
+                    <UButton
+                      size="xs"
+                      color="primary"
+                      variant="soft"
+                      :loading="statusSaving"
+                      :disabled="selectedResultStatus === result.resultStatus"
+                      @click="handleUpdateResultStatus"
+                    >
+                      Update Status
+                    </UButton>
+                  </div>
+                  <div class="flex flex-col gap-2 sm:flex-row">
+                    <UButton
+                      color="secondary"
+                      variant="soft"
+                      :loading="statusSaving"
+                      :disabled="selectedResultStatus === 'READY'"
+                      icon="i-lucide-play"
+                      @click="setResultStatus('READY')"
+                    >
+                      Mulai Proses
+                    </UButton>
+                    <UButton
+                      color="neutral"
+                      variant="soft"
+                      :loading="saving"
+                      :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
+                      icon="i-lucide-save"
+                      @click="handleSaveResult"
+                    >
+                      Simpan Draft
+                    </UButton><UButton
+                      color="primary"
+                      :loading="submitting"
+                      :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
+                      icon="i-lucide-send"
+                      @click="handleSubmitResult"
+                    >
+                      Submit Hasil
+                    </UButton>
+                  </div>
+                </template>
+
+                <!-- Dokter luar: tombol Simpan Draft + Submit setelah Mulai Proses (PROCESSING) -->
+                <template v-else-if="result.exam?.externalStatus === 'PROCESSING'">
+                  <div class="flex flex-col gap-2 sm:flex-row">
+                    <UButton
+                      color="neutral"
+                      variant="soft"
+                      :loading="saving"
+                      :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
+                      icon="i-lucide-save"
+                      @click="handleSaveResult"
+                    >
+                      Simpan Draft
+                    </UButton>
+                    <UButton
+                      color="primary"
+                      :loading="submitting"
+                      :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample || externalProcessingOverdue"
+                      icon="i-lucide-send"
+                      @click="handleSubmitResult"
+                    >
+                      Submit Hasil
+                    </UButton>
+                  </div>
+                </template>
               </div>
             </div>
           </UCard>
@@ -1582,6 +1875,41 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- Peringatan untuk petugas: status dokter luar -->
+        <div v-if="hasExternalResultContext && !isExternalDoctor && result.exam?.externalStatus" class="border-b px-4 py-3" :class="{
+          'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200': result.exam.externalStatus === 'ASSIGNED',
+          'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200': result.exam.externalStatus === 'PROCESSING',
+          'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200': result.exam.externalStatus === 'FILLED',
+          'border-default bg-muted/30': result.exam.externalStatus === 'CANCELLED',
+        }">
+          <div class="flex items-start gap-2">
+            <UIcon :name="result.exam.externalStatus === 'PROCESSING' ? 'i-lucide-clock' : result.exam.externalStatus === 'ASSIGNED' ? 'i-lucide-alert-triangle' : 'i-lucide-check-circle'" class="mt-0.5 size-4 shrink-0" />
+            <div class="min-w-0">
+              <p v-if="result.exam.externalStatus === 'ASSIGNED'" class="text-sm font-semibold">
+                Dokter luar belum memulai pemeriksaan
+              </p>
+              <p v-else-if="result.exam.externalStatus === 'PROCESSING'" class="text-sm font-semibold">
+                Dokter luar sedang mengerjakan pemeriksaan
+                <span v-if="externalProcessingOverdue" class="text-error"> — batas waktu sudah lewat (3 jam)</span>
+                <span v-else> — {{ externalProcessingRemainingLabel }}</span>
+              </p>
+              <p v-else-if="result.exam.externalStatus === 'FILLED'" class="text-sm font-semibold">
+                Dokter luar sudah mengisi hasil
+              </p>
+              <p v-else class="text-sm font-semibold">Penugasan dibatalkan</p>
+              <p class="text-xs opacity-80">
+                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                <template v-if="result.exam.externalStatus === 'PROCESSING'">
+                  · Mulai {{ formatDateTime(result.exam.externalProcessingStartedAt) }}
+                </template>
+                <template v-else-if="result.exam.externalStatus === 'ASSIGNED'">
+                  · Ditugaskan {{ formatDateTime(result.exam.externalAssignedAt) }}
+                </template>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
@@ -1592,16 +1920,28 @@ onBeforeUnmount(() => {
                 {{ result.queueCode }}
               </p>
             </div>
-            <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
+            <div v-if="!hasExternalResultContext" class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
               <p class="text-xs uppercase tracking-wide text-muted">
-                Status
+                Status Proses
               </p>
               <div class="mt-2">
-                <UBadge
-                  :label="getStatusLabel(result.status)"
-                  :color="getStatusColor(result.status)"
-                  variant="subtle"
+                <USelect
+                  v-model="selectedResultStatus"
+                  :items="resultStatusOptions"
+                  size="xs"
+                  class="w-full"
                 />
+                <UButton
+                  class="mt-2 w-full"
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  :loading="statusSaving"
+                  :disabled="selectedResultStatus === result.resultStatus"
+                  @click="handleUpdateResultStatus"
+                >
+                  Update Status
+                </UButton>
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
@@ -1628,7 +1968,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div
-          class="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-5"
+          class="min-h-0 flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-5 sm:pb-32"
           :class="embedded ? 'overflow-visible' : 'overflow-y-auto'"
         >
           <div class="mx-auto grid w-full max-w-[1500px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -1750,7 +2090,7 @@ onBeforeUnmount(() => {
                       </UBadge>
                       <span v-else class="text-sm text-muted">-</span>
 
-                      <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
+                      <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'PROCESSING' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
                         {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
                       </div>
 
@@ -1775,8 +2115,9 @@ onBeforeUnmount(() => {
                         </UButton>
                       </div>
 
-                      <div v-if="!isExternalDoctor && result.exam?.externalStatus === 'ASSIGNED'" class="flex items-center gap-2">
+                      <div v-if="!isExternalDoctor && (result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'PROCESSING')" class="flex items-center gap-2">
                         <UButton
+                          v-if="result.exam?.externalStatus === 'ASSIGNED'"
                           size="xs"
                           color="error"
                           variant="soft"
@@ -1831,86 +2172,13 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="flex min-w-0 flex-col gap-5">
-              <UCard class="order-2 border border-default/80 bg-default/80 shadow-sm">
-                <template #header>
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                        Riwayat Proses
-                      </h4>
-                      <p class="mt-1 text-xs text-muted">
-                        Jejak perubahan dan proses pemeriksaan
-                      </p>
-                    </div>
-                    <UIcon name="i-lucide-list-checks" class="size-4 text-muted" />
-                  </div>
-                </template>
-
-                <div v-if="auditLoading" class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
-                  Memuat riwayat proses...
-                </div>
-
-                <div v-else-if="auditEntries.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-                  <div
-                    v-for="(entry, index) in auditEntries"
-                    :key="entry.id ?? index"
-                    class="rounded-2xl border border-default/70 bg-muted/30 p-4"
-                  >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-highlighted">
-                          {{ entry.action }}
-                        </p>
-                        <p v-if="entry.actorId" class="mt-1 text-xs text-muted">
-                          by <strong>user #{{ entry.actorId }}</strong>
-                          <span v-if="entry.actorRole"> ({{ entry.actorRole }})</span>
-                        </p>
-                      </div>
-                      <p class="shrink-0 text-xs text-muted">
-                        {{ formatDateTime(entry.createdAt) }}
-                      </p>
-                    </div>
-                    <p v-if="entry.notes" class="mt-3 text-sm leading-6 text-muted">
-                      {{ entry.notes }}
-                    </p>
-                    <div v-if="entry.payloadAfter" class="mt-3 space-y-1 text-xs text-muted">
-                      <div v-for="(diff, key) in entry.payloadAfter" :key="key" class="flex gap-2">
-                        <span class="font-medium text-highlighted">{{ key }}:</span>
-                        <span>{{ diff.from ?? '-' }} → {{ diff.to ?? '-' }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-else-if="result.workHistory?.length" class="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-                  <div
-                    v-for="(event, index) in result.workHistory"
-                    :key="index"
-                    class="rounded-2xl border border-default/70 bg-muted/30 p-4"
-                  >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-highlighted">
-                          {{ event.action }}
-                        </p>
-                        <p v-if="event.actor" class="mt-1 text-xs text-muted">
-                          by <strong>{{ event.actor }}</strong>
-                        </p>
-                      </div>
-                      <p class="shrink-0 text-xs text-muted">
-                        {{ formatDateTime(event.timestamp) }}
-                      </p>
-                    </div>
-                    <p v-if="event.details" class="mt-3 text-sm leading-6 text-muted">
-                      {{ event.details }}
-                    </p>
-                  </div>
-                </div>
-
-                <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
-                  Belum ada riwayat proses.
-                </div>
-              </UCard>
+              <HistoryTimeline
+                class="order-2 mb-4 pb-2"
+                :loading="auditLoading"
+                :entries="entries"
+                :work-history="result.workHistory"
+                :queue-code="result.queueCode"
+              />
 
               <UCard v-if="!isExternalResultFilled" class="order-1 border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
