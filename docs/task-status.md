@@ -4,6 +4,56 @@ Last updated: 2026-08-11
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-11: Sembunyikan answer-summary (ikut document-info yang tidak muncul)
+
+- User tanya apakah blok `document-info` (No. Registrasi / Tanggal Pemeriksaan / Perusahaan) muncul di hasil print.
+- Fakta: TIDAK muncul — `document-info` berada di dalam `.document-header`, dan `.document-header` di `display:none` oleh `pageSetupCss()` (media screen & print) sejak header dipindah ke `<thead>`.
+- User minta `answer-summary` tidak muncul juga, tapi TIDAK dihapus — hanya **disembunyikan**: blok dibungkus `{% if false %}` di `defaultTemplate` (`QuestionnairePrintTemplateModal.vue`), kode tetap ada di template. Aktifkan kembali dengan `{% if true %}`. Engine template sudah mendukung literal boolean `false`/`true`.
+
+## Completed — 2026-08-11: Jeda di bawah border header (tiap halaman)
+
+- `printHeaderHtml`: tambah `<div class="print-head-gap"></div>` setelah `.print-head` (di dalam `<thead>`) — jeda muncul di tiap halaman karena thead diulang.
+- `printHeaderCss`: `.print-head-gap { height: var(--hdr-gap, 6mm) }` — bisa disesuaikan via CSS var.
+- Verifikasi print headless: gap 20.4pt di bawah border, identik di page 1 & 2; header tetap sejajar.
+
+## Completed — 2026-08-11: Ganti margin-box → header tabel `<thead>` (berulang, tajam, sejajar, tidak pojok)
+
+**Perintah:** "gambar pecah, No.RM terlalu pojok, gambar/title/No.RM tidak sejajar. buildPageChromeCss diganti bisa? ada opsi?"
+
+**Riset empiris 3 teknik header print (Chrome):**
+- `position:fixed` → berulang tiap halaman tapi **konten halaman 2+ overlap** (first_body y0=-0.4) → gagal.
+- `<thead>` tabel → **berulang tiap halaman, konten rapi di bawah header (y0≈141), kontrol CSS penuh** → menang.
+- margin-box → keterbatasan ukuran/tajam/posisi (akar semua keluhan).
+
+**Perubahan (`useQuestionnairePrint.ts`):**
+- `buildPageChromeCss` di-rename → **`pageSetupCss()`** (fungsi kecil & jelas): HANYA `@page` (ukuran/margin + footer margin-box `@bottom-left` nama|no & `@bottom-right` Page X of Y) + hide `.document-header/.document-footer` di screen & print. Referensi diperbarui di `questionnaire-results.vue` (2 tempat) — nama konsep "chrome" dihapus.
+- Baru `printHeaderCss()` + `printHeaderHtml(ctx)` — header letterhead (`div.print-head`) berisi logo/LOGO, judul+subtitle, No.RM; kontrol via `var(--hdr-*)`; No.RM `padding-right:10mm` (tidak pojok); `align-items:center` (sejajar).
+- `printQuestionnaireHtml` membungkus body dalam `<table class="printwrap"><thead><tr><th>HEADER</th></tr></thead><tbody><tr><td>BODY</td></tr></tbody></table>` → Chrome mengulang `<thead>` di setiap halaman.
+- Catatan empiris: `<tfoot>` berulang per halaman tapi `counter(page)` di dalamnya menghasilkan "Page 0 of 0" → footer tetap pakai margin-box.
+
+**Modal (`QuestionnairePrintTemplateModal.vue`):** logo disimpan hingga **512px** (`LOGO_MAX_DIM`) — tajam saat ditampilkan 96px (sebelumnya 96px → pecah); `Lebar/Atas/Kiri` kini hanya mengubah CSS var (tanpa re-encode); hapus `chromeOpts` di `runPreview`/`openPrintPreview`.
+
+**Results (`questionnaire-results.vue`):** `legacyPrintHtml` & `templatePrintHtml` dibungkus `<thead>`; logo diekstrak dari template → `ctx.logoUrl` untuk `printHeaderHtml`; `screenChrome*` dihapus; `.document-page` tanpa `min-height` (hindari halaman kosong di dalam td).
+
+**Verifikasi (headless + bbox):** 3 halaman, header (logo/img, judul, No.RM) identik di tiap halaman; No.RM x0=497.6 (~34mm dari tepi kanan, tidak pojok); logo tajam (sumber 512px, tampil 96px); layar: logo 583/5000 nonwhite, border header di y=30, judul tengah. `eslint` 0 error, `vue-tsc --noEmit` lulus.
+
+## Completed — 2026-08-11: Screen-chrome header — layar WYSIWYG dengan hasil Ctrl+P
+
+**Perintah:** "buildPageChromeCss ini buat apa? saat Ctrl+P hasilnya tidak sesuai dengan sebelum tekan Ctrl+P".
+
+**Akar masalah:** margin-box `@page` hanya dirender saat print, tidak di layar → sebelum Ctrl+P layar menampilkan header flow template, setelah Ctrl+P header diganti margin-box → berbeda.
+
+**Perubahan (`useQuestionnairePrint.ts`):**
+- `screenChromeCss()`: header tiruan `position:fixed top:0 height:36mm` + border bawah `#24364f` 2px, hanya aktif `@media screen` (default `display:none` → otomatis hilang saat print, digantikan margin-box). Posisi/size logo mengikuti `var(--hdr-*)`.
+- `screenChromeHtml(ctx)`: markup logo/title/subtitle/No.RM yang sama persis dengan margin-box.
+- `printQuestionnaireHtml` selalu sisipkan kedua + hide `.document-header` di layar → layar dan print memakai tampilan header yang sama.
+
+**Terapkan juga di `questionnaire-results.vue`:** `legacyPrintHtml` & `templatePrintHtml` (hide `h1` legacy di layar; `screenChromeCss()`/`screenChromeHtml()` masuk).
+
+**Modal preview (`QuestionnairePrintTemplateModal.vue`):** `runPreview` kini memakai `printQuestionnaireHtml` (bukan render manual) → iframe preview = print window = print. Ref `previewHtml`/`previewCssExtra`/`previewDoc` dihapus.
+
+**Verifikasi:** screenshot headless — tie border header hadir di y≈101px (36mm×0.75), judul & logo tampil di atas; PDF print tak berubah (IMG x0=57 y0=9, judul y0=43.6). `eslint` 0 error, `vue-tsc --noEmit` lulus.
+
 ## Completed — 2026-08-11: Kontrol posisi/ukuran logo di modal (kembali) — Lebar px, Atas mm, Kiri mm
 
 **Perintah:** "Tidak bisa lagi mengubah posisi logo lewat modal seperti sebelumnya" + header print & preview masih belum sesuai.

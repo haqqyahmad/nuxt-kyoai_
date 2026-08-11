@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { handleError, handleSuccess } from '~/utils/handlers'
 import {
-  renderQuestionnaireTemplate,
   buildQuestionnairePrintContext,
-  extractTemplateStyles,
   printQuestionnaireHtml
 } from '~/composables/questionnaire/useQuestionnairePrint'
 import type { QuestionnairePrintContext } from '~/composables/questionnaire/useQuestionnairePrint'
@@ -35,8 +33,7 @@ const open = defineModel<boolean>('open', {
 const template = ref('')
 const loading = ref(false)
 const previewOpen = ref(false)
-const previewHtml = ref('')
-const previewCssExtra = ref('')
+const previewDocHtml = ref('')
 
 const logoUrl = ref('')
 const logoFile = ref<HTMLInputElement | null>(null)
@@ -45,14 +42,17 @@ const logoWidth = ref(96)
 const logoTop = ref(0)
 const logoLeft = ref(5)
 
-function resizeHeaderLogo(dataUrl: string, widthPx: number = logoWidth.value): Promise<string> {
+const LOGO_MAX_DIM = 512
+
+function resizeHeaderLogo(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
-      const scale = Math.max(0.01, widthPx / Math.max(img.width, img.height))
+      const maxDim = Math.max(img.width, img.height)
+      if (maxDim <= LOGO_MAX_DIM) return resolve(dataUrl)
+      const scale = LOGO_MAX_DIM / maxDim
       const w = Math.max(1, Math.round(img.width * scale))
       const h = Math.max(1, Math.round(img.height * scale))
-      if (Math.abs(w - img.width) < 1 && Math.abs(h - img.height) < 1) return resolve(dataUrl)
       const canvas = document.createElement('canvas')
       canvas.width = w
       canvas.height = h
@@ -67,21 +67,17 @@ function resizeHeaderLogo(dataUrl: string, widthPx: number = logoWidth.value): P
 }
 
 let logoRerenderTimer: ReturnType<typeof setTimeout> | undefined
-watch([logoWidth, logoLeft, logoTop], async () => {
-  if (!logoUrl.value) return
+watch([logoWidth, logoLeft, logoTop], () => {
   clearTimeout(logoRerenderTimer)
-  logoRerenderTimer = setTimeout(async () => {
-    logoUrl.value = await resizeHeaderLogo(logoUrl.value, logoWidth.value)
-    runPreview()
-  }, 300)
+  logoRerenderTimer = setTimeout(runPreview, 300)
 })
 
 function setLogoOpt(key: 'width' | 'top' | 'left', v: string | number | null | undefined) {
   const n = Number(v)
   if (!Number.isFinite(n)) return
-  if (key === 'width') logoWidth.value = Math.max(32, Math.min(240, Math.round(n)))
-  else if (key === 'top') logoTop.value = Math.max(0, Math.min(30, n))
-  else logoLeft.value = Math.max(0, Math.min(40, n))
+  if (key === 'width') logoWidth.value = Math.max(32, Math.min(320, Math.round(n)))
+  else if (key === 'top') logoTop.value = Math.max(0, Math.min(20, n))
+  else logoLeft.value = Math.max(0, Math.min(30, n))
 }
 
 async function onUploadLogo() {
@@ -92,7 +88,7 @@ async function onUploadLogo() {
     reader.onload = () => resolve(reader.result as string)
     reader.readAsDataURL(file)
   })
-  logoUrl.value = await resizeHeaderLogo(raw, logoWidth.value)
+  logoUrl.value = await resizeHeaderLogo(raw)
   template.value = template.value.replace(/src="data:image[^"]*"/g, '{{ logoUrl }}')
   runPreview()
 }
@@ -128,8 +124,9 @@ watch(
       stored = stored.replace(/<!--print-opts--><style>[\s\S]*?<\/style>/g, '')
     }
     const m = stored.match(/src="(data:image[^"]*)"/)
-    if (m) {
-      logoUrl.value = await resizeHeaderLogo(m[1], logoWidth.value)
+    const dataUrl = m?.[1]
+    if (dataUrl) {
+      logoUrl.value = await resizeHeaderLogo(dataUrl)
       stored = stored.replace(/src="data:image[^"]*"/g, '{{ logoUrl }}')
     }
     template.value = stored
@@ -1025,6 +1022,7 @@ const defaultTemplate = `<style>
      SUMMARY
      ========================================================= -->
 
+{% if false %}
 <div class="answer-summary">
 
   <div class="summary-item">
@@ -1042,7 +1040,12 @@ const defaultTemplate = `<style>
   </div>
 
 </div>
+{% endif %}
 
+
+<!-- =========================================================
+     QUESTION TITLE
+     ========================================================= -->
 
 {% if sections.length %}
 
@@ -1303,18 +1306,6 @@ const previewCss = `
   }
 `
 
-const previewDoc = computed(() => `
-  <html lang="id">
-    <head>
-      <style>${previewCss}</style>
-      ${previewCssExtra.value}
-    </head>
-    <body>
-      <div class="document-page">${previewHtml.value}</div>
-    </body>
-  </html>
-`)
-
 const previewIframeRef = ref<HTMLIFrameElement>()
 
 function writePreviewDoc() {
@@ -1323,11 +1314,11 @@ function writePreviewDoc() {
   const doc = iframe.contentDocument
   if (!doc) return
   doc.open()
-  doc.write(previewDoc.value)
+  doc.write(previewDocHtml.value)
   doc.close()
 }
 
-watch(previewDoc, () => {
+watch(previewDocHtml, () => {
   writePreviewDoc()
 })
 
@@ -1338,9 +1329,7 @@ watch(previewOpen, (open) => {
 function runPreview() {
   try {
     const ctx = ctxWithLogo(sampleContext())
-    const { styles, body } = extractTemplateStyles(embeddedTemplate())
-    previewHtml.value = renderQuestionnaireTemplate(body, ctx)
-    previewCssExtra.value = styles
+    previewDocHtml.value = printQuestionnaireHtml(ctx, embeddedTemplate(), previewCss)
     previewOpen.value = true
   } catch (err) {
     handleError(toast, err)
@@ -1365,10 +1354,7 @@ function openPrintPreview() {
   const ctx = ctxWithLogo(sampleContext())
   const w = window.open('', '_blank')
   if (!w) return
-  w.document.write(printQuestionnaireHtml(ctx, embeddedTemplate(), previewCss, {
-    topMm: logoTop.value,
-    leftMm: logoLeft.value
-  }))
+  w.document.write(printQuestionnaireHtml(ctx, embeddedTemplate(), previewCss))
   w.document.close()
 }
 

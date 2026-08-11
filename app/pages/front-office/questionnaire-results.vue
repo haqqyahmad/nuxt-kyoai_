@@ -7,7 +7,9 @@ import type { HeaderContext } from '@tanstack/table-core'
 import {
   renderQuestionnaireTemplate,
   buildQuestionnairePrintContext,
-  buildPageChromeCss,
+  pageSetupCss,
+  printHeaderCss,
+  printHeaderHtml,
   extractTemplateStyles,
   extractBranchCity
 } from '~/composables/questionnaire/useQuestionnairePrint'
@@ -246,7 +248,7 @@ function fmtDate(d?: string) {
 const printCss = `
   * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
   body { background-color: #f0f2f5; margin: 0; padding: 20px; }
-  .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; min-height: 1050px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; }
+  .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; padding: 30px 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
   h1 { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; margin-top: 0; margin-bottom: 25px; text-transform: uppercase; }
   .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
   .section-subtitle { font-weight: bold; margin-top: 10px; margin-bottom: 6px; }
@@ -271,6 +273,7 @@ const printCss = `
     .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
     h1 { display: none; }
   }
+  @media screen { h1 { display: none; } }
 `
 
 function legacyPrintHtml(row: QuestionnaireResult): string {
@@ -290,13 +293,17 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
     <html lang="id">
       <head>
         <title>${row.questionnaire_name} - ${row.patientName}</title>
-        <style>${printCss}${buildPageChromeCss(row.patientName, row.patientCode)}</style>
+        <style>${printCss}${printHeaderCss()}${pageSetupCss(row.patientName, row.patientCode)}</style>
       </head>
       <body>
-        <div class="document-page">
-          <h1>KUESIONER MEDICAL CHECK - UP</h1>
-
-          <div class="section-title">DATA DIRI</div>
+        <table class="printwrap">
+          <thead>
+            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: '' })}</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>
+              <div class="document-page">
+                <div class="section-title">DATA DIRI</div>
           <table class="data-diri-table">
             <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td>${row.patientName} &nbsp;&nbsp;&nbsp; ( ${genderLabel(row.patientGender)} )</td></tr>
             <tr><td class="label">Tgl, Bln, Tahun Lahir</td><td class="colon">:</td><td>${row.patientDob ? fmtDate(row.patientDob) : '-'} &nbsp;&nbsp;&nbsp; ( Umur : ${row.patientAge != null ? `${row.patientAge} Tahun` : '-'} )</td></tr>
@@ -334,7 +341,10 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
             <div>${row.patientName} &nbsp;|&nbsp; ${row.patientCode || '-'}</div>
           </div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
-        </div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
       </body>
     </html>
   `
@@ -370,25 +380,36 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
   const { styles, body } = extractTemplateStyles(tpl)
   const rendered = renderQuestionnaireTemplate(body, ctx)
   const logoMatch = tpl.match(/src="(data:image[^"]*)"/)
-  const optsMatch = tpl.match(/<!--print-opts--><style>:root\{([^}]*)\}<\/style>/)
-  const optsText = optsMatch?.[1] ?? ''
-  const opts = {
-    topMm: Number((optsText.match(/--hdr-top:\s*([\d.]+)mm/) ?? [])[1]) || 0,
-    leftMm: Number((optsText.match(/--hdr-left:\s*([\d.]+)mm/) ?? [])[1]) || 5
+  ctx.logoUrl = logoMatch?.[1] || ''
+  const headerCtx = {
+    documentTitle: ctx.documentTitle,
+    patientName: ctx.patientName,
+    patientCode: ctx.patientCode,
+    logoUrl: ctx.logoUrl
   }
-  const pageCss = buildPageChromeCss(ctx.patientName, ctx.patientCode, ctx.documentTitle, logoMatch?.[1], opts)
+  const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
   return `
     <html lang="id">
       <head>
         <title>${ctx.documentTitle} - ${ctx.patientName}</title>
         <style>${printCss}</style>
         ${styles}
+        <style>${printHeaderCss()}</style>
         <style>${pageCss}</style>
       </head>
       <body>
-        <div class="document-page">
-          ${rendered}
-        </div>
+        <table class="printwrap">
+          <thead>
+            <tr><th>${printHeaderHtml(headerCtx)}</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>
+              <div class="document-page">
+                ${rendered}
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
       </body>
     </html>
   `

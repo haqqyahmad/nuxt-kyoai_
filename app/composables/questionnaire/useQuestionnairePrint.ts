@@ -347,66 +347,104 @@ export function extractTemplateStyles(tpl: string): { styles: string, body: stri
   return { styles, body }
 }
 
-export type PageChromeOpts = {
-  topMm?: number
-  leftMm?: number
-}
-
-export function buildPageChromeCss(
+export function pageSetupCss(
   patientName: string,
-  patientCode: string,
-  documentTitle?: string,
-  logoUrl?: string,
-  opts: PageChromeOpts = {}
+  patientCode: string
 ): string {
   const esc = (s: string) => (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   const left = `${patientName || '-'} | ${patientCode || '-'}`
-  const title = documentTitle || 'KUESIONER MEDICAL CHECK - UP'
-  const topLeft = logoUrl
-    ? `url("${esc(logoUrl)}")`
-    : `"${esc('LOGO')}"`
-  const topMm = Math.max(0, Math.min(30, opts.topMm ?? 0))
-  const leftMm = Math.max(0, Math.min(40, opts.leftMm ?? 5))
   return `
     @page {
-      margin: 36mm 15mm 18mm;
-      @top-left { content: ${topLeft}; padding-top: ${topMm}mm; padding-left: ${leftMm}mm; }
-      @top-center { content: "${esc(title)}" "\\A" "${esc('Medical Check Up / Health Questionnaire')}"; font-family: Arial, Helvetica, sans-serif; font-size: 14pt; font-weight: bold; color: #111827; white-space: pre; text-align: center; border-bottom: 2px solid #24364f; width: 100%; padding-top: ${8 + topMm}mm; }
-      @top-right { content: "No. RM" "\\A" "${esc(patientCode || '-')}"; font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #6b7280; white-space: pre; text-align: right; padding-top: ${topMm}mm; padding-right: 5mm; }
+      size: A4;
+      margin: 18mm 15mm 14mm;
       @bottom-left { content: "${esc(left)}"; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; color: #6b7280; }
       @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; color: #6b7280; }
     }
     @media print { .document-header, .header-placeholder, .document-footer { display: none !important; } }
+    @media screen { .document-header, .header-placeholder, .document-footer { display: none !important; } }
+  `
+}
+
+export function printHeaderCss(): string {
+  return `
+    table.printwrap { width: 100%; max-width: 840px; margin: 0 auto; border-collapse: collapse; }
+    table.printwrap > thead > tr > th { padding: 0; border: 0; }
+    table.printwrap > tbody > tr > td { padding: 0; border: 0; vertical-align: top; }
+    @media print { table.printwrap { max-width: none; margin: 0; } }
+    .print-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: calc(2mm + var(--hdr-top, 0mm)) 0 4mm 0;
+      border-bottom: 2px solid #24364f;
+      text-align: left;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-head .ph-logo { flex: 0 0 auto; padding-left: var(--hdr-left, 5mm); }
+    .print-head .ph-logo img { width: var(--hdr-width, 96px); max-height: 36mm; height: auto; object-fit: contain; }
+    .print-head .ph-logo-text { color: #6b7280; font-size: 9pt; padding-left: var(--hdr-left, 5mm); }
+    .print-head .ph-title { flex: 1; text-align: center; }
+    .print-head .ph-title-line { font-size: 16pt; font-weight: 700; color: #24364f; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.3px; }
+    .print-head .ph-sub { margin-top: 3px; color: #6b7280; font-size: 8.5pt; }
+    .print-head .ph-code { text-align: right; font-size: 8pt; color: #6b7280; padding-right: 10mm; white-space: nowrap; }
+    .print-head .ph-code strong { display: block; margin-top: 2px; color: #111827; font-size: 9pt; }
+    .print-head-gap { height: var(--hdr-gap, 6mm); }
+  `
+}
+
+export function printHeaderHtml(ctx: Pick<QuestionnairePrintContext, 'documentTitle' | 'patientName' | 'patientCode' | 'logoUrl'>): string {
+  const logo = ctx.logoUrl
+    ? `<span class="ph-logo"><img src="${ctx.logoUrl}" alt="Gambar dokumen" /></span>`
+    : `<span class="ph-logo-text">LOGO</span>`
+  const esc = (s: string) => (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '&lt;')
+  return `
+    <div class="print-head">
+      ${logo}
+      <div class="ph-title">
+        <div class="ph-title-line">${esc(ctx.documentTitle)}</div>
+        <div class="ph-sub">Medical Check Up / Health Questionnaire</div>
+      </div>
+      <div class="ph-code">No. RM<strong>${esc(ctx.patientCode || '-')}</strong></div>
+    </div>
+    <div class="print-head-gap"></div>
   `
 }
 
 export function printQuestionnaireHtml(
   ctx: QuestionnairePrintContext,
   template: string,
-  css?: string,
-  chromeOpts?: PageChromeOpts
+  css?: string
 ): string {
   const defaultCss = `
     * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
     body { background-color: #f0f2f5; margin: 0; padding: 20px; }
-    .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; min-height: 1050px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; }
-    @media print { body { background-color: white; padding: 0; } .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; } }
+    .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; padding: 30px 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    @media print { body { background-color: white; padding: 0; } .document-page { box-shadow: none; padding: 0; width: 100%; max-width: 100%; } }
   `
   const { styles, body } = extractTemplateStyles(template)
   const rendered = renderQuestionnaireTemplate(body, ctx)
-  const pageCss = buildPageChromeCss(ctx.patientName, ctx.patientCode, ctx.documentTitle, ctx.logoUrl, chromeOpts)
+  const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
   return `
     <html lang="id">
       <head>
         <title>${ctx.documentTitle} - ${ctx.patientName}</title>
         <style>${css ?? defaultCss}</style>
+        <style>${printHeaderCss()}</style>
         ${styles}
         <style>${pageCss}</style>
       </head>
       <body>
-        <div class="document-page">
-          ${rendered}
-        </div>
+        <table class="printwrap">
+          <thead>
+            <tr><th>${printHeaderHtml(ctx)}</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><div class="document-page">${rendered}</div></td></tr>
+          </tbody>
+        </table>
       </body>
     </html>
   `
