@@ -144,6 +144,10 @@ export function buildMenuTree(): MenuItem[] {
           to: '/result/doctor-result'
         },
         {
+          label: 'MR Review',
+          to: '/result/mr-review'
+        },
+        {
           label: 'Status Examination',
           icon: 'i-lucide-activity',
           to: '/result/exam-status'

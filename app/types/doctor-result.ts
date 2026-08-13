@@ -65,6 +65,28 @@ export type DoctorResultResponse = {
   patient: DoctorResultPatient
   departments: DoctorResultDepartment[]
   summary: DoctorResultSummary
+  submission?: {
+    status: string
+    doctorApprovedAt: string | null
+    medicalReportId?: string | null
+    finalGrade?: string | null
+    fitnessLevel?: string | null
+    finalComment?: string | null
+  } | null
+  mrReturnRevisions?: Array<{
+    inputanId: string
+    label?: string | null
+    itemCode?: string | null
+    note?: string | null
+  }>
+  mrReturnReason?: string | null
+  history?: Array<{
+    action: string
+    actorId: number | null
+    reason: string | null
+    payload: any
+    createdAt: string
+  }>
 }
 
 export type GradeOption = {

@@ -19,6 +19,13 @@ type ExamListItem = {
     lastName?: string | null
   } | null
   status?: string
+  needsRevision?: boolean
+  revisionCount?: number
+  revisionItems?: Array<{
+    inputanId: string
+    label?: string | null
+    note?: string | null
+  }>
   itemCount?: number
   completedItemCount?: number
   progress?: number
@@ -75,6 +82,7 @@ const pageSize = ref(20)
 const statusOptions = [
   { label: 'Semua Status', value: 'all' },
   { label: 'Pending', value: 'pending' },
+  { label: 'Perlu Revisi', value: 'needs_revision' },
   { label: 'Completed', value: 'completed' }
 ]
 
@@ -117,6 +125,8 @@ const filteredExams = computed(() => {
 const totalPending = computed(() => exams.value.filter(e => e.status !== 'completed').length)
 const totalCompleted = computed(() => exams.value.filter(e => e.status === 'completed').length)
 const totalItems = computed(() => exams.value.reduce((sum, exam) => sum + (exam.itemCount ?? 0), 0))
+const revisionExams = computed(() => exams.value.filter(e => e.needsRevision))
+const totalRevisionItems = computed(() => revisionExams.value.reduce((sum, e) => sum + (e.revisionCount ?? 0), 0))
 
 const displayColumnItems = computed(() =>
   table.value?.tableApi
@@ -172,10 +182,22 @@ const columns: TableColumn<ExamListItem>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => h(UBadge, {
-      label: row.original.status ?? 'pending',
-      color: statusColor(row.original.status),
+      label: displayStatus(row.original),
+      color: statusColor(row.original.needsRevision ? 'needs_revision' : row.original.status),
       variant: 'subtle'
     })
+  },
+  {
+    id: 'revision',
+    header: 'Revisi',
+    cell: ({ row }) => {
+      const items = row.original.revisionItems ?? []
+      if (!row.original.needsRevision) return h('span', { class: 'text-xs text-muted' }, '-')
+      return h('div', { class: 'max-w-xs' }, [
+        h('div', { class: 'text-xs font-semibold text-error' }, `${row.original.revisionCount ?? 0} item perlu revisi`),
+        ...items.map(item => h('div', { class: 'text-xs text-muted mt-0.5' }, `• ${item.label ?? item.inputanId.slice(0, 8)}${item.note ? ` — ${item.note}` : ''}`))
+      ])
+    }
   },
   {
     id: 'actions',
@@ -233,7 +255,12 @@ function getPatientName(exam: ExamListItem) {
 }
 
 function statusColor(status?: string) {
-  return status === 'completed' ? 'success' : 'warning'
+  return status === 'completed' ? 'success' : status === 'needs_revision' ? 'error' : 'warning'
+}
+
+function displayStatus(exam: ExamListItem) {
+  if (exam.needsRevision) return 'Perlu Revisi'
+  return exam.status === 'completed' ? 'completed' : exam.status ?? 'pending'
 }
 
 function progressValue(exam: ExamListItem) {
@@ -337,6 +364,38 @@ onMounted(load)
             </div>
           </UCard>
         </div>
+
+        <!-- [MR] Alert: exam yang dikembalikan MR dan butuh revisi -->
+        <UAlert
+          v-if="revisionExams.length"
+          icon="i-lucide-rotate-ccw"
+          color="error"
+          variant="soft"
+          title="Report dikembalikan oleh MR"
+          :description="`${revisionExams.length} exam butuh revisi (${totalRevisionItems} item ditandai). Perbaiki lalu submit ulang ke MR.`"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1.5">
+              <div
+                v-for="exam in revisionExams"
+                :key="exam.id"
+                class="flex flex-wrap items-start gap-2 rounded bg-error/10 px-2 py-1.5"
+              >
+                <span class="font-medium">{{ exam.patientName || [exam.patient?.firstName, exam.patient?.lastName].filter(Boolean).join(' ') || '-' }}</span>
+                <span class="font-mono text-xs">{{ exam.exam?.examCode }}</span>
+                <span v-if="(exam.revisionCount ?? 0) > 0" class="text-xs">{{ exam.revisionCount }} item ditandai</span>
+                <ul v-if="(exam.revisionItems?.length ?? 0) > 0" class="w-full pl-4 text-xs text-muted">
+                  <li v-for="item in exam.revisionItems" :key="item.inputanId">
+                    • {{ item.label ?? item.inputanId.slice(0, 8) }}{{ item.note ? ` — ${item.note}` : '' }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </template>
+          <template #actions>
+            <UButton label="Lihat Semua" size="sm" color="error" variant="outline" @click="statusFilter = 'needs_revision'" />
+          </template>
+        </UAlert>
 
         <UCard class="w-full min-w-0 overflow-hidden">
           <template #header>

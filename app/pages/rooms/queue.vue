@@ -613,6 +613,15 @@ const historyStats = computed(() => ({
   access: isSuperAdmin.value ? 'Super Admin' : (roomTypeId.value ? 'Assignment Room' : 'Butuh Assignment')
 }))
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string, errors?: unknown } } }).response
+    return response?.data?.message || fallback
+  }
+
+  return fallback
+}
+
 function formatQueueDate(dateString?: string | null) {
   if (!dateString) return '-'
 

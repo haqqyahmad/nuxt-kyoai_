@@ -985,9 +985,9 @@ onMounted(() => {
         </UCard>
       </div>
 
-      <UModal v-model:open="formOpen" :ui="{ content: 'sm:max-w-3xl' }">
+      <UModal v-model:open="formOpen" :ui="{ content: 'sm:max-w-3xl max-h-[90vh] overflow-hidden' }">
         <template #content>
-          <UCard :ui="{ body: 'p-0' }">
+          <UCard class="flex max-h-[90vh] flex-col" :ui="{ body: 'min-h-0 p-0', footer: 'shrink-0' }">
             <template #header>
               <div>
                 <h2 class="text-lg font-semibold text-highlighted">
@@ -999,7 +999,7 @@ onMounted(() => {
               </div>
             </template>
 
-            <form class="space-y-4 p-6" @submit.prevent="saveRule">
+            <form class="max-h-[calc(90vh-12rem)] overflow-y-auto p-6" @submit.prevent="saveRule">
               <div class="grid gap-4 md:grid-cols-2">
                 <UFormField label="Kode Grade" required>
                   <UInput v-model="form.code" placeholder="GRD-HB-INC-B" class="w-full" />

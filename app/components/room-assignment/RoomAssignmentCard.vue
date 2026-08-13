@@ -131,7 +131,7 @@ function formatRoomTypeName() {
           size="sm"
           color="neutral"
           variant="soft"
-          icon="i-lucide-swap"
+          icon="i-lucide-arrow-right-left"
           :disabled="!canTransfer"
           @click="emit('transfer', assignment)"
         >

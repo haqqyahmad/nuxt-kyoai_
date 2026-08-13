@@ -48,6 +48,7 @@ const {
   selectGroupGrade,
   clearGroupGrade,
   gradeOptionsFor,
+  returnToDepartment,
   submit
 } = useDoctorResult(examId)
 
@@ -64,6 +65,123 @@ const departmentTabs = computed(() => departments.value.map(department => ({
   value: department.departmentId,
   icon: department.gradingMode === 'department' ? 'i-lucide-lock' : 'i-lucide-stethoscope'
 })))
+
+// [MR] Revisi dari MR — item yang harus diperbaiki + alasan
+const mrReturned = computed(() => data.value?.submission?.status === 'MR_RETURNED_TO_DOCTOR')
+const mrReturnReason = computed(() => data.value?.mrReturnReason ?? null)
+const mrReturnRevisions = computed(() => data.value?.mrReturnRevisions ?? [])
+const revisionMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const rev of mrReturnRevisions.value) {
+    if (rev.inputanId) map[rev.inputanId] = rev.note ?? ''
+  }
+  return map
+})
+const revisionByExamItem = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const rev of mrReturnRevisions.value) {
+    if (rev.inputanId && !map[rev.inputanId]) map[rev.inputanId] = rev.note ?? ''
+  }
+  return map
+})
+
+function itemRevisionNote(item: DoctorResultItem) {
+  return revisionMap.value[item.inputanId] ?? ''
+}
+
+// [DOCTOR] Return item ke department setelah MR return
+const showReturnDeptModal = ref(false)
+const returnDeptReason = ref('')
+const returnDeptItems = ref<{ inputanId: string, label: string, note: string, checked: boolean }[]>([])
+
+function openReturnDeptModal() {
+  returnDeptReason.value = mrReturnReason.value ?? ''
+  const ids = new Set(mrReturnRevisions.value.map(r => r.inputanId))
+  returnDeptItems.value = allItems.value
+    .filter(i => i.gradable)
+    .map(i => ({
+      inputanId: i.inputanId,
+      label: i.inputanLabel,
+      note: itemRevisionNote(i),
+      checked: ids.size ? ids.has(i.inputanId) : false
+    }))
+  showReturnDeptModal.value = true
+}
+
+async function submitReturnDept() {
+  const items = returnDeptItems.value.filter(i => i.checked)
+  if (!returnDeptReason.value.trim() || !items.length) return
+  const ok = await returnToDepartment({
+    reason: returnDeptReason.value.trim(),
+    items: items.map(i => ({ inputanId: i.inputanId, note: i.note }))
+  })
+  if (ok) {
+    showReturnDeptModal.value = false
+    await load()
+    loadAuditActions()
+  }
+}
+
+// [AUDIT] History actions
+type AuditGrade = { inputanId: string; label?: string | null; grade?: string | null; comment?: string | null; source?: string | null }
+type AuditItem = { inputanId: string; label?: string | null; note?: string | null; itemCode?: string | null }
+type AuditAction = {
+  action: string
+  reason: string | null
+  payload?: {
+    finalGrade?: string
+    fitnessLevel?: string
+    finalComment?: string
+    internalNote?: string
+    grades?: AuditGrade[]
+    totalItems?: number
+    totalGraded?: number
+    items?: AuditItem[]
+  } | null
+  actorId: number | null
+  createdAt: string
+}
+const auditActions = ref<AuditAction[]>([])
+
+function loadAuditActions() {
+  auditActions.value = (data.value?.history ?? []) as AuditAction[]
+}
+
+const revisionCount = computed(() =>
+  auditActions.value.filter(a => a.action === 'RETURN').length
+)
+
+function formatActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    SUBMIT: 'Dokter Submit',
+    RESUBMIT: 'Dokter Resubmit',
+    VERIFY: 'MR Verify',
+    RETURN: 'MR Return',
+    RELEASE: 'MR Release'
+  }
+  return labels[action] ?? action
+}
+
+function actionIcon(action: string) {
+  if (action === 'RETURN') return 'i-lucide-rotate-ccw'
+  if (action === 'VERIFY') return 'i-lucide-check-circle'
+  if (action === 'RELEASE') return 'i-lucide-send'
+  if (action === 'RESUBMIT') return 'i-lucide-refresh-cw'
+  return 'i-lucide-send'
+}
+
+function actionColor(action: string) {
+  if (action === 'RETURN') return 'error'
+  if (action === 'VERIFY') return 'success'
+  if (action === 'RELEASE') return 'primary'
+  if (action === 'RESUBMIT') return 'warning'
+  return 'info'
+}
+
+function actionGradeSummary(act: AuditAction) {
+  const grades = act.payload?.grades ?? []
+  return grades.filter(g => g.grade).map(g => `${g.label ?? g.inputanId.slice(0, 8)}: ${g.grade}`)
+}
 
 const autoCommentText = computed(() =>
   finalComment.value || Object.values(comments.value).filter(Boolean).join(' ')
@@ -101,7 +219,10 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
     header: 'Item',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
       h('span', { class: 'font-medium text-highlighted' }, row.original.inputanLabel),
-      h('span', { class: 'text-xs text-muted' }, row.original.gradable ? 'gradable = 1' : 'gradable = 0')
+      h('span', { class: 'text-xs text-muted' }, row.original.gradable ? 'gradable = 1' : 'gradable = 0'),
+      itemRevisionNote(row.original)
+        ? h(UBadge, { label: 'Perlu Revisi', color: 'error', variant: 'soft', size: 'xs', class: 'mt-1 w-fit' })
+        : null
     ])
   },
   {
@@ -132,6 +253,9 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
     id: 'comment',
     header: 'Komentar Otomatis',
     cell: ({ row }) => h('div', { class: 'max-w-md text-sm leading-5' }, [
+      itemRevisionNote(row.original)
+        ? h('div', { class: 'mb-1 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error' }, `Catatan MR: ${itemRevisionNote(row.original)}`)
+        : null,
       h('div', {}, comments.value[row.original.inputanId] ?? row.original.comment ?? (row.original.gradable ? 'Pilih grade untuk komentar otomatis.' : '-')),
       row.original.recommendation && (comments.value[row.original.inputanId] || row.original.comment)
         ? h('div', { class: 'mt-1 text-xs text-muted' }, `Rekomendasi: ${row.original.recommendation}`)
@@ -311,7 +435,7 @@ watch(departments, () => {
 onMounted(async () => {
   await load()
   if (departments.value[0]) activeDepartmentId.value = departments.value[0].departmentId
-  await loadGradeOptions()
+  await Promise.all([loadGradeOptions(), loadAuditActions()])
   nextTick(setupScrollSpy)
 })
 
@@ -353,6 +477,16 @@ onBeforeUnmount(() => {
               Simpan Draft
             </UButton>
             <UButton
+              v-if="mrReturned"
+              icon="i-lucide-rotate-ccw"
+              color="warning"
+              variant="outline"
+              :loading="submitting"
+              @click="openReturnDeptModal"
+            >
+              Return ke Department
+            </UButton>
+            <UButton
               icon="i-lucide-send"
               color="primary"
               :loading="submitting"
@@ -363,6 +497,28 @@ onBeforeUnmount(() => {
             </UButton>
           </div>
         </div>
+
+        <!-- [MR] Banner revisi dari MR -->
+        <UAlert
+          v-if="mrReturned"
+          icon="i-lucide-rotate-ccw"
+          color="error"
+          variant="soft"
+          title="Report dikembalikan oleh MR — perbaiki lalu submit ulang"
+          :description="mrReturnReason || 'MR meminta perbaikan pada report ini.'"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ mrReturnReason || 'MR meminta perbaikan pada report ini.' }}</p>
+              <p v-if="mrReturnRevisions.length" class="text-xs">
+                Item yang perlu direvisi:
+                <span v-for="rev in mrReturnRevisions" :key="rev.inputanId" class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5">
+                  {{ rev.label || rev.inputanId.slice(0, 8) }}{{ rev.note ? ` — ${rev.note}` : '' }}
+                </span>
+              </p>
+            </div>
+          </template>
+        </UAlert>
 
         <UCard v-if="loading" class="w-full min-w-0">
           <div class="space-y-4">
@@ -783,9 +939,120 @@ onBeforeUnmount(() => {
                   </UButton>
                 </div>
               </UCard>
+
+              <!-- [AUDIT] History -->
+              <UCard v-if="auditActions.length">
+                <template #header>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-history" class="size-4 text-primary" />
+                      <h3 class="text-sm font-semibold">History</h3>
+                    </div>
+                    <UBadge v-if="revisionCount" label="revisi" :color="'error'" variant="soft" size="xs">
+                      {{ revisionCount }}× return
+                    </UBadge>
+                  </div>
+                </template>
+                <div class="space-y-3">
+                  <div
+                    v-for="(act, i) in auditActions"
+                    :key="i"
+                    class="rounded-lg border p-2.5 text-xs"
+                  >
+                    <!-- Header baris -->
+                    <div class="flex items-center gap-2">
+                      <UIcon :name="actionIcon(act.action)" :class="`size-3.5 text-${actionColor(act.action)}`" />
+                      <UBadge :label="formatActionLabel(act.action)" :color="actionColor(act.action)" variant="subtle" size="xs" />
+                      <span class="text-muted">{{ new Date(act.createdAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
+                      <span v-if="act.actorId" class="text-muted">· User #{{ act.actorId }}</span>
+                    </div>
+
+                    <!-- SUBMIT/RESUBMIT detail -->
+                    <div v-if="act.action === 'SUBMIT' || act.action === 'RESUBMIT'" class="mt-1.5 space-y-1">
+                      <div class="flex gap-3 text-muted">
+                        <span>Final Grade: <strong class="text-default">{{ act.payload?.finalGrade ?? '-' }}</strong></span>
+                        <span>Fitness: <strong class="text-default">{{ act.payload?.fitnessLevel ?? '-' }}</strong></span>
+                        <span v-if="act.payload?.totalItems">{{ act.payload.totalGraded }}/{{ act.payload.totalItems }} graded</span>
+                      </div>
+                      <p v-if="act.payload?.finalComment" class="text-muted">{{ act.payload.finalComment }}</p>
+                      <div v-if="(act.payload?.grades?.length ?? 0) > 0" class="mt-1 rounded bg-elevated/40 p-1.5">
+                        <p class="mb-1 font-semibold text-muted">Grade per item:</p>
+                        <div class="space-y-0.5">
+                          <div v-for="g in act.payload!.grades!.filter(g => g.grade)" :key="g.inputanId" class="flex items-center gap-1.5">
+                            <UBadge :label="g.grade!" color="primary" variant="soft" size="xs" />
+                            <span class="font-medium">{{ g.label ?? g.inputanId.slice(0, 8) }}</span>
+                            <span v-if="g.comment" class="text-muted">— {{ g.comment }}</span>
+                            <span v-if="g.source === 'department'" class="ml-auto text-muted">dept</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- RETURN detail -->
+                    <div v-if="act.action === 'RETURN'" class="mt-1.5 space-y-1">
+                      <p class="text-muted"><strong>Alasan:</strong> {{ act.reason ?? '-' }}</p>
+                      <div v-if="(act.payload?.items?.length ?? 0) > 0" class="mt-1 rounded bg-error/5 p-1.5">
+                        <p class="mb-1 font-semibold text-error">Item perlu diperiksa:</p>
+                        <div class="space-y-0.5">
+                          <div v-for="item in act.payload!.items!" :key="item.inputanId" class="flex items-start gap-1.5">
+                            <span>•</span>
+                            <div>
+                              <span class="font-medium">{{ item.label ?? item.inputanId.slice(0, 8) }}</span>
+                              <span v-if="item.department" class="text-muted"> ({{ item.department }})</span>
+                              <span v-if="item.note" class="text-muted"> — {{ item.note }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- VERIFY/RELEASE -->
+                    <div v-if="act.action === 'VERIFY' || act.action === 'RELEASE'" class="mt-1 text-muted">
+                      {{ act.action === 'VERIFY' ? 'Report diverifikasi oleh MR' : 'Report dirilis untuk final' }}
+                    </div>
+                  </div>
+                </div>
+              </UCard>
             </aside>
           </div>
         </template>
+
+        <!-- Return to department modal -->
+        <UModal v-model:open="showReturnDeptModal" title="Return ke Department" description="Pilih item yang perlu dikembalikan ke department terkait.">
+          <template #body>
+            <div class="space-y-4">
+              <UFormField label="Alasan Return">
+                <UTextarea v-model="returnDeptReason" :rows="3" placeholder="Alasan return ke department" />
+              </UFormField>
+
+              <div class="max-h-80 space-y-2 overflow-y-auto rounded border p-2">
+                <div
+                  v-for="(item, idx) in returnDeptItems"
+                  :key="item.inputanId"
+                  class="rounded border p-2"
+                >
+                  <label class="flex items-center gap-2 text-sm font-medium">
+                    <input v-model="returnDeptItems[idx].checked" type="checkbox" class="size-4" />
+                    {{ item.label }}
+                  </label>
+                  <UInput
+                    v-if="returnDeptItems[idx].checked"
+                    v-model="returnDeptItems[idx].note"
+                    class="mt-2"
+                    size="sm"
+                    placeholder="Catatan untuk department"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton label="Batal" variant="outline" @click="showReturnDeptModal = false" />
+              <UButton label="Return" color="warning" :loading="submitting" :disabled="!returnDeptReason.trim() || !returnDeptItems.some(i => i.checked)" @click="submitReturnDept" />
+            </div>
+          </template>
+        </UModal>
       </div>
     </template>
   </UDashboardPanel>
