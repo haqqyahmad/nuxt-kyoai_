@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
-import { upperFirst } from 'scule'
-import type { TableColumn } from '@nuxt/ui'
-import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Column, HeaderContext } from '@tanstack/table-core'
 import {
   renderQuestionnaireTemplate,
   buildQuestionnairePrintContext,
@@ -16,9 +11,6 @@ import {
   documentImageCss
 } from '~/composables/questionnaire/useQuestionnairePrint'
 
-const UButton = resolveComponent('UButton')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
-const UBadge = resolveComponent('UBadge')
 const api = useApi()
 const toast = useToast()
 
@@ -57,11 +49,6 @@ type Customer = {
   id: number
   codeCostumer: string
   customerName: string
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  Completed: 'Completed',
-  Pending: 'Pending'
 }
 
 const filters = reactive({
@@ -148,17 +135,8 @@ type TempQuestionnaire = {
   }>
 }
 
-const modalOpen = ref(false)
 const modalLoading = ref(false)
 const modalData = ref<TempQuestionnaire | null>(null)
-const modalResult = ref<QuestionnaireResult | null>(null)
-
-function openModal(row: QuestionnaireResult) {
-  modalResult.value = row
-  modalData.value = null
-  modalOpen.value = true
-  loadQuestionnaireDetail(row)
-}
 
 async function loadQuestionnaireDetail(row: QuestionnaireResult) {
   modalLoading.value = true
@@ -173,39 +151,6 @@ async function loadQuestionnaireDetail(row: QuestionnaireResult) {
     modalLoading.value = false
   }
 }
-
-function formatAnswer(a: NonNullable<TempQuestionnaire['answers']>[number]): string {
-  if (a.answerText != null && a.answerText !== '') return a.answerText
-  if (a.optionText) return a.optionText
-  if (a.optionId) return a.optionId
-  return '-'
-}
-
-type AnswerItem = NonNullable<TempQuestionnaire['answers']>[number]
-
-const answeredQuestions = computed((): AnswerItem[] =>
-  (modalData.value?.answers ?? []).filter((a): a is AnswerItem => a.answered === true)
-)
-
-const answeredBySection = computed((): Array<{ section: string, items: AnswerItem[] }> => {
-  const groups: Array<{ section: string, items: AnswerItem[] }> = []
-  for (const a of answeredQuestions.value) {
-    const sec = a.sectionTitle || 'Umum'
-    const g = groups.find(x => x.section === sec)
-    if (g) {
-      g.items.push(a)
-    } else {
-      groups.push({ section: sec, items: [a] })
-    }
-  }
-  return groups
-})
-
-const signCityDate = computed(() => {
-  const city = extractBranchCity(modalResult.value?.branchName)
-  const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-  return city ? `${city.toUpperCase()}, ${date}` : date
-})
 
 function genderLabel(g?: string | null): string {
   if (!g) return '-'
@@ -451,190 +396,79 @@ function printSingle(row: QuestionnaireResult) {
   }
 }
 
-function getRowItems(row: QuestionnaireResult) {
-  return [
-    {
-      type: 'label' as const,
-      label: 'Actions'
-    },
-    {
-      label: 'View answers',
-      icon: 'i-lucide-eye',
-      onSelect() {
-        openModal(row)
-      }
-    },
-    {
-      type: 'separator' as const
-    },
-    {
-      label: 'Print',
-      icon: 'i-lucide-printer',
-      onSelect() {
-        printResult(row)
-      }
-    }
-  ]
-}
-
 async function printResult(row: QuestionnaireResult) {
   if (!modalData.value || modalData.value.questionnaire_id !== row.questionnaire_id) {
-    modalResult.value = row
     await loadQuestionnaireDetail(row)
   }
   printSingle(row)
 }
 
-function sortHeader(label: string) {
-  return ({ column }: HeaderContext<QuestionnaireResult, unknown>) => {
-    const isSorted = column.getIsSorted()
-    const iconClass = isSorted
-      ? isSorted === 'asc'
-        ? 'i-lucide-arrow-up-narrow-wide w-3 h-3 text-slate-400'
-        : 'i-lucide-arrow-down-wide-narrow w-3 h-3 text-slate-400'
-      : 'i-lucide-arrow-up-down w-3 h-3 text-slate-400'
-
-    return h(
-      'div',
-      {
-        class: 'flex cursor-pointer select-none items-center gap-1 hover:text-slate-800',
-        onClick: () => column.toggleSorting(isSorted === 'asc')
-      },
-      [h('span', undefined, label), h('i', { class: iconClass })]
-    )
-  }
+type PatientGroup = {
+  patientKey: string
+  patientCode: string
+  patientName: string
+  patientGender?: string | null
+  patientDob?: string | null
+  patientAge?: number | null
+  companyName: string
+  status: 'Completed' | 'Pending'
+  questionnaires: QuestionnaireResult[]
 }
 
-const columns: TableColumn<QuestionnaireResult>[] = [
-  {
-    accessorKey: 'patientName',
-    header: sortHeader('Patient'),
-    cell: ({ row }) => {
-      const r = row.original
-
-      return h('div', undefined, [
-        h('p', { class: 'font-medium text-slate-800' }, r.patientName),
-        h('p', { class: 'font-mono text-[10px] text-slate-400' }, r.patientCode || '-')
-      ])
+const patientGroups = computed<PatientGroup[]>(() => {
+  const map = new Map<string, PatientGroup>()
+  for (const r of results.value) {
+    const key = r.patientCode || r.patientName || 'unknown'
+    let g = map.get(key)
+    if (!g) {
+      g = {
+        patientKey: key,
+        patientCode: r.patientCode,
+        patientName: r.patientName,
+        patientGender: r.patientGender,
+        patientDob: r.patientDob,
+        patientAge: r.patientAge,
+        companyName: r.companyName,
+        status: 'Completed',
+        questionnaires: []
+      }
+      map.set(key, g)
     }
-  },
-  {
-    accessorKey: 'registrationRef',
-    header: sortHeader('Regist'),
-    cell: ({ row }) => h('span', { class: 'font-mono text-[11px] text-slate-500' }, row.getValue('registrationRef') as string)
-  },
-  {
-    accessorKey: 'examDate',
-    header: sortHeader('Exam Date'),
-    cell: ({ row }) => h('span', { class: 'text-slate-600' }, fmtDate(row.getValue('examDate') as string))
-  },
-  {
-    accessorKey: 'companyName',
-    header: sortHeader('Company'),
-    cell: ({ row }) => h('span', { class: 'font-medium text-slate-700' }, row.getValue('companyName') || '-')
-  },
-  {
-    accessorKey: 'branchName',
-    header: sortHeader('Branch'),
-    cell: ({ row }) => {
-      const v = row.getValue('branchName') as string
-      return h('span', { class: 'line-clamp-2 max-w-56 text-slate-600' }, v || '-')
-    }
-  },
-  {
-    accessorKey: 'questionnaire_name',
-    header: sortHeader('Questionnaire'),
-    cell: ({ row }) => h('span', { class: 'text-slate-600' }, row.getValue('questionnaire_name') || '-')
-  },
-  {
-    accessorKey: 'status',
-    header: sortHeader('Status'),
-    cell: ({ row }) => {
-      const status = row.getValue('status') as string
-      const isCompleted = status === 'Completed'
-      const cls = isCompleted
-        ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600'
-        : 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
-
-      return h('span', { class: cls }, STATUS_LABEL[status] ?? status)
-    }
-  },
-  {
-    accessorKey: 'completionDate',
-    header: sortHeader('Completion'),
-    cell: ({ row }) => {
-      const v = row.getValue('completionDate') as string | null
-      return v
-        ? h('span', { class: 'text-[11px] text-slate-500' }, formatDateTime(v))
-        : h('span', { class: 'text-[11px] text-slate-400' }, '-')
-    }
-  },
-  {
-    id: 'actions',
-    header: () => h('div', { class: 'text-center' }, ''),
-    cell: ({ row }) => {
-      return h(
-        'div',
-        { class: 'text-center' },
-        h(
-          UDropdownMenu,
-          {
-            content: {
-              align: 'end'
-            },
-            items: getRowItems(row.original)
-          },
-          () =>
-            h(UButton, {
-              icon: 'i-lucide-more-vertical',
-              color: 'neutral',
-              variant: 'ghost',
-              square: true,
-              class: 'text-slate-400 hover:text-slate-600'
-            })
-        )
-      )
-    }
+    g.questionnaires.push(r)
+    if (r.status !== 'Completed') g.status = 'Pending'
   }
-]
+  return Array.from(map.values())
+})
 
-const table = ref()
+const totalPatients = computed(() => patientGroups.value.length)
+
+const totalQuestionnaires = computed(() => results.value.length)
 
 const currentPage = ref(1)
 
 const currentPageSize = ref(10)
 
-const displayColumns = computed(() =>
-  (table.value?.tableApi?.getAllColumns() ?? [])
-    .filter((column: Column<QuestionnaireResult, unknown>) => column.getCanHide())
-    .map((column: Column<QuestionnaireResult, unknown>) => ({
-      label: upperFirst(column.id),
-      type: 'checkbox' as const,
-      checked: column.getIsVisible(),
-      onUpdateChecked(checked: boolean) {
-        table.value?.tableApi?.getColumn(column.id)?.toggleVisibility(!!checked)
-      },
-      onSelect(e?: Event) {
-        e?.preventDefault()
-      }
-    }))
-)
+const paginatedGroups = computed(() => {
+  const start = (currentPage.value - 1) * currentPageSize.value
+  return patientGroups.value.slice(start, start + currentPageSize.value)
+})
 
-watch(currentPageSize, (val) => {
-  table.value?.tableApi?.setPageSize(val)
+const expanded = reactive<Record<string, boolean>>({})
+
+function isExpanded(patientKey: string): boolean {
+  return !!expanded[patientKey]
+}
+
+function toggleExpand(patientKey: string) {
+  expanded[patientKey] = !expanded[patientKey]
+}
+
+watch(currentPageSize, () => {
   currentPage.value = 1
 })
 
-watch(
-  () => table.value?.tableApi?.getState().pagination.pageIndex,
-  (idx) => {
-    currentPage.value = (idx ?? 0) + 1
-  },
-  { immediate: true }
-)
-
-watch(currentPage, (page) => {
-  table.value?.tableApi?.setPageIndex(page - 1)
+watch(results, () => {
+  currentPage.value = 1
 })
 </script>
 
@@ -734,14 +568,14 @@ watch(currentPage, (page) => {
               :disabled="loading"
               @click="clearFilters"
             >
-              <i class="i-lucide-rotate-ccw h-3.5 w-3.5" /> Reset
+              <UIcon name="i-lucide-rotate-ccw" class="size-3.5" /> Reset
             </button>
             <button
               class="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="loading"
               @click="fetchResults"
             >
-              <i class="i-lucide-filter h-3.5 w-3.5" /> Terapkan
+              <UIcon name="i-lucide-filter" class="size-3.5" /> Terapkan
             </button>
           </div>
         </div>
@@ -749,41 +583,160 @@ watch(currentPage, (page) => {
         <!-- Table card -->
         <div class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
           <div class="flex items-center justify-between border-b border-slate-100 p-4">
-            <span class="text-xs font-medium text-slate-500">{{ results.length }} hasil questionnaire</span>
-            <UDropdownMenu :items="displayColumns" :content="{ align: 'end', paper: { class: 'min-w-40' } }">
-              <button class="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50">
-                Display <i class="i-lucide-sliders-horizontal h-3.5 w-3.5" />
-              </button>
-            </UDropdownMenu>
+            <span class="text-xs font-medium text-slate-500">{{ totalPatients }} Pasien ({{ totalQuestionnaires }} Total Questionnaire)</span>
+            <span class="hidden text-[11px] text-slate-400 sm:block">Klik baris untuk melihat rincian</span>
           </div>
 
           <div class="overflow-x-auto">
-            <UTable
-              ref="table"
-              :pagination-options="{
-                getPaginationRowModel: getPaginationRowModel()
-              }"
-              sticky
-              class="w-full"
-              :data="results"
-              :columns="columns"
-              :loading="loading"
-              :ui="{
-                base: 'w-full text-left text-xs text-slate-600 border-separate border-spacing-0',
-                thead: 'bg-slate-50/80 align-middle text-slate-500 font-semibold border-b border-slate-200 [&>tr]:bg-transparent [&>tr]:after:content-none',
-                tbody: 'divide-y divide-slate-100',
-                tr: 'transition-colors hover:bg-slate-50/80',
-                th: 'p-3.5 cursor-pointer first:pl-4 last:text-center',
-                td: 'p-3.5 align-middle first:pl-4',
-                empty: 'py-10 text-center text-sm text-slate-400',
-                loading: 'text-slate-400'
-              }"
-            />
+            <table class="w-full border-separate border-spacing-0 text-left text-xs text-slate-600">
+              <thead class="font-semibold text-slate-500">
+                <tr class="bg-slate-50/80">
+                  <th class="w-10 p-3.5 pl-4">
+                    <span class="sr-only">Expand</span>
+                  </th>
+                  <th class="p-3.5">
+                    Patient &amp; Patient ID
+                  </th>
+                  <th class="p-3.5">
+                    Company
+                  </th>
+                  <th class="p-3.5">
+                    Total Questionnaire
+                  </th>
+                  <th class="p-3.5">
+                    Exam Date
+                  </th>
+                  <th class="p-3.5">
+                    Branch
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-if="loading">
+                  <td colspan="6" class="py-10 text-center">
+                    <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-slate-400" />
+                  </td>
+                </tr>
+                <tr v-else-if="!paginatedGroups.length">
+                  <td colspan="6" class="py-10 text-center text-sm text-slate-400">
+                    Tidak ada data
+                  </td>
+                </tr>
+
+                <template v-for="g in paginatedGroups" :key="g.patientKey">
+                  <tr class="cursor-pointer transition-colors hover:bg-slate-50" @click="toggleExpand(g.patientKey)">
+                    <td class="p-3.5 pl-4 text-center">
+                      <button
+                        class="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200"
+                        aria-label="Expand"
+                        @click.stop="toggleExpand(g.patientKey)"
+                      >
+                        <UIcon
+                          name="i-lucide-chevron-right"
+                          class="size-4 transition-transform duration-200"
+                          :class="isExpanded(g.patientKey) ? 'rotate-90 text-blue-600' : ''"
+                        />
+                      </button>
+                    </td>
+                    <td class="p-3.5">
+                      <div class="font-semibold text-slate-800">
+                        {{ g.patientName }}
+                      </div>
+                      <div class="font-mono text-[10px] text-slate-400">
+                        {{ g.patientCode || '-' }}
+                      </div>
+                    </td>
+                    <td class="p-3.5 font-medium text-slate-700">
+                      {{ g.companyName || '-' }}
+                    </td>
+                    <td class="p-3.5">
+                      <span class="inline-flex items-center gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
+                        <UIcon name="i-lucide-file-text" class="size-3.5" /> {{ g.questionnaires.length }} Questionnaire
+                      </span>
+                    </td>
+                    <td class="p-3.5 text-slate-600">
+                      {{ g.questionnaires.length ? fmtDate(g.questionnaires[0].examDate) : '-' }}
+                    </td>
+                    <td class="p-3.5 text-slate-600">
+                      {{ g.questionnaires.length ? g.questionnaires[0].branchName : '-' }}
+                    </td>
+                  </tr>
+
+                  <tr v-if="isExpanded(g.patientKey)" class="border-y border-slate-200 bg-slate-50/70">
+                    <td colspan="6" class="p-4 pl-12 pr-6">
+                      <div class="space-y-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-100/80 px-3.5 py-2 text-[11px] font-semibold text-slate-600">
+                          <span class="flex items-center gap-1.5">
+                            <UIcon name="i-lucide-corner-down-right" class="size-3.5 text-blue-600" /> Rincian Questionnaire Pasien: {{ g.patientName }}
+                          </span>
+                          <span class="font-mono text-[10px] text-slate-400">{{ g.patientCode }}</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                          <table class="w-full text-left text-xs">
+                            <thead class="border-b border-slate-100 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              <tr>
+                                <th class="p-2.5">
+                                  No. Registrasi
+                                </th>
+                                <th class="p-2.5">
+                                  Questionnaire
+                                </th>
+                                <th class="p-2.5">
+                                  Status
+                                </th>
+                                <th class="p-2.5">
+                                  Completion Time
+                                </th>
+                                <th class="p-2.5 text-center">
+                                  Aksi
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                              <tr v-for="q in g.questionnaires" :key="q.registrationKey" class="transition-colors hover:bg-slate-100/50">
+                                <td class="p-2.5 font-mono text-[11px] text-slate-500">
+                                  {{ q.registrationRef }}
+                                </td>
+                                <td class="p-2.5 font-medium text-slate-800">
+                                  {{ q.questionnaire_name }}
+                                </td>
+                                <td class="p-2.5">
+                                  <span
+                                    :class="q.status === 'Completed'
+                                      ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600'
+                                      : 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600'"
+                                  >
+                                    {{ q.status }}
+                                  </span>
+                                </td>
+                                <td class="p-2.5 text-[11px] text-slate-400">
+                                  {{ q.completionDate ? formatDateTime(q.completionDate) : '-' }}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                  <button
+                                    class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
+                                    title="Print"
+                                    :disabled="loading"
+                                    @click="printResult(q)"
+                                  >
+                                    <UIcon name="i-lucide-file-down" class="size-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
 
-          <!-- Pagination -->
+          <!-- Pagination footer -->
           <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-100 p-4 sm:flex-row">
-            <span class="text-xs font-medium text-slate-400">{{ results.length }} row(s)</span>
+            <span class="text-xs font-medium text-slate-400">{{ totalPatients }} Pasien Terdaftar</span>
 
             <div class="flex flex-wrap items-center gap-3">
               <USelect
@@ -798,314 +751,13 @@ watch(currentPage, (page) => {
               <UPagination
                 :default-page="currentPage"
                 :items-per-page="currentPageSize"
-                :total="results.length"
+                :total="totalPatients"
                 @update:page="currentPage = $event"
               />
             </div>
           </div>
         </div>
       </div>
-
-      <!-- Detail modal -->
-      <UModal v-model:open="modalOpen" :title="modalResult?.questionnaire_name ?? 'Detail'" :ui="{ content: 'sm:max-w-4xl' }">
-        <template #body>
-          <div v-if="modalResult" class="flex flex-col items-center">
-            <div class="qr-doc-paper w-full">
-              <div class="flex flex-wrap gap-2 items-center mb-3">
-                <UBadge
-                  v-if="modalResult.status === 'Completed'"
-                  label="Completed"
-                  color="success"
-                  variant="subtle"
-                />
-                <UBadge
-                  v-else
-                  label="Pending"
-                  color="neutral"
-                  variant="subtle"
-                />
-              </div>
-
-              <h1 class="qr-doc-title">
-                KUESIONER MEDICAL CHECK - UP
-              </h1>
-
-              <div class="qr-section-title">
-                DATA DIRI
-              </div>
-              <table class="qr-data-diri">
-                <tbody>
-                  <tr>
-                    <td class="qr-label">
-                      Nama Lengkap
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientName }} &nbsp;&nbsp;&nbsp; ( {{ genderLabel(modalResult.patientGender) }} )</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Tgl, Bln, Tahun Lahir
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientDob ? fmtDate(modalResult.patientDob) : '-' }} &nbsp;&nbsp;&nbsp; ( Umur : {{ modalResult.patientAge != null ? `${modalResult.patientAge} Tahun` : '-' }} )</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Perusahaan
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.companyName || '-' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Status Pernikahan
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ maritalLabel(modalResult.patientMaritalStatus) }}</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Alamat Rumah
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientAddress || '-' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Telepon
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientPhone || '-' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      Posisi Pekerjaan
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientPosition || '-' }}</td>
-                  </tr>
-                  <tr>
-                    <td class="qr-label">
-                      No. RM / Registrasi
-                    </td>
-                    <td class="qr-colon">
-                      :
-                    </td>
-                    <td>{{ modalResult.patientCode || '-' }} / {{ modalResult.registrationRef }}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div v-if="modalLoading" class="flex items-center justify-center py-8">
-                <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
-              </div>
-              <template v-else-if="answeredBySection.length">
-                <div
-                  v-for="(group, gi) in answeredBySection"
-                  :key="group.section || gi"
-                >
-                  <div
-                    v-if="group.items.length && group.section"
-                    class="qr-section-title"
-                  >
-                    {{ group.section }}
-                  </div>
-                  <ol
-                    v-if="group.items.length"
-                    class="qr-question-list"
-                    :class="gi > 0 ? 'qr-question-list-mt' : ''"
-                  >
-                    <li
-                      v-for="(a, i) in group.items"
-                      :key="a.questionId || i"
-                      class="qr-question-item"
-                    >
-                      <div class="flex items-start justify-between gap-3">
-                        <span>{{ a.questionText }}</span>
-                        <span class="qr-answer shrink-0">{{ formatAnswer(a) }}</span>
-                      </div>
-                    </li>
-                  </ol>
-                </div>
-              </template>
-              <div v-else class="text-sm text-muted py-4">
-                Tidak ada jawaban tersimpan untuk questionnaire ini.
-              </div>
-
-              <div v-if="answeredBySection.length" class="qr-consent-section">
-                <div class="qr-consent-line">
-                  Isian diatas telah saya isi dengan sadar dan benar
-                </div>
-                <div class="qr-consent-line">
-                  Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:
-                </div>
-                <ol class="qr-consent-list">
-                  <li>
-                    Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut
-                  </li>
-                  <li>
-                    Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)
-                  </li>
-                </ol>
-                <div class="qr-signature-area">
-                  <div class="qr-sign-city">
-                    {{ signCityDate }}
-                  </div>
-                  <div class="qr-sign-line" />
-                  <div class="qr-sign-label">
-                    ( ttd )
-                  </div>
-                  <div class="qr-sign-name">
-                    {{ modalResult.patientName || '-' }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="text-sm text-muted">
-            Data tidak ditemukan.
-          </div>
-        </template>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              label="Close"
-              @click="modalOpen = false"
-            />
-            <UButton
-              color="primary"
-              icon="i-lucide-printer"
-              label="Print"
-              :disabled="!modalData || !modalData.answers?.length"
-              @click="modalResult && printSingle(modalResult)"
-            />
-          </div>
-        </template>
-      </UModal>
     </template>
   </UDashboardPanel>
 </template>
-
-<style scoped>
-.qr-doc-paper {
-  background: white;
-  padding: 24px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 13px;
-  color: #000;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.qr-doc-title {
-  text-align: center;
-  font-size: 15px;
-  font-weight: bold;
-  text-decoration: underline;
-  text-transform: uppercase;
-  margin: 0 0 20px;
-}
-
-.qr-section-title {
-  font-weight: bold;
-  text-decoration: underline;
-  text-transform: uppercase;
-  margin: 15px 0 8px;
-}
-
-.qr-data-diri {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 6px;
-}
-
-.qr-data-diri td {
-  padding: 2px 0;
-  vertical-align: top;
-}
-
-.qr-data-diri td.qr-label {
-  width: 180px;
-}
-
-.qr-data-diri td.qr-colon {
-  width: 15px;
-}
-
-.qr-question-list {
-  margin: 0;
-  padding-left: 20px;
-  list-style: decimal;
-}
-
-.qr-question-list-mt {
-  margin-top: 10px;
-}
-
-.qr-question-item {
-  margin-bottom: 6px;
-  line-height: 1.3;
-}
-
-.qr-answer {
-  font-weight: bold;
-}
-
-.qr-consent-section {
-  margin-top: 20px;
-  border-top: 1px solid #d1d5db;
-  padding-top: 16px;
-}
-
-.qr-consent-line,
-.qr-consent-list li {
-  font-size: 12px;
-  line-height: 1.4;
-  margin-bottom: 5px;
-}
-
-.qr-consent-list {
-  margin: 5px 0 0 0;
-  padding-left: 20px;
-}
-
-.qr-signature-area {
-  margin-top: 30px;
-  text-align: right;
-}
-
-.qr-sign-line {
-  border-top: 1px solid #333;
-  margin-top: 48px;
-  padding-top: 4px;
-}
-
-.qr-sign-label {
-  text-align: center;
-  margin-top: 20px;
-}
-
-.qr-sign-name {
-  text-align: center;
-  margin-top: 2px;
-}
-</style>
