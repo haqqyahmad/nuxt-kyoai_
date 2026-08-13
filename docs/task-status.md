@@ -4,6 +4,19 @@ Last updated: 2026-08-11
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-13: Gambar samping tidak menimpa pernyataan di halaman berikutnya
+
+- Setelah consent & tanda tangan dibuat full-width, gambar nordic (position: fixed) berulang di tiap halaman → di halaman berikutnya gambar berada di atas teks pernyataan (tumpang tindih).
+- `useQuestionnairePrint.ts`: gambar samping diganti dari `position: fixed` menjadi `position: absolute; top: 55mm; right: 0` (relatif ke `.document-page.with-side-image { position: relative }`) dan dipindah ke DALAM `.document-page` (bukan sibling) via `wrapDocumentImage` → gambar hanya muncul SEKALI di halaman pertama, tidak berulang & tidak menimpa pernyataan/ttd di halaman selanjutnya. Posisi visual halaman 1 identik (kanan atas, x=464-550pt).
+- Verifikasi headless: 1 halaman → gambar kanan atas (y219-393), consent di bawahnya (y507) full-width tanpa overlap; 2 halaman → gambar hanya halaman 1, halaman 2 bersih (consent full-width + ttd rata kanan x531).
+
+## Completed — 2026-08-13: Consent & tanda tangan full-width di hasil print (tidak terbagi 2 kolom)
+
+- Awalnya `wrapDocumentImage` membungkus SELURUH dokumen ke `.document-page.with-side-image` (padding-right 62mm) → consent (PERNYATAAN DAN PERSETUJUAN) + area tanda tangan ikut terjepit ke kolom kiri, tampak terbagi 2 (isi kiri, kanan kosong).
+- `useQuestionnairePrint.ts` `documentImageCss()` (media print): tambah `margin-right:-62mm` pada `.consent-section`, `.signature-wrapper`, `> .signature-area`, `.consent-signature`, `.document-footer` → consent & tanda tangan memakai lebar penuh halaman.
+- `front-office/questionnaire-results.vue` `legacyPrintHtml`: bungkus consent + signature dalam `<div class="consent-signature">` (page-break-inside: avoid) agar tetap satu blok, tidak terbelah antar halaman.
+- Verifikasi headless Chrome: template-path & legacy-path → tanda tangan rata kanan penuh (ujung teks ~523pt = 15mm margin dikurangi padding-right 40px), consent full-width, gambar diagram tetap di kanan atas (y211-443), tidak ada tumpang tindih dengan tanda tangan (y699).
+
 ## Completed — 2026-08-11: Gambar samping (mis. diagram Nordic) per questionnaire — portal isi & hasil print
 
 **Permintaan user:** Nordic questionnaire butuh gambar tambahan di samping (form kiri, gambar kanan), diatur khusus per Nordic. Tampil saat pasien mengisi di portal DAN di hasil print, semua halaman.

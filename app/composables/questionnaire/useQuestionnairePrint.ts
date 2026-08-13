@@ -419,9 +419,9 @@ export function printHeaderHtml(ctx: Pick<QuestionnairePrintContext, 'documentTi
 export function documentImageCss(): string {
   return `
     .document-side-image {
-      position: fixed;
+      position: absolute;
       top: 55mm;
-      right: 15mm;
+      right: 0;
       width: 44mm;
       z-index: 50;
     }
@@ -434,14 +434,20 @@ export function documentImageCss(): string {
       background: #fff;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
     }
-    .document-page.with-side-image { padding-right: 62mm; }
+    .document-page.with-side-image { position: relative; padding-right: 62mm; }
     @media screen {
       .document-side-image { position: static; margin: 0 auto 16px; width: min(260px, 80%); }
       .document-page.with-side-image { padding-right: 0; }
     }
     @media print {
-      .document-side-image { position: fixed; }
       .document-page.with-side-image { padding-right: 62mm; }
+      .document-page.with-side-image .consent-section,
+      .document-page.with-side-image .signature-wrapper,
+      .document-page.with-side-image > .signature-area,
+      .document-page.with-side-image .consent-signature,
+      .document-page.with-side-image .document-footer {
+        margin-right: -62mm;
+      }
     }
   `
 }
@@ -450,8 +456,10 @@ export function wrapDocumentImage(contentHtml: string, imageUrl?: string | null)
   if (!imageUrl) return contentHtml
   const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   return `
-    <div class="document-side-image"><img src="${esc(imageUrl)}" alt="Gambar dokumen" /></div>
-    <div class="document-page with-side-image">${contentHtml}</div>
+    <div class="document-page with-side-image">
+      <div class="document-side-image"><img src="${esc(imageUrl)}" alt="Gambar dokumen" /></div>
+      ${contentHtml}
+    </div>
   `
 }
 

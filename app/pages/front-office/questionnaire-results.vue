@@ -268,6 +268,7 @@ const printCss = `
   .sign-ttd { text-align: center; margin-right: -40px; }
   .sign-name { text-align: center; margin-right: -40px; }
   .consent-section { margin-top: 20px; line-height: 1.3; }
+  .consent-signature { page-break-inside: avoid; break-inside: avoid; }
   .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
   .consent-list li { margin-bottom: 5px; }
   .document-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid #d9dee7; color: #6b7280; font-size: 7.5pt; page-break-inside: avoid; }
@@ -312,20 +313,22 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
             ${questionsHtml}
           </ol>
 
-          <div class="consent-section">
-            <strong>Isian diatas telah saya isi dengan sadar dan benar</strong><br>
-            <strong>Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:</strong>
-            <ol class="consent-list">
-              <li><strong>Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut</strong></li>
-              <li><strong>Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)</strong></li>
-            </ol>
-          </div>
+          <div class="consent-signature">
+            <div class="consent-section">
+              <strong>Isian diatas telah saya isi dengan sadar dan benar</strong><br>
+              <strong>Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:</strong>
+              <ol class="consent-list">
+                <li><strong>Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut</strong></li>
+                <li><strong>Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)</strong></li>
+              </ol>
+            </div>
 
-          <div class="signature-area">
-            <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-            <div class="signature-space"></div>
-            <div class="sign-ttd">( ttd )</div>
-            <div class="sign-name">${row.patientName}</div>
+            <div class="signature-area">
+              <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+              <div class="signature-space"></div>
+              <div class="sign-ttd">( ttd )</div>
+              <div class="sign-name">${row.patientName}</div>
+            </div>
           </div>
 
           <div class="document-footer">
