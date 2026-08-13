@@ -47,7 +47,14 @@ const menuGroups: Record<string, string[]> = {
   ],
   'Results': [
     '/result/exam-results',
-    '/result/exam-status'
+    '/result/exam-status',
+    '/result/exam-results?department=lab',
+    '/result/exam-results?department=radiology',
+    '/result/exam-results?department=nurse',
+    '/result/exam-results?department=dokter',
+    '/result/exam-results?department=dental',
+    '/result/doctor-result',
+    '/result/mr-review'
   ],
   'Lab': [
     '/rooms/sample-reception'
