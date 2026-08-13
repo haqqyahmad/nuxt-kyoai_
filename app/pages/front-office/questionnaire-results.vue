@@ -3,7 +3,7 @@ import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import type { HeaderContext } from '@tanstack/table-core'
+import type { Column, HeaderContext } from '@tanstack/table-core'
 import {
   renderQuestionnaireTemplate,
   buildQuestionnairePrintContext,
@@ -62,10 +62,6 @@ type Customer = {
 const STATUS_LABEL: Record<string, string> = {
   Completed: 'Completed',
   Pending: 'Pending'
-}
-const STATUS_COLOR: Record<string, string> = {
-  Completed: 'success',
-  Pending: 'neutral'
 }
 
 const filters = reactive({
@@ -492,19 +488,20 @@ async function printResult(row: QuestionnaireResult) {
 function sortHeader(label: string) {
   return ({ column }: HeaderContext<QuestionnaireResult, unknown>) => {
     const isSorted = column.getIsSorted()
+    const iconClass = isSorted
+      ? isSorted === 'asc'
+        ? 'i-lucide-arrow-up-narrow-wide w-3 h-3 text-slate-400'
+        : 'i-lucide-arrow-down-wide-narrow w-3 h-3 text-slate-400'
+      : 'i-lucide-arrow-up-down w-3 h-3 text-slate-400'
 
-    return h(UButton, {
-      color: 'neutral',
-      variant: 'ghost',
-      label,
-      icon: isSorted
-        ? isSorted === 'asc'
-          ? 'i-lucide-arrow-up-narrow-wide'
-          : 'i-lucide-arrow-down-wide-narrow'
-        : 'i-lucide-arrow-up-down',
-      class: '-mx-2.5',
-      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-    })
+    return h(
+      'div',
+      {
+        class: 'flex cursor-pointer select-none items-center gap-1 hover:text-slate-800',
+        onClick: () => column.toggleSorting(isSorted === 'asc')
+      },
+      [h('span', undefined, label), h('i', { class: iconClass })]
+    )
   }
 }
 
@@ -516,53 +513,50 @@ const columns: TableColumn<QuestionnaireResult>[] = [
       const r = row.original
 
       return h('div', undefined, [
-        h('p', { class: 'font-medium text-highlighted' }, r.patientName),
-        h('p', { class: 'text-xs text-muted' }, r.patientCode || '-')
+        h('p', { class: 'font-medium text-slate-800' }, r.patientName),
+        h('p', { class: 'font-mono text-[10px] text-slate-400' }, r.patientCode || '-')
       ])
     }
   },
   {
     accessorKey: 'registrationRef',
     header: sortHeader('Regist'),
-    cell: ({ row }) => row.getValue('registrationRef') as string
+    cell: ({ row }) => h('span', { class: 'font-mono text-[11px] text-slate-500' }, row.getValue('registrationRef') as string)
   },
   {
     accessorKey: 'examDate',
     header: sortHeader('Exam Date'),
-    cell: ({ row }) => fmtDate(row.getValue('examDate') as string)
+    cell: ({ row }) => h('span', { class: 'text-slate-600' }, fmtDate(row.getValue('examDate') as string))
   },
   {
     accessorKey: 'companyName',
     header: sortHeader('Company'),
-    cell: ({ row }) => row.getValue('companyName') || '-'
+    cell: ({ row }) => h('span', { class: 'font-medium text-slate-700' }, row.getValue('companyName') || '-')
   },
   {
     accessorKey: 'branchName',
     header: sortHeader('Branch'),
     cell: ({ row }) => {
       const v = row.getValue('branchName') as string
-      return h('span', { class: 'line-clamp-2 max-w-56' }, v || '-')
+      return h('span', { class: 'line-clamp-2 max-w-56 text-slate-600' }, v || '-')
     }
   },
   {
     accessorKey: 'questionnaire_name',
     header: sortHeader('Questionnaire'),
-    cell: ({ row }) => row.getValue('questionnaire_name') || '-'
+    cell: ({ row }) => h('span', { class: 'text-slate-600' }, row.getValue('questionnaire_name') || '-')
   },
   {
     accessorKey: 'status',
     header: sortHeader('Status'),
     cell: ({ row }) => {
       const status = row.getValue('status') as string
+      const isCompleted = status === 'Completed'
+      const cls = isCompleted
+        ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600'
+        : 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600'
 
-      return h(
-        UBadge,
-        {
-          label: STATUS_LABEL[status] ?? status,
-          color: STATUS_COLOR[status] ?? 'neutral',
-          variant: 'subtle'
-        }
-      )
+      return h('span', { class: cls }, STATUS_LABEL[status] ?? status)
     }
   },
   {
@@ -570,15 +564,18 @@ const columns: TableColumn<QuestionnaireResult>[] = [
     header: sortHeader('Completion'),
     cell: ({ row }) => {
       const v = row.getValue('completionDate') as string | null
-      return v ? formatDateTime(v) : '-'
+      return v
+        ? h('span', { class: 'text-[11px] text-slate-500' }, formatDateTime(v))
+        : h('span', { class: 'text-[11px] text-slate-400' }, '-')
     }
   },
   {
     id: 'actions',
+    header: () => h('div', { class: 'text-center' }, ''),
     cell: ({ row }) => {
       return h(
         'div',
-        { class: 'text-right' },
+        { class: 'text-center' },
         h(
           UDropdownMenu,
           {
@@ -589,10 +586,11 @@ const columns: TableColumn<QuestionnaireResult>[] = [
           },
           () =>
             h(UButton, {
-              icon: 'i-lucide-ellipsis-vertical',
+              icon: 'i-lucide-more-vertical',
               color: 'neutral',
               variant: 'ghost',
-              class: 'ml-auto'
+              square: true,
+              class: 'text-slate-400 hover:text-slate-600'
             })
         )
       )
@@ -605,6 +603,22 @@ const table = ref()
 const currentPage = ref(1)
 
 const currentPageSize = ref(10)
+
+const displayColumns = computed(() =>
+  (table.value?.tableApi?.getAllColumns() ?? [])
+    .filter((column: Column<QuestionnaireResult, unknown>) => column.getCanHide())
+    .map((column: Column<QuestionnaireResult, unknown>) => ({
+      label: upperFirst(column.id),
+      type: 'checkbox' as const,
+      checked: column.getIsVisible(),
+      onUpdateChecked(checked: boolean) {
+        table.value?.tableApi?.getColumn(column.id)?.toggleVisibility(!!checked)
+      },
+      onSelect(e?: Event) {
+        e?.preventDefault()
+      }
+    }))
+)
 
 watch(currentPageSize, (val) => {
   table.value?.tableApi?.setPageSize(val)
@@ -649,157 +663,145 @@ watch(currentPage, (page) => {
     <template #body>
       <div class="w-full min-w-0 space-y-4">
         <!-- Filters -->
-        <div class="rounded-xl border border-default bg-background p-4">
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label class="text-xs font-medium text-muted">Company</label>
-              <USelect
+        <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-500">Company</label>
+              <select
                 v-model="filters.companyId"
-                :items="(customers ?? []).map(c => ({ label: c.customerName, value: String(c.id) }))"
-                placeholder="Semua company"
-                class="w-full"
-                clear-search-on-close
-              />
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">
+                  Semua company
+                </option>
+                <option v-for="c in customers ?? []" :key="c.id" :value="String(c.id)">
+                  {{ c.customerName }}
+                </option>
+              </select>
             </div>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label class="text-xs font-medium text-muted">Branch</label>
-              <USelect
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-500">Branch</label>
+              <select
                 v-model="filters.branchId"
-                :items="(branches ?? []).map(b => ({ label: b.nameBranch, value: String(b.branchId) }))"
-                placeholder="Semua branch"
-                class="w-full"
-                clear-search-on-close
-              />
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">
+                  Semua branch
+                </option>
+                <option v-for="b in branches ?? []" :key="b.branchId" :value="String(b.branchId)">
+                  {{ b.nameBranch }}
+                </option>
+              </select>
             </div>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label class="text-xs font-medium text-muted">Dari Tanggal</label>
-              <UInput
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-500">Dari Tanggal</label>
+              <input
                 v-model="filters.dateFrom"
                 type="date"
-                class="w-full"
-              />
+                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
             </div>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label class="text-xs font-medium text-muted">Sampai Tanggal</label>
-              <UInput
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-500">Sampai Tanggal</label>
+              <input
                 v-model="filters.dateTo"
                 type="date"
-                class="w-full"
-              />
+                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
             </div>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label class="text-xs font-medium text-muted">Status</label>
-              <USelect
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-500">Status</label>
+              <select
                 v-model="filters.status"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">
+                  Semua status
+                </option>
+                <option value="Completed">
+                  Completed
+                </option>
+                <option value="Pending">
+                  Pending
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-2">
+            <button
+              class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="loading"
+              @click="clearFilters"
+            >
+              <i class="i-lucide-rotate-ccw h-3.5 w-3.5" /> Reset
+            </button>
+            <button
+              class="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="loading"
+              @click="fetchResults"
+            >
+              <i class="i-lucide-filter h-3.5 w-3.5" /> Terapkan
+            </button>
+          </div>
+        </div>
+
+        <!-- Table card -->
+        <div class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-100 p-4">
+            <span class="text-xs font-medium text-slate-500">{{ results.length }} hasil questionnaire</span>
+            <UDropdownMenu :items="displayColumns" :content="{ align: 'end', paper: { class: 'min-w-40' } }">
+              <button class="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50">
+                Display <i class="i-lucide-sliders-horizontal h-3.5 w-3.5" />
+              </button>
+            </UDropdownMenu>
+          </div>
+
+          <div class="overflow-x-auto">
+            <UTable
+              ref="table"
+              :pagination-options="{
+                getPaginationRowModel: getPaginationRowModel()
+              }"
+              sticky
+              class="w-full"
+              :data="results"
+              :columns="columns"
+              :loading="loading"
+              :ui="{
+                base: 'w-full text-left text-xs text-slate-600 border-separate border-spacing-0',
+                thead: 'bg-slate-50/80 align-middle text-slate-500 font-semibold border-b border-slate-200 [&>tr]:bg-transparent [&>tr]:after:content-none',
+                tbody: 'divide-y divide-slate-100',
+                tr: 'transition-colors hover:bg-slate-50/80',
+                th: 'p-3.5 cursor-pointer first:pl-4 last:text-center',
+                td: 'p-3.5 align-middle first:pl-4',
+                empty: 'py-10 text-center text-sm text-slate-400',
+                loading: 'text-slate-400'
+              }"
+            />
+          </div>
+
+          <!-- Pagination -->
+          <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-100 p-4 sm:flex-row">
+            <span class="text-xs font-medium text-slate-400">{{ results.length }} row(s)</span>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <USelect
+                v-model="currentPageSize"
                 :items="[
-                  { label: 'Completed', value: 'Completed' },
-                  { label: 'Pending', value: 'Pending' }
+                  { label: '10 items', value: 10 },
+                  { label: '25 items', value: 25 },
+                  { label: '50 items', value: 50 }
                 ]"
-                placeholder="Semua status"
-                class="w-full"
+                class="w-36"
+              />
+              <UPagination
+                :default-page="currentPage"
+                :items-per-page="currentPageSize"
+                :total="results.length"
+                @update:page="currentPage = $event"
               />
             </div>
-            <div class="flex items-end gap-2 xl:justify-end">
-              <UButton
-                label="Reset"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-rotate-ccw"
-                :disabled="loading"
-                @click="clearFilters"
-              />
-              <UButton
-                label="Terapkan"
-                color="primary"
-                icon="i-lucide-filter"
-                :loading="loading"
-                @click="fetchResults"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Info + display control -->
-        <div class="flex flex-wrap items-center justify-between gap-1.5">
-          <p class="text-sm text-muted">
-            {{ results.length }} hasil questionnaire
-          </p>
-
-          <UDropdownMenu
-            :items="
-              table?.tableApi
-                ?.getAllColumns()
-                .filter((column: any) => column.getCanHide())
-                .map((column: any) => ({
-                  label: upperFirst(column.id),
-                  type: 'checkbox' as const,
-                  checked: column.getIsVisible(),
-                  onUpdateChecked(checked: boolean) {
-                    table?.tableApi
-                      ?.getColumn(column.id)
-                      ?.toggleVisibility(!!checked);
-                  },
-                  onSelect(e?: Event) {
-                    e?.preventDefault();
-                  }
-                }))
-            "
-            :content="{ align: 'end' }"
-          >
-            <UButton
-              label="Display"
-              color="neutral"
-              variant="outline"
-              trailing-icon="i-lucide-settings-2"
-            />
-          </UDropdownMenu>
-        </div>
-
-        <!-- Table -->
-        <UTable
-          ref="table"
-          :pagination-options="{
-            getPaginationRowModel: getPaginationRowModel()
-          }"
-          sticky
-          class="w-full"
-          :data="results"
-          :columns="columns"
-          :loading="loading"
-          :ui="{
-            base: 'table-fixed border-separate border-spacing-0',
-            thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-            tbody: '[&>tr]:last:[&>td]:border-b-0',
-            th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
-            td: 'border-b border-default',
-            separator: 'h-0'
-          }"
-        />
-
-        <!-- Pagination -->
-        <div
-          class="flex flex-wrap items-center justify-between gap-3 border-t border-default pt-4"
-        >
-          <div class="text-sm text-muted">
-            {{ results.length }} row(s)
-          </div>
-
-          <div class="flex flex-wrap items-center gap-1.5">
-            <USelect
-              v-model="currentPageSize"
-              :items="[
-                { label: '10 items', value: 10 },
-                { label: '25 items', value: 25 },
-                { label: '50 items', value: 50 }
-              ]"
-              class="w-36"
-            />
-            <UPagination
-              :default-page="currentPage"
-              :items-per-page="currentPageSize"
-              :total="results.length"
-              @update:page="currentPage = $event"
-            />
           </div>
         </div>
       </div>
