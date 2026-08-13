@@ -500,50 +500,6 @@ const paginatedGroups = computed(() => {
   return sortedGroups.value.slice(start, start + currentPageSize.value)
 })
 
-type ChildSortKey = 'registrationRef' | 'questionnaire_name' | 'status' | 'completionDate'
-
-const childSortBy = ref<ChildSortKey | null>(null)
-
-const childSortDir = ref<'asc' | 'desc'>('asc')
-
-function childToggleSort(key: ChildSortKey) {
-  if (childSortBy.value === key) {
-    childSortDir.value = childSortDir.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    childSortBy.value = key
-    childSortDir.value = 'asc'
-  }
-}
-
-function childSortIcon(key: ChildSortKey): string {
-  if (childSortBy.value !== key) return 'i-lucide-arrow-up-down'
-  return childSortDir.value === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'
-}
-
-function sortedQuestionnaires(g: PatientGroup): QuestionnaireResult[] {
-  if (!childSortBy.value) return g.questionnaires
-  const list = g.questionnaires.slice()
-  list.sort((a, b) => {
-    let cmp = 0
-    switch (childSortBy.value) {
-      case 'registrationRef':
-        cmp = a.registrationRef.localeCompare(b.registrationRef)
-        break
-      case 'questionnaire_name':
-        cmp = a.questionnaire_name.localeCompare(b.questionnaire_name)
-        break
-      case 'status':
-        cmp = a.status.localeCompare(b.status)
-        break
-      case 'completionDate':
-        cmp = (a.completionDate ?? '').localeCompare(b.completionDate ?? '')
-        break
-    }
-    return childSortDir.value === 'asc' ? cmp : -cmp
-  })
-  return list
-}
-
 const expanded = reactive<Record<string, boolean>>({})
 
 function isExpanded(patientKey: string): boolean {
@@ -782,28 +738,16 @@ watch(results, () => {
                             <thead class="border-b border-slate-100 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                               <tr>
                                 <th class="p-2.5">
-                                  <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-700" @click="childToggleSort('registrationRef')">
-                                    No. Registrasi
-                                    <UIcon :name="childSortIcon('registrationRef')" class="size-3" :class="childSortBy === 'registrationRef' ? 'text-blue-600' : ''" />
-                                  </button>
+                                  No. Registrasi
                                 </th>
                                 <th class="p-2.5">
-                                  <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-700" @click="childToggleSort('questionnaire_name')">
-                                    Questionnaire
-                                    <UIcon :name="childSortIcon('questionnaire_name')" class="size-3" :class="childSortBy === 'questionnaire_name' ? 'text-blue-600' : ''" />
-                                  </button>
+                                  Questionnaire
                                 </th>
                                 <th class="p-2.5">
-                                  <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-700" @click="childToggleSort('status')">
-                                    Status
-                                    <UIcon :name="childSortIcon('status')" class="size-3" :class="childSortBy === 'status' ? 'text-blue-600' : ''" />
-                                  </button>
+                                  Status
                                 </th>
                                 <th class="p-2.5">
-                                  <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-700" @click="childToggleSort('completionDate')">
-                                    Completion Time
-                                    <UIcon :name="childSortIcon('completionDate')" class="size-3" :class="childSortBy === 'completionDate' ? 'text-blue-600' : ''" />
-                                  </button>
+                                  Completion Time
                                 </th>
                                 <th class="p-2.5 text-center">
                                   Aksi
@@ -811,7 +755,7 @@ watch(results, () => {
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                              <tr v-for="q in sortedQuestionnaires(g)" :key="q.registrationKey" class="transition-colors hover:bg-slate-100/50">
+                              <tr v-for="q in g.questionnaires" :key="q.registrationKey" class="transition-colors hover:bg-slate-100/50">
                                 <td class="p-2.5 font-mono text-[11px] text-slate-500">
                                   {{ q.registrationRef }}
                                 </td>
