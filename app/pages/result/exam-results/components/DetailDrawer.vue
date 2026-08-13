@@ -99,6 +99,14 @@ type ExamResultDetail = {
   workStatus?: string | null
   resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED' | string | null
   departmentResultStatus?: string | null
+  departmentCurrentStepOrder?: number | null
+  departmentCurrentVersionId?: string | null
+  returnReason?: string | null
+  revisionItems?: Array<{
+    inputanId: string | null
+    examItemId: string | null
+    reason?: string | null
+  }>
   canEditResult?: boolean
   canSubmitResult?: boolean
   exam?: {
@@ -368,6 +376,32 @@ const resultWorkflowLabel = computed(() => {
   if (props.result?.resultStatus === 'READY') return 'Ready'
   return null
 })
+
+// [RETURN] Revisi dari dokter → department (pola sama seperti MR → dokter)
+const isReturnedToDepartment = computed(() =>
+  props.result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT'
+)
+const returnReason = computed(() => props.result?.returnReason ?? null)
+const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
+function returnItemLabel(inputanId: string | null) {
+  if (!inputanId) return 'Item pemeriksaan'
+  const inputan = (props.result?.item?.inputans ?? [])
+    .find((inp) => inp.id === inputanId)
+  return inputan?.label || inputanId.slice(0, 8)
+}
+// [RETURN] Catatan per inputan (dari return dokter → dept)
+const returnNoteByInputan = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const rev of returnRevisionItems.value) {
+    if (rev.inputanId && !map[rev.inputanId]) {
+      map[rev.inputanId] = rev.reason ?? ''
+    }
+  }
+  return map
+})
+function inputanReturnNote(inputanId: string | null) {
+  return inputanId ? (returnNoteByInputan.value[inputanId] ?? '') : ''
+}
 
 function getSampleImpactLabel(impact: SampleImpact) {
   const name = impact.sampleTypeName || 'Sample'
@@ -1481,7 +1515,7 @@ onBeforeUnmount(() => {
         />
 
         <div
-          v-if="embedded && result?.status === 'pending' && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
+          v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
           <UButton
@@ -1508,6 +1542,32 @@ onBeforeUnmount(() => {
     </template>
 
     <template #body>
+      <div v-if="isReturnedToDepartment" class="space-y-1 p-3 sm:px-4">
+        <UAlert
+          icon="i-lucide-rotate-ccw"
+          color="error"
+          variant="soft"
+          title="Hasil dikembalikan oleh dokter"
+          :description="returnReason || 'Perbaiki hasil yang ditandai lalu submit ulang.'"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ returnReason || 'Perbaiki hasil yang ditandai lalu submit ulang.' }}</p>
+              <p v-if="returnRevisionItems.length" class="text-xs">
+                Item yang perlu diperbaiki:
+                <span
+                  v-for="(rev, revIdx) in returnRevisionItems"
+                  :key="rev.inputanId ?? revIdx"
+                  class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
+                >
+                  {{ returnItemLabel(rev.inputanId) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
+                </span>
+              </p>
+            </div>
+          </template>
+        </UAlert>
+      </div>
+
       <div
         v-if="result && isExternalDoctorWorkspace"
         class="flex h-[calc(120dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
@@ -2220,6 +2280,7 @@ onBeforeUnmount(() => {
                           v-for="inputan in result.item.inputans"
                           :key="inputan.id"
                           class="transition hover:bg-muted/20"
+                          :class="inputanReturnNote(inputan.id) ? 'bg-error/5' : ''"
                         >
                           <td class="px-3 py-2.5 align-middle">
                             <div class="min-w-0">
@@ -2227,6 +2288,13 @@ onBeforeUnmount(() => {
                                 {{ inputan.label }}
                               </p>
                               <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                <UBadge
+                                  v-if="inputanReturnNote(inputan.id)"
+                                  label="Perlu Revisi"
+                                  color="error"
+                                  variant="soft"
+                                  size="sm"
+                                />
                                 <UBadge
                                   :label="getInputTypeLabel(inputan.inputType)"
                                   :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
@@ -2237,6 +2305,12 @@ onBeforeUnmount(() => {
                                   {{ inputan.uom }}
                                 </span>
                               </div>
+                              <p
+                                v-if="inputanReturnNote(inputan.id)"
+                                class="mt-1.5 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error"
+                              >
+                                Catatan Dokter: {{ inputanReturnNote(inputan.id) }}
+                              </p>
                             </div>
                           </td>
 

@@ -249,6 +249,25 @@ export function useDoctorResult(examId: string) {
     }
   }
 
+  // ── return to department (after MR return) ─────────────────────────
+  async function returnToDepartment(payload: { reason: string, items: { inputanId: string, note: string }[] }) {
+    submitting.value = true
+    try {
+      const res = await api.post(`/mcu/exams/${examId}/doctor-result/return-department`, payload)
+      toast.add({ title: 'Dikembalikan', description: 'Item dikembalikan ke department terkait', color: 'warning' })
+      return res.data
+    } catch (err) {
+      toast.add({
+        title: 'Gagal return ke department',
+        description: getErrorMessage(err, 'Gagal return ke department'),
+        color: 'error'
+      })
+      return false
+    } finally {
+      submitting.value = false
+    }
+  }
+
   // ── submit ─────────────────────────────────────────────────────────
   async function submit() {
     if (!canSubmit.value) return false
@@ -304,6 +323,7 @@ export function useDoctorResult(examId: string) {
     selectGroupGrade,
     clearGroupGrade,
     gradeOptionsFor,
+    returnToDepartment,
     submit
   }
 }

@@ -384,6 +384,11 @@ const links = computed<NavigationMenuItem[][]>(() => [
           active: route.path.startsWith('/result/doctor-result')
         },
         {
+          label: 'MR Review',
+          to: '/result/mr-review',
+          active: route.path.startsWith('/result/mr-review')
+        },
+        {
           label: 'Status Examination',
           icon: 'i-lucide-activity',
           to: '/result/exam-status',

@@ -52,7 +52,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport to="body" :disabled="embedded">
+  <!-- Embedded (full-page) mode: render langsung tanpa Teleport/Transition.
+       Transition berlapis + Teleport dapat memicu crash Vue saat unmount
+       (Cannot read properties of null reading 'type') ketika halaman di-navigate. -->
+  <Teleport v-if="!embedded" to="body">
     <Transition
       enter-active-class="transition duration-200 ease-out"
       enter-from-class="opacity-0"
@@ -63,11 +66,9 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="canRender"
-        class="flex items-stretch justify-center"
-        :class="embedded ? 'min-h-0 flex-1' : 'fixed inset-0 z-[100] sm:items-center sm:p-4'"
+        class="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4"
       >
         <div
-          v-if="!embedded"
           class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
           @click="requestClose"
         />
@@ -82,24 +83,17 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="canRender"
-            class="relative flex w-full flex-col bg-background"
-            :class="embedded
-              ? 'min-h-[calc(100dvh-4rem)] overflow-visible'
-              : 'h-[100dvh] overflow-hidden ring-1 ring-border sm:h-[calc(100dvh-2rem)] sm:w-[min(1600px,calc(100vw-2rem))] sm:rounded-3xl sm:shadow-2xl'"
+            class="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background ring-1 ring-border sm:h-[calc(100dvh-2rem)] sm:w-[min(1600px,calc(100vw-2rem))] sm:rounded-3xl sm:shadow-2xl"
             @click.stop
           >
             <div
               v-if="$slots.header"
               class="shrink-0 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
-              :class="embedded ? 'sticky top-0 z-20' : ''"
             >
               <slot name="header" />
             </div>
 
-            <div
-              class="min-h-0 flex-1"
-              :class="embedded ? 'overflow-visible' : 'overflow-hidden'"
-            >
+            <div class="min-h-0 flex-1 overflow-hidden">
               <slot name="body" />
             </div>
 
@@ -114,4 +108,24 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <div v-else-if="canRender" class="flex min-h-0 flex-1 flex-col bg-background">
+    <div
+      v-if="$slots.header"
+      class="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+    >
+      <slot name="header" />
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-visible">
+      <slot name="body" />
+    </div>
+
+    <div
+      v-if="$slots.footer && !hideFooter"
+      class="shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
+    >
+      <slot name="footer" />
+    </div>
+  </div>
 </template>

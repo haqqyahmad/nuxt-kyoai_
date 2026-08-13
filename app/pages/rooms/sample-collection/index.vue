@@ -36,9 +36,63 @@ type SampleCollectionRow = {
 
 type BadgeColor = 'success' | 'info' | 'error' | 'warning' | 'neutral'
 
+type RoomAssignment = {
+  id: string
+  assignedDate: string
+  roomId: string | null
+  roomTypeId: string | null
+  room?: { id: string, code: string, name: string } | null
+  roomType?: { id: string, code: string, name: string } | null
+}
+
 const api = useApi()
 const router = useRouter()
-const { session: roomSession } = await useRoomSession()
+const toast = useToast()
+const {
+  session: roomSession,
+  pending: roomSessionPending,
+  refresh: refreshRoomSession,
+  enterRoomSession,
+  exitRoomSession
+} = await useRoomSession()
+
+const today = new Date().toISOString().slice(0, 10)
+const { data: assignmentData } = await useAsyncData<RoomAssignment | null>(
+  'sample-collection-assignment-index',
+  async () => {
+    try {
+      const res = await api.get('/room-assignments/me', {
+        params: { assignedDate: today, _: Date.now() }
+      })
+      const payload = res.data
+      return (payload && Object.prototype.hasOwnProperty.call(payload, 'data')
+        ? payload.data
+        : payload) as RoomAssignment | null
+    } catch {
+      return null
+    }
+  },
+  { default: () => null, server: false }
+)
+
+const assignment = computed(() => assignmentData.value ?? null)
+const activeRoomSession = computed(() => {
+  if (!roomSession.value?.id || roomSession.value.endedAt) return null
+  return roomSession.value
+})
+const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
+const roomSessionLabel = computed(() => {
+  if (!activeRoomSession.value) return 'Sesi room tidak aktif'
+  if (activeRoomSession.value.room?.name) {
+    return `${activeRoomSession.value.room.code} - ${activeRoomSession.value.room.name}`
+  }
+  return activeRoomSession.value.roomType?.name || 'Sesi room aktif'
+})
+
+const isEnterRoomModalOpen = ref(false)
+const isExitRoomModalOpen = ref(false)
+const roomEnterActionLoading = ref(false)
+const roomExitActionLoading = ref(false)
 
 const rows = ref<SampleCollectionRow[]>([])
 const loading = ref(false)
@@ -49,7 +103,6 @@ const detailPatient = ref<{ name: string, patientId: string, idReg: string, queu
 const pickModalOpen = ref(false)
 
 const statusFilter = ref('ALL')
-const today = new Date().toISOString().slice(0, 10)
 const examDateFrom = ref(today)
 const examDateTo = ref(today)
 const searchInput = ref('')
@@ -59,11 +112,6 @@ const pageSize = ref(20)
 const totalRows = ref(0)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let loadRequestId = 0
-
-const activeRoomSession = computed(() => {
-  if (!roomSession.value?.id || roomSession.value.endedAt) return null
-  return roomSession.value
-})
 
 const statusOptions = [
   { label: 'Semua Status', value: 'ALL' },
@@ -109,7 +157,7 @@ async function loadHistory() {
   if (!activeRoomSession.value) {
     rows.value = []
     totalRows.value = 0
-    error.value = 'Masuk ke room Sample Collection terlebih dahulu.'
+    error.value = 'Belum ada sesi room aktif.'
     return
   }
 
@@ -198,6 +246,76 @@ function navigateToDetail(row: SampleCollectionRow) {
   }
 }
 
+function openEnterRoomModal() {
+  if (!assignment.value?.roomId) {
+    toast.add({
+      title: 'Belum ada assignment room',
+      description: 'Tidak ada room assignment yang bisa dipakai untuk masuk room.',
+      color: 'warning'
+    })
+    return
+  }
+  isEnterRoomModalOpen.value = true
+}
+
+async function handleEnterRoom() {
+  if (roomEnterActionLoading.value || !assignment.value?.roomId) return
+  roomEnterActionLoading.value = true
+  try {
+    await enterRoomSession({ roomId: assignment.value.roomId })
+    await refreshRoomSession()
+    isEnterRoomModalOpen.value = false
+    toast.add({
+      title: 'Berhasil',
+      description: 'Berhasil masuk ke room aktif.',
+      color: 'success'
+    })
+  } catch {
+    toast.add({
+      title: 'Gagal masuk room',
+      description: 'Terjadi kesalahan saat masuk ke room aktif.',
+      color: 'error'
+    })
+  } finally {
+    roomEnterActionLoading.value = false
+  }
+}
+
+function openExitRoomModal() {
+  if (!activeRoomSession.value) {
+    toast.add({
+      title: 'Sesi room belum aktif',
+      description: 'Tidak ada room aktif yang bisa dikeluarkan.',
+      color: 'warning'
+    })
+    return
+  }
+  isExitRoomModalOpen.value = true
+}
+
+async function handleExitRoom() {
+  if (roomExitActionLoading.value || !activeRoomSession.value) return
+  roomExitActionLoading.value = true
+  try {
+    await exitRoomSession()
+    await refreshRoomSession()
+    isExitRoomModalOpen.value = false
+    toast.add({
+      title: 'Berhasil',
+      description: 'Berhasil keluar dari room aktif.',
+      color: 'success'
+    })
+  } catch {
+    toast.add({
+      title: 'Gagal keluar room',
+      description: 'Terjadi kesalahan saat keluar dari room aktif.',
+      color: 'error'
+    })
+  } finally {
+    roomExitActionLoading.value = false
+  }
+}
+
 watch([statusFilter, examDateFrom, examDateTo], () => {
   if (currentPage.value !== 1) currentPage.value = 1
   else void loadHistory()
@@ -246,9 +364,31 @@ onBeforeUnmount(() => {
             v-if="activeRoomSession"
             color="success"
             variant="soft"
+            :label="roomSessionPending ? 'Mengecek sesi room...' : roomSessionLabel"
+          />
+
+          <UButton
+            v-if="canEnterRoom"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-log-in"
+            :loading="roomEnterActionLoading"
+            @click="openEnterRoomModal"
           >
-            {{ activeRoomSession.room?.name || activeRoomSession.roomType?.name || 'Room aktif' }}
-          </UBadge>
+            Masuk Room
+          </UButton>
+
+          <UButton
+            v-if="activeRoomSession"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-log-out"
+            :loading="roomExitActionLoading"
+            @click="openExitRoomModal"
+          >
+            Keluar Room
+          </UButton>
+
           <UButton
             icon="i-lucide-user-plus"
             color="primary"
@@ -270,7 +410,17 @@ onBeforeUnmount(() => {
     </template>
 
     <template #body>
-      <UCard>
+      <div class="w-full space-y-4">
+        <UAlert
+          v-if="assignment && !activeRoomSession"
+          color="info"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Assignment aktif, tetapi belum masuk room"
+          :description="`Anda sudah di-assign ke ${assignment.room?.name || assignment.roomType?.name || 'ruangan'}. Klik 'Masuk Room' di kanan atas untuk memulai sesi, lalu tombol 'Ambil Pasien' akan aktif.`"
+        />
+
+        <UCard>
         <div class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <UFormField label="Cari">
             <UInput
@@ -304,11 +454,11 @@ onBeforeUnmount(() => {
 
         <UAlert
           v-if="error"
-          :title="error === 'Masuk ke room Sample Collection terlebih dahulu.' ? 'Belum ada sesi aktif' : 'Error'"
           color="warning"
           variant="soft"
           class="mb-4"
-          :description="error === 'Masuk ke room Sample Collection terlebih dahulu.' ? 'Silakan buka Room Queue, pilih room Sample Collection, lalu klik Enter Room.' : ''"
+          :title="error === 'Belum ada sesi room aktif.' ? 'Belum masuk room' : 'Error'"
+          :description="error === 'Belum ada sesi room aktif.' ? 'Klik tombol \'Masuk Room\' di kanan atas navbar untuk memulai sesi, lalu data sample collection akan dimuat.' : error"
           icon="i-lucide-alert-triangle"
         />
 
@@ -340,6 +490,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </UCard>
+      </div>
     </template>
   </UDashboardPanel>
 
@@ -451,8 +602,70 @@ onBeforeUnmount(() => {
     </template>
   </UModal>
 
-  <RoomsSampleCollectionPickModal
+   <RoomsSampleCollectionPickModal
     v-model:open="pickModalOpen"
     @collect="loadHistory"
   />
+
+  <UModal v-model:open="isEnterRoomModalOpen" title="Masuk Room">
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="info"
+          title="Masuk ke room assignment?"
+          :description="`Room assignment saat ini: ${assignment?.room?.code ? `${assignment.room.code} - ` : ''}${assignment?.room?.name || assignment?.roomType?.name || '-'}.`"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomEnterActionLoading"
+          @click="isEnterRoomModalOpen = false"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="primary"
+          :loading="roomEnterActionLoading"
+          @click="handleEnterRoom"
+        >
+          Masuk Room
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal v-model:open="isExitRoomModalOpen" title="Keluar Room">
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="warning"
+          title="Keluar dari sesi room aktif?"
+          :description="`Sesi aktif saat ini: ${roomSessionLabel}. Setelah keluar, kamu bisa pindah ke room lain.`"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="roomExitActionLoading"
+          @click="isExitRoomModalOpen = false"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="warning"
+          :loading="roomExitActionLoading"
+          @click="handleExitRoom"
+        >
+          Keluar Room
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>
