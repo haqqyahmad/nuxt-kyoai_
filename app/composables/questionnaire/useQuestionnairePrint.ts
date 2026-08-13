@@ -350,6 +350,21 @@ export function extractTemplateStyles(tpl: string): { styles: string, body: stri
   return { styles, body }
 }
 
+export function extractTemplateLogo(tpl: string): string {
+  const m = tpl.match(/src=["'](data:image[^"']*)["']/) || tpl.match(/<img\s+(data:image[^>\s"']+)/)
+  return m ? (m[1] ?? '') : ''
+}
+
+export function normalizeTemplateLogo(tpl: string, logoUrl: string): string {
+  if (!logoUrl) return tpl
+  let out = tpl
+  out = out.replace(/(<\w+[^>]*?)\s+src=["']?\{\{\s*logoUrl\s*\}\}["']?/g, `$1 src="${logoUrl}"`)
+  out = out.replace(/(<\w+[^>]*?)\s+src=["']?data:image[^"'\s>]*["']?/g, `$1 src="${logoUrl}"`)
+  out = out.replace(/(<\w+[^>]*?)\s+\{\{\s*logoUrl\s*\}\}(?=\s|>)/g, `$1 src="${logoUrl}"`)
+  out = out.replace(/(<\w+[^>]*?)\s+(data:image[^"'\s>]+)(?=\s|>)/g, `$1 src="${logoUrl}"`)
+  return out
+}
+
 export function pageSetupCss(
   patientName: string,
   patientCode: string
@@ -475,7 +490,9 @@ export function printQuestionnaireHtml(
     @media print { body { background-color: white; padding: 0; } .document-page { box-shadow: none; padding: 0; width: 100%; max-width: 100%; } }
   `
   const { styles, body } = extractTemplateStyles(template)
-  const rendered = renderQuestionnaireTemplate(body, ctx)
+  const logoUrl = extractTemplateLogo(template)
+  if (!ctx.logoUrl && logoUrl) ctx.logoUrl = logoUrl
+  const rendered = renderQuestionnaireTemplate(normalizeTemplateLogo(body, ctx.logoUrl || ''), ctx)
   const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
   const sideImageCss = ctx.image ? documentImageCss() : ''
   const content = wrapDocumentImage(rendered, ctx.image)

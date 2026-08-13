@@ -2,7 +2,9 @@
 import { handleError, handleSuccess } from '~/utils/handlers'
 import {
   buildQuestionnairePrintContext,
-  printQuestionnaireHtml
+  printQuestionnaireHtml,
+  extractTemplateLogo,
+  normalizeTemplateLogo
 } from '~/composables/questionnaire/useQuestionnairePrint'
 import type { QuestionnairePrintContext } from '~/composables/questionnaire/useQuestionnairePrint'
 
@@ -102,7 +104,7 @@ async function onUploadLogo() {
     reader.readAsDataURL(file)
   })
   logoUrl.value = await resizeHeaderLogo(raw)
-  template.value = template.value.replace(/src="data:image[^"]*"/g, '{{ logoUrl }}')
+  template.value = normalizeTemplateLogo(template.value, '{{ logoUrl }}')
   runPreview()
 }
 
@@ -156,11 +158,10 @@ watch(
       if (lm) logoLeft.value = Number(lm[1])
       stored = stored.replace(/<!--print-opts--><style>[\s\S]*?<\/style>/g, '')
     }
-    const m = stored.match(/src="(data:image[^"]*)"/)
-    const dataUrl = m?.[1]
-    if (dataUrl) {
-      logoUrl.value = await resizeHeaderLogo(dataUrl)
-      stored = stored.replace(/src="data:image[^"]*"/g, '{{ logoUrl }}')
+    const storedLogo = extractTemplateLogo(stored)
+    if (storedLogo) {
+      logoUrl.value = await resizeHeaderLogo(storedLogo)
+      stored = normalizeTemplateLogo(stored, '{{ logoUrl }}')
     }
     template.value = stored
     open.value = true
@@ -1378,7 +1379,7 @@ function embeddedTemplate() {
   html = html.replace(/<!--print-opts--><style>[\s\S]*?<\/style>/g, '')
   html += headerOptsTag()
   if (logoUrl.value) {
-    html = html.replace(/\{\{\s*logoUrl\s*\}\}/g, logoUrl.value)
+    html = normalizeTemplateLogo(html, logoUrl.value)
   }
   return html
 }

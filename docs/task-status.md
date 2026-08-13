@@ -1,8 +1,18 @@
 # Project Task Status
 
-Last updated: 2026-08-11
+Last updated: 2026-08-13
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
+
+## Completed — 2026-08-13: Logo header tidak tampil saat print hasil questionnaire (template Nordic)
+
+- **Gejala:** Di `/front-office/questionnaire-results`, hasil print Nordic tidak menampilkan logo. Logo sudah di-upload dan tampil di modal Print Template.
+- **Root cause:** `print_template` Nordic tersimpan dalam kondisi rusak — tag `<img>` kehilangan `src=`: `<img data:image/png;base64,... class="header-logo-img">` (hasil substitusi `{{ logoUrl }}` yang dipakai sebagai atribut polos, bukan `src="{{ logoUrl }}"`). Regex lama `src="(data:image...)"` di `questionnaire-results.vue` tidak mencocokkan format ini → `ctx.logoUrl` kosong → header `.print-head` jatuh ke placeholder "LOGO". Baris lain (MCU) tersimpan valid (`src="data:image..."`) sehingga tidak terpengaruh.
+- **Perbaikan `useQuestionnairePrint.ts`:** tambah helper `extractTemplateLogo(tpl)` (dukung `src="data:image"`, `src='data:image'`, dan `<img data:image...` tanpa `src=`) + `normalizeTemplateLogo(tpl, logoUrl)` (perbaiki semua bentuk tag img logo → `src="..."`). `printQuestionnaireHtml` sekarang set `ctx.logoUrl` SEBELUM render body dan normalisasi tag img.
+- **Perbaikan `questionnaire-results.vue` `templatePrintHtml`:** ganti regex rapuh dengan `extractTemplateLogo` + `normalizeTemplateLogo`, dan `ctx.logoUrl` di-set sebelum `renderQuestionnaireTemplate`.
+- **Perbaikan `QuestionnairePrintTemplateModal.vue`:** `onUploadLogo`, watch load, dan `embeddedTemplate()` memakai helper yang sama → template yang ditulis ulang selalu valid (`src="{{ logoUrl }}"` → `src="data:image..."`), juga format lama yang rusak ikut dinormalisasi.
+- **Data:** patch manual `printTemplate` baris Nordic di `db_express.qst_questionnaire` (`<img data:image` → `<img src="data:image"`, tutup quote sebelum `class="header-logo-img"`).
+- Verifikasi: helper regex diuji terhadap isi template Nordic asli (broken & fixed) — ekstraksi data URI (14.574 char) dan normalisasi `src=` bekerja. Lint bersih, `nuxt typecheck` tidak menambah error baru.
 
 ## Completed — 2026-08-13: Gambar samping tidak menimpa pernyataan di halaman berikutnya
 

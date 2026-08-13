@@ -6,6 +6,8 @@ import {
   printHeaderCss,
   printHeaderHtml,
   extractTemplateStyles,
+  extractTemplateLogo,
+  normalizeTemplateLogo,
   extractBranchCity,
   wrapDocumentImage,
   documentImageCss
@@ -339,9 +341,9 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
     }))
   })
   const { styles, body } = extractTemplateStyles(tpl)
-  const rendered = renderQuestionnaireTemplate(body, ctx)
-  const logoMatch = tpl.match(/src="(data:image[^"]*)"/)
-  ctx.logoUrl = logoMatch?.[1] || ''
+  const logoUrl = extractTemplateLogo(tpl)
+  ctx.logoUrl = logoUrl
+  const rendered = renderQuestionnaireTemplate(normalizeTemplateLogo(body, logoUrl), ctx)
   const headerCtx = {
     documentTitle: ctx.documentTitle,
     patientName: ctx.patientName,
