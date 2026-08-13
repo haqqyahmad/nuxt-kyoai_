@@ -376,6 +376,7 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
     companyName: row.companyName,
     branchName: row.branchName,
     examDate: row.examDate,
+    image: row.questionnaire_image,
     answers: (modalData.value?.answers ?? []).map(a => ({
       questionId: a.questionId,
       questionText: a.questionText,
@@ -391,7 +392,6 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
   const rendered = renderQuestionnaireTemplate(body, ctx)
   const logoMatch = tpl.match(/src="(data:image[^"]*)"/)
   ctx.logoUrl = logoMatch?.[1] || ''
-  ctx.image = row.questionnaire_image || ''
   const headerCtx = {
     documentTitle: ctx.documentTitle,
     patientName: ctx.patientName,
