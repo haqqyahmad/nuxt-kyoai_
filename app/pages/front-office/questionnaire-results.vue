@@ -544,13 +544,13 @@ watch(results, () => {
     <template #body>
       <div class="w-full min-w-0 space-y-4">
         <!-- Filters -->
-        <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500">Company</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Company</label>
               <select
                 v-model="filters.companyId"
-                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
                   Semua company
@@ -561,10 +561,10 @@ watch(results, () => {
               </select>
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500">Branch</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Branch</label>
               <select
                 v-model="filters.branchId"
-                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
                   Semua branch
@@ -575,26 +575,26 @@ watch(results, () => {
               </select>
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500">Dari Tanggal</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Dari Tanggal</label>
               <input
                 v-model="filters.dateFrom"
                 type="date"
-                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500">Sampai Tanggal</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Sampai Tanggal</label>
               <input
                 v-model="filters.dateTo"
                 type="date"
-                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500">Status</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Status</label>
               <select
                 v-model="filters.status"
-                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
                   Semua status
@@ -609,9 +609,9 @@ watch(results, () => {
             </div>
           </div>
 
-          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-2">
+          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-2 dark:border-neutral-800">
             <button
-              class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
               :disabled="loading"
               @click="clearFilters"
             >
@@ -628,114 +628,114 @@ watch(results, () => {
         </div>
 
         <!-- Table card -->
-        <div class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div class="flex items-center justify-between border-b border-slate-100 p-4">
-            <span class="text-xs font-medium text-slate-500">{{ totalPatients }} Pasien ({{ totalQuestionnaires }} Total Questionnaire)</span>
-            <span class="hidden text-[11px] text-slate-400 sm:block">Klik baris untuk melihat rincian</span>
+        <div class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+          <div class="flex items-center justify-between border-b border-slate-100 p-4 dark:border-neutral-800">
+            <span class="text-xs font-medium text-slate-500 dark:text-neutral-400">{{ totalPatients }} Pasien ({{ totalQuestionnaires }} Total Questionnaire)</span>
+            <span class="hidden text-[11px] text-slate-400 sm:block dark:text-neutral-500">Klik baris untuk melihat rincian</span>
           </div>
 
           <div class="overflow-x-auto">
-            <table class="w-full border-separate border-spacing-0 text-left text-xs text-slate-600">
-              <thead class="font-semibold text-slate-500">
-                <tr class="bg-slate-50/80">
+            <table class="w-full border-separate border-spacing-0 text-left text-xs text-slate-600 dark:text-neutral-300">
+              <thead class="font-semibold text-slate-500 dark:text-neutral-400">
+                <tr class="bg-slate-50/80 dark:bg-neutral-800/50">
                   <th class="w-10 p-3.5 pl-4">
                     <span class="sr-only">Expand</span>
                   </th>
                   <th class="p-3.5">
-                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800" @click="toggleSort('patientName')">
+                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-gray-50" @click="toggleSort('patientName')">
                       Patient &amp; Patient ID
-                      <UIcon :name="sortIcon('patientName')" class="size-3" :class="sortBy === 'patientName' ? 'text-blue-600' : 'text-slate-400'" />
+                      <UIcon :name="sortIcon('patientName')" class="size-3" :class="sortBy === 'patientName' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-neutral-400'" />
                     </button>
                   </th>
                   <th class="p-3.5">
-                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800" @click="toggleSort('companyName')">
+                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-gray-50" @click="toggleSort('companyName')">
                       Company
-                      <UIcon :name="sortIcon('companyName')" class="size-3" :class="sortBy === 'companyName' ? 'text-blue-600' : 'text-slate-400'" />
+                      <UIcon :name="sortIcon('companyName')" class="size-3" :class="sortBy === 'companyName' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-neutral-400'" />
                     </button>
                   </th>
                   <th class="p-3.5">
-                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800" @click="toggleSort('questionnaireCount')">
+                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-gray-50" @click="toggleSort('questionnaireCount')">
                       Total Questionnaire
-                      <UIcon :name="sortIcon('questionnaireCount')" class="size-3" :class="sortBy === 'questionnaireCount' ? 'text-blue-600' : 'text-slate-400'" />
+                      <UIcon :name="sortIcon('questionnaireCount')" class="size-3" :class="sortBy === 'questionnaireCount' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-neutral-400'" />
                     </button>
                   </th>
                   <th class="p-3.5">
-                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800" @click="toggleSort('examDate')">
+                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-gray-50" @click="toggleSort('examDate')">
                       Exam Date
-                      <UIcon :name="sortIcon('examDate')" class="size-3" :class="sortBy === 'examDate' ? 'text-blue-600' : 'text-slate-400'" />
+                      <UIcon :name="sortIcon('examDate')" class="size-3" :class="sortBy === 'examDate' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-neutral-400'" />
                     </button>
                   </th>
                   <th class="p-3.5">
-                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800" @click="toggleSort('branchName')">
+                    <button class="inline-flex items-center gap-1 transition-colors hover:text-slate-800 dark:hover:text-gray-50" @click="toggleSort('branchName')">
                       Branch
-                      <UIcon :name="sortIcon('branchName')" class="size-3" :class="sortBy === 'branchName' ? 'text-blue-600' : 'text-slate-400'" />
+                      <UIcon :name="sortIcon('branchName')" class="size-3" :class="sortBy === 'branchName' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-neutral-400'" />
                     </button>
                   </th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100">
+              <tbody class="divide-y divide-slate-100 dark:divide-neutral-800">
                 <tr v-if="loading">
                   <td colspan="6" class="py-10 text-center">
-                    <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-slate-400" />
+                    <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-slate-400 dark:text-neutral-400" />
                   </td>
                 </tr>
                 <tr v-else-if="!paginatedGroups.length">
-                  <td colspan="6" class="py-10 text-center text-sm text-slate-400">
+                  <td colspan="6" class="py-10 text-center text-sm text-slate-400 dark:text-neutral-400">
                     Tidak ada data
                   </td>
                 </tr>
 
                 <template v-for="g in paginatedGroups" :key="g.patientKey">
-                  <tr class="cursor-pointer transition-colors hover:bg-slate-50" @click="toggleExpand(g.patientKey)">
+                  <tr class="cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-neutral-800/50" @click="toggleExpand(g.patientKey)">
                     <td class="p-3.5 pl-4 text-center">
                       <button
-                        class="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200"
+                        class="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-200 dark:text-neutral-400 dark:hover:bg-neutral-600"
                         aria-label="Expand"
                         @click.stop="toggleExpand(g.patientKey)"
                       >
                         <UIcon
                           name="i-lucide-chevron-right"
                           class="size-4 transition-transform duration-200"
-                          :class="isExpanded(g.patientKey) ? 'rotate-90 text-blue-600' : ''"
+                          :class="isExpanded(g.patientKey) ? 'rotate-90 text-blue-600 dark:text-blue-400' : ''"
                         />
                       </button>
                     </td>
                     <td class="p-3.5">
-                      <div class="font-semibold text-slate-800">
+                      <div class="font-semibold text-slate-800 dark:text-gray-50">
                         {{ g.patientName }}
                       </div>
-                      <div class="font-mono text-[10px] text-slate-400">
+                      <div class="font-mono text-[10px] text-slate-400 dark:text-neutral-500">
                         {{ g.patientCode || '-' }}
                       </div>
                     </td>
-                    <td class="p-3.5 font-medium text-slate-700">
+                    <td class="p-3.5 font-medium text-slate-700 dark:text-neutral-200">
                       {{ g.companyName || '-' }}
                     </td>
                     <td class="p-3.5">
-                      <span class="inline-flex items-center gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
+                      <span class="inline-flex items-center gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-200">
                         <UIcon name="i-lucide-file-text" class="size-3.5" /> {{ g.questionnaires.length }} Questionnaire
                       </span>
                     </td>
-                    <td class="p-3.5 text-slate-600">
+                    <td class="p-3.5 text-slate-600 dark:text-neutral-300">
                       {{ g.questionnaires.length ? fmtDate(g.questionnaires[0].examDate) : '-' }}
                     </td>
-                    <td class="p-3.5 text-slate-600">
+                    <td class="p-3.5 text-slate-600 dark:text-neutral-300">
                       {{ g.questionnaires.length ? g.questionnaires[0].branchName : '-' }}
                     </td>
                   </tr>
 
-                  <tr v-if="isExpanded(g.patientKey)" class="border-y border-slate-200 bg-slate-50/70">
+                  <tr v-if="isExpanded(g.patientKey)" class="border-y border-slate-200 bg-slate-50/70 dark:border-neutral-700 dark:bg-neutral-800/70">
                     <td colspan="6" class="p-4 pl-12 pr-6">
-                      <div class="space-y-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-100/80 px-3.5 py-2 text-[11px] font-semibold text-slate-600">
+                      <div class="space-y-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-100/80 px-3.5 py-2 text-[11px] font-semibold text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                           <span class="flex items-center gap-1.5">
-                            <UIcon name="i-lucide-corner-down-right" class="size-3.5 text-blue-600" /> Rincian Questionnaire Pasien: {{ g.patientName }}
+                            <UIcon name="i-lucide-corner-down-right" class="size-3.5 text-blue-600 dark:text-blue-400" /> Rincian Questionnaire Pasien: {{ g.patientName }}
                           </span>
-                          <span class="font-mono text-[10px] text-slate-400">{{ g.patientCode }}</span>
+                          <span class="font-mono text-[10px] text-slate-400 dark:text-neutral-500">{{ g.patientCode }}</span>
                         </div>
                         <div class="overflow-x-auto">
                           <table class="w-full text-left text-xs">
-                            <thead class="border-b border-slate-100 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            <thead class="border-b border-slate-100 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-500">
                               <tr>
                                 <th class="p-2.5">
                                   No. Registrasi
@@ -754,29 +754,29 @@ watch(results, () => {
                                 </th>
                               </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
-                              <tr v-for="q in g.questionnaires" :key="q.registrationKey" class="transition-colors hover:bg-slate-100/50">
-                                <td class="p-2.5 font-mono text-[11px] text-slate-500">
+                            <tbody class="divide-y divide-slate-100 dark:divide-neutral-800">
+                              <tr v-for="q in g.questionnaires" :key="q.registrationKey" class="transition-colors hover:bg-slate-100/50 dark:hover:bg-neutral-700/50">
+                                <td class="p-2.5 font-mono text-[11px] text-slate-500 dark:text-neutral-400">
                                   {{ q.registrationRef }}
                                 </td>
-                                <td class="p-2.5 font-medium text-slate-800">
+                                <td class="p-2.5 font-medium text-slate-800 dark:text-gray-50">
                                   {{ q.questionnaire_name }}
                                 </td>
                                 <td class="p-2.5">
                                   <span
                                     :class="q.status === 'Completed'
-                                      ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600'
-                                      : 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600'"
+                                      ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                      : 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400'"
                                   >
                                     {{ q.status }}
                                   </span>
                                 </td>
-                                <td class="p-2.5 text-[11px] text-slate-400">
+                                <td class="p-2.5 text-[11px] text-slate-400 dark:text-neutral-500">
                                   {{ q.completionDate ? formatDateTime(q.completionDate) : '-' }}
                                 </td>
                                 <td class="p-2.5 text-center">
                                   <button
-                                    class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
+                                    class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:text-neutral-400 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
                                     title="Print"
                                     :disabled="loading"
                                     @click="printResult(q)"
@@ -797,8 +797,8 @@ watch(results, () => {
           </div>
 
           <!-- Pagination footer -->
-          <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-100 p-4 sm:flex-row">
-            <span class="text-xs font-medium text-slate-400">{{ totalPatients }} Pasien Terdaftar</span>
+          <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-100 p-4 sm:flex-row dark:border-neutral-800">
+            <span class="text-xs font-medium text-slate-400 dark:text-neutral-500">{{ totalPatients }} Pasien Terdaftar</span>
 
             <div class="flex flex-wrap items-center gap-3">
               <USelect
