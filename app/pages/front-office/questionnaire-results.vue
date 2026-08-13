@@ -11,7 +11,9 @@ import {
   printHeaderCss,
   printHeaderHtml,
   extractTemplateStyles,
-  extractBranchCity
+  extractBranchCity,
+  wrapDocumentImage,
+  documentImageCss
 } from '~/composables/questionnaire/useQuestionnairePrint'
 
 const UButton = resolveComponent('UButton')
@@ -39,6 +41,7 @@ type QuestionnaireResult = {
   examDate: string
   questionnaire_id: string
   questionnaire_name: string
+  questionnaire_image?: string | null
   status: 'Completed' | 'Pending'
   completionDate: string | null
 }
@@ -289,19 +292,7 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
       `).join('')
     : ''
 
-  return `
-    <html lang="id">
-      <head>
-        <title>${row.questionnaire_name} - ${row.patientName}</title>
-        <style>${printCss}${printHeaderCss()}${pageSetupCss(row.patientName, row.patientCode)}</style>
-      </head>
-      <body>
-        <table class="printwrap">
-          <thead>
-            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: '' })}</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>
+  const docContent = `
               <div class="document-page">
                 <div class="section-title">DATA DIRI</div>
           <table class="data-diri-table">
@@ -341,7 +332,23 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
             <div>${row.patientName} &nbsp;|&nbsp; ${row.patientCode || '-'}</div>
           </div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
-              </div>
+              </div>`
+
+  const sideImageCss = row.questionnaire_image ? documentImageCss() : ''
+  return `
+    <html lang="id">
+      <head>
+        <title>${row.questionnaire_name} - ${row.patientName}</title>
+        <style>${printCss}${printHeaderCss()}${sideImageCss}${pageSetupCss(row.patientName, row.patientCode)}</style>
+      </head>
+      <body>
+        <table class="printwrap">
+          <thead>
+            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: '' })}</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>
+              ${wrapDocumentImage(docContent, row.questionnaire_image)}
             </td></tr>
           </tbody>
         </table>
@@ -381,6 +388,7 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
   const rendered = renderQuestionnaireTemplate(body, ctx)
   const logoMatch = tpl.match(/src="(data:image[^"]*)"/)
   ctx.logoUrl = logoMatch?.[1] || ''
+  ctx.image = row.questionnaire_image || ''
   const headerCtx = {
     documentTitle: ctx.documentTitle,
     patientName: ctx.patientName,
@@ -388,6 +396,10 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
     logoUrl: ctx.logoUrl
   }
   const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
+  const sideImageCss = ctx.image ? documentImageCss() : ''
+  const content = wrapDocumentImage(`<div class="document-page">
+                ${rendered}
+              </div>`, ctx.image)
   return `
     <html lang="id">
       <head>
@@ -395,6 +407,7 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
         <style>${printCss}</style>
         ${styles}
         <style>${printHeaderCss()}</style>
+        <style>${sideImageCss}</style>
         <style>${pageCss}</style>
       </head>
       <body>
@@ -404,9 +417,7 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
           </thead>
           <tbody>
             <tr><td>
-              <div class="document-page">
-                ${rendered}
-              </div>
+              ${content}
             </td></tr>
           </tbody>
         </table>

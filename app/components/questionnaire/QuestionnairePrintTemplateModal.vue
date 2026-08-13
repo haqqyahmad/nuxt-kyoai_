@@ -16,6 +16,7 @@ type QuestionnaireRow = {
   portalKey?: string | null
   printTemplate?: string | null
   print_template?: string | null
+  image?: string | null
 }
 
 const props = defineProps<{
@@ -43,14 +44,18 @@ const logoTop = ref(0)
 const logoLeft = ref(5)
 
 const LOGO_MAX_DIM = 512
+const SIDE_IMG_MAX_DIM = 1024
 
-function resizeHeaderLogo(dataUrl: string): Promise<string> {
+const sideImage = ref('')
+const sideImageFile = ref<HTMLInputElement | null>(null)
+
+function resizeImage(dataUrl: string, maxDim: number): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
-      const maxDim = Math.max(img.width, img.height)
-      if (maxDim <= LOGO_MAX_DIM) return resolve(dataUrl)
-      const scale = LOGO_MAX_DIM / maxDim
+      const max = Math.max(img.width, img.height)
+      if (max <= maxDim) return resolve(dataUrl)
+      const scale = maxDim / max
       const w = Math.max(1, Math.round(img.width * scale))
       const h = Math.max(1, Math.round(img.height * scale))
       const canvas = document.createElement('canvas')
@@ -64,6 +69,14 @@ function resizeHeaderLogo(dataUrl: string): Promise<string> {
     img.onerror = () => resolve(dataUrl)
     img.src = dataUrl
   })
+}
+
+function resizeHeaderLogo(dataUrl: string): Promise<string> {
+  return resizeImage(dataUrl, LOGO_MAX_DIM)
+}
+
+function resizeSideImage(dataUrl: string): Promise<string> {
+  return resizeImage(dataUrl, SIDE_IMG_MAX_DIM)
 }
 
 let logoRerenderTimer: ReturnType<typeof setTimeout> | undefined
@@ -93,8 +106,26 @@ async function onUploadLogo() {
   runPreview()
 }
 
+async function onUploadSideImage() {
+  const file = sideImageFile.value?.files?.[0]
+  if (!file) return
+  const raw = await new Promise<string>((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.readAsDataURL(file)
+  })
+  sideImage.value = await resizeSideImage(raw)
+  runPreview()
+}
+
+function removeSideImage() {
+  sideImage.value = ''
+  runPreview()
+}
+
 function ctxWithLogo(ctx: QuestionnairePrintContext) {
   ctx.logoUrl = logoUrl.value || ''
+  ctx.image = sideImage.value || ''
   return ctx
 }
 
@@ -103,11 +134,13 @@ watch(
   async (row) => {
     if (!row) return
     let stored = row.print_template ?? row.printTemplate ?? ''
+    sideImage.value = ''
     try {
       const res = await api.get(`/questionnaire/${row.questionnaire_id}`)
       const detail = res.data?.data ?? res.data
       if (detail) {
         stored = detail.print_template ?? detail.printTemplate ?? stored
+        sideImage.value = detail.image ?? ''
       }
     } catch {
       // fallback ke data dari baris list
@@ -1363,7 +1396,8 @@ async function submit() {
   loading.value = true
   try {
     await api.put(`/questionnaire/${props.row.questionnaire_id}`, {
-      print_template: embeddedTemplate()
+      print_template: embeddedTemplate(),
+      image: sideImage.value || null
     })
     handleSuccess(toast, 'Template print berhasil disimpan')
     emit('saved')
@@ -1479,6 +1513,53 @@ async function submit() {
             </label>
             <p class="text-muted">
               Mempengaruhi layar &amp; print. Atas = jarak dari tepi atas kertas.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-3 py-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-highlighted">
+                Gambar Samping
+              </span>
+              <span class="text-xs text-muted">
+                (mis. diagram tubuh Nordic)
+              </span>
+            </div>
+            <UButton
+              icon="i-lucide-image-plus"
+              size="sm"
+              variant="outline"
+              label="Upload Gambar Samping"
+              @click="sideImageFile?.click()"
+            />
+            <input
+              ref="sideImageFile"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onUploadSideImage"
+            >
+            <UButton
+              v-if="sideImage"
+              icon="i-lucide-x"
+              size="sm"
+              color="error"
+              variant="outline"
+              label="Hapus"
+              @click="removeSideImage"
+            />
+            <div
+              v-if="sideImage"
+              class="ml-1 h-14 w-10 shrink-0 overflow-hidden rounded border border-default bg-white"
+            >
+              <img
+                :src="sideImage"
+                alt="Gambar samping"
+                class="h-full w-full object-contain"
+              >
+            </div>
+            <p v-else class="text-xs text-muted">
+              Tampil di sisi kanan kuesioner (saat mengisi &amp; hasil print). Disimpan di data questionnaire.
             </p>
           </div>
 

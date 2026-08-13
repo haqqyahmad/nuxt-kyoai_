@@ -4,6 +4,24 @@ Last updated: 2026-08-11
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
+## Completed — 2026-08-11: Gambar samping (mis. diagram Nordic) per questionnaire — portal isi & hasil print
+
+**Permintaan user:** Nordic questionnaire butuh gambar tambahan di samping (form kiri, gambar kanan), diatur khusus per Nordic. Tampil saat pasien mengisi di portal DAN di hasil print, semua halaman.
+
+**Backend `express_dash`:**
+- `QstQuestionnaire.image` (`String? @db.MediumText`) — schema + `prisma db push` (DB `db_express`).
+- expose `image` di `toListItem`/`toDetail`; create `image: payload.image ?? null`; update set saat `payload.image !== undefined`; `listResults` sertakan `questionnaire_image` per row.
+
+**my-app:**
+- `useQuestionnairePrint.ts`: `documentImageCss()` (`.document-side-image` fixed kanan 44mm di print, static di screen; `.document-page.with-side-image` padding-right 62mm) + `wrapDocumentImage(content, src)`; `printQuestionnaireHtml` mengambil `ctx.image`.
+- `QuestionnairePrintTemplateModal.vue`: bagian "Gambar Samping (mis. diagram tubuh Nordic)" — preview, upload (resize max 1024), hapus; load `detail.image`; Simpan PUT `image`.
+- `front-office/questionnaire-results.vue`: type `questionnaire_image`; `legacyPrintHtml` & `templatePrintHtml` pakai `wrapDocumentImage` + `documentImageCss`; tampilkan di preview iframe.
+
+**Portal `regist_portal`:**
+- `MCUQuestionnaire.svelte`: jika `display.image` → grid 2 kolom (soal kiri `nordic-layout-main`, gambar kanan sticky `nordic-layout-img`), stack di mobile. `class:nordic-layout={display.image}` (class statis untuk main/img, svelte-check aman).
+
+**Verifikasi print headless (Chrome):** A4 6 halaman, gambar solid tampil di kanan SAMA di tiap halaman (x 390-506pt, y 211-443pt, tepat di bawah header), konten soal selalu di kiri ≤365pt → tidak bertabrakan.
+
 ## Completed — 2026-08-11: Sembunyikan answer-summary (ikut document-info yang tidak muncul)
 
 - User tanya apakah blok `document-info` (No. Registrasi / Tanggal Pemeriksaan / Perusahaan) muncul di hasil print.

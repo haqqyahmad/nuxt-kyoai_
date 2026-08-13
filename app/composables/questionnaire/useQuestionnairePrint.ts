@@ -35,6 +35,7 @@ export type QuestionnairePrintContext = Record<string, unknown> & {
   companyName: string
   branchName: string
   logoUrl: string
+  image: string
   branchCity: string
   signatureCity: string
   signatureDate: string
@@ -291,6 +292,7 @@ export function buildQuestionnairePrintContext(opts: {
   answers: PrintAnswer[]
   questionnaireName?: string
   logoUrl?: string | null
+  image?: string | null
 }): QuestionnairePrintContext {
   const answers = opts.answers.filter(a => a.answered === true)
   const total = opts.answers.length
@@ -323,6 +325,7 @@ export function buildQuestionnairePrintContext(opts: {
     companyName: opts.companyName || '-',
     branchName: opts.branchName || '-',
     logoUrl: opts.logoUrl || '',
+    image: opts.image || '',
     branchCity,
     signatureCity: branchCity ? branchCity.toUpperCase() : '',
     signatureDate,
@@ -413,6 +416,45 @@ export function printHeaderHtml(ctx: Pick<QuestionnairePrintContext, 'documentTi
   `
 }
 
+export function documentImageCss(): string {
+  return `
+    .document-side-image {
+      position: fixed;
+      top: 55mm;
+      right: 15mm;
+      width: 44mm;
+      z-index: 50;
+    }
+    .document-side-image img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      border: 1px solid #d9dee7;
+      padding: 4px;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+    .document-page.with-side-image { padding-right: 62mm; }
+    @media screen {
+      .document-side-image { position: static; margin: 0 auto 16px; width: min(260px, 80%); }
+      .document-page.with-side-image { padding-right: 0; }
+    }
+    @media print {
+      .document-side-image { position: fixed; }
+      .document-page.with-side-image { padding-right: 62mm; }
+    }
+  `
+}
+
+export function wrapDocumentImage(contentHtml: string, imageUrl?: string | null): string {
+  if (!imageUrl) return contentHtml
+  const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return `
+    <div class="document-side-image"><img src="${esc(imageUrl)}" alt="Gambar dokumen" /></div>
+    <div class="document-page with-side-image">${contentHtml}</div>
+  `
+}
+
 export function printQuestionnaireHtml(
   ctx: QuestionnairePrintContext,
   template: string,
@@ -427,6 +469,8 @@ export function printQuestionnaireHtml(
   const { styles, body } = extractTemplateStyles(template)
   const rendered = renderQuestionnaireTemplate(body, ctx)
   const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
+  const sideImageCss = ctx.image ? documentImageCss() : ''
+  const content = wrapDocumentImage(rendered, ctx.image)
   return `
     <html lang="id">
       <head>
@@ -434,6 +478,7 @@ export function printQuestionnaireHtml(
         <style>${css ?? defaultCss}</style>
         <style>${printHeaderCss()}</style>
         ${styles}
+        <style>${sideImageCss}</style>
         <style>${pageCss}</style>
       </head>
       <body>
@@ -442,7 +487,7 @@ export function printQuestionnaireHtml(
             <tr><th>${printHeaderHtml(ctx)}</th></tr>
           </thead>
           <tbody>
-            <tr><td><div class="document-page">${rendered}</div></td></tr>
+            <tr><td>${content}</td></tr>
           </tbody>
         </table>
       </body>
