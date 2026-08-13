@@ -98,7 +98,16 @@ async function fetchResults() {
     if (filters.status) params.status = filters.status
 
     const res = await api.get('/questionnaire/results', { params })
-    results.value = res.data.data ?? []
+    const data = (res.data?.data ?? []) as QuestionnaireResult[]
+    data.sort((a, b) => {
+      const da = a.examDate || ''
+      const db = b.examDate || ''
+      if (da !== db) return da < db ? 1 : -1
+      const ca = a.completionDate ? new Date(a.completionDate).getTime() : 0
+      const cb = b.completionDate ? new Date(b.completionDate).getTime() : 0
+      return cb - ca
+    })
+    results.value = data
   } catch {
     toast.add({
       title: 'Gagal',
