@@ -682,6 +682,17 @@ const allItemsFinal = computed(() =>
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
+const allSamplesReceived = computed(() =>
+  sampleCollections.value.length > 0
+  && sampleCollections.value.every(collection => collection.status === 'RECEIVED')
+)
+
+const canAutoStartExam = computed(() =>
+  activeStage.value?.status === 'WAITING'
+  && activeStageCode.value === 'EXAM'
+  && allSamplesReceived.value
+)
+
 function getStageDisplayName(stage?: QueueStageItem | null) {
   if (!stage) return '-'
   const total = (roomQueueDetail.value?.stageItems ?? []).length
@@ -1470,6 +1481,12 @@ async function handleStartStage() {
 
   stageActionLoading.value = true
   try {
+    if (activeStage.value.status === 'WAITING') {
+      await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/call`, {
+        roomId: activeRoomSession.value?.roomId ?? undefined,
+        roomTypeId: activeRoomSession.value?.roomTypeId ?? undefined
+      })
+    }
     await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/start`)
     await loadPage(true)
     toast.add({
@@ -1950,7 +1967,7 @@ async function handleSubmitItemAction() {
                   Assign Room
                 </UButton>
                 <UButton
-                  v-if="activeStage?.status === 'CALLED'"
+                  v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
                   color="warning"
                   variant="soft"
                   icon="i-lucide-play"

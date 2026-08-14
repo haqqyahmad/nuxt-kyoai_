@@ -1,6 +1,18 @@
 # Project Task Status
 
-Last updated: 2026-08-13
+Last updated: 2026-08-14
+
+## Completed — 2026-08-14: Auto-start stage EXAM di queue-work setelah sample diterima
+
+- **Gejala:** Di `/rooms/queue-work/[id]`, item lab (mis. Diff Count) tidak bisa dimulai setelah sample di-receive. Stage EXAM di-unlock jadi `WAITING` setelah receive, tapi tidak pernah di-call → tombol "Mulai Pemeriksaan" (hanya muncul saat `CALLED`) dan "Mulai Item" (butuh `roomStageInProgress` = EXAM `IN_PROGRESS`) keduanya tidak muncul → petugas macet di queue-work dan harus balik ke index untuk memanggil ulang.
+- **Root cause:** `_completeReceivePhaseIfReady` (BE) hanya melepas lock EXAM (`LOCKED` → `WAITING`) tanpa auto-call. FE tidak punya jalur untuk melanjutkan EXAM dari queue-work.
+- **Perbaikan `app/pages/rooms/queue-work/[id].vue`:**
+  - Tambah computed `allSamplesReceived` (`sampleCollections` tidak kosong & semua `RECEIVED`).
+  - Tambah computed `canAutoStartExam` (`activeStage.status === 'WAITING'` && `activeStageCode === 'EXAM'` && `allSamplesReceived`).
+  - Tombol "Mulai Pemeriksaan" kini tampil saat `activeStage?.status === 'CALLED' || canAutoStartExam`.
+  - Perluas `handleStartStage`: jika status stage `WAITING`, panggil `PATCH /medical/exams/queue/stage/:id/call` (payload `roomId` + `roomTypeId` dari `activeRoomSession`) dulu, lalu `PATCH .../start` → EXAM jadi `IN_PROGRESS` tanpa balik ke index.
+- **Alur setelah fix:** "Mulai Pemeriksaan" → EXAM `IN_PROGRESS` → "Mulai Item" → item `IN_PROGRESS` → "Selesaikan Item" → `DONE` → "Selesaikan Room" → EXAM `DONE` → kembali ke `/rooms/queue`. Item deferred (Diff Count) diinput hasilnya di halaman exam-results setelah room selesai.
+- **Verifikasi:** `pnpm lint` & typecheck — tidak ada error baru pada baris yang diubah (error yang ada adalah pre-existing baseline proyek).
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
