@@ -136,21 +136,6 @@ const validate = () => {
   }
 }
 
-watch(
-  () => [
-    formApprove.examDate,
-    formApprove.priorityRegist,
-    formApprove.patientExists,
-    confirmOverwrite.value,
-    selectedPatient.value,
-    formReject.rejectReason,
-    selectedStatus.value
-  ],
-  () => {
-    validate()
-  }
-)
-
 // Patient search for approval
 type Patient = {
   id: string
@@ -172,6 +157,21 @@ const duplicateSuggestions = ref<Patient[]>([])
 const duplicateSuggestionsLoading = ref(false)
 const duplicateSuggestionsChecked = ref(false)
 const duplicateSearchTerm = ref('')
+
+watch(
+  () => [
+    formApprove.examDate,
+    formApprove.priorityRegist,
+    formApprove.patientExists,
+    confirmOverwrite.value,
+    selectedPatient.value,
+    formReject.rejectReason,
+    selectedStatus.value
+  ],
+  () => {
+    validate()
+  }
+)
 
 async function checkDuplicateSuggestions() {
   if (formApprove.patientExists !== false) return
