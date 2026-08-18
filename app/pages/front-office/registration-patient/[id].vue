@@ -472,6 +472,21 @@ const checkinPreview = ref<CheckinPreview | null>(null)
 const activeQueue = computed(() => reg.value?.queue ?? null)
 const checkinSuccessOpen = ref(false)
 
+const todayStr = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const isExamDateToday = computed(() => {
+  const examDate = reg.value?.examDate?.slice(0, 10)
+  return examDate === todayStr()
+})
+
+const dateBlockedOpen = ref(false)
+
 async function loadCheckinPreview() {
   if (!reg.value) return
 
@@ -489,6 +504,13 @@ async function loadCheckinPreview() {
 }
 
 async function openCheckinModal() {
+  if (!reg.value) return
+
+  if (!isExamDateToday.value) {
+    dateBlockedOpen.value = true
+    return
+  }
+
   await loadCheckinPreview()
   checkinModalOpen.value = true
 }
@@ -1418,6 +1440,33 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               label="Print Tiket"
             />
             <UButton color="primary" label="Selesai" @click="checkinSuccessOpen = false" />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="dateBlockedOpen">
+        <template #body>
+          <div class="space-y-4 text-center">
+            <div class="mx-auto w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center">
+              <UIcon name="i-lucide-calendar-x" class="text-warning text-2xl" />
+            </div>
+            <div>
+              <p class="font-bold text-base">
+                Belum Waktunya Check-in
+              </p>
+              <p class="text-sm text-muted mt-1">
+                Exam pasien berlangsung pada tanggal
+                <span class="font-semibold text-highlighted">
+                  {{ reg?.examDate?.slice(0, 10) }}
+                </span>.
+              </p>
+              <p class="text-sm text-muted mt-0.5">
+                Check-in hanya bisa dilakukan pada hari exam. Silakan datang sesuai jadwal.
+              </p>
+            </div>
+            <div class="flex justify-center">
+              <UButton color="primary" label="Mengerti" @click="dateBlockedOpen = false" />
+            </div>
           </div>
         </template>
       </UModal>
