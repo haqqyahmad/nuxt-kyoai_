@@ -1,8 +1,27 @@
 # Project Task Status
 
-Last updated: 2026-08-14
+Last updated: 2026-08-18
 
-## Completed — 2026-08-14: Auto-start stage EXAM di queue-work setelah sample diterima
+## Completed — 2026-08-18: Alur Approve Temp wajib pilih Pasien Lama/Baru (Opsi A+ + D + F-ringan)
+
+- **Masalah:** FO menanyakan "sudah pernah MCU disini belum?" tapi jawabannya tidak dipakai. Portal punya pilihan Pasien Lama/Baru hanya sebagai UX autofill (`mapToBackend` tidak kirim `patientType`), dan BE `submitPublic` auto-lookup by identitas lalu set `patientExists`+`patientId` di temp → keputusan FO terabaikan; duplikasi pasien bisa terjadi saat FO mengabaikan hasil lookup.
+- **FE `app/pages/front-office/registration-temp/[id].vue` (A+):**
+  - Pertanyaan Ya/Tidak kini **wajib** dijawab (`isFormValid` butuh `patientExists !== null`; jika `true` wajib `selectedPatient` + `confirmOverwrite`).
+  - Jawaban di-**preload** dari `reg.patientExists` saat `openStatusModal` + auto-select `reg.patientId` (hasil deteksi portal sebagai saran awal, tetap bisa diubah).
+  - Saat pilih "Tidak" → **F-ringan**: `checkDuplicateSuggestions()` auto-cari `GET /patient?search=<nama+phone>` → tampilkan kandidat pasien serupa yang bisa dipilih.
+  - Redirect ke `create` kini mengirim `patientType=existing|new` sesuai keputusan FO.
+- **FE `app/pages/front-office/registration-patient/create.vue`:**
+  - Baca query `patientType`: `new` → paksa `isNewPatient` + abaikan `temp.patientId`; `existing` → pakai pasien terpilih.
+  - POST `/approve` mengirim `patientType`.
+- **BE `express_dash` (D):**
+  - `adminApproveSchema`: tambah field opsional `patientType` (`existing`|`new`).
+  - `approveTemp`: `patientType === 'new'` → abaikan `temp.patientId`/override; sebelum `createPatient` lakukan **auto-dedup** `findPatientByIdentity(idType, idValue)` → jika sudah terdaftar, reuse pasien existing (cegah duplikasi walau FO pilih "baru"); `createdNewPatient` dihitung dari kondisi nyata; update data pasien existing kini jalan juga untuk pasien hasil dedup.
+  - `ErrorHandlingMidd`: P2002 pada `patient_idNumber` → pesan ramah "Nomor identitas sudah terdaftar pada pasien lain."
+- **Verifikasi end-to-end (API, server :8000):**
+  1. Skenario B (pasien baru, `patientType=new`) → `patientCreated:true`, patient baru dibuat.
+  2. Skenario D (FO pilih "baru" tapi identitas sudah terdaftar, `patientType=new`) → `patientCreated:false`, **reuse** pasien existing `0e5a4722` (dedup bekerja, tidak ada duplikat).
+  3. Skenario A (pasien lama, `patientType=existing` + patientId) → `patientCreated:false`, data pasien di-update (phone/email dari pendaftaran baru).
+  - Lint & typecheck: tidak ada error baru pada file yang diubah.
 
 - **Gejala:** Di `/rooms/queue-work/[id]`, item lab (mis. Diff Count) tidak bisa dimulai setelah sample di-receive. Stage EXAM di-unlock jadi `WAITING` setelah receive, tapi tidak pernah di-call → tombol "Mulai Pemeriksaan" (hanya muncul saat `CALLED`) dan "Mulai Item" (butuh `roomStageInProgress` = EXAM `IN_PROGRESS`) keduanya tidak muncul → petugas macet di queue-work dan harus balik ke index untuk memanggil ulang.
 - **Root cause:** `_completeReceivePhaseIfReady` (BE) hanya melepas lock EXAM (`LOCKED` → `WAITING`) tanpa auto-call. FE tidak punya jalur untuk melanjutkan EXAM dari queue-work.

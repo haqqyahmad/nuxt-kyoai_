@@ -8,6 +8,8 @@ const route = useRoute()
 
 const tempId = computed(() => route.query.tempId as string | undefined)
 const fromTemp = ref(false)
+// [A+] Keputusan FO: 'existing' → pasien lama, 'new' → pasien baru
+const patientTypeFromQuery = computed(() => route.query.patientType as string | undefined)
 
 const backTarget = computed(() =>
   fromTemp.value && tempId.value
@@ -457,8 +459,17 @@ async function loadFromTemp() {
     const res = await api.get(`/registration-temp/${tempId.value}`)
     const temp = res.data.data as TempRegistration
 
+    const forceNew = patientTypeFromQuery.value === 'new'
+
     if (route.query.patientId && temp.patientId !== route.query.patientId) {
       temp.patientId = String(route.query.patientId)
+    }
+
+    // [A+] FO putuskan pasien baru → abaikan temp.patientId, tampilkan form pasien baru
+    if (forceNew) {
+      temp.patientId = null
+      isNewPatient.value = true
+      selectedPatient.value = null
     }
 
     await loadTempPrefill(temp)
@@ -724,7 +735,9 @@ async function submit() {
         examDate: regForm.value.examDate,
         scheduleDateExam: regForm.value.scheduleDateExam,
         priorityRegist: regForm.value.priorityRegist,
-        patientId: patientId || undefined
+        patientId: patientId || undefined,
+        // [A+] Kirim keputusan FO ke backend
+        patientType: patientTypeFromQuery.value === 'new' ? 'new' : 'existing'
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
