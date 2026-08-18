@@ -1444,29 +1444,28 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </template>
       </UModal>
 
-      <UModal v-model:open="dateBlockedOpen">
+      <UModal v-model:open="dateBlockedOpen" title="Belum Waktunya Check-in">
         <template #body>
-          <div class="space-y-4 text-center">
-            <div class="mx-auto w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center">
-              <UIcon name="i-lucide-calendar-x" class="text-warning text-2xl" />
+          <div class="flex flex-col items-center gap-4 py-2 text-center">
+            <div class="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center">
+              <UIcon name="i-lucide-calendar-x" class="text-warning text-3xl" />
             </div>
-            <div>
-              <p class="font-bold text-base">
-                Belum Waktunya Check-in
+            <div class="space-y-1">
+              <p class="text-sm text-muted">
+                Exam pasien dijadwalkan pada tanggal
               </p>
-              <p class="text-sm text-muted mt-1">
-                Exam pasien berlangsung pada tanggal
-                <span class="font-semibold text-highlighted">
-                  {{ reg?.examDate?.slice(0, 10) }}
-                </span>.
+              <p class="text-2xl font-bold tracking-tight text-highlighted">
+                {{ reg?.examDate?.slice(0, 10) }}
               </p>
-              <p class="text-sm text-muted mt-0.5">
-                Check-in hanya bisa dilakukan pada hari exam. Silakan datang sesuai jadwal.
+              <p class="text-xs text-muted max-w-sm leading-relaxed">
+                Check-in hanya dapat dilakukan pada hari exam. Silakan bawa pasien datang sesuai jadwal yang tertera.
               </p>
             </div>
-            <div class="flex justify-center">
-              <UButton color="primary" label="Mengerti" @click="dateBlockedOpen = false" />
-            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton color="primary" label="Mengerti" @click="dateBlockedOpen = false" />
           </div>
         </template>
       </UModal>
