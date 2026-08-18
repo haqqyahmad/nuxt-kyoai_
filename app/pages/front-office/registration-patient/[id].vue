@@ -1458,7 +1458,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                 {{ reg?.examDate?.slice(0, 10) }}
               </p>
               <p class="text-xs text-muted max-w-sm leading-relaxed">
-                Check-in hanya dapat dilakukan pada hari exam. Silakan bawa pasien datang sesuai jadwal yang tertera.
+                Check-in hanya dapat dilakukan pada hari exam.
               </p>
             </div>
           </div>
