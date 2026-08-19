@@ -28,6 +28,15 @@ const canApprove = computed(() =>
   && Number(props.submittedBy) !== Number(currentUser.value?.id)
 )
 
+const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
+  switch (props.resultStatus) {
+    case 'DEPARTMENT_APPROVED': return { label: 'Disetujui Dept', color: 'success' }
+    case 'DEPARTMENT_REVIEW': return { label: 'Menunggu Approval', color: 'warning' }
+    case 'RETURNED_TO_DEPARTMENT': return { label: 'Dikembalikan', color: 'error' }
+    default: return { label: 'Belum Disubmit', color: 'neutral' }
+  }
+})
+
 async function handleApprove() {
   if (!props.examId || !props.departmentId || approving.value) return
   approving.value = true
@@ -125,6 +134,7 @@ function printDental() {
             :color="isSubmitted ? 'success' : 'warning'"
             variant="soft"
           />
+          <UBadge :label="approvalStatus.label" :color="approvalStatus.color" variant="soft" />
           <UButton
             color="neutral"
             variant="soft"
