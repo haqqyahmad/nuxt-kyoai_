@@ -11,7 +11,11 @@ export function useSafeLocalStorageState<T extends Record<string, unknown>>(
     try {
       const rawValue = window.localStorage.getItem(key)
       const sanitized = rawValue ? sanitize(JSON.parse(rawValue)) : null
-      if (sanitized) Object.assign(state, sanitized)
+      if (sanitized) {
+        for (const key of Object.keys(defaults)) {
+          if (Object.hasOwn(sanitized, key)) state[key as keyof T] = sanitized[key as keyof T] as T[keyof T]
+        }
+      }
     } catch {
       window.localStorage.removeItem(key)
     }

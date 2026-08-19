@@ -10,6 +10,8 @@ import {
 } from '~/types/doctor-result'
 import type { DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
 import DentalSummaryDisplay from '~/components/dental/DentalSummaryDisplay.vue'
+import McuPrintTemplateModal from '~/components/mcu/McuPrintTemplateModal.vue'
+import { useMcuReportPrint } from '~/composables/mcu/useMcuReportPrint'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -23,6 +25,13 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const examId = String(route.params.id)
+
+const { loading: printLoading, printMcuReport } = useMcuReportPrint()
+const isPrintTemplateModalOpen = ref(false)
+
+async function onPrintReport() {
+  await printMcuReport(examId)
+}
 
 const {
   data,
@@ -485,6 +494,23 @@ onBeforeUnmount(() => {
               @click="openReturnDeptModal"
             >
               Return ke Department
+            </UButton>
+            <UButton
+              icon="i-lucide-file-code"
+              color="neutral"
+              variant="outline"
+              @click="isPrintTemplateModalOpen = true"
+            >
+              Edit Template
+            </UButton>
+            <UButton
+              icon="i-lucide-printer"
+              color="neutral"
+              variant="outline"
+              :loading="printLoading"
+              @click="onPrintReport"
+            >
+              Print Hasil MCU
             </UButton>
             <UButton
               icon="i-lucide-send"
@@ -1053,6 +1079,9 @@ onBeforeUnmount(() => {
             </div>
           </template>
         </UModal>
+
+        <!-- MCU print template editor -->
+        <McuPrintTemplateModal v-model:open="isPrintTemplateModalOpen" :exam-id="examId" />
       </div>
     </template>
   </UDashboardPanel>

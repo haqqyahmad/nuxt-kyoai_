@@ -504,7 +504,13 @@ const historyItems = computed(() =>
     })
 )
 
-const waitingItems = computed(() => waitingData.value ?? [])
+const waitingItems = computed(() =>
+  [...(waitingData.value ?? [])].sort((a, b) => {
+    const left = new Date(b.queueEntry?.checkinAt ?? b.unlockedAt ?? 0).getTime()
+    const right = new Date(a.queueEntry?.checkinAt ?? a.unlockedAt ?? 0).getTime()
+    return left - right
+  })
+)
 
 function itemHasMyStage(item: RoomQueueItem): boolean {
   if (!myStageIds.value.length) return isSuperAdmin.value

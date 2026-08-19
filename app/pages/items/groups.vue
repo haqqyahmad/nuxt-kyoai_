@@ -31,10 +31,23 @@ const toast = useToast()
 const departments = ref<Department[]>([])
 const selectedDepartmentId = ref('')
 const groupTree = ref<GroupNode[]>([])
+const collapsedGroupIds = ref<Set<string>>(new Set())
 const loadingDepartments = ref(false)
 const loadingGroups = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
+const importing = ref(false)
+const importFile = ref<HTMLInputElement | null>(null)
+const importPreviewOpen = ref(false)
+const importPreviewRows = ref<Array<{
+  departmentCode: string
+  name: string
+  code: string
+  parentCode: string
+  parentName: string
+  sortOrder: number
+  error?: string
+}>>([])
 const isModalOpen = ref(false)
 const editingId = ref<string | null>(null)
 
@@ -63,7 +76,7 @@ const flatGroups = computed(() => {
         path: path.join(' > ')
       })
 
-      if (node.children?.length) {
+      if (node.children?.length && !collapsedGroupIds.value.has(node.id)) {
         walk(node.children, depth + 1, path)
       }
     }
@@ -169,6 +182,16 @@ async function fetchGroups() {
   }
 }
 
+function toggleCollapse(nodeId: string) {
+  const next = new Set(collapsedGroupIds.value)
+  if (next.has(nodeId)) {
+    next.delete(nodeId)
+  } else {
+    next.add(nodeId)
+  }
+  collapsedGroupIds.value = next
+}
+
 function openCreate(parentId: string | null = null) {
   resetForm()
   form.departmentId = selectedDepartmentId.value || ''
@@ -265,6 +288,152 @@ async function deleteGroup(node: GroupNode) {
   }
 }
 
+function downloadImportTemplate() {
+  const department = departments.value.find(dep => dep.id === selectedDepartmentId.value)
+  const groups = flatGroups.value.map((group) => {
+    const parent = group.parentId
+      ? flatGroups.value.find(item => item.id === group.parentId)
+      : null
+    return {
+      departmentCode: department?.code || department?.name || '',
+      name: group.name,
+      code: group.code || '',
+      parentCode: parent?.code || '',
+      parentName: parent?.name || '',
+      sortOrder: group.sortOrder ?? 0
+    }
+  })
+
+  const template = {
+    _instructions: 'Import group/subgroup. File ini berisi data group department aktif saat export. departmentCode boleh code atau nama department. parentCode/parentName kosong = root group.',
+    groups: groups.length
+      ? groups
+      : [
+          { departmentCode: department?.code || 'LAB', name: 'Hematologi', code: 'HEM', parentCode: '', parentName: '', sortOrder: 1 },
+          { departmentCode: department?.code || 'LAB', name: 'Sub Hematologi', code: 'SHEM', parentCode: 'HEM', parentName: '', sortOrder: 1 }
+        ]
+  }
+  const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `template-import-group-${department?.code || department?.name || 'data'}.json`
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+function norm(value: unknown) {
+  return String(value ?? '').trim().toUpperCase()
+}
+
+async function importGroups(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const json = JSON.parse(text) as { groups?: unknown[] } | unknown[]
+    const rows = Array.isArray(json) ? json : json.groups
+    if (!Array.isArray(rows)) throw new Error('Format tidak valid: butuh array pada key "groups"')
+
+    importPreviewRows.value = rows.map((raw) => {
+      const row = (raw ?? {}) as Record<string, unknown>
+      return {
+        departmentCode: String(row.departmentCode ?? '').trim(),
+        name: String(row.name ?? '').trim(),
+        code: String(row.code ?? '').trim(),
+        parentCode: String(row.parentCode ?? '').trim(),
+        parentName: String(row.parentName ?? '').trim(),
+        sortOrder: Number(row.sortOrder ?? 0) || 0
+      }
+    })
+    importPreviewOpen.value = true
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'File tidak valid'
+    toast.add({ title: 'Import gagal', description: message, color: 'error' })
+  } finally {
+    target.value = ''
+  }
+}
+
+function removeImportRow(index: number) {
+  importPreviewRows.value.splice(index, 1)
+}
+
+async function submitImportPreview() {
+  if (importing.value || !importPreviewRows.value.length) return
+  importing.value = true
+
+  try {
+    const errors: string[] = []
+    let created = 0
+    const localGroupsByDepartment = new Map<string, GroupNode[]>()
+
+    async function getGroupsForDepartment(departmentId: string) {
+      if (!localGroupsByDepartment.has(departmentId)) {
+        const res = await api.get('/medical/groups', { params: { departmentId } })
+        const payload = res.data?.data
+        localGroupsByDepartment.set(departmentId, Array.isArray(payload) ? payload : [])
+      }
+      return localGroupsByDepartment.get(departmentId) ?? []
+    }
+
+    function flatten(nodes: GroupNode[]): GroupNode[] {
+      return nodes.flatMap(node => [node, ...flatten(node.children ?? [])])
+    }
+
+    importPreviewRows.value.forEach(row => { row.error = '' })
+
+    for (let i = 0; i < importPreviewRows.value.length; i++) {
+      const row = importPreviewRows.value[i]!
+      if (!row.name.trim()) { row.error = 'name wajib diisi'; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+
+      const department = departments.value.find(dep => norm(dep.code) === norm(row.departmentCode) || norm(dep.name) === norm(row.departmentCode))
+      if (!department) { row.error = `department "${row.departmentCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+
+      const currentGroups = await getGroupsForDepartment(department.id)
+      const flat = flatten(currentGroups)
+      let parentId: string | null = null
+      if (row.parentCode || row.parentName) {
+        const parent = flat.find(group => norm(group.code) === norm(row.parentCode) || norm(group.name) === norm(row.parentName))
+        if (!parent) { row.error = `parent "${row.parentCode || row.parentName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+        parentId = parent.id
+      }
+
+      try {
+        const res = await api.post('/medical/groups', {
+          departmentId: department.id,
+          name: row.name.trim(),
+          code: row.code.trim() || null,
+          parentId,
+          sortOrder: Number(row.sortOrder || 0)
+        })
+        const createdGroup = res.data?.data ?? res.data
+        const list = localGroupsByDepartment.get(department.id) ?? []
+        if (parentId) {
+          const parent = flatten(list).find(group => group.id === parentId)
+          if (parent) parent.children = [...(parent.children ?? []), createdGroup]
+        } else {
+          list.push(createdGroup)
+        }
+        localGroupsByDepartment.set(department.id, list)
+        created += 1
+      } catch (error: unknown) {
+        const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'gagal dibuat'
+        row.error = message
+        errors.push(`Baris ${i + 1} (${row.name}): ${message}`)
+      }
+    }
+
+    if (created) toast.add({ title: 'Import berhasil', description: `${created} group dibuat`, color: 'success' })
+    if (errors.length) toast.add({ title: 'Sebagian gagal', description: errors.slice(0, 5).join('\n'), color: 'warning' })
+    if (!errors.length) importPreviewOpen.value = false
+    await fetchGroups()
+  } finally {
+    importing.value = false
+  }
+}
+
 watch(selectedDepartmentId, async (val) => {
   if (!val) {
     groupTree.value = []
@@ -299,13 +468,39 @@ onMounted(async () => {
           <UDashboardSidebarCollapse />
         </template>
         <template #trailing>
-          <UButton
-            icon="i-lucide-plus"
-            color="primary"
-            @click="openCreate()"
-          >
-            Add Root Group
-          </UButton>
+          <div class="flex items-center gap-2">
+            <input
+              ref="importFile"
+              type="file"
+              accept=".json,application/json"
+              class="hidden"
+              @change="importGroups"
+            >
+            <UButton
+              icon="i-lucide-file-down"
+              color="neutral"
+              variant="outline"
+              @click="downloadImportTemplate"
+            >
+              Template
+            </UButton>
+            <UButton
+              icon="i-lucide-file-up"
+              color="neutral"
+              variant="outline"
+              :loading="importing"
+              @click="importFile?.click()"
+            >
+              Import
+            </UButton>
+            <UButton
+              icon="i-lucide-plus"
+              color="primary"
+              @click="openCreate()"
+            >
+              Add Root Group
+            </UButton>
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
@@ -374,6 +569,16 @@ onMounted(async () => {
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
+                    <UButton
+                      v-if="node.children?.length"
+                      :icon="collapsedGroupIds.has(node.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :aria-label="collapsedGroupIds.has(node.id) ? 'Buka subgroup' : 'Tutup subgroup'"
+                      @click="toggleCollapse(node.id)"
+                    />
+                    <span v-else class="inline-block w-5" />
                     <UIcon
                       :name="node.depth === 0 ? 'i-lucide-folder' : 'i-lucide-folder-tree'"
                       class="size-4 text-primary"
@@ -403,6 +608,56 @@ onMounted(async () => {
           </div>
         </UCard>
       </div>
+
+      <UModal v-model:open="importPreviewOpen" :ui="{ content: 'sm:max-w-6xl max-h-[90vh] overflow-hidden' }">
+        <template #content>
+          <UCard class="flex max-h-[90vh] flex-col" :ui="{ body: 'min-h-0 p-0', footer: 'shrink-0' }">
+            <template #header>
+              <div>
+                <h2 class="text-lg font-semibold">Preview Import Group</h2>
+                <p class="text-sm text-muted">Edit data dulu. Klik Import ke DB jika sudah benar.</p>
+              </div>
+            </template>
+
+            <div class="max-h-[calc(90vh-11rem)] overflow-auto p-4">
+              <div class="min-w-[980px] space-y-2">
+                <div class="grid grid-cols-[140px_180px_120px_140px_180px_90px_90px] gap-2 text-xs font-semibold uppercase text-muted">
+                  <span>Department</span>
+                  <span>Name</span>
+                  <span>Code</span>
+                  <span>Parent Code</span>
+                  <span>Parent Name</span>
+                  <span>Sort</span>
+                  <span>Aksi</span>
+                </div>
+
+                <div
+                  v-for="(row, index) in importPreviewRows"
+                  :key="index"
+                  class="grid grid-cols-[140px_180px_120px_140px_180px_90px_90px] gap-2 rounded-lg border border-default p-2"
+                  :class="row.error ? 'border-error/60 bg-error/5' : ''"
+                >
+                  <UInput v-model="row.departmentCode" size="sm" />
+                  <UInput v-model="row.name" size="sm" />
+                  <UInput v-model="row.code" size="sm" />
+                  <UInput v-model="row.parentCode" size="sm" />
+                  <UInput v-model="row.parentName" size="sm" />
+                  <UInput v-model.number="row.sortOrder" type="number" size="sm" />
+                  <UButton color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" @click="removeImportRow(index)" />
+                  <p v-if="row.error" class="col-span-7 text-xs text-error">{{ row.error }}</p>
+                </div>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="flex w-full justify-end gap-2">
+                <UButton color="neutral" variant="soft" :disabled="importing" @click="importPreviewOpen = false">Batal</UButton>
+                <UButton color="primary" icon="i-lucide-database" :loading="importing" :disabled="!importPreviewRows.length" @click="submitImportPreview">Import ke DB</UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
 
       <UModal v-model:open="isModalOpen" :ui="{ content: 'sm:max-w-xl' }">
         <template #content>

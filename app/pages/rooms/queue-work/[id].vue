@@ -195,6 +195,8 @@ type RoomExamItem = {
     } | null
     templateSnapshotAt?: string | null
     resultTemplateSnapshot?: unknown
+    resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED'
+    workStatus?: string
     exam?: {
       id: string
       status: string
@@ -930,6 +932,8 @@ function canInteractWithItem(item: RoomExamItem) {
 function canRenderExamInputs(item: RoomExamItem) {
   // Deferred: hasil diisi belakangan di halaman Hasil Exam, bukan saat examination
   if (item.trxExamItem?.item?.resultTiming === 'deferred') return false
+  // Hasil sudah disubmit → tampilkan read-only, inputan tidak boleh diedit lagi
+  if (item.trxExamItem?.resultStatus === 'SUBMITTED') return false
   return hasStructuredInputs(item) && canInteractWithItem(item)
 }
 
@@ -940,7 +944,9 @@ function canRenderItemNotes(item: RoomExamItem) {
 }
 
 function isExamResultSubmitted(item: RoomExamItem) {
-  return Boolean(item.trxExamItem?.templateSnapshotAt) || item.trxExamItem?.exam?.status === 'completed'
+  return item.trxExamItem?.resultStatus === 'SUBMITTED'
+    || Boolean(item.trxExamItem?.templateSnapshotAt)
+    || item.trxExamItem?.exam?.status === 'completed'
 }
 
 function canDoneItem(item: RoomExamItem) {
@@ -1021,7 +1027,17 @@ function getSubmittedResultRows(item: RoomExamItem) {
 }
 
 function shouldShowResultDocument(item: RoomExamItem) {
+  if (isPhysicalExamItem(item)) return false
   return item.status === 'DONE' || isExamResultSubmitted(item)
+}
+
+function physicalAllNormal(item: RoomExamItem) {
+  const rows = getSubmittedResultRows(item)
+  return rows.length > 0 && rows.every(row => !row.flag || row.flag === 'normal')
+}
+
+function physicalAbnormalCount(item: RoomExamItem) {
+  return getSubmittedResultRows(item).filter(row => row.flag && row.flag !== 'normal').length
 }
 
 function getOperationalStatusLabel(item: RoomExamItem) {
@@ -2155,6 +2171,51 @@ async function handleSubmitItemAction() {
                       @updated="loadPage(true)"
                     />
 
+                    <div
+                      v-if="isPhysicalExamItem(selectedItem) && !canRenderExamInputs(selectedItem)"
+                      class="overflow-hidden rounded-xl border border-default"
+                    >
+                      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default bg-elevated/40 px-4 py-3">
+                        <div class="flex min-w-0 items-center gap-3">
+                          <h4 class="truncate font-semibold">
+                            Physical Exam
+                          </h4>
+                          <small class="text-xs text-muted">Result approved dari department</small>
+                        </div>
+                        <span
+                          v-if="physicalAllNormal(selectedItem)"
+                          class="text-xs font-semibold text-success"
+                        >
+                          ✓ Normal
+                        </span>
+                        <span v-else class="text-xs font-semibold text-error">
+                          ⚠ {{ physicalAbnormalCount(selectedItem) }} abnormal
+                        </span>
+                      </div>
+                      <div class="p-4">
+                        <p v-if="getSubmittedResultRows(selectedItem).length === 0" class="rounded-lg border border-dashed border-default bg-default px-3 py-2 text-sm text-muted">
+                          Belum ada hasil.
+                        </p>
+                        <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div
+                            v-for="row in getSubmittedResultRows(selectedItem)"
+                            :key="row.id"
+                            class="rounded-lg border border-default bg-default px-3 py-2"
+                          >
+                            <p class="text-xs text-muted">
+                              {{ row.label }}
+                            </p>
+                            <p
+                              class="text-sm font-semibold"
+                              :class="row.flag === 'abnormal' ? 'text-error' : 'text-highlighted'"
+                            >
+                              {{ row.value }}<span v-if="row.uom" class="ml-1 text-xs font-normal text-muted">{{ row.uom }}</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <PhysicalExaminationDoctor
                       v-if="canRenderExamInputs(selectedItem) && isPhysicalExamItem(selectedItem)"
                       :exam-id="selectedItem.trxExamItem?.exam?.id || ''"
@@ -2384,7 +2445,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred'"
+                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
                         color="primary"
                         variant="soft"
                         icon="i-lucide-save"
@@ -2395,12 +2456,11 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred'"
+                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
                         color="primary"
                         variant="soft"
                         icon="i-lucide-send"
                         :loading="resultSaveLoading[selectedItem.id]"
-                        :disabled="isExamResultSubmitted(selectedItem)"
                         @click="handleSubmitResults(selectedItem)"
                       >
                         Submit Hasil
