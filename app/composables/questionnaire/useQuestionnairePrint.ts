@@ -124,7 +124,7 @@ function parseNodes(tokens: Token[], start: number, stopTags: string[]): { nodes
 function getPath(ctx: unknown, path: string): unknown {
   let value: unknown = ctx
   for (const part of path.split('.')) {
-    if (value == null) return undefined
+    if (value == null || ['__proto__', 'prototype', 'constructor'].includes(part)) return undefined
     value = (value as Record<string, unknown>)[part]
   }
   return value
@@ -133,6 +133,14 @@ function getPath(ctx: unknown, path: string): unknown {
 function evalExpr(expr: string, ctx: Record<string, unknown>): unknown {
   const trimmed = expr.trim()
   if (!trimmed) return undefined
+
+  // Boolean ops (flat): not X, X or Y, X and Y
+  const notMatch = /^not\s+(.+)$/i.exec(trimmed)
+  if (notMatch) return !isTruthy(evalExpr((notMatch[1] as string), ctx))
+  const orParts = trimmed.split(/\s+or\s+/i)
+  if (orParts.length > 1) return orParts.some(p => isTruthy(evalExpr(p, ctx)))
+  const andParts = trimmed.split(/\s+and\s+/i)
+  if (andParts.length > 1) return andParts.every(p => isTruthy(evalExpr(p, ctx)))
 
   const parts = trimmed.split('|')
   const base = (parts[0] ?? '').trim()
@@ -167,11 +175,18 @@ function applyFilter(value: unknown, name: string, arg: unknown): unknown {
     case 'lower': return s.toLowerCase()
     case 'capitalize': return s ? (s[0] as string).toUpperCase() + s.slice(1) : s
     case 'trim': return s.trim()
-    case 'default':
-      return value == null || s === '' ? (arg ?? '') : value
-    case 'safe': return value
+    case 'default': return value == null || s === '' ? (arg ?? '') : value
     default: return value
   }
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function isTruthy(value: unknown): boolean {
@@ -190,12 +205,12 @@ function renderNodes(nodes: PrintNode[], ctx: Record<string, unknown>): string {
       out += node.value
     } else if (node.kind === 'expr') {
       const v = evalExpr(node.expr, ctx)
-      out += v == null ? '' : String(v)
+      out += escapeHtml(v)
     } else if (node.kind === 'for') {
       const list = evalExpr(node.listExpr, ctx)
       if (Array.isArray(list)) {
         list.forEach((item, idx) => {
-          const scoped = { ...ctx, [node.varName]: item, loop: { index: idx + 1, index0: idx } }
+          const scoped = { ...ctx, [node.varName]: item, loop: { index: idx + 1, index0: idx, last: idx === list.length - 1, length: list.length } }
           out += renderNodes(node.body, scoped)
         })
       }
@@ -496,9 +511,11 @@ export function printQuestionnaireHtml(
   const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
   const sideImageCss = ctx.image ? documentImageCss() : ''
   const content = wrapDocumentImage(rendered, ctx.image)
+  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
   return `
     <html lang="id">
       <head>
+        ${csp}
         <title>${ctx.documentTitle} - ${ctx.patientName}</title>
         <style>${css ?? defaultCss}</style>
         <style>${printHeaderCss()}</style>

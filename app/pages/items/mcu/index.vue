@@ -47,6 +47,18 @@ type Item = {
   } | null
   isActive?: boolean
   createdAt: string
+  inputans?: Array<{
+    id: string
+    label: string
+    inputType: string
+    uom: string | null
+    sortOrder: number
+    allowBlank: boolean
+    formula: { formula: string } | null
+    opsis: Array<{ id: string; label: string; value: string; sortOrder: number }>
+    nilaiNormalNumber: Array<{ sex: string | null; ageMin: number; minValue: number | null; maxValue: number | null }>
+    nilaiNormalSel: Array<{ id: string; sex: string | null; ageMin: number; opsiId: string }>
+  }> | null
 }
 
 type ItemsApiResponse = {
@@ -160,9 +172,319 @@ const {
 
 const data = computed<Item[]>(() => [...(items.value ?? [])].sort(compareItemSequence))
 const isAddModalOpen = ref(false)
+
+// ─── Filter by Room Type ─────────────────────────────────────────────────────────
+const roomTypeFilter = ref<string>('all')
+const roomTypes = computed(() => {
+  const map = new Map<string, { id: string; code: string; name: string }>()
+  for (const item of data.value) {
+    if (item.roomType?.id && !map.has(item.roomType.id)) {
+      map.set(item.roomType.id, {
+        id: item.roomType.id,
+        code: item.roomType.code,
+        name: item.roomType.name
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const filteredData = computed<Item[]>(() => {
+  if (roomTypeFilter.value === 'all') return data.value
+  return data.value.filter((item) => item.roomType?.id === roomTypeFilter.value)
+})
 const columnFilters = ref([{ id: 'name', value: '' }])
 const columnVisibility = ref({})
 const rowSelection = ref({})
+
+// ─── Batch Import Item ─────────────────────────────────────────────────────────
+const importFileInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+const importPreviewOpen = ref(false)
+const importPreviewRows = ref<Array<{
+  code: string
+  name: string
+  departmentCode: string
+  groupName: string
+  subgroupName: string
+  roomTypeCode: string
+  resultTiming: string
+  externalResult: boolean
+  price: number
+  description: string
+  isActive: boolean
+  inputans: unknown[]
+  error?: string
+}>>([])
+
+function downloadImportTemplate() {
+  const exportedItems = data.value.map((item) => ({
+    code: item.code || '',
+    name: item.name,
+    departmentCode: item.department?.code || item.department?.name || '',
+    groupName: item.group?.parent?.name || '',
+    subgroupName: item.group?.name || '',
+    roomTypeCode: item.roomType?.code || item.roomType?.name || '',
+    resultTiming: 'deferred',
+    externalResult: false,
+    price: 0,
+    description: '',
+    isActive: item.isActive !== false,
+     inputans: (item.inputans ?? []).map((inp) => {
+      const opsiList = inp.opsis ?? []
+      return {
+        label: inp.label,
+        inputType: inp.inputType,
+        uom: inp.uom ?? null,
+        sortOrder: inp.sortOrder ?? 0,
+        allowBlank: inp.allowBlank ?? false,
+        formula: inp.inputType === 'calculated' ? inp.formula?.formula ?? null : null,
+        opsis: opsiList.map((o) => ({
+          label: o.label,
+          value: o.value,
+          sortOrder: o.sortOrder ?? 0
+        })),
+        nilaiNormalNumber: (inp.nilaiNormalNumber ?? []).map((n) => ({
+          sex: n.sex ?? null,
+          ageMin: n.ageMin ?? 0,
+          minValue: n.minValue ?? null,
+          maxValue: n.maxValue ?? null
+        })),
+        nilaiNormalSelected: (inp.nilaiNormalSel ?? []).map((n) => ({
+          sex: n.sex ?? null,
+          ageMin: n.ageMin ?? 0,
+          opsiValue: opsiList.find((o: { id: string; label: string }) => o.id === n.opsiId)?.label ?? null
+        }))
+      }
+    })
+  }))
+
+  const template = {
+    _instructions: 'Kolom code boleh dikosongkan — akan di-generate otomatis (DEPT-GROUP-SUBGROUP-XXXX). departmentCode/groupName/subgroupName/roomTypeCode dicocokkan dengan master (huruf besar/kecil diabaikan). groupName = group induk, subgroupName = group turunan (kosongkan jika item langsung di root group). Kolom inputans (opsional) mendefinisikan template inputan bawaan per item. nilaiNormalNumber (ageMin/sex/minValue/maxValue) ikut terimpor bersama. nilaiNormalSelected diekspor sebagai opsiValue (label opsi) agar portable — saat import, nilai normal selected akan di-strip (opsi baru belum punya ID) dan dapat diatur ulang di halaman Item › Template Exam setelah item terbuat.',
+    items: exportedItems.length
+      ? exportedItems
+      : [
+          {
+            code: '',
+            name: 'Hematologi + Diff Count',
+            departmentCode: 'LAB',
+            groupName: 'Kimia Klinik',
+            subgroupName: '',
+            roomTypeCode: 'LAB',
+            resultTiming: 'deferred',
+            externalResult: false,
+            price: 0,
+            description: '',
+            isActive: true,
+            inputans: [
+              {
+                label: 'Hb',
+                inputType: 'number',
+                uom: 'g/dL',
+                sortOrder: 1,
+                allowBlank: false,
+                nilaiNormalNumber: [
+                  { sex: 'MALE', ageMin: 0, minValue: 10.5, maxValue: 13.0 },
+                  { sex: 'FEMALE', ageMin: 0, minValue: 10.5, maxValue: 13.0 }
+                ]
+              },
+              {
+                label: 'Catatan',
+                inputType: 'string',
+                sortOrder: 2,
+                allowBlank: true
+              }
+            ]
+          }
+        ]
+  }
+  const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'template-import-item.json'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+function norm(value: unknown) {
+  return String(value ?? '').trim().toUpperCase()
+}
+
+async function resolveReferences() {
+  const [deptRes, roomRes] = await Promise.all([
+    api.get('/medical/departments'),
+    api.get('/medical/rooms/room-types', { params: { page: 1, limit: 1000 } })
+  ])
+  const unwrap = (v: unknown) => {
+    const p = (v as { data?: unknown })?.data ?? v
+    return Array.isArray(p) ? p : (p as { data?: unknown })?.data ?? []
+  }
+  const departments = unwrap(deptRes.data) as Array<{ id: string, code?: string | null, name: string }>
+  const roomTypes = unwrap(roomRes.data) as Array<{ id: string, code?: string | null, name: string }>
+
+  const groupsByDept = new Map<string, Array<{ id: string, name: string, code?: string | null, parentId: string | null }>>()
+  await Promise.all(departments.map(async dept => {
+    try {
+      const res = await api.get(`/medical/group/${dept.id}`)
+      const payload = (res.data?.data ?? res.data) as unknown
+      const list = Array.isArray(payload) ? payload : (payload as { data?: unknown })?.data ?? []
+      groupsByDept.set(dept.id, list as Array<{ id: string, name: string, code?: string | null, parentId: string | null }>)
+    } catch {
+      groupsByDept.set(dept.id, [])
+    }
+  }))
+
+  return { departments, roomTypes, groupsByDept }
+}
+
+async function importItems(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const json = JSON.parse(text) as { items?: unknown[] } | unknown[]
+    const raw = Array.isArray(json) ? json : json.items
+    if (!Array.isArray(raw)) throw new Error('Format tidak valid: butuh array pada key "items"')
+
+    importPreviewRows.value = raw.map((value) => {
+      const row = (value ?? {}) as Record<string, unknown>
+      return {
+        code: String(row.code ?? '').trim(),
+        name: String(row.name ?? '').trim(),
+        departmentCode: String(row.departmentCode ?? '').trim(),
+        groupName: String(row.groupName ?? '').trim(),
+        subgroupName: String(row.subgroupName ?? '').trim(),
+        roomTypeCode: String(row.roomTypeCode ?? '').trim(),
+        resultTiming: row.resultTiming === 'deferred' ? 'deferred' : 'inline',
+        externalResult: Boolean(row.externalResult),
+        price: Number(row.price ?? 0) || 0,
+        description: String(row.description ?? '').trim(),
+        isActive: row.isActive !== false,
+        inputans: Array.isArray(row.inputans) ? row.inputans : []
+      }
+    })
+    importPreviewOpen.value = true
+  } catch (e: unknown) {
+    const msg = (e as Error)?.message
+    toast.add({ title: 'Import gagal', description: msg || 'File tidak valid', color: 'error' })
+  } finally {
+    target.value = ''
+  }
+}
+
+function removeImportRow(index: number) {
+  importPreviewRows.value.splice(index, 1)
+}
+
+async function submitImportPreview() {
+  if (importing.value || !importPreviewRows.value.length) return
+  importing.value = true
+
+  try {
+    const { departments, roomTypes, groupsByDept } = await resolveReferences()
+    const findDept = (v: unknown) => departments.find(d => norm(d.code) === norm(v) || norm(d.name) === norm(v))
+    const findRoom = (v: unknown) => roomTypes.find(r => norm(r.code) === norm(v) || norm(r.name) === norm(v))
+    const findGroup = (deptId: string, v: unknown, parentId: string | null = null) =>
+      (groupsByDept.get(deptId) ?? []).find(g =>
+        (norm(g.name) === norm(v) || norm(g.code) === norm(v)) && (g.parentId ?? null) === parentId
+      )
+
+    const codesRes = await api.get('/mcu/items', { params: { page: 1, limit: 1000 } })
+    const codesPayload = codesRes.data?.data ?? codesRes.data
+    const codesList = Array.isArray(codesPayload) ? codesPayload : (codesPayload?.data ?? [])
+    const existingByCode = new Map<string, string>()
+    for (const c of codesList as Array<{ code?: string; id?: string }>) {
+      if (c.code && c.id) existingByCode.set(c.code, c.id)
+    }
+    const existingCodes = Array.from(existingByCode.keys())
+    const abbrName = (name: string, len = 3) => norm(name).replace(/[^A-Z]/g, '').slice(0, len)
+    const nextSeq = (prefix: string) => {
+      let max = 0
+      for (const c of existingCodes) {
+        const m = c.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`))
+        if (m) max = Math.max(max, Number(m[1]))
+      }
+      return max + 1
+    }
+
+    let created = 0
+    const errors: string[] = []
+    importPreviewRows.value.forEach(row => { row.error = '' })
+
+    for (let i = 0; i < importPreviewRows.value.length; i++) {
+      const row = importPreviewRows.value[i]!
+      if (!row.name.trim()) { row.error = 'name wajib diisi'; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+
+      const dept = findDept(row.departmentCode)
+      if (!dept) { row.error = `department "${row.departmentCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      const room = findRoom(row.roomTypeCode)
+      if (!room) { row.error = `room type "${row.roomTypeCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+
+      const rootGroup = row.groupName ? findGroup(dept.id, row.groupName) : null
+      if (row.groupName && !rootGroup) { row.error = `group "${row.groupName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      const subgroup = row.subgroupName ? findGroup(dept.id, row.subgroupName, rootGroup?.id ?? null) : null
+      if (row.subgroupName && !subgroup) { row.error = `subgroup "${row.subgroupName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+
+       let code = row.code.trim()
+      if (!code) {
+        const parts = [dept.code || abbrName(dept.name)]
+        if (rootGroup) parts.push(rootGroup.code ? norm(rootGroup.code).replace(/[^A-Z0-9]/g, '') : abbrName(rootGroup.name))
+        if (subgroup) parts.push(subgroup.code ? norm(subgroup.code).replace(/[^A-Z0-9]/g, '') : abbrName(subgroup.name))
+        const prefix = parts.filter(Boolean).join('-')
+        code = `${prefix}-${String(nextSeq(prefix)).padStart(4, '0')}`
+        row.code = code
+      }
+
+      const existingItemId = existingByCode.get(code)
+      // nilaiNormalSelected tidak dapat diimport via batch (opsi baru belum punya ID);
+      // strip agar melewati validation batch, lalu atur ulang lewat halaman Template Exam.
+      const strippedInputans = ((row.inputans ?? []) as Array<Record<string, unknown>>).map((inp) => {
+        const { nilaiNormalSelected, ...rest } = inp
+        return rest
+      })
+      const payload = {
+        code,
+        name: row.name.trim(),
+        resultTiming: row.resultTiming === 'deferred' ? 'deferred' : 'inline',
+        externalResult: row.externalResult,
+        requiresAttachmentForDone: false,
+        departmentId: dept.id,
+        roomTypeId: room.id,
+        groupId: subgroup?.id ?? rootGroup?.id ?? null,
+        price: Number(row.price || 0),
+        description: row.description.trim() || null,
+        isActive: row.isActive,
+        inputans: row.inputans?.length ? strippedInputans : []
+      }
+
+      try {
+        if (existingItemId) {
+          await api.put(`/mcu/items/${existingItemId}`, payload)
+          if (strippedInputans.length) {
+            await api.put(`/mcu/items/${existingItemId}/inputans`, { inputans: strippedInputans })
+          }
+        } else {
+          await api.post('/mcu/items', payload)
+          existingByCode.set(code, '')
+        }
+        created += 1
+      } catch (e: unknown) {
+        const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'gagal dibuat'
+        row.error = msg
+        errors.push(`Baris ${i + 1} (${row.name}): ${msg}`)
+      }
+    }
+
+    if (created) toast.add({ title: 'Import berhasil', description: `${created} item dibuat`, color: 'success' })
+    if (errors.length) toast.add({ title: 'Sebagian gagal', description: errors.slice(0, 5).join('\n'), color: 'warning' })
+    if (!errors.length) importPreviewOpen.value = false
+    await refresh()
+  } finally {
+    importing.value = false
+  }
+}
 
 const table = useTemplateRef('table')
 
@@ -457,14 +779,50 @@ watch(currentPage, (page) => {
 
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <UInput
-          v-model="searchQuery"
-          icon="i-lucide-search"
-          placeholder="Search item..."
-          class="max-w-sm"
-        />
+        <div class="flex items-center gap-3">
+          <USelect
+            v-model="roomTypeFilter"
+            class="w-52"
+            :items="[
+              { label: 'All Room Types', value: 'all' },
+              ...roomTypes.map((rt) => ({
+                label: rt.code ? `${rt.code} - ${rt.name}` : rt.name,
+                value: rt.id
+              }))
+            ]"
+          />
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            placeholder="Search item..."
+            class="max-w-sm"
+          />
+        </div>
 
         <div class="flex items-center gap-2">
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+            @change="importItems"
+          >
+          <UButton
+            label="Template"
+            icon="i-lucide-file-down"
+            color="neutral"
+            variant="outline"
+            @click="downloadImportTemplate"
+          />
+          <UButton
+            label="Import"
+            icon="i-lucide-file-up"
+            color="neutral"
+            variant="outline"
+            :loading="importing"
+            @click="importFileInput?.click()"
+          />
+
           <UButton
             label="Add Item"
             icon="i-lucide-clipboard-plus"
@@ -525,7 +883,7 @@ watch(currentPage, (page) => {
         v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
-        :data="data"
+        :data="filteredData"
         :columns="columns"
         :loading="pending"
         sticky
@@ -576,6 +934,56 @@ watch(currentPage, (page) => {
         entity="item"
         @confirm="handleDeleteById"
       />
+
+      <!-- Preview import item -->
+      <UModal v-model:open="importPreviewOpen" :ui="{ content: 'sm:max-w-[95vw] max-h-[90vh] overflow-hidden' }">
+        <template #content>
+          <UCard class="flex max-h-[90vh] flex-col" :ui="{ body: 'min-h-0 p-0', footer: 'shrink-0' }">
+            <template #header>
+              <div>
+                <h2 class="text-lg font-semibold">Preview Import Item</h2>
+                <p class="text-sm text-muted">Edit data dulu. Code kosong akan dibuat otomatis saat import.</p>
+              </div>
+            </template>
+
+            <div class="max-h-[calc(90vh-11rem)] overflow-auto p-4">
+              <div class="min-w-[1600px] space-y-2">
+                <div class="grid grid-cols-[150px_200px_110px_150px_150px_110px_110px_90px_100px_180px_100px_80px] gap-2 text-xs font-semibold uppercase text-muted">
+                  <span>Code</span><span>Name</span><span>Dept</span><span>Group</span><span>Subgroup</span><span>Room</span><span>Timing</span><span>External</span><span>Price</span><span>Description</span><span>Inputan</span><span>Aksi</span>
+                </div>
+
+                <div
+                  v-for="(row, index) in importPreviewRows"
+                  :key="index"
+                  class="grid grid-cols-[150px_200px_110px_150px_150px_110px_110px_90px_100px_180px_100px_80px] gap-2 rounded-lg border border-default p-2"
+                  :class="row.error ? 'border-error/60 bg-error/5' : ''"
+                >
+                  <UInput v-model="row.code" size="sm" placeholder="Otomatis" />
+                  <UInput v-model="row.name" size="sm" />
+                  <UInput v-model="row.departmentCode" size="sm" />
+                  <UInput v-model="row.groupName" size="sm" />
+                  <UInput v-model="row.subgroupName" size="sm" />
+                  <UInput v-model="row.roomTypeCode" size="sm" />
+                  <USelect v-model="row.resultTiming" :items="[{ label: 'Inline', value: 'inline' }, { label: 'Deferred', value: 'deferred' }]" value-key="value" size="sm" />
+                  <UCheckbox v-model="row.externalResult" label="Ya" />
+                  <UInput v-model.number="row.price" type="number" min="0" size="sm" />
+                  <UInput v-model="row.description" size="sm" />
+                  <UInput :model-value="row.inputans?.length ? `${row.inputans.length} komponen` : ''" size="sm" placeholder="Opsional (template inputan bawaan)" readonly />
+                  <UButton color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" @click="removeImportRow(index)" />
+                  <p v-if="row.error" class="col-span-12 text-xs text-error">{{ row.error }}</p>
+                </div>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="flex w-full justify-end gap-2">
+                <UButton color="neutral" variant="soft" :disabled="importing" @click="importPreviewOpen = false">Batal</UButton>
+                <UButton color="primary" icon="i-lucide-database" :loading="importing" :disabled="!importPreviewRows.length" @click="submitImportPreview">Import ke DB</UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
 
       <!-- Add item modal -->
       <ItemsAddModal

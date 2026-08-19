@@ -40,6 +40,7 @@ const creatingItem = ref(false)
 
 type ItemGroup = {
   id: string
+  code?: string | null
   name: string
   parentId: string | null
   sortOrder?: number
@@ -47,6 +48,7 @@ type ItemGroup = {
 
 type Department = {
   id: string
+  code?: string | null
   name: string
   type?: 'office' | 'medical' | null
 }
@@ -82,6 +84,70 @@ const form = reactive({
   description: '',
   isActive: true
 })
+
+/** Existing item codes, untuk menghitung sequence berikutnya per prefix */
+const existingCodes = ref<string[]>([])
+
+async function loadExistingCodes() {
+  try {
+    const res = await api.get('/mcu/items', { params: { page: 1, limit: 1000 } })
+    const payload = res.data?.data ?? res.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    existingCodes.value = (list as Array<{ code: string }>)
+      .map(item => item.code)
+      .filter(Boolean)
+  } catch {
+    existingCodes.value = []
+  }
+}
+
+/** Singkatan huruf kapital (3 huruf) dari nama group/subgroup */
+function abbr(name: string, len = 3) {
+  const letters = (name || '').toUpperCase().replace(/[^A-Z]/g, '')
+  return letters.slice(0, len)
+}
+
+/** Prefix kode: DEPT-GROUP-SUBGROUP berdasarkan pilihan */
+const codePrefix = computed(() => {
+  const dept = (departments.value ?? []).find(d => d.id === form.departmentId)
+  if (!dept) return ''
+  const parts = [dept.code || abbr(dept.name)]
+  const group = groups.value.find(g => g.id === form.groupId)
+  if (group) parts.push(group.code ? group.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : abbr(group.name))
+  const subgroup = groups.value.find(g => g.id === form.subgroupId)
+  if (subgroup) parts.push(subgroup.code ? subgroup.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : abbr(subgroup.name))
+  return parts.filter(Boolean).join('-')
+})
+
+/** Nomor urut berikutnya: max existing di prefix + 1 */
+const nextSequence = computed(() => {
+  const prefix = codePrefix.value
+  if (!prefix) return 1
+  let max = 0
+  for (const code of existingCodes.value) {
+    const m = code.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`))
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  return max + 1
+})
+
+/** Kode otomatis: {prefix}-{seq}, padding 4 (mis. LAB-HEM-0004) */
+const autoCode = computed(() => {
+  if (!codePrefix.value) return ''
+  return `${codePrefix.value}-${String(nextSequence.value).padStart(4, '0')}`
+})
+
+function refreshAutoCode() {
+  if (props.item || itemCreated.value) return // edit mode / item sudah dibuat: jangan timpa kode
+  if (autoCode.value) form.code = autoCode.value
+}
+
+watch(
+  [() => form.departmentId, () => form.groupId, () => form.subgroupId],
+  () => {
+    refreshAutoCode()
+  }
+)
 
 // Populate form when editing
 watch(() => props.item, (item) => {
@@ -223,6 +289,10 @@ function resetAll() {
 }
 
 watch(open, (val) => {
+  if (val) {
+    void loadExistingCodes()
+    if (!props.item) refreshAutoCode()
+  }
   if (!val) {
     if (!props.item) {
       resetAll()
@@ -467,9 +537,15 @@ function handleDone() {
                 <UFormField label="Item Code" required>
                   <UInput
                     v-model="form.code"
-                    placeholder="EX: LAB001"
+                    :placeholder="props.item ? 'EX: LAB001' : autoCode || 'Pilih department/group untuk kode otomatis'"
                     class="w-full"
                   />
+                  <p
+                    v-if="!props.item && autoCode && form.code !== autoCode"
+                    class="mt-1 text-xs text-muted"
+                  >
+                    Kode otomatis: <code class="font-mono text-primary">{{ autoCode }}</code>
+                  </p>
                 </UFormField>
 
                 <UFormField label="Department" required>
