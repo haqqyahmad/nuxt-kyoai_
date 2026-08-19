@@ -11,6 +11,7 @@ Last updated: 2026-08-19
   - Flush redis cache `user:permissions:6`.
 - **FE `my-app` `constants/menu.ts`:** tambah `'dokter-gigi'` ke `restrictedRoles` (utk konsisten restricted seperti dokter; `roleDefaultDepartment['dokter-gigi']='DENTAL'` sudah ada).
 - **Hasil:** dokter1 login → role dokter-gigi → restricted (allowedRoutes termasuk `/result/exam-results`) + default dept DENTAL → "Hasil Exam Dental" tampil.
+- **Note cache role:** role `dokter-gigi` dibuat via Prisma langsung, bukan `roleRepo.createRole`, sehingga cache Redis `roles:all` tak ter-invalidate. `/settings/roles` belum menampilkan role sampai cache `roles:all` di-flush. Setelah flush → role muncul di list.
 
 ## Completed — 2026-08-19: Fix "Submit & Release" dental — submit pakai draft tersimpan
 
