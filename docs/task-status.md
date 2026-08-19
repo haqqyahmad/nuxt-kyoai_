@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Fix "Submit & Release" dental — submit pakai draft tersimpan
+
+- **Masalah:** `/result/exam-results?department=dental` — klik "Submit & Release" error `Hasil dental belum lengkap` padahal data dental sudah terisi (Stain, 2 findings). Penyebab: `DentalResultPanel.submitResult()` kirim payload `{}` ke `POST /dental/submit` (data disimpan panel di DB, tapi submit di-render ulang dari kosong). Backend `submitDentalExam` validasi & butuh field non-kosong dari request → dianggap kosong.
+- **Perbaikan backend `express_dash/src/services/dental/dental.service.js` (`submitDentalExam`):**
+  - Tambah `_mergeDentalPayload(parsed, existingDental)` — gabung payload request dgn draft `DentalExam` tersimpan di DB. Field kosong/submit-ulang diisi dari DB.
+  - Validasi kelengkapan kini pakai `effective` (payload gabungan draft).
+- **Verifikasi (live):** `submitDentalExam('92d0735d', {})` → `{success:true, SUBMITTED}`; item dental → `SUBMITTED`; dept Dental (`8c63833a`) → `DEPARTMENT_REVIEW`.
+- **Catatan:** FE `submitResult` tetap kirim `{}` — sekarang benar karena backend baca draft. (Alternatif jangka panjang: kartu submit mengirim data terkini; tak wajib.)
+
 ## Completed — 2026-08-19: Audit & fix alur dental (queue-work → approval)
 
 - **Latar:** Alur dental di queue-work (`show-submit=false`) hanya Simpan Draft (`POST /dental`); item di-done tanpa submit → dental tak masuk workflow approval. Selain itu done item dental tidak validasi dental tersimpan (bisa done walau kosong).
