@@ -1,6 +1,42 @@
 # Project Task Status
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
+
+## Completed — 2026-08-19: Alur Sample Collection → EXAM otomatis DONE (LAB)
+
+- **Latar:** Skema ruangan LAB: Room Sample Collection (stage COLLECT) → Room Sample Receive/Reception (stage RECEIVE) → Result Exam LAB (stage EXAM). Hasil lab diisi di `/result/exam-results`, bukan di workroom. Alur lama: COLLECT DONE → RECEIVE WAITING; RECEIVE DONE → EXAM WAITING (harus di-start & diisi di workroom terpisah) → EXAM nyangkut WAITING.
+- **Perubahan `express_dash/src/repositories/queue/queue.repository.js` (fungsi `_completeReceivePhaseIfReady`):**
+  - Saat semua sample `RECEIVED` → RECEIVE stage DONE, **EXAM stage otomatis DONE** (sebelumnya hanya `WAITING`).
+  - **`RoomQueueItem` → `DONE`** + `doneAt` (sebelumnya `WAITING`).
+- **Alur final:**
+  ```
+  COLLECT DONE → RECEIVE WAITING
+  RECEIVE DONE → EXAM otomatis DONE (room queue Selesai)
+  ```
+- **Verifikasi (live repo):** sample di-reset COLLECTED → `receiveSample` → RoomQueueItem `DONE`, stages `RECEIVE:DONE COLLECT:DONE EXAM:DONE` (sebelum: EXAM:WAITING).
+- **Catatan:** fix tidak backfill data lama. Pasien yang sudah COLLECT+RECEIVE DONE sebelum fix tetap EXAM `WAITING` di DB. Backfill opsional: RoomQueueItem LAB dgn COLLECT DONE & RECEIVE DONE & semua sample RECEIVED → set EXAM & room jadi DONE.
+- No perubahan DB/migrasi. Backend `npx prisma generate` tidak diperlukan (tidak ada perubahan schema).
+
+## Completed — 2026-08-19: Workflow & Approval Departemen (Opsi A penuh, approval result Lab)
+
+- **Latar:** Alur approval dept (`DEPARTMENT_REVIEW → DEPARTMENT_APPROVED`) tidak ada di backend & FE walau tabel & kolom sudah ada di DB. 25 result nyangkut REVIEW, 7 APPROVED semuanya dr dept DOCTOR (auto-approve). Fitur dibangun penuh (Opsi A): workflow berstep + four-eyes + inbox + tombol approve.
+- **Backend `express_dash`:**
+  - Service baru `src/services/result-workflow/result-workflow.service.js`: CRUD workflow+step, `ensureDefaultWorkflow` (auto 1-step per dept saat submit pertama, non-DOCTOR), `upsertWorkflowSteps`, `listWorkflows`, `listDepartments`, `canUserReviewStep`.
+  - Controller + route baru `/settings/result-workflow` (GET departments, GET workflows, PUT /:departmentId).
+  - `exam.service.js`: `approveDepartmentResult` (multi-step, four-eyes, tulis action APPROVE, set approvedAt saat final, `currentStepOrder` dinaikkan per step), `listPendingDepartmentApproval` (inbox, batas akses utk non-super).
+  - `exam.repository.js` `submitDepartmentResults`: terima `stepOrder` (baca dr workflow, not hardcode 1).
+  - Route mcu: `POST /:id/department-result/approve`, `GET /pending-dept-approval`.
+  - `npx prisma generate` (model workflow belum ada di client).
+- **FE `my-app`:**
+  - Halaman baru `/settings/result-workflow.vue`: atur step approval per dept, pilih reviewer user/role.
+  - Halaman baru `/result/department-approval.vue`: inbox approval berstep + tombol Approve + buka detail.
+  - `DetailDrawer.vue`: tombol **Approve** saat `departmentResultStatus==='DEPARTMENT_REVIEW'` dan current user ≠ submitter (four-eyes).
+  - `constants/menu.ts`: item "Persetujuan Hasil (Inbox)" di Results, "Workflow Approval" di Settings.
+- **Verifikasi E2E (live API):**
+  - Approve oleh submitter → 403 four-eyes rule. ✓
+  - Approve oleh petugas lain → `DEPARTMENT_APPROVED`, action APPROVE (+ actor 4, SUBMIT actor 1). ✓
+  - Multi-step (2 step): step1 → `DEPARTMENT_REVIEW` + `currentStepOrder` 1→2; step2 → `DEPARTMENT_APPROVED` + `approvedAt`. ✓
+  - Audit: SUBMIT(8) → APPROVE step1(1) → APPROVE step2(1). ✓
 
 ## Completed — 2026-08-18: Alur Approve Temp wajib pilih Pasien Lama/Baru (Opsi A+ + D + F-ringan)
 

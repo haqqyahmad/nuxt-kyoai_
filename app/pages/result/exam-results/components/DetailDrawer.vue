@@ -5,7 +5,7 @@ import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
 import HistoryTimeline from './HistoryTimeline.vue'
 
-const { isExternalDoctor } = await useCurrentUser()
+const { isExternalDoctor, user: currentUser } = await useCurrentUser()
 
 type Patient = {
   id: string | number
@@ -249,6 +249,35 @@ const canSubmitCurrentResult = computed(() => {
 const isExternalResultFilled = computed(() =>
   props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
 )
+
+// [F] Approve department (four-eyes): status REVIEW + actor bukan submitter.
+const canApproveCurrentResult = computed(() => {
+  if (props.result?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return false
+  const currentId = currentUser.value?.id
+  if (!currentId) return false
+  return Number(props.result?.exam?.resultSubmittedBy) !== Number(currentId)
+})
+
+const approving = ref(false)
+async function handleApproveResult() {
+  const examId = props.result?.exam?.id
+  const departmentId = props.result?.item?.department?.id
+  if (!examId || !departmentId || approving.value) return
+  approving.value = true
+  try {
+    await api.post(`/mcu/exams/${examId}/department-result/approve`, { departmentId })
+    toast.add({ title: 'Disetujui', description: 'Hasil disetujui departemen.', color: 'success' })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal approve',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat menyetujui.'),
+      color: 'error',
+    })
+  } finally {
+    approving.value = false
+  }
+}
 
 const externalProcessingDeadline = computed(() => {
   if (props.result?.exam?.externalStatus !== 'PROCESSING') return null
@@ -1518,6 +1547,15 @@ onBeforeUnmount(() => {
           v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
+          <UButton
+            v-if="canApproveCurrentResult"
+            color="success"
+            :loading="approving"
+            icon="i-lucide-check-circle"
+            @click="handleApproveResult"
+          >
+            Approve
+          </UButton>
           <UButton
             color="neutral"
             variant="soft"

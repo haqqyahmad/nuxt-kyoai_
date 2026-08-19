@@ -753,16 +753,45 @@ function buildStatusBadge(
   }
 
   const stages = stageItems ?? []
-  const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE'].includes(stage.stage?.code ?? ''))
+  const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE', 'EXAM'].includes(stage.stage?.code ?? ''))
   if (!isLabFlow) {
     return { label: getItemStatusLabel(status), color: getQueueBadgeColor(status) }
   }
 
-  const statuses = (sampleCollections ?? []).map(s => s.status)
-  if (statuses.some(s => s === 'PENDING')) return { label: 'Menunggu Ambil Sample', color: 'warning' }
-  if (statuses.some(s => s === 'REJECTED' || s === 'RESCHEDULED')) return { label: getItemStatusLabel(status), color: 'error' }
-  if (statuses.some(s => s === 'COLLECTED')) return { label: 'Menunggu Diterima Lab', color: 'info' }
-  return { label: 'Menunggu diproses Lab', color: 'warning' }
+  const build = (label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral') => ({ label, color })
+
+  const sampleStatuses = (sampleCollections ?? []).map(s => s.status)
+  const hasPending = sampleStatuses.some(s => s === 'PENDING')
+  const hasCollected = sampleStatuses.some(s => s === 'COLLECTED')
+  const hasReceived = sampleStatuses.some(s => s === 'RECEIVED')
+  const hasRejected = sampleStatuses.some(s => s === 'REJECTED' || s === 'RESCHEDULED')
+  const allReceived = sampleStatuses.length > 0 && sampleStatuses.every(s => s === 'RECEIVED')
+
+  // Stage aktif pertama (belum selesai), utk lab flow berarti COLLECT → RECEIVE → EXAM.
+  const active = stages.find(s =>
+    !['LOCKED', 'DONE', 'SKIPPED', 'RESCHEDULED'].includes(s.status)
+    && ['COLLECT', 'RECEIVE', 'EXAM'].includes(s.stage?.code ?? '')
+  )
+  const stageCode = active?.stage?.code
+
+  // Selalu tonjolkan kalau ada sample bermasalah (harus diambil ulang / datang ulang).
+  if (hasRejected && !hasCollected && !hasReceived) {
+    return build('Sample perlu diambil ulang', 'error')
+  }
+
+  switch (stageCode) {
+    case 'COLLECT':
+      if (hasPending) return build('Menunggu Ambil Sample', 'warning')
+      if (hasCollected) return build('Diambil, menunggu terima Lab', 'info')
+      return build('Menunggu Ambil Sample', 'warning')
+    case 'RECEIVE':
+      if (allReceived) return build('Sample Diterima Lab', 'success')
+      return build('Menunggu Diterima Lab', 'info')
+    case 'EXAM':
+      return build('Menunggu diproses Lab', 'warning')
+    default:
+      return build(getItemStatusLabel(status), getQueueBadgeColor(status))
+  }
 }
 
 function getSampleStatusLabel(status: string) {

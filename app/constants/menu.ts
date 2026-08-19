@@ -7,6 +7,7 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/assignments',
   '/rooms/queue',
   '/rooms/sample-collection',
+  '/rooms/sample-reception',
   '/result/exam-results',
   '/rooms/queue-work',
   '/settings',
@@ -146,6 +147,11 @@ export function buildMenuTree(): MenuItem[] {
         {
           label: 'MR Review',
           to: '/result/mr-review'
+        },
+        {
+          label: 'Persetujuan Hasil (Inbox)',
+          icon: 'i-lucide-inbox',
+          to: '/result/department-approval'
         },
         {
           label: 'Status Examination',

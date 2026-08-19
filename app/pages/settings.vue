@@ -4,7 +4,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const route = useRoute()
 const { permissions } = await useCurrentUser()
 
-const wideSettingsPages = ['/settings/permissions']
+const wideSettingsPages = ['/settings/permissions', '/settings/result-workflow']
 
 function hasPermission(perm: string) {
   return permissions.value.some(p => p === perm || p.startsWith(`${perm}:`))
@@ -27,6 +27,11 @@ const links = computed<NavigationMenuItem[][]>(() => {
       label: 'Notifications',
       icon: 'i-lucide-bell',
       to: '/settings/notifications'
+    },
+    {
+      label: 'Workflow Approval',
+      icon: 'i-lucide-workflow',
+      to: '/settings/result-workflow'
     }
   ]
 
