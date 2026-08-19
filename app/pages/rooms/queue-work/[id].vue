@@ -1538,6 +1538,24 @@ async function handleFinishStage() {
   stageActionLoading.value = true
   try {
     await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/done`, {})
+
+    // [B] Room dental selesai → auto submit hasil gigi agar masuk workflow department.
+    const dentalExamIds = [...new Set(
+      roomExamItems.value
+        .filter(item => isDentalExamItem(item))
+        .map(item => item.trxExamItem?.exam?.id)
+        .filter((x): x is string => Boolean(x))
+    )]
+    for (const examId of dentalExamIds) {
+      const item = roomExamItems.value.find(i => i.trxExamItem?.exam?.id === examId)
+      if (item?.trxExamItem?.resultStatus === 'SUBMITTED') continue
+      try {
+        await api.post(`/mcu/exams/${examId}/dental/submit`, {})
+      } catch {
+        // best-effort: tidak memblokir penyelesaian room
+      }
+    }
+
     toast.add({
       title: 'Berhasil',
       description: 'Pemeriksaan room selesai.',

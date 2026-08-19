@@ -2,6 +2,22 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Audit & fix alur dental (queue-work → approval)
+
+- **Latar:** Alur dental di queue-work (`show-submit=false`) hanya Simpan Draft (`POST /dental`); item di-done tanpa submit → dental tak masuk workflow approval. Selain itu done item dental tidak validasi dental tersimpan (bisa done walau kosong).
+- **A — cegah done dental kosong (`express_dash/src/services/roomExamItem/roomExamItem.service.js`):**
+  - Tambah helper `isDentalExamEmpty(dentalExam)` (ekstra oral/intra oral/oral tandai normal, tak ada findings, tak ada note/comment).
+  - Di `doneItem`, cabang `isDental` → wajib `DentalExam` tersimpan (bukan kosong), else `400 "Hasil pemeriksaan gigi belum diisi..."`.
+- **B — auto submit dental saat selesaikan room (`my-app/app/pages/rooms/queue-work/[id].vue`):**
+  - `handleFinishStage` setelah `PATCH stage/:id/done` → loop dental items yang belum `SUBMITTED` → `POST /mcu/exams/:examId/dental/submit` (best-effort, dedupe per examId, non-blocking).
+  - Efek: "Selesaikan Room" dental → dental otomatis masuk workflow department (dept REVIEW), tidak harus buka /result dulu.
+- **Alur dental final:**
+  ```
+  queue-work dental:
+    Mulai Pemeriksaan → isi gigi → Simpan Draft → Selesaikan Item (wajib dental terisi) → Selesaikan Room (auto submit /dental/submit → dept REVIEW → approval)
+  ```
+- **Verifikasi:** backend service import OK & restart bersih. Typecheck FE tetap (error pre-existing di file lain).
+
 ## Completed — 2026-08-19: Dokter luar submit → dept result dibuat utk approval nurse
 
 - **Latar:** Item ECG dept Nurse diisi dokter luar (`fillExternalResult`) → `resultStatus=SUBMITTED` + `externalResultAssignment=FILLED`, tapi **tidak membuat `ExamDepartmentResult`** → dept Nurse tak punya status `DEPARTMENT_REVIEW` → tak bisa approve.
