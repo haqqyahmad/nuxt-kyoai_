@@ -2,6 +2,16 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Tambah role dokter-gigi (menu hasil dental utk dokter1)
+
+- **Masalah:** menu "Hasil Exam Dental" tak tampil utk dokter1 (user 6) walau sudah punya `user_result_access` dept Dental. Penyebab: role user = `dokter` → `roleDefaultDepartment['dokter']='DOK'` → filter Results group cuma tampilkan dept DOK, dental disembunyikan. Role `dokter-gigi` (default DENTAL) tak ada.
+- **DB `express_dash`:**
+  - Buat role `dokter-gigi` (id 9), copy 10 permission dari role `dokter` (termasuk `exam:read`, `exam:update`, `queue:*`, `patient:read`, `room:read`, `audit:read`, `exam:doctor-result:*`).
+  - Pindahkan user6 (`dokter1@kyoai.com`) dari role `dokter` → `dokter-gigi`.
+  - Flush redis cache `user:permissions:6`.
+- **FE `my-app` `constants/menu.ts`:** tambah `'dokter-gigi'` ke `restrictedRoles` (utk konsisten restricted seperti dokter; `roleDefaultDepartment['dokter-gigi']='DENTAL'` sudah ada).
+- **Hasil:** dokter1 login → role dokter-gigi → restricted (allowedRoutes termasuk `/result/exam-results`) + default dept DENTAL → "Hasil Exam Dental" tampil.
+
 ## Completed — 2026-08-19: Fix "Submit & Release" dental — submit pakai draft tersimpan
 
 - **Masalah:** `/result/exam-results?department=dental` — klik "Submit & Release" error `Hasil dental belum lengkap` padahal data dental sudah terisi (Stain, 2 findings). Penyebab: `DentalResultPanel.submitResult()` kirim payload `{}` ke `POST /dental/submit` (data disimpan panel di DB, tapi submit di-render ulang dari kosong). Backend `submitDentalExam` validasi & butuh field non-kosong dari request → dianggap kosong.

@@ -43,6 +43,7 @@ export const restrictedRoles: string[] = [
   'petugas-lab',
   'petugas-radiologi',
   'dokter',
+  'dokter-gigi',
   'nurse',
   'front-office'
 ]
