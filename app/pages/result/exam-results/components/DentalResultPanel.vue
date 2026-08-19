@@ -12,6 +12,8 @@ const props = defineProps<{
   submittedBy?: number | null
 }>()
 
+const emit = defineEmits<{ approved: [] }>()
+
 const api = useApi()
 const toast = useToast()
 
@@ -43,6 +45,7 @@ async function handleApprove() {
   try {
     await api.post(`/mcu/exams/${props.examId}/department-result/approve`, { departmentId: props.departmentId })
     toast.add({ title: 'Disetujui', description: 'Hasil dental disetujui departemen.', color: 'success' })
+    emit('approved')
   } catch (error: unknown) {
     const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal approve.'
     toast.add({ title: 'Gagal approve', description: message, color: 'error' })
