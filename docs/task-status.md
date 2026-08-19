@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Tombol Approve utk hasil dental di DentalResultPanel
+
+- **Masalah:** `/result/exam-results?department=dental` render `DentalResultPanel` (bukan `DetailDrawer`), yang tak punya tombol Approve → dept Dental tak bisa di-approve dari halaman hasil dental.
+- **FE `my-app`:**
+  - `app/pages/result/exam-results/[id].vue`: pass `department-id` (dari `result.item.department.id`), `result-status` (`departmentResultStatus`), `submitted-by` (`exam.resultSubmittedBy`) ke `DentalResultPanel`.
+  - `DentalResultPanel.vue`: tambah `canApprove` (status `DEPARTMENT_REVIEW` && user ≠ submitter) + tombol **Approve** di header (`POST /mcu/exams/:id/department-result/approve`).
+- **Verifikasi (live, dokter-gigi id6):** approve dental → Dept Dental `DEPARTMENT_APPROVED`.
+- **Catatan:** tombol approve di header hasil dental tampil utk user yang bukan submitter. Untuk login superadmin (yang submit) tombol disembunyikan (empat-mata).
+
 ## Completed — 2026-08-19: Tambah role dokter-gigi (menu hasil dental utk dokter1)
 
 - **Masalah:** menu "Hasil Exam Dental" tak tampil utk dokter1 (user 6) walau sudah punya `user_result_access` dept Dental. Penyebab: role user = `dokter` → `roleDefaultDepartment['dokter']='DOK'` → filter Results group cuma tampilkan dept DOK, dental disembunyikan. Role `dokter-gigi` (default DENTAL) tak ada.

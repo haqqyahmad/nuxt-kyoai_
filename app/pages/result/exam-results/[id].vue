@@ -129,7 +129,9 @@ onMounted(() => {
             :exam-id="examId"
             :exam-item-id="String(route.params.id)"
             :room-type-id="roomTypeId"
-            :department-id="(result as any)?.departmentId"
+            :department-id="(result as any)?.item?.department?.id"
+            :result-status="(result as any)?.departmentResultStatus"
+            :submitted-by="(result as any)?.exam?.resultSubmittedBy"
           />
         </div>
       </div>

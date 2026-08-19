@@ -8,15 +8,39 @@ const props = defineProps<{
   examItemId: string
   roomTypeId?: string
   departmentId?: string
+  resultStatus?: string | null
+  submittedBy?: number | null
 }>()
 
 const api = useApi()
 const toast = useToast()
 
+const { user: currentUser } = await useCurrentUser()
+
 const loading = ref(false)
 const data = ref<DentalExamData | null>(null)
 const editing = ref(false)
 const saving = ref(false)
+const approving = ref(false)
+
+const canApprove = computed(() =>
+  props.resultStatus === 'DEPARTMENT_REVIEW'
+  && Number(props.submittedBy) !== Number(currentUser.value?.id)
+)
+
+async function handleApprove() {
+  if (!props.examId || !props.departmentId || approving.value) return
+  approving.value = true
+  try {
+    await api.post(`/mcu/exams/${props.examId}/department-result/approve`, { departmentId: props.departmentId })
+    toast.add({ title: 'Disetujui', description: 'Hasil dental disetujui departemen.', color: 'success' })
+  } catch (error: unknown) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal approve.'
+    toast.add({ title: 'Gagal approve', description: message, color: 'error' })
+  } finally {
+    approving.value = false
+  }
+}
 
 async function loadData() {
   loading.value = true
@@ -109,6 +133,16 @@ function printDental() {
             @click="printDental"
           >
             Cetak
+          </UButton>
+          <UButton
+            v-if="canApprove"
+            color="success"
+            icon="i-lucide-check-circle"
+            size="sm"
+            :loading="approving"
+            @click="handleApprove"
+          >
+            Approve
           </UButton>
           <UButton
             v-if="canEdit && !editing"
