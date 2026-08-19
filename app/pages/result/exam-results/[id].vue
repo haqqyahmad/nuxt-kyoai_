@@ -29,14 +29,6 @@ async function loadResult() {
   loading.value = true
   error.value = null
 
-  // Dental: data dimuat sendiri oleh DentalResultPanel via /mcu/exams/:id/dental.
-  // API generic results tidak mengembalikan data dental.
-  if (isDental.value) {
-    loading.value = false
-    result.value = null
-    return
-  }
-
   try {
     const params: Record<string, string | number> = {
       page: 1,
