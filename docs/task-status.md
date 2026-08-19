@@ -10,6 +10,7 @@ Last updated: 2026-08-19
   - `DentalResultPanel.vue`: tambah `canApprove` (status `DEPARTMENT_REVIEW` && user ≠ submitter) + tombol **Approve** di header (`POST /mcu/exams/:id/department-result/approve`).
 - **Verifikasi (live, dokter-gigi id6):** approve dental → Dept Dental `DEPARTMENT_APPROVED`.
 - **Catatan:** tombol approve di header hasil dental tampil utk user yang bukan submitter. Untuk login superadmin (yang submit) tombol disembunyikan (empat-mata).
+- **Fix lanjutan (badge approval dental):** `[id].vue` `loadResult` sempat early-return untuk dental → `result` null → badge approval "Belum Disubmit" walau sudah approve. Hapus early-return → `result` utk dental terisi (`departmentResultStatus`, `submittedBy`, `departmentId`), badge akurat; approve panel emit `approved` → `loadResult` refresh.
 
 ## Completed — 2026-08-19: Tambah role dokter-gigi (menu hasil dental utk dokter1)
 
