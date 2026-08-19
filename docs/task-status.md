@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Dokter luar submit → dept result dibuat utk approval nurse
+
+- **Latar:** Item ECG dept Nurse diisi dokter luar (`fillExternalResult`) → `resultStatus=SUBMITTED` + `externalResultAssignment=FILLED`, tapi **tidak membuat `ExamDepartmentResult`** → dept Nurse tak punya status `DEPARTMENT_REVIEW` → tak bisa approve.
+- **Perubahan `express_dash/src/services/exam/exam.service.js`:**
+  - Tambah `ensureExternalDeptReview(examId, examItemId, userId)` — upsert `ExamDepartmentResult` status `DEPARTMENT_REVIEW` + currentStepOrder dari workflow + action `SUBMIT` (source external).
+  - Di `fillExternalResult`, saat `submit !== false` dan ada `examItemId` → panggil `ensureExternalDeptReview` (best-effort, non-blocking).
+- **Verifikasi (live):** re-submit ECG dokter luar (user 9) → `exam_department_result` terbuat `{status:DEPARTMENT_REVIEW, step:1, sub:9}`. Nurse (dept 77630803) kini bisa approve (empat-mata: 9 ≠ nurse).
+- **Note:** Fix hanya utk submit external yang terjadi SETELAH ini. Data lama yang sudah FILLED (mis. exam `92d0735d`) tetap tanpa dept result sampai re-submit atau dibuat manual.
+
 ## Completed — 2026-08-19: Alur Sample Collection → EXAM otomatis DONE (LAB)
 
 - **Latar:** Skema ruangan LAB: Room Sample Collection (stage COLLECT) → Room Sample Receive/Reception (stage RECEIVE) → Result Exam LAB (stage EXAM). Hasil lab diisi di `/result/exam-results`, bukan di workroom. Alur lama: COLLECT DONE → RECEIVE WAITING; RECEIVE DONE → EXAM WAITING (harus di-start & diisi di workroom terpisah) → EXAM nyangkut WAITING.

@@ -1543,19 +1543,20 @@ onBeforeUnmount(() => {
           @click="emit('close')"
         />
 
+        <UButton
+          v-if="embedded && canApproveCurrentResult"
+          color="success"
+          :loading="approving"
+          icon="i-lucide-check-circle"
+          @click="handleApproveResult"
+        >
+          Approve
+        </UButton>
+
         <div
           v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
-          <UButton
-            v-if="canApproveCurrentResult"
-            color="success"
-            :loading="approving"
-            icon="i-lucide-check-circle"
-            @click="handleApproveResult"
-          >
-            Approve
-          </UButton>
           <UButton
             color="neutral"
             variant="soft"
