@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import DetailDrawer from './components/DetailDrawer.vue'
 import DentalResultPanel from './components/DentalResultPanel.vue'
+import PhysicalResultPanel from './components/PhysicalResultPanel.vue'
+import DoctorTestPanel from '~/components/rooms/DoctorTestPanel.vue'
 
 type DetailResult = NonNullable<
   InstanceType<typeof DetailDrawer>['$props']['result']
 >
+type StructuredResult = DetailResult & {
+  item?: (DetailResult['item'] & { rendererKey?: string | null }) | null
+  doctorExam?: { rendererKey?: string | null } | null
+}
 
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
 const { isExternalDoctor } = await useCurrentUser()
 
-const result = ref<DetailResult | null>(null)
+const result = ref<StructuredResult | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -22,6 +28,12 @@ function getQueryValue(value: unknown) {
 
 const department = computed(() => getQueryValue(route.query.department))
 const isDental = computed(() => department.value.toLowerCase() === 'dental')
+const doctorTestKeys = ['VISUAL_FIELD_TEST', 'ROMBERG_TEST', 'TINNEL_TEST', 'PHALLEN_TEST', 'RECTAL_EXAMINATION']
+const isPhysical = computed(() => Boolean(result.value?.doctorExam)
+  && (result.value?.item?.rendererKey === 'PHYSICAL_EXAMINATION'
+    || result.value?.doctorExam?.rendererKey === 'PHYSICAL_EXAMINATION'))
+const isDoctorTestResult = computed(() => Boolean(result.value?.doctorExam)
+  && doctorTestKeys.includes(String(result.value?.doctorExam?.rendererKey)))
 const examId = computed(() => getQueryValue(route.query.examId))
 const roomTypeId = computed(() => getQueryValue(route.query.roomTypeId))
 
@@ -125,6 +137,32 @@ onMounted(() => {
             :result-status="(result as any)?.departmentResultStatus"
             :submitted-by="(result as any)?.exam?.resultSubmittedBy"
             @approved="loadResult"
+          />
+        </div>
+      </div>
+
+      <!-- Physical Examination: structured DoctorExam, tampilan result standar tanpa grade -->
+      <PhysicalResultPanel
+        v-else-if="isPhysical && result"
+        :result="result as any"
+        @back="goBackToResults"
+      />
+
+      <!-- Doctor test items (Romberg/Tinnel/Phallen/Visual Field/Rectal) -->
+      <div v-else-if="isDoctorTestResult && result" class="p-4">
+        <UButton
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-arrow-left"
+          @click="goBackToResults"
+        >
+          Back
+        </UButton>
+        <div class="mt-4">
+          <DoctorTestPanel
+            :exam-id="examId"
+            :exam-item-id="(result.doctorExam as any)?.examItemId"
+            disabled
           />
         </div>
       </div>

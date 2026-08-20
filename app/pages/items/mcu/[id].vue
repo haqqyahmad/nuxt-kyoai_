@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
+import type { RendererKey } from '~/types/physical'
 import ItemSampleManager from '~/components/item/itemSampleManager.vue'
 
 const route = useRoute()
@@ -60,6 +61,7 @@ type ItemDetail = {
   code: string
   name: string
   resultTiming?: 'inline' | 'deferred'
+  rendererKey?: RendererKey | null
   externalResult?: boolean
   externalProcessSlaDays?: number | null
   isActive: boolean

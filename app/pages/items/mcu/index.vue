@@ -7,6 +7,7 @@ import type { Row } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
 import ItemExamTemplateModal from '~/components/item/itemExamTemplateModal.vue'
+import type { RendererKey } from '~/types/physical'
 import type { ItemDetail } from './[id].vue'
 
 const UButton = resolveComponent('UButton')
@@ -23,6 +24,15 @@ type Item = {
   id: string
   name: string
   code: string
+  rendererKey?: RendererKey | null
+  resultTiming?: 'inline' | 'deferred'
+  externalResult?: boolean
+  requiresAttachmentForDone?: boolean
+  departmentId?: string | null
+  roomTypeId?: string
+  groupId?: string | null
+  price?: number
+  description?: string | null
   department?: {
     id: string,
     code?: string | null

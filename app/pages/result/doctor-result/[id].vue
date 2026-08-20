@@ -273,6 +273,11 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
   }
 ]
 
+// Physical/DoctorExam memakai tabel yang sama, tanpa grade item dan grade group.
+const structuredItemColumns: TableColumn<DoctorResultItem>[] = itemColumns.filter(column =>
+  ['item', 'result', 'status'].includes(String(column.id))
+)
+
 async function onGradeChange(item: DoctorResultItem, grade: string) {
   gradeLoading.value[item.inputanId] = true
   try {
@@ -687,7 +692,7 @@ onBeforeUnmount(() => {
                         {{ dept.departmentName }}
                       </h3>
                       <p class="text-xs text-muted">
-                        {{ dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) }} item
+                        {{ (dept as any).itemCount ?? (dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) + ((dept as any).doctorExams?.length ?? 0)) }} item
                       </p>
                     </div>
                     <UBadge color="neutral" variant="soft">
@@ -758,6 +763,7 @@ onBeforeUnmount(() => {
 
                       <!-- [F] strip grade group -->
                       <div
+                        v-if="!(group as any).structured"
                         class="flex flex-wrap items-center gap-3 border-b border-default px-4 py-3"
                         :class="group.isAbnormal ? 'bg-error/5' : 'bg-success/5'"
                       >
@@ -786,7 +792,7 @@ onBeforeUnmount(() => {
                         <UTable
                           v-model:column-visibility="columnVisibility"
                           :data="group.items"
-                          :columns="itemColumns"
+                          :columns="(group as any).structured ? structuredItemColumns : itemColumns"
                           class="w-full min-w-[960px]"
                           :ui="{
                             base: 'table-fixed border-separate border-spacing-0',
