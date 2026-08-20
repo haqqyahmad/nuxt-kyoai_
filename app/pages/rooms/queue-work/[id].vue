@@ -1929,41 +1929,6 @@ async function handleSubmitItemAction() {
             Kembali ke Queue
           </UButton>
 
-          <template v-if="selectedItem">
-            <UButton
-              v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
-              color="warning"
-              variant="soft"
-              icon="i-lucide-calendar-clock"
-              :loading="itemActionLoading[selectedItem.id]"
-              @click="openItemActionModal(selectedItem, 'reschedule')"
-            >
-              Reschedule
-            </UButton>
-
-            <UButton
-              v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
-              color="primary"
-              variant="soft"
-              icon="i-lucide-refresh-cw"
-              :loading="itemActionLoading[selectedItem.id]"
-              @click="openItemActionModal(selectedItem, 'retest')"
-            >
-              Retest
-            </UButton>
-
-            <UButton
-              v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
-              color="error"
-              variant="soft"
-              icon="i-lucide-ban"
-              :loading="itemActionLoading[selectedItem.id]"
-              @click="openItemActionModal(selectedItem, 'refuse')"
-            >
-              Pasien Menolak
-            </UButton>
-          </template>
-
           <UButton
             color="neutral"
             variant="soft"
@@ -2562,6 +2527,44 @@ async function handleSubmitItemAction() {
                         @click="handleDoneItem(selectedItem)"
                       >
                         Selesaikan Item
+                      </UButton>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
+                        color="error"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-ban"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'refuse')"
+                      >
+                        Pasien Menolak
+                      </UButton>
+
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        color="warning"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-calendar-clock"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'reschedule')"
+                      >
+                        Reschedule
+                      </UButton>
+
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        color="primary"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-refresh-cw"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'retest')"
+                      >
+                        Retest
                       </UButton>
                     </div>
                   </div>
