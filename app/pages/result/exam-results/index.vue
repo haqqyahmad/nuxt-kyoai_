@@ -173,7 +173,7 @@ function getStatusColor(status?: string) {
 function getStatusLabel(status?: string) {
   if (status === 'completed') return 'Completed'
   if (status === 'pending') return 'Pending'
-  if (status === 'DEPARTMENT_REVIEW') return 'Menunggu Approval'
+  if (status === 'DEPARTMENT_REVIEW') return 'Pending Approval'
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
   if (status === 'SUBMITTED_TO_DOCTOR') return 'Dikirim ke Dokter'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Dikembalikan'
