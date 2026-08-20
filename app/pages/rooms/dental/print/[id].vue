@@ -133,10 +133,6 @@ const vital = computed(() => ({
             </div>
 
             <img class="odontogram-img" src="/odontogram.png" alt="Odontogram FDI" />
-
-            <div class="legend">
-              <span>■ Temuan</span><span>FDI Numbering</span>
-            </div>
           </div>
         </section>
 
@@ -246,8 +242,6 @@ body { background: #eef1f4; font-family: Arial, Helvetica, sans-serif; color: #1
 .odontogram { border: 1px solid #dce2e8; border-radius: 12px; padding: 10px 12px 8px; background: #fff; overflow: hidden; }
 .odontogram-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 9px; color: #6b7280; }
 .odontogram-img { width: 100%; max-height: 310px; object-fit: contain; display: block; margin: 0 auto; }
-.legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 5px; font-size: 8px; color: #6b7280; }
-.legend span { padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fafafa; }
 
 /* ═══ TABLE ═══ */
 table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
