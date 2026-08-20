@@ -548,7 +548,7 @@ onMounted(async () => {
             </div>
           </template>
 
-          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <!-- Search -->
             <UFormField label="Search">
               <UInput
@@ -646,9 +646,9 @@ onMounted(async () => {
           </div>
 
           <div v-else class="overflow-x-auto">
-            <table class="w-full">
+            <table class="w-full min-w-[640px]">
               <thead>
-                <tr class="border-b border-default/70">
+                <tr class="border-b border-default/70 bg-elevated/40">
                   <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Queue Code
                   </th>
@@ -661,13 +661,13 @@ onMounted(async () => {
                   <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Department
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden md:table-cell">
                     Type
                   </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Status
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                     Check-in
                   </th>
                   <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted">
@@ -711,7 +711,7 @@ onMounted(async () => {
                       variant="soft"
                     />
                   </td>
-                  <td class="px-4 py-3 text-sm">
+                  <td class="px-4 py-3 text-sm hidden md:table-cell">
                     <UBadge
                       :label="getTypeLabel(result.resultTiming)"
                       :color="result.resultTiming === 'deferred' ? 'primary' : 'success'"
@@ -725,7 +725,7 @@ onMounted(async () => {
                       variant="subtle"
                     />
                   </td>
-                  <td class="px-4 py-3 text-sm text-muted">
+                  <td class="px-4 py-3 text-sm text-muted hidden lg:table-cell">
                     {{ formatDateTime(result.checkinAt || result.createdAt) }}
                   </td>
                   <td class="px-4 py-3 text-center">
