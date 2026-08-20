@@ -34,6 +34,7 @@ export type DentalExamData = DentalPatient & {
   canEdit?: boolean
   canSubmit?: boolean
   canApproveDepartment?: boolean
+  doctorName?: string | null
   extraOral: string[]
   extraOralNote: string | null
   intraOral: string[]
