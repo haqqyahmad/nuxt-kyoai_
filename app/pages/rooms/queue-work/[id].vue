@@ -1908,17 +1908,6 @@ async function handleSubmitItemAction() {
 
           <template v-if="selectedItem">
             <UButton
-              v-if="selectedItem.status === 'PENDING' && roomStageInProgress"
-              color="warning"
-              variant="soft"
-              icon="i-lucide-play"
-              :loading="itemActionLoading[selectedItem.id]"
-              @click="handleStartItem(selectedItem)"
-            >
-              Mulai Item
-            </UButton>
-
-            <UButton
               v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
               color="warning"
               variant="soft"
@@ -2065,7 +2054,7 @@ async function handleSubmitItemAction() {
                   :loading="stageActionLoading"
                   @click="handleStartStage"
                 >
-                  Mulai Item
+                  Mulai Pemeriksaan
                 </UButton>
                 <UButton
                   v-if="activeStage?.status === 'CALLED'"
@@ -2495,6 +2484,17 @@ async function handleSubmitItemAction() {
                         @click="handleReceiveSample(selectedItem)"
                       >
                         Terima Sample
+                      </UButton>
+
+                      <UButton
+                        v-if="selectedItem.status === 'PENDING' && roomStageInProgress"
+                        color="warning"
+                        variant="soft"
+                        icon="i-lucide-play"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="handleStartItem(selectedItem)"
+                      >
+                        Mulai Item
                       </UButton>
 
                       <UButton
