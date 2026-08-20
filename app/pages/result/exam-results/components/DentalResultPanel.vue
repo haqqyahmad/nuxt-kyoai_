@@ -23,9 +23,7 @@ const editing = ref(false)
 const saving = ref(false)
 const approving = ref(false)
 
-const canApprove = computed(() =>
-  props.resultStatus === 'DEPARTMENT_REVIEW'
-)
+const canApprove = computed(() => data.value?.canApproveDepartment === true)
 
 const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
   switch (props.resultStatus) {
