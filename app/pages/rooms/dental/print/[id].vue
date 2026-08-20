@@ -36,25 +36,6 @@ function formatDateShort(value: string | null | undefined): string {
   return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-// ── Dental chart helpers ─────────────────────────────────────────────
-const permanentUpper = ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28']
-const permanentLower = ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38']
-const primaryUpper = ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65']
-const primaryLower = ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75']
-
-function splitHalf(arr: string[]): [string[], string[]] {
-  const mid = arr.length / 2
-  return [arr.slice(0, mid), arr.slice(mid)]
-}
-
-function findingConditions(tooth: string): string[] {
-  return data.value?.findings?.find(f => f.toothNumber === tooth)?.conditions ?? []
-}
-
-function hasFinding(tooth: string): boolean {
-  return data.value?.findings?.some(f => f.toothNumber === tooth && f.conditions.length > 0) ?? false
-}
-
 // Grade config
 const gradeConfig: Record<string, { label: string, comment: string }> = {
   A: { label: 'Good', comment: 'Maintain good oral hygiene and routine dental examination.' },
@@ -151,94 +132,10 @@ const vital = computed(() => ({
               <span>Patient Left</span>
             </div>
 
-            <!-- PERMANENT -->
-            <div class="chart-group">
-              <div class="chart-row">
-                <div class="chart-half">
-                  <div v-for="tooth in splitHalf(permanentUpper)[0]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-                <div class="chart-divider" />
-                <div class="chart-half">
-                  <div v-for="tooth in splitHalf(permanentUpper)[1]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="chart-row">
-                <div class="chart-half">
-                  <div v-for="tooth in splitHalf(permanentLower)[0]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-                <div class="chart-divider" />
-                <div class="chart-half">
-                  <div v-for="tooth in splitHalf(permanentLower)[1]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="chart-caption">Permanent Teeth</div>
-            </div>
-
-            <!-- PRIMARY -->
-            <div class="chart-group">
-              <div class="chart-row">
-                <div class="chart-half chart-half-5">
-                  <div v-for="tooth in splitHalf(primaryUpper)[0]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-                <div class="chart-divider" />
-                <div class="chart-half chart-half-5">
-                  <div v-for="tooth in splitHalf(primaryUpper)[1]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="chart-row">
-                <div class="chart-half chart-half-5">
-                  <div v-for="tooth in splitHalf(primaryLower)[0]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-                <div class="chart-divider" />
-                <div class="chart-half chart-half-5">
-                  <div v-for="tooth in splitHalf(primaryLower)[1]" :key="tooth"
-                    class="tooth" :class="{ active: hasFinding(tooth) }"
-                    :title="findingConditions(tooth).join(', ')">
-                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
-                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="chart-caption">Primary Teeth</div>
-            </div>
+            <img class="odontogram-img" src="/odontogram.png" alt="Odontogram FDI" />
 
             <div class="legend">
-              <span>■ Temuan</span><span>■ Gigi</span><span>FDI Numbering</span>
+              <span>■ Temuan</span><span>FDI Numbering</span>
             </div>
           </div>
         </section>
@@ -348,17 +245,7 @@ body { background: #eef1f4; font-family: Arial, Helvetica, sans-serif; color: #1
 /* ═══ ODONTOGRAM ═══ */
 .odontogram { border: 1px solid #dce2e8; border-radius: 12px; padding: 10px 12px 8px; background: #fff; overflow: hidden; }
 .odontogram-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 9px; color: #6b7280; }
-.chart-group { margin-bottom: 8px; }
-.chart-row { display: flex; align-items: stretch; margin-bottom: 4px; }
-.chart-half { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; flex: 1; }
-.chart-half-5 { grid-template-columns: repeat(5, 1fr); }
-.chart-divider { width: 1px; background: #cbd5e1; margin: 0 6px; align-self: stretch; }
-.tooth { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 36px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
-.tooth.active { background: #eef4ff; border-color: #3b82f6; }
-.tooth-shape { width: 13px; height: 15px; border: 1.5px solid #94a3b8; border-radius: 40% 40% 50% 50%; }
-.tooth-num { font-size: 9px; font-weight: 700; }
-.badge { position: absolute; right: -3px; top: -3px; width: 14px; height: 14px; border-radius: 50%; background: #2563eb; color: #fff; font-size: 8px; font-weight: 700; display: grid; place-items: center; }
-.chart-caption { text-align: center; font-size: 8px; color: #6b7280; margin-top: 3px; }
+.odontogram-img { width: 100%; max-height: 310px; object-fit: contain; display: block; margin: 0 auto; }
 .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 5px; font-size: 8px; color: #6b7280; }
 .legend span { padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fafafa; }
 
