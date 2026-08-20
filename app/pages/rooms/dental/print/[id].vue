@@ -139,20 +139,15 @@ const vital = computed(() => ({
         <!-- ═══════ DENTAL FINDINGS TABLE ═══════ -->
         <section class="section">
           <div class="section-title">Dental Findings</div>
-          <table v-if="data.findings?.length">
-            <thead>
-              <tr><th style="width:70px;text-align:center;">Tooth</th><th>Finding / Comment</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="finding in data.findings" :key="finding.toothNumber">
-                <td class="tooth-col">{{ finding.toothNumber }}</td>
-                <td>
-                  <span v-for="c in finding.conditions" :key="c" class="chip chip-sm">{{ c }}</span>
-                  <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div v-if="data.findings?.length" class="findings-grid">
+            <div v-for="finding in data.findings" :key="finding.toothNumber" class="finding-card">
+              <div class="finding-tooth">{{ finding.toothNumber }}</div>
+              <div>
+                <span v-for="c in finding.conditions" :key="c" class="chip chip-sm">{{ c }}</span>
+                <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
+              </div>
+            </div>
+          </div>
           <div v-else class="note-card">
             <p>No dental findings.</p>
           </div>
@@ -249,6 +244,11 @@ thead th { background: #163a5f; color: #fff; font-weight: 700; padding: 7px 8px;
 tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: top; }
 .tooth-col { width: 68px; text-align: center; font-weight: 700; color: #163a5f; }
 .td-note { display: block; margin-top: 3px; font-style: italic; color: #475569; }
+
+/* ═══ FINDINGS GRID (2 kolom) ═══ */
+.findings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.finding-card { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #dce2e8; border-radius: 10px; padding: 8px 10px; background: #fbfcfd; }
+.finding-tooth { min-width: 34px; text-align: center; font-size: 15px; font-weight: 800; color: #163a5f; background: #eef2f7; border-radius: 8px; padding: 4px 6px; }
 
 /* ═══ BOTTOM ═══ */
 .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
