@@ -360,7 +360,8 @@ function onPageSizeChange(value: string | null) {
 }
 
 async function loadResults() {
-  loading.value = true  try {
+  loading.value = true
+  try {
     const params: Record<string, any> = {
       page: page.value,
       limit: limit.value,
