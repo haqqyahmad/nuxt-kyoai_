@@ -188,6 +188,7 @@ const vital = computed(() => ({
             <div>Jakarta, {{ formatDate(data.examDate) }}</div>
             <div class="space"></div>
             <div class="sig-name">{{ data.doctorName || 'Dokter Gigi' }}</div>
+            <div v-if="data.doctorSip" class="sig-sip">SIP: {{ data.doctorSip }}</div>
           </div>
         </footer>
       </div>
@@ -266,6 +267,7 @@ tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: t
 .signature { width: 36%; text-align: center; font-size: 9px; color: #374151; }
 .signature .space { height: 46px; }
 .sig-name { display: inline-block; min-width: 24ch; font-weight: 700; padding-top: 2px; padding-bottom: 3px; border-bottom: 1px solid #1f2937; }
+.sig-sip { margin-top: 4px; font-size: 8px; color: #6b7280; }
 
 /* ═══ PRINT ═══ */
 .print-btn { position: fixed; bottom: 24px; right: 24px; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; }
