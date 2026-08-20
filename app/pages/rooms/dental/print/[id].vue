@@ -140,12 +140,10 @@ const vital = computed(() => ({
         <section class="section">
           <div class="section-title">Dental Findings</div>
           <div v-if="data.findings?.length" class="findings-grid">
-            <div v-for="finding in data.findings" :key="finding.toothNumber" class="finding-card">
-              <div class="finding-tooth">{{ finding.toothNumber }}</div>
-              <div>
-                <span v-for="c in finding.conditions" :key="c" class="chip chip-sm">{{ c }}</span>
-                <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
-              </div>
+            <div v-for="finding in data.findings" :key="finding.toothNumber" class="finding-item">
+              <span class="finding-tooth">{{ finding.toothNumber }}</span>
+              <span v-for="c in finding.conditions" :key="c" class="finding-cond">{{ c }}</span>
+              <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
             </div>
           </div>
           <div v-else class="note-card">
@@ -245,10 +243,12 @@ tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: t
 .tooth-col { width: 68px; text-align: center; font-weight: 700; color: #163a5f; }
 .td-note { display: block; margin-top: 3px; font-style: italic; color: #475569; }
 
-/* ═══ FINDINGS GRID (2 kolom) ═══ */
-.findings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.finding-card { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #dce2e8; border-radius: 10px; padding: 8px 10px; background: #fbfcfd; }
-.finding-tooth { min-width: 34px; text-align: center; font-size: 15px; font-weight: 800; color: #163a5f; background: #eef2f7; border-radius: 8px; padding: 4px 6px; }
+/* ═══ FINDINGS GRID (2 kolom, ringkas, tanpa card) ═══ */
+.findings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+.finding-item { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 9.5px; line-height: 1.5; }
+.finding-tooth { min-width: 24px; font-weight: 700; color: #163a5f; }
+.finding-cond { font-weight: 600; }
+.td-note { font-style: italic; color: #475569; width: 100%; }
 
 /* ═══ BOTTOM ═══ */
 .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
