@@ -98,6 +98,21 @@ const userOptions = computed(() =>
 const roleOptions = computed(() =>
   (rolesData.value ?? []).map((r: any) => ({ label: r.name, value: String(r.id) }))
 )
+const roleNameById = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const r of rolesData.value ?? []) map[String(r.id)] = r.name
+  return map
+})
+const userNameById = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const u of usersData.value ?? []) map[String(u.id)] = u.name || String(u.id)
+  return map
+})
+function reviewerLabel(s: Step): string {
+  if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}`
+  if (s.reviewerRoleId) return `role: ${roleNameById.value[String(s.reviewerRoleId)] ?? s.reviewerRoleId}`
+  return 'anyone'
+}
 
 // ── Edit modal ────────────────────────────────────────────────────
 const editOpen = ref(false)
@@ -169,7 +184,7 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
       return h('div', { class: 'flex flex-col gap-1' }, [
         h('span', { class: 'text-sm' }, labels),
         steps.some((s) => s.reviewerUserId || s.reviewerRoleId)
-          ? h('span', { class: 'text-xs text-muted' }, steps.map((s) => s.reviewerUserId ? 'user' : s.reviewerRoleId ? 'role' : 'anyone').join(' / '))
+          ? h('span', { class: 'text-xs text-muted' }, steps.map((s) => reviewerLabel(s)).join(' / '))
           : null
       ])
     }
