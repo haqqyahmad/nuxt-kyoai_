@@ -687,6 +687,15 @@ const allSamplesReceived = computed(() =>
   && sampleCollections.value.every(collection => collection.status === 'RECEIVED')
 )
 
+const allSamplesCollected = computed(() =>
+  sampleCollections.value.length > 0
+  && sampleCollections.value.every(collection => ['COLLECTED', 'RECEIVED'].includes(collection.status))
+)
+
+const canFinishWork = computed(() =>
+  activeStageCode.value === 'COLLECT' ? allSamplesCollected.value : allItemsFinal.value
+)
+
 const canAutoStartExam = computed(() =>
   activeStage.value?.status === 'WAITING'
   && activeStageCode.value === 'EXAM'
@@ -1989,7 +1998,7 @@ async function handleSubmitItemAction() {
                   Kembalikan ke Waiting
                 </UButton>
                 <UButton
-                  v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && allItemsFinal"
+                  v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
                   color="success"
                   icon="i-lucide-check-circle-2"
                   :loading="stageActionLoading"
@@ -2004,7 +2013,7 @@ async function handleSubmitItemAction() {
           <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
 
           <UAlert
-            v-if="!allItemsFinal"
+            v-if="!canFinishWork"
             color="warning"
             title="Room belum bisa diselesaikan"
             description="Masih ada item pemeriksaan yang statusnya belum final. Lengkapi hasil atau dokumentasi lalu selesaikan setiap item."
