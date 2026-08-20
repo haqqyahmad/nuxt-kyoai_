@@ -750,12 +750,14 @@ function getCollectedCollection(item: RoomExamItem): SampleCollection | null {
 function canCollectSample(item: RoomExamItem) {
   if (!isCollectStageActive() || !currentRoomStageCodes.value.has('COLLECT')) return false
   if (activeStage.value?.status !== 'IN_PROGRESS') return false
+  if (item.status !== 'IN_PROGRESS') return false
   return !!getPendingCollection(item)
 }
 
 function canReceiveSample(item: RoomExamItem) {
   if (!isReceiveStageActive() || !currentRoomStageCodes.value.has('RECEIVE')) return false
   if (activeStage.value?.status !== 'IN_PROGRESS') return false
+  if (item.status !== 'IN_PROGRESS') return false
   return !!getCollectedCollection(item)
 }
 
@@ -1987,10 +1989,9 @@ async function handleSubmitItemAction() {
                   Kembalikan ke Waiting
                 </UButton>
                 <UButton
-                  v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status)"
+                  v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && allItemsFinal"
                   color="success"
                   icon="i-lucide-check-circle-2"
-                  :disabled="!allItemsFinal"
                   :loading="stageActionLoading"
                   @click="handleFinishStage"
                 >
