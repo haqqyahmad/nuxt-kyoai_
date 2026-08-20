@@ -351,9 +351,16 @@ async function loadDepartments() {
 }
 
 // Load exam results
+function onPageSizeChange(value: string | null) {
+  const size = Number(value)
+  if (!size) return
+  limit.value = size
+  page.value = 1
+  loadResults()
+}
+
 async function loadResults() {
-  loading.value = true
-  try {
+  loading.value = true  try {
     const params: Record<string, any> = {
       page: page.value,
       limit: limit.value,
@@ -747,10 +754,19 @@ onMounted(async () => {
         </UCard>
 
         <!-- Pagination -->
-        <div v-if="filteredResults.length > 0" class="flex items-center justify-between rounded-lg border border-default/80 bg-default/50 p-4">
-          <p class="text-sm text-muted">
-            Showing {{ (page - 1) * limit + 1 }} to {{ Math.min(page * limit, total) }} of {{ total }} results
-          </p>
+        <div v-if="filteredResults.length > 0" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default/80 bg-default/50 p-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <USelect
+              :model-value="String(limit)"
+              :items="[{label:'10 / page',value:'10'},{label:'20 / page',value:'20'},{label:'50 / page',value:'50'}]"
+              class="w-36"
+              size="sm"
+              @update:model-value="onPageSizeChange"
+            />
+            <p class="text-sm text-muted">
+              Showing {{ (page - 1) * limit + 1 }} – {{ Math.min(page * limit, total) }} of {{ total }}
+            </p>
+          </div>
           <div class="flex gap-2">
             <UButton
               size="sm"
