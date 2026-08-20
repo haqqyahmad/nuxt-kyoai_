@@ -673,5 +673,7 @@ onMounted(() => {
     <PrivacyPolicyModal
       v-model:open="openPrivacyPolicy"
     />
+
+    <BackToTop />
   </ClientOnly>
 </template>
