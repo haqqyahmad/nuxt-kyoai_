@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Fix submit dental semua-normal (grade A) gagal
+
+- **Masalah:** `submitDentalExam` menolak dental yang semua-normal (extraOral `["Normal"]`, findings kosong, other kosong, finalGrade A) dengan "Hasil dental belum lengkap". Penyebab: `hasOral` memakai `.some(v => v !== "Normal")` → array `["Normal"]` dianggap kosong.
+- **Perbaikan `express_dash/src/services/dental/dental.service.js` (`submitDentalExam`):**
+  - `hasOral` = `extraOral.length > 0 || intraOral.length > 0` (cukup ada isian, tak harus abnormal).
+- **Verifikasi (live):** submit dental exam `35dbfcb4` (all-normal) → `{success:true, SUBMITTED}`.
+- Commit BE: (lihat git log).
+
 ## Completed — 2026-08-19: UI tweaks queue-work & BackToTop (tidak ada ubah skema)
 
 - **queue-work / dental work (my-app):**
