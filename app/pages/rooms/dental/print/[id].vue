@@ -28,11 +28,12 @@ onMounted(async () => {
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
+  const d = new Date(value)
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+function formatDateShort(value: string | null | undefined): string {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 // ── Dental chart helpers ─────────────────────────────────────────────
@@ -61,10 +62,20 @@ const gradeConfig: Record<string, { label: string, comment: string }> = {
   C: { label: 'Needs Treatment', comment: 'Dental treatment is required. Please consult a dentist.' },
   D: { label: 'Urgent Treatment', comment: 'Immediate dental evaluation and treatment are recommended.' }
 }
+
+const vital = computed(() => ({
+  rm: data.value?.patientId ?? '-',
+  name: data.value?.patientName ?? '-',
+  gender: data.value?.gender ?? '-',
+  dob: data.value?.dob ? new Date(data.value.dob).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+  age: data.value?.age != null ? `${data.value.age} th` : '-',
+  examDate: formatDate(data.value?.examDate ?? null),
+  queueNo: data.value?.queueCode ?? '-',
+}))
 </script>
 
 <template>
-  <div class="print-page">
+  <div class="dental-print">
     <!-- Loading -->
     <div v-if="loading" class="flex min-h-screen items-center justify-center">
       <p>Memuat laporan...</p>
@@ -72,560 +83,316 @@ const gradeConfig: Record<string, { label: string, comment: string }> = {
 
     <!-- Error -->
     <div v-else-if="error" class="flex min-h-screen items-center justify-center">
-      <p class="text-red-600">
-        {{ error }}
-      </p>
+      <p class="text-red-600">{{ error }}</p>
     </div>
 
     <!-- Content -->
     <template v-else-if="data">
-      <!-- ═══════ HEADER ═══════ -->
-      <header class="print-header">
-        <div class="header-left">
-          <h1>Laporan Pemeriksaan Gigi</h1>
-          <p class="subtitle">
-            {{ data.item?.name ?? 'Pemeriksaan Gigi' }} · Departemen Dental
-          </p>
-        </div>
-        <div class="header-right">
-          <div class="label">
-            Exam Code
+      <div class="page">
+        <!-- ═══════ HEADER ═══════ -->
+        <header class="header">
+          <div class="brand">
+            <div class="brand-mark">🗂️</div>
+            <div>
+              <h1>DENTAL EXAMINATION REPORT</h1>
+              <p>Medical Check-Up &bull; Dental Department</p>
+            </div>
           </div>
-          <div class="value mono">
-            {{ data.examCode }}
+          <div class="report-meta">
+            <strong>Report No.</strong> {{ data.examCode }}<br>
+            <strong>Exam Date</strong> {{ formatDateShort(data.examDate) }}<br>
+            <strong>Type</strong> MCU
           </div>
-          <div class="label mt">
-            Queue No.
-          </div>
-          <div class="value">
-            {{ data.queueCode }}
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <!-- ═══════ PATIENT INFO ═══════ -->
-      <section class="section">
-        <h2>Data Pasien</h2>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">Nama</span>
-            <span class="value">{{ data.patientName }}</span>
+        <!-- ═══════ PATIENT INFO ═══════ -->
+        <section class="section">
+          <div class="section-title">Patient Information</div>
+          <div class="info-grid">
+            <div class="info-row"><div class="label">No. RM</div><div>:</div><div class="value">{{ vital.rm }}</div></div>
+            <div class="info-row"><div class="label">Queue No.</div><div>:</div><div class="value">{{ vital.queueNo }}</div></div>
+            <div class="info-row"><div class="label">Patient Name</div><div>:</div><div class="value">{{ vital.name }}</div></div>
+            <div class="info-row"><div class="label">Gender</div><div>:</div><div class="value">{{ vital.gender }}</div></div>
+            <div class="info-row"><div class="label">Date of Birth</div><div>:</div><div class="value">{{ vital.dob }} ({{ vital.age }})</div></div>
+            <div class="info-row"><div class="label">Examination</div><div>:</div><div class="value">Dental MCU</div></div>
           </div>
-          <div class="info-item">
-            <span class="label">Pasien ID</span>
-            <span class="value">{{ data.patientId ?? '-' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Umur</span>
-            <span class="value">{{ data.age != null ? `${data.age} th` : '-' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Tanggal</span>
-            <span class="value">{{ formatDate(data.examDate) }}</span>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- ═══════ ORAL EXAMINATION ═══════ -->
-      <section class="section">
-        <h2>Oral Examination</h2>
-        <div class="two-col">
-          <div class="card">
-            <h3>Extra Oral</h3>
-            <div class="chips">
-              <span v-for="v in data.extraOral" :key="v" class="chip">{{ v }}</span>
-              <span v-if="!data.extraOral.length" class="empty">-</span>
+        <!-- ═══════ CLINICAL FINDINGS ═══════ -->
+        <section class="section">
+          <div class="section-title">Clinical Findings</div>
+          <div class="clinical-grid">
+            <div class="clinical-card">
+              <h3>Extra Oral</h3>
+              <p>
+                <span v-if="data.extraOral.includes('Normal')" class="status">NORMAL</span>
+                {{ data.extraOral.filter(v => v !== 'Normal').join(', ') || 'No significant abnormality detected.' }}
+                <span v-if="data.extraOralNote">— {{ data.extraOralNote }}</span>
+              </p>
             </div>
-            <p v-if="data.extraOralNote" class="note">
-              {{ data.extraOralNote }}
-            </p>
-          </div>
-          <div class="card">
-            <h3>Intra Oral</h3>
-            <div class="chips">
-              <span v-for="v in data.intraOral" :key="v" class="chip">{{ v }}</span>
-              <span v-if="!data.intraOral.length" class="empty">-</span>
-            </div>
-            <p v-if="data.intraOralNote" class="note">
-              {{ data.intraOralNote }}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════ DENTAL CHART ═══════ -->
-      <section class="section">
-        <h2>Dental Chart</h2>
-
-        <!-- PERMANENT TEETH (32 Teeth) -->
-        <div class="chart-group">
-          <h3 class="chart-group-title">
-            Permanent Teeth (32 Teeth)
-          </h3>
-
-          <!-- Upper -->
-          <div class="chart-row">
-            <div class="chart-half">
-              <button
-                v-for="tooth in splitHalf(permanentUpper)[0]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
-            </div>
-            <div class="chart-divider" />
-            <div class="chart-half">
-              <button
-                v-for="tooth in splitHalf(permanentUpper)[1]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
+            <div class="clinical-card">
+              <h3>Intra Oral</h3>
+              <p>
+                <span v-if="data.intraOral.includes('Normal')" class="status">NORMAL</span>
+                {{ data.intraOral.filter(v => v !== 'Normal').join(', ') || 'No significant abnormality detected.' }}
+                <span v-if="data.intraOralNote">— {{ data.intraOralNote }}</span>
+              </p>
             </div>
           </div>
+        </section>
 
-          <!-- Lower -->
-          <div class="chart-row">
-            <div class="chart-half">
-              <button
-                v-for="tooth in splitHalf(permanentLower)[0]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
+        <!-- ═══════ ODONTOGRAM ═══════ -->
+        <section class="section">
+          <div class="section-title">Odontogram</div>
+          <div class="odontogram">
+            <div class="odontogram-head">
+              <span>Patient Right</span>
+              <strong>FDI World Dental Federation Numbering</strong>
+              <span>Patient Left</span>
             </div>
-            <div class="chart-divider" />
-            <div class="chart-half">
-              <button
-                v-for="tooth in splitHalf(permanentLower)[1]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
+
+            <!-- PERMANENT -->
+            <div class="chart-group">
+              <div class="chart-row">
+                <div class="chart-half">
+                  <div v-for="tooth in splitHalf(permanentUpper)[0]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+                <div class="chart-divider" />
+                <div class="chart-half">
+                  <div v-for="tooth in splitHalf(permanentUpper)[1]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-half">
+                  <div v-for="tooth in splitHalf(permanentLower)[0]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+                <div class="chart-divider" />
+                <div class="chart-half">
+                  <div v-for="tooth in splitHalf(permanentLower)[1]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-caption">Permanent Teeth</div>
+            </div>
+
+            <!-- PRIMARY -->
+            <div class="chart-group">
+              <div class="chart-row">
+                <div class="chart-half chart-half-5">
+                  <div v-for="tooth in splitHalf(primaryUpper)[0]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+                <div class="chart-divider" />
+                <div class="chart-half chart-half-5">
+                  <div v-for="tooth in splitHalf(primaryUpper)[1]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-half chart-half-5">
+                  <div v-for="tooth in splitHalf(primaryLower)[0]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+                <div class="chart-divider" />
+                <div class="chart-half chart-half-5">
+                  <div v-for="tooth in splitHalf(primaryLower)[1]" :key="tooth"
+                    class="tooth" :class="{ active: hasFinding(tooth) }"
+                    :title="findingConditions(tooth).join(', ')">
+                    <span class="tooth-shape" /><span class="tooth-num">{{ tooth }}</span>
+                    <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-caption">Primary Teeth</div>
+            </div>
+
+            <div class="legend">
+              <span>■ Temuan</span><span>■ Gigi</span><span>FDI Numbering</span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- PRIMARY TEETH (20 Teeth) -->
-        <div class="chart-group">
-          <h3 class="chart-group-title">
-            Primary Teeth (20 Teeth)
-          </h3>
+        <!-- ═══════ DENTAL FINDINGS TABLE ═══════ -->
+        <section class="section">
+          <div class="section-title">Dental Findings</div>
+          <table v-if="data.findings?.length">
+            <thead>
+              <tr><th style="width:70px;text-align:center;">Tooth</th><th>Finding / Comment</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="finding in data.findings" :key="finding.toothNumber">
+                <td class="tooth-col">{{ finding.toothNumber }}</td>
+                <td>
+                  <span v-for="c in finding.conditions" :key="c" class="chip chip-sm">{{ c }}</span>
+                  <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-else class="note-card">
+            <p>No dental findings.</p>
+          </div>
+        </section>
 
-          <!-- Upper -->
-          <div class="chart-row">
-            <div class="chart-half chart-half-5">
-              <button
-                v-for="tooth in splitHalf(primaryUpper)[0]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
+        <!-- ═══════ OTHER + RECOMMENDATION ═══════ -->
+        <section class="section">
+          <div class="bottom-grid">
+            <div class="note-card">
+              <h3>Other Findings</h3>
+              <ul>
+                <li v-for="v in (data.otherDental?.length ? data.otherDental : ['-']) " :key="v">{{ v }}</li>
+              </ul>
+              <p v-if="data.otherNote">{{ data.otherNote }}</p>
             </div>
-            <div class="chart-divider" />
-            <div class="chart-half chart-half-5">
-              <button
-                v-for="tooth in splitHalf(primaryUpper)[1]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
+            <div class="note-card">
+              <h3>Final Grade &amp; Recommendation</h3>
+              <p><strong>{{ data.finalGrade ?? '-' }}</strong>
+                <span v-if="data.finalGrade && gradeConfig[data.finalGrade]?.label" class="chip">{{ gradeConfig[data.finalGrade]?.label }}</span>
+              </p>
+              <p>{{ data.doctorComment || (data.finalGrade ? (gradeConfig[data.finalGrade]?.comment ?? '-') : '-') }}</p>
             </div>
           </div>
+        </section>
 
-          <!-- Lower -->
-          <div class="chart-row">
-            <div class="chart-half chart-half-5">
-              <button
-                v-for="tooth in splitHalf(primaryLower)[0]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
-            </div>
-            <div class="chart-divider" />
-            <div class="chart-half chart-half-5">
-              <button
-                v-for="tooth in splitHalf(primaryLower)[1]"
-                :key="tooth"
-                class="tooth-btn"
-                :class="{ active: hasFinding(tooth) }"
-                :title="findingConditions(tooth).join(', ')"
-              >
-                <span class="tooth-shape" />
-                <span class="tooth-num">{{ tooth }}</span>
-                <span v-if="hasFinding(tooth)" class="badge">{{ findingConditions(tooth).length }}</span>
-              </button>
-            </div>
+        <!-- ═══════ FOOTER ═══════ -->
+        <footer class="footer">
+          <div class="foot-note">
+            This report is part of the patient's Medical Check-Up record. Dental findings should be
+            correlated with clinical examination and follow-up evaluation where required.
           </div>
-        </div>
-      </section>
-
-      <!-- ═══════ DENTAL FINDINGS ═══════ -->
-      <section class="section">
-        <h2>Dental Findings</h2>
-        <div v-if="!data.findings?.length" class="empty-box">
-          Tidak ada temuan dental.
-        </div>
-        <div v-else class="findings-grid">
-          <div
-            v-for="finding in data.findings"
-            :key="finding.toothNumber"
-            class="finding-card"
-          >
-            <div class="finding-tooth">
-              {{ finding.toothNumber }}
-            </div>
-            <div class="finding-conditions">
-              <span v-for="c in finding.conditions" :key="c" class="chip chip-sm">{{ c }}</span>
-            </div>
-            <p v-if="finding.note" class="note">
-              {{ finding.note }}
-            </p>
+          <div class="signature">
+            <div>Jakarta, {{ formatDate(data.examDate) }}</div>
+            <div class="space"></div>
+            <div class="name">Dokter Gigi</div>
+            <div>( ______________________ )</div>
           </div>
-        </div>
-      </section>
-
-      <!-- ═══════ OTHER DENTAL ═══════ -->
-      <section class="section">
-        <h2>Other Dental / General Findings</h2>
-        <div class="chips">
-          <span v-for="v in data.otherDental" :key="v" class="chip">{{ v }}</span>
-          <span v-if="!data.otherDental.length" class="empty">-</span>
-        </div>
-        <p v-if="data.otherNote" class="note">
-          {{ data.otherNote }}
-        </p>
-      </section>
-
-      <!-- ═══════ GRADE & COMMENT ═══════ -->
-      <section class="section">
-        <h2>Grade & Comment</h2>
-        <div class="two-col">
-          <div class="card">
-            <div class="label">
-              Suggested Grade
-            </div>
-            <div class="grade-big">
-              {{ data.suggestedGrade ?? '-' }}
-            </div>
-            <span v-if="data.suggestedLabel" class="chip">{{ data.suggestedLabel }}</span>
-            <p v-if="data.gradeReason" class="note">
-              {{ data.gradeReason }}
-            </p>
-          </div>
-          <div class="card">
-            <div class="label">
-              Final Grade
-            </div>
-            <div class="grade-big final">
-              {{ data.finalGrade ?? '-' }}
-            </div>
-            <span v-if="data.finalGrade && gradeConfig[data.finalGrade]" class="chip">{{ gradeConfig[data.finalGrade].label }}</span>
-          </div>
-        </div>
-        <div class="comment-box">
-          <div class="label">
-            Doctor Comment
-          </div>
-          <p>{{ data.doctorComment || gradeConfig[data.finalGrade ?? '']?.comment || '-' }}</p>
-        </div>
-      </section>
-
-      <!-- ═══════ SIGNATURE ═══════ -->
-      <footer class="print-footer">
-        <span>Dicetak: {{ new Date().toLocaleString('id-ID') }}</span>
-        <div class="signature">
-          <span class="signature-line">Dokter Gigi,</span>
-          <span class="signature-line">( ______________________ )</span>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </template>
 
     <!-- Print button (hidden when printing) -->
-    <button
-      v-if="!loading && data"
-      class="print-btn"
-      onclick="window.print()"
-    >
+    <button v-if="!loading && data" class="print-btn" onclick="window.print()">
       Print / Cetak
     </button>
   </div>
 </template>
 
 <style>
-/* ═══════ BASE ═══════ */
+@page { size: A4; margin: 12mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #f5f5f5; }
+body { background: #eef1f4; font-family: Arial, Helvetica, sans-serif; color: #1f2937; }
 
-.print-page {
-  max-width: 210mm;
-  margin: 0 auto;
-  padding: 24px;
-  background: #fff;
-  min-height: 100vh;
+.dental-print { min-height: 100vh; }
+.page {
+  width: 210mm; min-height: 297mm; margin: 18px auto; padding: 14mm 15mm 13mm;
+  background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
-/* ═══════ HEADER ═══════ */
-.print-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #1a1a2e;
-  margin-bottom: 20px;
-}
-.print-header h1 { font-size: 18px; font-weight: 700; }
-.subtitle { color: #64748b; font-size: 13px; margin-top: 4px; }
-.header-right { text-align: right; font-size: 13px; }
+/* ═══ HEADER ═══ */
+.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #163a5f; padding-bottom: 12px; margin-bottom: 16px; }
+.brand { display: flex; gap: 12px; align-items: center; }
+.brand-mark { width: 46px; height: 46px; border-radius: 10px; background: #163a5f; color: #fff; display: grid; place-items: center; font-size: 24px; }
+.brand h1 { margin: 0; font-size: 20px; letter-spacing: .2px; color: #163a5f; }
+.brand p { margin: 4px 0 0; font-size: 10px; color: #6b7280; }
+.report-meta { text-align: right; font-size: 10px; color: #6b7280; line-height: 1.55; }
 
-/* ═══════ SECTION ═══════ */
-.section { margin-bottom: 18px; }
-.section h2 {
-  font-size: 14px;
-  font-weight: 700;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 6px;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #334155;
-}
-.section h3 {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #475569;
-}
+/* ═══ SECTION ═══ */
+.section { margin-top: 14px; }
+.section-title { font-size: 11px; font-weight: 700; color: #163a5f; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.section-title::after { content: ""; height: 1px; background: #d8dee6; flex: 1; }
 
-/* ═══════ LABELS & VALUES ═══════ */
-.label { font-size: 11px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
-.value { font-size: 14px; font-weight: 600; }
-.mono { font-family: 'Courier New', monospace; }
-.mt { margin-top: 8px; }
+/* ═══ INFO ═══ */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; border: 1px solid #dce2e8; border-radius: 10px; padding: 12px 14px; background: #fbfcfd; }
+.info-row { display: grid; grid-template-columns: 90px 8px 1fr; gap: 4px; font-size: 10px; line-height: 1.45; }
+.info-row .label { color: #6b7280; }
+.info-row .value { font-weight: 600; color: #111827; }
 
-/* ═══════ INFO GRID ═══════ */
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+/* ═══ CLINICAL ═══ */
+.clinical-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.clinical-card { border: 1px solid #dce2e8; border-radius: 10px; padding: 10px 12px; min-height: 66px; }
+.clinical-card h3 { margin: 0 0 7px; font-size: 10px; color: #163a5f; }
+.clinical-card p { margin: 0; font-size: 10px; line-height: 1.5; }
+.status { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; background: #edf7f1; color: #1f7a4c; margin-right: 4px; }
 
-/* ═══════ TWO COL ═══════ */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* ═══ ODONTOGRAM ═══ */
+.odontogram { border: 1px solid #dce2e8; border-radius: 12px; padding: 10px 12px 8px; background: #fff; overflow: hidden; }
+.odontogram-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 9px; color: #6b7280; }
+.chart-group { margin-bottom: 8px; }
+.chart-row { display: flex; align-items: stretch; margin-bottom: 4px; }
+.chart-half { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; flex: 1; }
+.chart-half-5 { grid-template-columns: repeat(5, 1fr); }
+.chart-divider { width: 1px; background: #cbd5e1; margin: 0 6px; align-self: stretch; }
+.tooth { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 36px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
+.tooth.active { background: #eef4ff; border-color: #3b82f6; }
+.tooth-shape { width: 13px; height: 15px; border: 1.5px solid #94a3b8; border-radius: 40% 40% 50% 50%; }
+.tooth-num { font-size: 9px; font-weight: 700; }
+.badge { position: absolute; right: -3px; top: -3px; width: 14px; height: 14px; border-radius: 50%; background: #2563eb; color: #fff; font-size: 8px; font-weight: 700; display: grid; place-items: center; }
+.chart-caption { text-align: center; font-size: 8px; color: #6b7280; margin-top: 3px; }
+.legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 5px; font-size: 8px; color: #6b7280; }
+.legend span { padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fafafa; }
 
-/* ═══════ CARD ═══════ */
-.card {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-}
+/* ═══ TABLE ═══ */
+table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+thead th { background: #163a5f; color: #fff; font-weight: 700; padding: 7px 8px; text-align: left; }
+tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: top; }
+.tooth-col { width: 68px; text-align: center; font-weight: 700; color: #163a5f; }
+.td-note { display: block; margin-top: 3px; font-style: italic; color: #475569; }
 
-/* ═══════ CHIPS ═══════ */
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 600;
-}
-.chip-sm { font-size: 11px; padding: 3px 8px; }
-.empty { color: #94a3b8; font-size: 13px; }
-.note { color: #64748b; font-size: 12px; margin-top: 6px; }
+/* ═══ BOTTOM ═══ */
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.note-card { border: 1px solid #dce2e8; border-radius: 10px; padding: 10px 12px; min-height: 92px; }
+.note-card h3 { margin: 0 0 6px; color: #163a5f; font-size: 10px; }
+.note-card ul { margin: 0; padding-left: 16px; font-size: 9.5px; line-height: 1.55; }
+.note-card p { margin: 0; font-size: 9.5px; line-height: 1.55; }
 
-/* ═══════ DENTAL CHART ═══════ */
-.chart-group { margin-bottom: 16px; }
-.chart-group-title {
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a2e;
-}
-.chart-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin-bottom: 6px;
-}
-.chart-half {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
-  flex: 1;
-}
-.chart-half-5 {
-  grid-template-columns: repeat(5, 1fr);
-}
-.chart-divider {
-  width: 1px;
-  background: #cbd5e1;
-  margin: 0 6px;
-  align-self: stretch;
-}
+/* ═══ CHIP ═══ */
+.chip { display: inline-block; padding: 2px 6px; border-radius: 999px; font-size: 9px; font-weight: 600; background: #eff6ff; color: #1d4ed8; }
+.chip-sm { font-size: 8px; margin-right: 3px; }
 
-/* ═══════ TOOTH BUTTON ═══════ */
-.tooth-btn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 40px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: default;
-}
-.tooth-btn.active {
-  background: #eff6ff;
-  border-color: #2563eb;
-}
-.tooth-shape {
-  width: 14px;
-  height: 16px;
-  border: 1.5px solid #94a3b8;
-  border-radius: 40% 40% 50% 50%;
-}
-.tooth-num { font-size: 11px; font-weight: 700; }
-.badge {
-  position: absolute;
-  right: -4px;
-  top: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #2563eb;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-}
+/* ═══ FOOTER ═══ */
+.footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #dce2e8; display: flex; justify-content: space-between; align-items: flex-end; }
+.foot-note { width: 58%; font-size: 8px; color: #9ca3af; line-height: 1.45; }
+.signature { width: 36%; text-align: center; font-size: 9px; }
+.signature .space { height: 42px; }
+.signature .name { font-weight: 700; text-decoration: underline; margin-bottom: 3px; }
 
-/* ═══════ FINDINGS ═══════ */
-.findings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-.finding-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px;
-}
-.finding-tooth { font-size: 18px; font-weight: 800; }
-.finding-conditions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-.empty-box {
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 13px;
-}
-
-/* ═══════ GRADE ═══════ */
-.grade-big { font-size: 32px; font-weight: 800; margin-top: 4px; }
-.grade-big.final { color: #2563eb; }
-.comment-box {
-  border-left: 3px solid #2563eb;
-  background: #f8fafc;
-  border-radius: 0 6px 6px 0;
-  padding: 12px;
-  margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-/* ═══════ FOOTER / SIGNATURE ═══════ */
-.print-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: 32px;
-  padding-top: 16px;
-  font-size: 12px;
-  color: #64748b;
-}
-.signature { text-align: right; }
-.signature-line { display: block; }
-.signature-line:first-child { margin-bottom: 32px; }
-
-/* ═══════ PRINT BUTTON ═══════ */
-.print-btn {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 50;
-}
-
-/* ═══════ PRINT ═══════ */
+/* ═══ PRINT ═══ */
+.print-btn { position: fixed; bottom: 24px; right: 24px; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; }
 @media print {
   body { background: #fff !important; }
-  .print-page { padding: 0; margin: 0; max-width: none; }
+  .page { margin: 0; width: auto; min-height: auto; box-shadow: none; padding: 0; }
   .print-btn { display: none !important; }
-  .tooth-btn { min-height: 32px; }
   .section { break-inside: avoid; }
   .chart-group { break-inside: avoid; }
 }
