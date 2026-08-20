@@ -71,36 +71,6 @@ onMounted(() => {
   loadData()
 })
 
-async function saveDraft() {
-  saving.value = true
-  try {
-    await api.post(`/mcu/exams/${props.examId}/dental`, {})
-    await loadData()
-    editing.value = false
-    toast.add({ title: 'Berhasil', description: 'Draft dental berhasil disimpan.', color: 'success' })
-  } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal menyimpan.'
-    toast.add({ title: 'Gagal menyimpan', description: message, color: 'error' })
-  } finally {
-    saving.value = false
-  }
-}
-
-async function submitResult() {
-  saving.value = true
-  try {
-    await api.post(`/mcu/exams/${props.examId}/dental/submit`, {})
-    await loadData()
-    editing.value = false
-    toast.add({ title: 'Berhasil', description: 'Hasil dental berhasil disubmit & di-release.', color: 'success' })
-  } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal submit.'
-    toast.add({ title: 'Gagal submit', description: message, color: 'error' })
-  } finally {
-    saving.value = false
-  }
-}
-
 function handleSaved() {
   loadData()
 }
@@ -196,23 +166,6 @@ function printDental() {
         @click="editing = false"
       >
         Batal
-      </UButton>
-      <UButton
-        color="primary"
-        variant="soft"
-        icon="i-lucide-save"
-        :loading="saving"
-        @click="saveDraft"
-      >
-        Simpan Draft
-      </UButton>
-      <UButton
-        color="success"
-        icon="i-lucide-send"
-        :loading="saving"
-        @click="submitResult"
-      >
-        Submit & Release
       </UButton>
     </div>
 
