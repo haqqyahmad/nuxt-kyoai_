@@ -72,6 +72,7 @@ function handleSaved() {
 
 const isSubmitted = computed(() => data.value?.status === 'SUBMITTED')
 const canEdit = computed(() => data.value?.canEdit === true)
+const canPrint = computed(() => props.resultStatus === 'DEPARTMENT_APPROVED')
 
 function printDental() {
   window.open(`/rooms/dental/print/${props.examId}`, '_blank')
@@ -104,6 +105,7 @@ function printDental() {
           />
           <UBadge :label="approvalStatus.label" :color="approvalStatus.color" variant="soft" />
           <UButton
+            v-if="canPrint"
             color="neutral"
             variant="soft"
             icon="i-lucide-printer"
