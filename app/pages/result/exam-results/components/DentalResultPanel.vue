@@ -17,8 +17,6 @@ const emit = defineEmits<{ approved: [] }>()
 const api = useApi()
 const toast = useToast()
 
-const { user: currentUser } = await useCurrentUser()
-
 const loading = ref(false)
 const data = ref<DentalExamData | null>(null)
 const editing = ref(false)
@@ -27,7 +25,6 @@ const approving = ref(false)
 
 const canApprove = computed(() =>
   props.resultStatus === 'DEPARTMENT_REVIEW'
-  && Number(props.submittedBy) !== Number(currentUser.value?.id)
 )
 
 const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
