@@ -99,7 +99,7 @@ function printDental() {
 
         <div class="flex flex-wrap items-center gap-2">
           <UBadge
-            :label="isSubmitted ? 'Submitted' : data?.status === 'DRAFT' ? 'Draft' : 'Ready'"
+            :label="isSubmitted ? `Submitted by ${data?.submittedByName || 'user'}` : data?.status === 'DRAFT' ? 'Draft' : 'Ready'"
             :color="isSubmitted ? 'success' : 'warning'"
             variant="soft"
           />

@@ -36,6 +36,7 @@ export type DentalExamData = DentalPatient & {
   canApproveDepartment?: boolean
   doctorName?: string | null
   doctorSip?: string | null
+  submittedByName?: string | null
   extraOral: string[]
   extraOralNote: string | null
   intraOral: string[]
