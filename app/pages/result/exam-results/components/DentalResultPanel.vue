@@ -106,7 +106,7 @@ function handleSaved() {
 }
 
 const isSubmitted = computed(() => data.value?.status === 'SUBMITTED')
-const canEdit = computed(() => data.value?.canEdit && !isSubmitted.value)
+const canEdit = computed(() => data.value?.canEdit === true)
 
 function printDental() {
   window.open(`/rooms/dental/print/${props.examId}`, '_blank')
