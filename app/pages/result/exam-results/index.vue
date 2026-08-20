@@ -106,7 +106,7 @@ const searchQuery = ref<string>('')
 
 // Pagination
 const page = ref(1)
-const limit = ref(50)
+const limit = ref(10)
 const total = ref(0)
 
 // Departments list
