@@ -603,18 +603,20 @@ onMounted(async () => {
             </UFormField>
 
             <!-- Date Range -->
-            <UFormField v-if="!isExternalDoctor" label="Date Range">
-              <div class="flex gap-2">
+            <UFormField v-if="!isExternalDoctor" label="Date Range" class="sm:col-span-2 lg:col-span-2">
+              <div class="flex gap-2 w-full">
                 <UInput
                   v-model="dateFromFilter"
                   type="date"
                   size="sm"
+                  class="flex-1"
                   placeholder="From"
                 />
                 <UInput
                   v-model="dateToFilter"
                   type="date"
                   size="sm"
+                  class="flex-1"
                   placeholder="To"
                 />
               </div>
