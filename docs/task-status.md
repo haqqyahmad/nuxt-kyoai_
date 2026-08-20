@@ -2,6 +2,17 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: Revisi hasil dental setelah submit selama dept REVIEW
+
+- **Masalah:** setelah submit dental (`resultStatus=SUBMITTED`), dental tak bisa diedit walau dept result masih `DEPARTMENT_REVIEW` (belum approve).
+- **Perbaikan `express_dash/src/services/dental/dental.service.js`:**
+  - Tambah helper `isDentalUnderReview(examId, departmentId)` (dept status `DEPARTMENT_REVIEW`/`RETURNED_TO_DEPARTMENT`).
+  - `getDentalExam`: `canEdit`/`canSubmit` true juga saat `underReview` (meski `resultStatus` SUBMITTED).
+  - `saveDentalExam`: blok edit bila SUBMITTED HANYA saat tak `underReview`.
+  - `submitDentalExam`: re-submit (revisi) bila SUBMITTED + `underReview` → update draft + `markSubmitted`, **tanpa** memanggil ulang `submitDepartmentResults` (dept result sudah REVIEW; guard repo "sudah disubmit" menolak kalau dipanggil ulang).
+- **Verifikasi (live):** `getDentalExam` → `canEdit true canSubmit true` utk exam `35dbfcb4` (SUBMITTED, dept REVIEW); `submitDentalExam` re-submit → `SUBMITTED`.
+- Commit BE: `d40db89`.
+
 ## Completed — 2026-08-19: Fix submit dental semua-normal (grade A) gagal
 
 - **Masalah:** `submitDentalExam` menolak dental yang semua-normal (extraOral `["Normal"]`, findings kosong, other kosong, finalGrade A) dengan "Hasil dental belum lengkap". Penyebab: `hasOral` memakai `.some(v => v !== "Normal")` → array `["Normal"]` dianggap kosong.
