@@ -1,27 +1,32 @@
 <script setup lang="ts">
 const visible = ref(false)
+let scroller: Element | null = null
 
-function getScrollElement() {
-  // Nuxt UI dashboard biasanya scroll di window; fallback ke documentElement.
-  const sc = document.scrollingElement || document.documentElement
-  return sc
-}
-
-function onScroll() {
-  const el = getScrollElement()
-  visible.value = (el.scrollTop || window.scrollY || 0) > 300
+function onScroll(event: Event) {
+  const target = event.target as Element
+  const top = target.scrollTop || (target as any).scrollY || 0
+  if (top > 300) {
+    scroller = target
+    visible.value = true
+  } else if (target === scroller) {
+    visible.value = false
+  }
 }
 
 function scrollToTop() {
+  if (scroller) {
+    scroller.scrollTo?.({ top: 0, behavior: 'smooth' })
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', onScroll, { passive: true })
-  onScroll()
+  // Capture phase menangkap scroll dari elemen container APAPUN (panel internal).
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+  visible.value = (document.scrollingElement?.scrollTop || 0) > 300
 })
 
-onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+onBeforeUnmount(() => document.removeEventListener('scroll', onScroll, true))
 </script>
 
 <template>
