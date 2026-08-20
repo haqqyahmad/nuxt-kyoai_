@@ -73,7 +73,7 @@ const vital = computed(() => ({
         <!-- ═══════ HEADER ═══════ -->
         <header class="header">
           <div class="brand">
-            <div class="brand-mark">🗂️</div>
+            <img class="brand-logo" src="/logo.png" alt="Logo" />
             <div>
               <h1>DENTAL EXAMINATION REPORT</h1>
               <p>Medical Check-Up &bull; Dental Department</p>
@@ -219,7 +219,7 @@ body { background: #eef1f4; font-family: Arial, Helvetica, sans-serif; color: #1
 /* ═══ HEADER ═══ */
 .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #163a5f; padding-bottom: 12px; margin-bottom: 16px; }
 .brand { display: flex; gap: 12px; align-items: center; }
-.brand-mark { width: 46px; height: 46px; border-radius: 10px; background: #163a5f; color: #fff; display: grid; place-items: center; font-size: 24px; }
+.brand-logo { width: 46px; height: 46px; border-radius: 10px; object-fit: contain; background: #fff; }
 .brand h1 { margin: 0; font-size: 20px; letter-spacing: .2px; color: #163a5f; }
 .brand p { margin: 4px 0 0; font-size: 10px; color: #6b7280; }
 .report-meta { text-align: right; font-size: 10px; color: #6b7280; line-height: 1.55; }
