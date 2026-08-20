@@ -103,7 +103,7 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
         variant="soft"
         icon="i-lucide-info"
         title="Menunggu tahap EXAM"
-        description="Item dental akan bisa dimulai setelah stage aktif berpindah ke EXAM dan tombol 'Mulai Pemeriksaan' tersedia."
+        description="Item dental akan bisa dimulai setelah stage aktif berpindah ke EXAM dan tombol 'Mulai Item' tersedia."
       />
 
       <div class="rounded-xl border border-teal-500/30 bg-teal-50/60 p-3 text-sm text-teal-700 dark:bg-teal-500/5 dark:text-teal-300">
@@ -144,7 +144,7 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
             :loading="startLoading"
             @click="emit('start')"
           >
-            Mulai Pemeriksaan
+            Mulai Item
           </UButton>
 
           <UButton
