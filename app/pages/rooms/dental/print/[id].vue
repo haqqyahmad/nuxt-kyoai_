@@ -142,10 +142,10 @@ const vital = computed(() => ({
           <div v-if="data.findings?.length" class="findings-grid">
             <div v-for="finding in data.findings" :key="finding.toothNumber" class="finding-item">
               <span class="finding-tooth">{{ finding.toothNumber }}</span>
-              <span class="finding-body">
-                <span v-for="c in finding.conditions" :key="c" class="finding-cond">{{ c }}</span>
-                <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
+              <span class="finding-conds">
+                <template v-for="(c, i) in finding.conditions" :key="c"><span class="finding-cond">{{ c }}</span><template v-if="i < finding.conditions.length - 1">, </template></template>
               </span>
+              <span v-if="finding.note" class="td-note">{{ finding.note }}</span>
             </div>
           </div>
           <div v-else class="note-card">
@@ -245,13 +245,12 @@ tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: t
 .tooth-col { width: 68px; text-align: center; font-weight: 700; color: #163a5f; }
 .td-note { display: block; margin-top: 3px; font-style: italic; color: #475569; }
 
-/* ═══ FINDINGS GRID (3 kolom, ringkas, tanpa card) ═══ */
-.findings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; }
-.finding-item { display: flex; gap: 6px; align-items: flex-start; font-size: 9.5px; line-height: 1.45; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid #e5e7eb; }
+/* ═══ FINDINGS GRID (3 kolom, ringkas, dipisah koma) ═══ */
+.findings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 16px; }
+.finding-item { display: flex; gap: 6px; align-items: baseline; font-size: 9.5px; line-height: 1.5; }
 .finding-tooth { min-width: 24px; font-weight: 700; color: #163a5f; }
-.finding-body { display: flex; flex-direction: column; gap: 1px; }
 .finding-cond { font-weight: 600; }
-.td-note { font-style: italic; color: #475569; }
+.td-note { font-style: italic; color: #475569; width: 100%; }
 
 /* ═══ BOTTOM ═══ */
 .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
