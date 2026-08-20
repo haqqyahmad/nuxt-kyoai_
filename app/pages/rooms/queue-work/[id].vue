@@ -1532,29 +1532,6 @@ async function handleStartStage() {
   }
 }
 
-async function handleCancelStage() {
-  if (!activeStage.value || stageActionLoading.value) return
-
-  stageActionLoading.value = true
-  try {
-    await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/cancel-start`)
-    await loadPage(true)
-    toast.add({
-      title: 'Berhasil',
-      description: 'Pemeriksaan dibatalkan, kembali ke status dipanggil.',
-      color: 'success'
-    })
-  } catch (error: unknown) {
-    toast.add({
-      title: 'Gagal membatalkan pemeriksaan',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat membatalkan pemeriksaan.'),
-      color: 'error'
-    })
-  } finally {
-    stageActionLoading.value = false
-  }
-}
-
 async function handleFinishStage() {
   if (!activeStage.value || stageActionLoading.value) return
 
@@ -2043,16 +2020,6 @@ async function handleSubmitItemAction() {
                   @click="handleStartStage"
                 >
                   Mulai Pemeriksaan
-                </UButton>
-                <UButton
-                  v-if="activeStage?.status === 'IN_PROGRESS'"
-                  color="error"
-                  variant="soft"
-                  icon="i-lucide-x-circle"
-                  :loading="stageActionLoading"
-                  @click="handleCancelStage"
-                >
-                  Cancel Pemeriksaan
                 </UButton>
                 <UButton
                   v-if="activeStage?.status === 'CALLED'"
