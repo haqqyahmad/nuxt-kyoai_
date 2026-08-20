@@ -1018,7 +1018,7 @@ function shouldShowResultDocument(item: RoomExamItem) {
 function getOperationalStatusLabel(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
 
-  if (item.operationalStatus === 'WAITING_SAMPLE' || sampleStatus === 'COLLECTED') return 'Menunggu sample diterima'
+  if (item.operationalStatus === 'WAITING_SAMPLE') return 'Menunggu sample diterima'
   if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'Sample ditolak'
   if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'Sample dijadwalkan ulang'
   return getStatusLabel(item.status)
@@ -1027,7 +1027,7 @@ function getOperationalStatusLabel(item: RoomExamItem) {
 function getOperationalStatusColor(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
 
-  if (item.operationalStatus === 'WAITING_SAMPLE' || sampleStatus === 'COLLECTED') return 'warning'
+  if (item.operationalStatus === 'WAITING_SAMPLE') return 'warning'
   if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'error'
   if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'neutral'
   return getStatusColor(item.status)
