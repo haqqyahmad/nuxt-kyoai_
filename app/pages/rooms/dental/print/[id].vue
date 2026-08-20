@@ -243,8 +243,8 @@ tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: t
 .tooth-col { width: 68px; text-align: center; font-weight: 700; color: #163a5f; }
 .td-note { display: block; margin-top: 3px; font-style: italic; color: #475569; }
 
-/* ═══ FINDINGS GRID (2 kolom, ringkas, tanpa card) ═══ */
-.findings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+/* ═══ FINDINGS GRID (3 kolom, ringkas, tanpa card) ═══ */
+.findings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 16px; }
 .finding-item { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 9.5px; line-height: 1.5; }
 .finding-tooth { min-width: 24px; font-weight: 700; color: #163a5f; }
 .finding-cond { font-weight: 600; }
