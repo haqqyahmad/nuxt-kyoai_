@@ -1,6 +1,19 @@
 # Project Task Status
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
+
+## Completed — 2026-08-20: Dukung multi-role reviewer per step approval
+
+- **Tujuan:** 1 step approval bisa punyak banyak role reviewer (mis. dokter-gigi ATAU superadmin) — sehingga superadmin bisa approve tanpa bypass.
+- **DB `express_dash`:** tambah tabel pivot `ResultReviewStepRole` (stepId↔roleId) via `prisma db push`; `prisma generate` (EPERM DLL → kill node express + rename).
+- **Backend `express_dash/src/services/result-workflow/result-workflow.service.js`:**
+  - `getWorkflowStepsForDepartment`/`listWorkflows` return `reviewerRoleIds` (array).
+  - `canUserReviewStep` terima `reviewerRoleIds` — allowed bila user punya salah satu; role-ditunjuk boleh approve sendiri (bypass four-eyes).
+  - `upsertWorkflowSteps` terima `reviewerRoleIds` array, simpan ke pivot (+ fallback single `reviewerRoleId`).
+  - `exam.service.js` `approveDepartmentResult` pakai `getWorkflowStepsForDepartment` (include roles).
+- **FE `my-app` `settings/result-workflow.vue`:** select role jadi `multiple` (kirim `reviewerRoleIds`), tampil nama role gabungan.
+- **Verifikasi (live):** save step `reviewerRoleIds:[1,6,9]`; dokter-gigi(role9) & superadmin(role1) approve sendiri → `DEPARTMENT_APPROVED`.
+- Commit BE: `dc1ec0d`. FE: `(lihat git log)`.
 
 ## Completed — 2026-08-19: Revisi hasil dental setelah submit selama dept REVIEW
 

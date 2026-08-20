@@ -14,6 +14,7 @@ type Step = {
   label: string
   reviewerUserId?: number | null
   reviewerRoleId?: string | null
+  reviewerRoleIds?: number[] | null
   isActive?: boolean
 }
 
@@ -110,7 +111,8 @@ const userNameById = computed<Record<string, string>>(() => {
 })
 function reviewerLabel(s: Step): string {
   if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}`
-  if (s.reviewerRoleId) return `role: ${roleNameById.value[String(s.reviewerRoleId)] ?? s.reviewerRoleId}`
+  const roles = (s.reviewerRoleIds?.length ? s.reviewerRoleIds : s.reviewerRoleId ? [Number(s.reviewerRoleId)] : [])
+  if (roles.length) return `role: ${roles.map((rid) => roleNameById.value[String(rid)] ?? rid).join(', ')}`
   return 'anyone'
 }
 
@@ -129,12 +131,13 @@ function openEdit(department: Department) {
     ...s,
     reviewerUserId: s.reviewerUserId ?? null,
     reviewerRoleId: s.reviewerRoleId ?? null,
+    reviewerRoleIds: s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : []),
   }))
   editOpen.value = true
 }
 
 function addStep() {
-  editSteps.value.push({ stepOrder: editSteps.value.length + 1, label: `Step ${editSteps.value.length + 1}`, reviewerUserId: null, reviewerRoleId: null })
+  editSteps.value.push({ stepOrder: editSteps.value.length + 1, label: `Step ${editSteps.value.length + 1}`, reviewerUserId: null, reviewerRoleId: null, reviewerRoleIds: [] })
   renumber()
 }
 
@@ -156,6 +159,7 @@ async function saveWorkflow() {
         label: s.label,
         reviewerUserId: s.reviewerUserId ? Number(s.reviewerUserId) : null,
         reviewerRoleId: s.reviewerRoleId ? String(s.reviewerRoleId) : null,
+        reviewerRoleIds: (s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : [])),
       })),
     }
     await api.put(`/settings/result-workflow/${editDeptId.value}`, payload)
@@ -255,11 +259,12 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
                   @update:model-value="(v: string | null) => { step.reviewerUserId = v ? Number(v) : null }"
                 />
                 <USelect
-                  :model-value="step.reviewerRoleId != null ? String(step.reviewerRoleId) : undefined"
+                  multiple
+                  :model-value="(step.reviewerRoleIds ?? []).map(String)"
                   :items="roleOptions"
-                  placeholder="Atau role tertentu"
+                  placeholder="Role (bisa banyak)"
                   clearable
-                  @update:model-value="(v: string | null) => { step.reviewerRoleId = v || null }"
+                  @update:model-value="(v: string[] | null) => { step.reviewerRoleIds = (v ?? []).map(Number); step.reviewerRoleId = (v?.[0]) || null }"
                 />
               </div>
             </div>
