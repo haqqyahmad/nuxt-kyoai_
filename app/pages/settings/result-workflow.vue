@@ -255,7 +255,7 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
                   @update:model-value="(v: string | null) => { step.reviewerUserId = v ? Number(v) : null }"
                 />
                 <USelect
-                  :model-value="step.reviewerRoleId ?? undefined"
+                  :model-value="step.reviewerRoleId != null ? String(step.reviewerRoleId) : undefined"
                   :items="roleOptions"
                   placeholder="Atau role tertentu"
                   clearable
