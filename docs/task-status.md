@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-20
 
+## Completed — 2026-08-20: Print laporan dental ikuti referensi modern view + SIP dokter
+
+- **Halaman print dental (`my-app` `app/pages/rooms/dental/print/[id].vue`) di-restyle mengikuti `dental_report_modern_view_v2`:**
+  - Header navy + logo (`/logo.png`) + report meta (exam code, date, type).
+  - Patient Information (info-grid), Clinical Findings (kartu), Odontogram memakai **gambar statis** `/odontogram.png` (dieksstrak dari referensi; bukan chart HTML), Dental Findings 3 kolom (dipisah koma, tanpa card/border), Other Findings + Final Grade, footer signature.
+- **Tanda tangan dinamis:** tambah kolom `sip` di `User` (schema+migrate); backend `getDentalExam` expose `doctorName` + `doctorSip` (dari user yang approve, action APPROVE). FE tampilkan nama dokter + "SIP: ..." di bawah garis.
+- **Backend FE `my-app`:** tombol **Cetak** di header dental-result muncul **hanya saat dept `DEPARTMENT_APPROVED`** (`canPrint`), auto-refresh via `@approved="loadResult"`.
+- Commit my-app: print restyle (8f7298c, d25c3bb, 69ad309, f9d82bf, 79e426b, a8581a8, 1d83641, 84c862a, ff6e98b, 6165fb6, 1185352, ea1cc64). Commit BE: `ee4f61e` (doctorSip), `2e22fc5` (doctorName).
+
 ## Completed — 2026-08-20: Dukung multi-role reviewer per step approval
 
 - **Tujuan:** 1 step approval bisa punyak banyak role reviewer (mis. dokter-gigi ATAU superadmin) — sehingga superadmin bisa approve tanpa bypass.
