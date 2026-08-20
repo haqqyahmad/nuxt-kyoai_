@@ -2,6 +2,15 @@
 
 Last updated: 2026-08-19
 
+## Completed — 2026-08-19: UI tweaks queue-work & BackToTop (tidak ada ubah skema)
+
+- **queue-work / dental work (my-app):**
+  - Tambah tombol "Cancel Pemeriksaan" (awalnya reset stage IN_PROGRESS→CALLED) lalu **dihapus di akhir** sesuai permintaan user. Backend endpoint `cancel-start` (`express_dash`, `queue.repository.js` + service/controller/route) **tetap disimpan** (tak dipakai FE).
+  - Tombol item action (Reschedule/Retest/Pasien Menolak) sempat dipindah ke navbar, lalu dikembalikan ke footer panel item.
+  - Tombol aksi dental (`DentalExamWorkPanel`) dipindah dari footer ke **header atas** panel.
+- **BackToTop (my-app):** floating button "Back to Top" pojok kanan bawah di layout `default.vue`; muncul saat scroll >300px; deteksi scroll elemen container via `document.addEventListener('scroll', ..., capture)`.
+- Commit BE: `7da3e6b` (cancel-start endpoint). Commit FE: berbagai (lihat git log).
+
 ## Completed — 2026-08-19: Tombol Approve utk hasil dental di DentalResultPanel
 
 - **Masalah:** `/result/exam-results?department=dental` render `DentalResultPanel` (bukan `DetailDrawer`), yang tak punya tombol Approve → dept Dental tak bisa di-approve dari halaman hasil dental.
