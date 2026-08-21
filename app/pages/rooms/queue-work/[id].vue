@@ -1904,28 +1904,6 @@ async function handleSubmitItemAction() {
           />
 
           <UButton
-            v-if="canEnterRoom"
-            color="primary"
-            variant="soft"
-            icon="i-lucide-log-in"
-            :loading="assignmentPending || roomEnterActionLoading"
-            @click="openEnterRoomModal"
-          >
-            Masuk Room
-          </UButton>
-
-          <UButton
-            v-if="activeRoomSession"
-            color="warning"
-            variant="soft"
-            icon="i-lucide-log-out"
-            :loading="roomSessionActionLoading"
-            @click="openExitRoomModal"
-          >
-            Keluar Room
-          </UButton>
-
-          <UButton
             color="neutral"
             variant="soft"
             icon="i-lucide-arrow-left"
