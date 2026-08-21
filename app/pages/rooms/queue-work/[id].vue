@@ -2169,7 +2169,7 @@ async function handleSubmitItemAction() {
                   v-if="isDentalExamItem(selectedItem)"
                   class="border-0 shadow-none"
                   :item="selectedItem"
-                  :can-start="isExamStageActive()"
+                  :can-start="activeStage?.status === 'IN_PROGRESS'"
                   :can-done="canDoneItem(selectedItem)"
                   :can-manage-actions="canManageItemActions"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
