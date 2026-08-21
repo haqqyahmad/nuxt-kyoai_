@@ -591,6 +591,7 @@ const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
   warnings?: string[]
+  rescheduledItems?: string[]
   nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
 } | null>(null)
 
@@ -787,7 +788,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <UAlert
-          v-if="checkoutEligibility?.nonFinalItems?.length"
+          v-if="checkoutEligibility?.nonFinalItems?.length || checkoutEligibility?.rescheduledItems?.length"
           color="info"
           variant="soft"
           icon="i-lucide-sticky-note"
@@ -798,7 +799,10 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             <div class="mt-1 space-y-1">
               <p>Item berikut ada yang di-reschedule / retest / ditolak pasien:</p>
               <ul class="list-disc pl-5 text-xs">
-                <li v-for="item in checkoutEligibility.nonFinalItems" :key="item.itemName">
+                <li v-for="(name, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
+                  {{ name }} — Reschedule
+                </li>
+                <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
                   {{ item.itemName ?? '-' }} —
                   {{ item.reason || (item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : 'belum selesai') }}
                 </li>
