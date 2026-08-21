@@ -1475,7 +1475,7 @@ watch(
                 <UBadge
                   :color="isSuperAdmin ? 'success' : (roomTypeId ? 'info' : 'warning')"
                   variant="subtle"
-                  :label="isSuperAdmin ? 'Super Admin' : (roomTypeId ? 'Room Ter-assign' : 'Belum assign room')"
+                  :label="isSuperAdmin ? 'Super Admin' : (roomTypeId ? 'Room Assignment' : 'Belum assign room')"
                 />
                 <UBadge
                   v-if="assignment?.assignmentSource"
