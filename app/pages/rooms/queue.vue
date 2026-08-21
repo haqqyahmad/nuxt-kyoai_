@@ -1127,7 +1127,10 @@ async function handleChangeRoom(roomId: string) {
     if (activeRoomSession.value) {
       await exitRoomSession()
     }
+    // Pindahkan assignment aktif hari ini ke room tujuan.
+    await api.post('/room-assignments/me/change-room', { roomId })
     await enterRoomSession({ roomId })
+    await refreshAll()
     await refreshRoomSession()
     isChangeRoomModalOpen.value = false
     toast.add({ title: 'Berhasil', description: 'Room aktif diganti.', color: 'success' })
