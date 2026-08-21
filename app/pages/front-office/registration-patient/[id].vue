@@ -1171,6 +1171,11 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                           <UIcon :name="getExamItemStatusIcon(item.status)" class="size-4 shrink-0" />
                           {{ item.name }}
                         </span>
+                        <span v-if="['RESCHEDULED', 'REFUSED', 'RETEXT', 'REJECTED'].includes(item.status)" class="flex items-center gap-1.5 text-[11px] font-semibold"
+                          :class="getExamItemStatusColor(item.status) === 'error' ? 'text-error' : 'text-warning'">
+                          <UIcon :name="getExamItemStatusIcon(item.status)" class="size-3.5 shrink-0" />
+                          {{ getExamItemStatusLabel(item.status) }} — perlukan perhatian FO.
+                        </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
                           <UIcon name="i-lucide-play" class="size-3" />
                           Mulai {{ formatDateTime(item.startAt || undefined) }}
