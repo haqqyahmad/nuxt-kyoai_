@@ -1575,12 +1575,6 @@ watch(
                     Item
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Stage
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Sample
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Status
                   </th>
                   <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
@@ -1631,16 +1625,6 @@ watch(
                   <td class="border-b border-default px-4 py-4">
                     <p class="text-sm text-highlighted">
                       {{ row.itemSummary }}
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-muted">
-                      {{ row.stageSummary }}
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-muted">
-                      {{ row.sampleSummary }}
                     </p>
                   </td>
                   <td class="border-b border-default px-4 py-4">
