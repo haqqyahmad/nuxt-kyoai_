@@ -2,7 +2,7 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const { permissions } = await useCurrentUser()
+const { permissions, isSuperAdmin } = await useCurrentUser()
 
 const wideSettingsPages = ['/settings/permissions', '/settings/result-workflow']
 
@@ -27,13 +27,16 @@ const links = computed<NavigationMenuItem[][]>(() => {
       label: 'Notifications',
       icon: 'i-lucide-bell',
       to: '/settings/notifications'
-    },
-    {
+    }
+  ]
+
+  if (isSuperAdmin.value) {
+    items.push({
       label: 'Workflow Approval',
       icon: 'i-lucide-workflow',
       to: '/settings/result-workflow'
-    }
-  ]
+    })
+  }
 
   if (hasPermission('role')) {
     items.push({
