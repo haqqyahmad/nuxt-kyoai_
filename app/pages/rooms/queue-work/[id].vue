@@ -686,7 +686,7 @@ const currentRoomWorkStatus = computed(() => {
     ?? 'WAITING'
 })
 const allItemsFinal = computed(() =>
-  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED'].includes(item.status))
+  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED'].includes(item.status))
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
