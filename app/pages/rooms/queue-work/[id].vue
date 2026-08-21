@@ -2296,7 +2296,7 @@ async function handleSubmitItemAction() {
 
                     <div class="flex flex-wrap items-center gap-1.5">
                       <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
+                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
                         color="error"
                         variant="soft"
                         size="sm"
@@ -2308,7 +2308,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
                         color="warning"
                         variant="soft"
                         size="sm"
@@ -2320,7 +2320,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
                         color="primary"
                         variant="soft"
                         size="sm"
