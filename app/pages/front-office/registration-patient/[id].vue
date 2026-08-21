@@ -760,8 +760,18 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           variant="soft"
           icon="i-lucide-alert-triangle"
           title="Ada item yang di-reschedule"
-          :description="checkoutEligibility.warnings.join(' ')"
-        />
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ checkoutEligibility.warnings.join(' ') }}</p>
+              <ul v-if="checkoutEligibility.rescheduledItems?.length" class="list-disc pl-5 text-xs">
+                <li v-for="(name, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
+                  {{ name }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </UAlert>
 
         <UAlert
           v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
