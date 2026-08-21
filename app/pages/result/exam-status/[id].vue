@@ -77,7 +77,7 @@ const idReg = computed(() => String(route.params.id ?? ''))
 
 const userNameMap = ref<Record<number, string>>({})
 
-const { data: reg, pending: loading, error: loadError } = await useAsyncData<Registration | null>(
+const { data: reg, pending: loading, error: loadError, refresh } = await useAsyncData<Registration | null>(
   `exam-status-${idReg.value}`,
   async () => {
     if (!idReg.value) return null
@@ -312,6 +312,15 @@ const overallStats = computed(() => {
             :color="reg.statusRegistration === 'Checkin' ? 'info' : reg.statusRegistration === 'CheckOut' ? 'success' : 'neutral'"
             variant="subtle"
           />
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="soft"
+            :loading="loading"
+            @click="() => void refresh()"
+          >
+            Refresh
+          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
