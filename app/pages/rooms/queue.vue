@@ -228,6 +228,7 @@ const isWaitingModalOpen = ref(false)
 const isEnterRoomModalOpen = ref(false)
 const isExitRoomModalOpen = ref(false)
 const isChangeRoomModalOpen = ref(false)
+const changeRoomOptions = ref<Array<{ id: string, name?: string, code?: string | null, roomType?: { name?: string } | null }>>([])
 const roomEnterActionLoading = ref(false)
 const roomExitActionLoading = ref(false)
 const changeRoomLoading = ref(false)
@@ -1108,11 +1109,23 @@ async function handleExitRoom() {
   }
 }
 
-function openChangeRoomModal() {
-  if (!allowedSelfRooms.value.length) {
+async function openChangeRoomModal() {
+  if (isSuperAdmin.value) {
+    // Superadmin: tampilkan semua room aktif.
+    try {
+      const res = await api.get('/medical/rooms', { params: { isActive: true } })
+      const list = res.data?.data ?? res.data ?? []
+      changeRoomOptions.value = Array.isArray(list) ? list : []
+    } catch {
+      changeRoomOptions.value = []
+    }
+  } else {
+    changeRoomOptions.value = allowedSelfRooms.value
+  }
+  if (!changeRoomOptions.value.length) {
     toast.add({
       title: 'Tidak ada room tersedia',
-      description: 'Tidak ada room akses yang bisa dipilih.',
+      description: 'Tidak ada room yang bisa dipilih.',
       color: 'warning'
     })
     return
@@ -1954,12 +1967,12 @@ watch(
         <template #body>
           <div class="space-y-2">
             <p class="text-sm text-muted">Pilih room aktif yang baru.</p>
-            <div v-if="allowedSelfRooms.length === 0" class="py-6 text-center text-sm text-muted">
-              Tidak ada room akses tersedia.
+            <div v-if="changeRoomOptions.length === 0" class="py-6 text-center text-sm text-muted">
+              Tidak ada room tersedia.
             </div>
             <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
-                v-for="room in allowedSelfRooms"
+                v-for="room in changeRoomOptions"
                 :key="room.id"
                 type="button"
                 class="flex items-center justify-between rounded-xl border p-3 text-left transition-all"
