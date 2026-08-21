@@ -1475,7 +1475,8 @@ watch(
                 <UBadge
                   :color="isSuperAdmin ? 'success' : (roomTypeId ? 'info' : 'warning')"
                   variant="subtle"
-                  :label="isSuperAdmin ? 'Super Admin' : (roomTypeId ? 'Room Assignment' : 'Belum assign room')"
+                  :icon="isSuperAdmin ? undefined : (roomTypeId ? 'i-lucide-check-check' : 'i-lucide-x')"
+                  :label="isSuperAdmin ? 'Super Admin' : (roomTypeId ? 'Room Assigned' : 'Room Not Assigned')"
                 />
                 <UBadge
                   v-if="assignment?.assignmentSource"
