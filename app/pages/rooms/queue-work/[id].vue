@@ -2164,6 +2164,115 @@ async function handleSubmitItemAction() {
                     />
                   </div>
 
+                  <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-default/80 bg-muted/30 px-5 py-3.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <UButton
+                        v-if="canCollectSample(selectedItem)"
+                        color="info"
+                        variant="soft"
+                        icon="i-lucide-test-tube"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="handleCollectSample(selectedItem)"
+                      >
+                        Ambil Sample
+                      </UButton>
+
+                      <UButton
+                        v-else-if="canReceiveSample(selectedItem)"
+                        color="info"
+                        variant="soft"
+                        icon="i-lucide-package-check"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="handleReceiveSample(selectedItem)"
+                      >
+                        Terima Sample
+                      </UButton>
+
+                      <UButton
+                        v-if="selectedItem.status === 'PENDING' && roomStageInProgress"
+                        color="warning"
+                        variant="soft"
+                        icon="i-lucide-play"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="handleStartItem(selectedItem)"
+                      >
+                        Mulai Item
+                      </UButton>
+
+                      <UButton
+                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
+                        color="primary"
+                        variant="soft"
+                        icon="i-lucide-save"
+                        :loading="resultSaveLoading[selectedItem.id]"
+                        @click="handleSaveResults(selectedItem)"
+                      >
+                        Simpan Draft
+                      </UButton>
+
+                      <UButton
+                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
+                        color="primary"
+                        variant="soft"
+                        icon="i-lucide-send"
+                        :loading="resultSaveLoading[selectedItem.id]"
+                        @click="handleSubmitResults(selectedItem)"
+                      >
+                        Submit Hasil
+                      </UButton>
+
+                      <UButton
+                        v-if="selectedItem.status === 'IN_PROGRESS'"
+                        color="success"
+                        variant="soft"
+                        icon="i-lucide-check"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        :disabled="!canDoneItem(selectedItem)"
+                        @click="handleDoneItem(selectedItem)"
+                      >
+                        Selesaikan Item
+                      </UButton>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
+                        color="error"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-ban"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'refuse')"
+                      >
+                        Pasien Menolak
+                      </UButton>
+
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        color="warning"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-calendar-clock"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'reschedule')"
+                      >
+                        Reschedule
+                      </UButton>
+
+                      <UButton
+                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        color="primary"
+                        variant="soft"
+                        size="sm"
+                        icon="i-lucide-refresh-cw"
+                        :loading="itemActionLoading[selectedItem.id]"
+                        @click="openItemActionModal(selectedItem, 'retest')"
+                      >
+                        Retest
+                      </UButton>
+                    </div>
+                  </div>
+
                   <div class="flex-1 space-y-4 p-5">
                     <UAlert
                       v-if="isSampleManagedItem(selectedItem) && !isExamStageActive()"
@@ -2425,115 +2534,6 @@ async function handleSubmitItemAction() {
                       :entries="auditEntries"
                       :queue-code="selectedQueueCode"
                     />
-                  </div>
-
-                  <div class="flex flex-wrap items-center justify-between gap-2.5 border-t border-default/80 bg-muted/30 px-5 py-3.5">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <UButton
-                        v-if="canCollectSample(selectedItem)"
-                        color="info"
-                        variant="soft"
-                        icon="i-lucide-test-tube"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="handleCollectSample(selectedItem)"
-                      >
-                        Ambil Sample
-                      </UButton>
-
-                      <UButton
-                        v-else-if="canReceiveSample(selectedItem)"
-                        color="info"
-                        variant="soft"
-                        icon="i-lucide-package-check"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="handleReceiveSample(selectedItem)"
-                      >
-                        Terima Sample
-                      </UButton>
-
-                      <UButton
-                        v-if="selectedItem.status === 'PENDING' && roomStageInProgress"
-                        color="warning"
-                        variant="soft"
-                        icon="i-lucide-play"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="handleStartItem(selectedItem)"
-                      >
-                        Mulai Item
-                      </UButton>
-
-                      <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
-                        color="primary"
-                        variant="soft"
-                        icon="i-lucide-save"
-                        :loading="resultSaveLoading[selectedItem.id]"
-                        @click="handleSaveResults(selectedItem)"
-                      >
-                        Simpan Draft
-                      </UButton>
-
-                      <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
-                        color="primary"
-                        variant="soft"
-                        icon="i-lucide-send"
-                        :loading="resultSaveLoading[selectedItem.id]"
-                        @click="handleSubmitResults(selectedItem)"
-                      >
-                        Submit Hasil
-                      </UButton>
-
-                      <UButton
-                        v-if="selectedItem.status === 'IN_PROGRESS'"
-                        color="success"
-                        variant="soft"
-                        icon="i-lucide-check"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        :disabled="!canDoneItem(selectedItem)"
-                        @click="handleDoneItem(selectedItem)"
-                      >
-                        Selesaikan Item
-                      </UButton>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-1.5">
-                      <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
-                        color="error"
-                        variant="soft"
-                        size="sm"
-                        icon="i-lucide-ban"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="openItemActionModal(selectedItem, 'refuse')"
-                      >
-                        Pasien Menolak
-                      </UButton>
-
-                      <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
-                        color="warning"
-                        variant="soft"
-                        size="sm"
-                        icon="i-lucide-calendar-clock"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="openItemActionModal(selectedItem, 'reschedule')"
-                      >
-                        Reschedule
-                      </UButton>
-
-                      <UButton
-                        v-if="canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
-                        color="primary"
-                        variant="soft"
-                        size="sm"
-                        icon="i-lucide-refresh-cw"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="openItemActionModal(selectedItem, 'retest')"
-                      >
-                        Retest
-                      </UButton>
-                    </div>
                   </div>
                 </template>
               </template>
