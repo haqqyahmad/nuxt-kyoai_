@@ -591,7 +591,7 @@ const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
   warnings?: string[]
-  nonFinalItems?: Array<{ itemName?: string, reason?: string }>
+  nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
 } | null>(null)
 
 async function loadCheckoutEligibility() {
@@ -780,6 +780,27 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
                   {{ item.itemName }} — {{ item.reason }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </UAlert>
+
+        <UAlert
+          v-if="checkoutEligibility?.nonFinalItems?.length"
+          color="info"
+          variant="soft"
+          icon="i-lucide-sticky-note"
+          title="Note"
+          description="Item berikut ada yang di-reschedule / retest / ditolak pasien:"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>Item berikut ada yang di-reschedule / retest / ditolak pasien:</p>
+              <ul class="list-disc pl-5 text-xs">
+                <li v-for="item in checkoutEligibility.nonFinalItems" :key="item.itemName">
+                  {{ item.itemName ?? '-' }} —
+                  {{ item.reason || (item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : 'belum selesai') }}
                 </li>
               </ul>
             </div>
