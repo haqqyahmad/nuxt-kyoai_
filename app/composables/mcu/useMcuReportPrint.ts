@@ -3,7 +3,7 @@
 // Pola sama dengan QuestionnairePrintTemplateModal: template + context → render → print window.
 // Data & pagination (resultPages, gradeRows, physical) diagregasi oleh BE.
 
-import { renderQuestionnaireTemplate } from '~/composables/questionnaire/useQuestionnairePrint'
+import { renderTemplate } from '~/utils/jinjaTemplate'
 
 export type McuPrintPayload = {
   printTemplate: string
@@ -347,11 +347,14 @@ export function useMcuReportPrint() {
   const printCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
 
   function renderMcuReportHtml(payload: McuPrintPayload): string {
+    // Debug: lihat data print di devtools (F12 → Console). Nilai groupName
+    // aktual dipakai untuk filter `{% if group.groupName not in [...] %}`.
+    console.log('[McuReportPrint] payload', payload)
     const template = payload.printTemplate?.trim()
     if (!template) {
       return '<html><head>' + printCsp + '</head><body><p style="font-family:Arial,sans-serif;padding:20px;">Template print belum tersedia. Hubungi admin.</p></body></html>'
     }
-    let html = renderQuestionnaireTemplate(template, { ...payload, physical: buildPhysicalRows(payload.physical ?? []) })
+    let html = renderTemplate(template, { ...payload, physical: buildPhysicalRows(payload.physical ?? []) })
     // Inject CSP ke <head> bila ada, sisipkan setelah <head> / sebelum <head>.
     if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, m => `${m}${printCsp}`)
     else html = html.replace(/<html[^>]*>/i, m => `${m}${printCsp}`)
