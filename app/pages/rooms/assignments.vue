@@ -12,7 +12,6 @@ const { session: mySession, enterRoomSession, exitRoomSession } = await useRoomS
 
 const {
   user: currentUser,
-  roles: userRoles,
   isPic,
   canSelfAssign,
   allowedSelfRoomIds,
@@ -21,11 +20,6 @@ const {
   isSuperAdmin,
   refresh: refreshUser
 } = await useCurrentUser()
-
-const restrictedStaffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter']
-const isRestrictedStaff = computed(() =>
-  userRoles.value.some(r => restrictedStaffRoles.includes(r))
-)
 
 async function syncRoomAccess() {
   try {
@@ -625,7 +619,7 @@ onMounted(async () => {
 
         <template #right>
           <UButton
-            v-if="!isRestrictedStaff || isSuperAdmin"
+            v-if="isSuperAdmin"
             to="/rooms"
             label="Rooms"
             icon="i-lucide-door-open"
@@ -634,7 +628,7 @@ onMounted(async () => {
           />
 
           <UButton
-            v-if="!isRestrictedStaff || isSuperAdmin"
+            v-if="isSuperAdmin"
             to="/rooms/types"
             label="Room Types"
             icon="i-lucide-folder-cog"
