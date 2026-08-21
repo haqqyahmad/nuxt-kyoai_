@@ -18,6 +18,7 @@ const {
   allowedSelfRoomIds,
   allowedSelfRooms,
   allowedSelfRoomTypeCodes,
+  isSuperAdmin,
   refresh: refreshUser
 } = await useCurrentUser()
 
@@ -624,7 +625,7 @@ onMounted(async () => {
 
         <template #right>
           <UButton
-            v-if="!isRestrictedStaff"
+            v-if="!isRestrictedStaff || isSuperAdmin"
             to="/rooms"
             label="Rooms"
             icon="i-lucide-door-open"
@@ -633,7 +634,7 @@ onMounted(async () => {
           />
 
           <UButton
-            v-if="!isRestrictedStaff"
+            v-if="!isRestrictedStaff || isSuperAdmin"
             to="/rooms/types"
             label="Room Types"
             icon="i-lucide-folder-cog"
