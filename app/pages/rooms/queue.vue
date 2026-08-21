@@ -1113,7 +1113,7 @@ async function openChangeRoomModal() {
   if (isSuperAdmin.value) {
     // Superadmin: tampilkan semua room aktif.
     try {
-      const res = await api.get('/medical/rooms', { params: { isActive: true } })
+      const res = await api.get('/medical/rooms/rooms', { params: { isActive: true } })
       const list = res.data?.data ?? res.data ?? []
       changeRoomOptions.value = Array.isArray(list) ? list : []
     } catch {
