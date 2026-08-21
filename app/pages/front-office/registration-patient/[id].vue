@@ -798,20 +798,17 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <UAlert
-          v-if="checkoutEligibility?.nonFinalItems?.length || checkoutEligibility?.rescheduledItems?.length"
+          v-if="checkoutEligibility?.nonFinalItems?.length"
           color="info"
           variant="soft"
           icon="i-lucide-sticky-note"
           title="Note"
-          description="Item berikut ada yang di-reschedule / retest / ditolak pasien:"
+          description="Item berikut ada yang retest / ditolak pasien:"
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>Item berikut ada yang di-reschedule / retest / ditolak pasien:</p>
+              <p>Item berikut ada yang retest / ditolak pasien:</p>
               <ul class="list-disc pl-5 text-xs">
-                <li v-for="(name, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
-                  {{ name }} — Reschedule
-                </li>
                 <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
                   {{ item.itemName ?? '-' }} —
                   {{ item.reason || (item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : 'belum selesai') }}
