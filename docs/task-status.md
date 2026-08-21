@@ -2,6 +2,14 @@
 
 Last updated: 2026-08-21
 
+## Completed — 2026-08-21: Histori Queue (kolom Room + status proses room) & bersihkan type error
+
+- **`my-app` `rooms/queue.vue` Histori Queue:**
+  - Hapus kolom **Stage & Sample**; tambah kolom **Room** (nama room type pasien via `roomTypeOptions`).
+  - Kolom **Status** kini menampilkan **status proses pasien di ROOM** (`buildRoomStatusBadge`): Waiting → Called → In Room (mulai pemeriksaan) → In Progress (mulai item) → Completed; + `Reschedule`/`Retest`/`Pasien Menolak` bila ada item dgn aksi tsb (prioritas tertinggi).
+- **Bersihkan semua type error `rooms/queue.vue` (0 error):** `stageId`/`roomId` di type `stageItems` + null-guard, `datePart`, watch department `options[0]`, `@click` refresh `()=>void`, `:loading`/`:disabled` `Boolean(...)`.
+- Commits FE: `b711545`, `6e9cfa2`, `71a5c02`.
+
 ## Completed — 2026-08-21: Self-assign auto-enter + Change Room (pindah assignment) + superadmin
 
 - **`my-app` `rooms/assignments.vue`:** self-assign → `enterRoomSession({roomId})` otomatis → redirect ke `/rooms/queue` (sebelumnya ke `/rooms/sample-collection` utk LAB).
