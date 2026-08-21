@@ -6,6 +6,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useMcuReportPrint, type McuPrintPayload } from '~/composables/mcu/useMcuReportPrint'
+import JsonTreeNode from '~/components/mcu/JsonTreeNode.vue'
 
 const props = defineProps<{
   examId: string
@@ -24,6 +25,11 @@ const loading = ref(false)
 const saving = ref(false)
 const previewOpen = ref(false)
 const previewHtml = ref('')
+const varOpen = ref(false)
+const varLoading = ref(false)
+const cachedPayload = ref<McuPrintPayload | null>(null)
+const varQuery = ref('')
+const dataCopied = ref<string | null>(null)
 
 const PRINT_TEMPLATE_KEY = '__mcu_draft_template__'
 
@@ -83,12 +89,53 @@ function useVersion(version: { id: string, version: number }) {
   })
 }
 
-async function runPreview() {
+async function ensurePayload() {
+  if (cachedPayload.value) return cachedPayload.value
   const payload = await loadPrintData(props.examId)
+  if (!payload) return null
+  cachedPayload.value = payload
+  return payload
+}
+
+async function refreshData() {
+  varLoading.value = true
+  cachedPayload.value = null
+  try {
+    return await ensurePayload()
+  } finally {
+    varLoading.value = false
+  }
+}
+
+async function runPreview() {
+  const payload = await ensurePayload()
   if (!payload) return
   const draft: McuPrintPayload = { ...payload, printTemplate: template.value }
   previewHtml.value = renderMcuReportHtml(draft)
   previewOpen.value = true
+}
+
+async function openVariableViewer() {
+  varOpen.value = true
+  if (cachedPayload.value) return
+  varLoading.value = true
+  try {
+    const payload = await ensurePayload()
+    if (!payload) toast.add({ title: 'Tidak ada data', description: 'Data print tidak dapat dimuat.', color: 'error' })
+  } finally {
+    varLoading.value = false
+  }
+}
+
+async function copyPath(path: string, value: unknown) {
+  const raw = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
+  try {
+    await navigator.clipboard.writeText(raw)
+    dataCopied.value = path
+    setTimeout(() => { dataCopied.value = null }, 1500) // eslint-disable-line @stylistic/max-statements-per-line
+  } catch {
+    dataCopied.value = null
+  }
 }
 
 async function saveTemplate() {
@@ -115,6 +162,10 @@ function resetDraft() {
 
 watch(open, (val) => {
   if (val) loadTemplate()
+})
+watch(() => props.examId, () => {
+  cachedPayload.value = null
+  varQuery.value = ''
 })
 </script>
 
@@ -161,9 +212,19 @@ watch(open, (val) => {
 
           <!-- Variabel help -->
           <aside class="min-h-0 w-full shrink-0 rounded border lg:w-64">
-            <p class="border-b p-2 text-xs font-semibold text-muted">
-              Variabel tersedia
-            </p>
+            <div class="flex items-center justify-between gap-2 border-b p-2">
+              <p class="text-xs font-semibold text-muted">
+                Variabel tersedia
+              </p>
+              <UButton
+                label="Lihat Data"
+                icon="i-lucide-braces"
+                size="xs"
+                variant="soft"
+                :loading="varLoading"
+                @click="openVariableViewer"
+              />
+            </div>
             <div class="variable-scroll max-h-[40vh] min-h-0 space-y-1.5 overflow-y-scroll p-2 lg:max-h-[55vh]">
               <div v-for="v in availableVars" :key="v.var" class="rounded bg-elevated/60 px-2 py-1">
                 <code class="block break-all text-[10px] text-primary">{{ v.var }}</code>
@@ -202,6 +263,83 @@ watch(open, (val) => {
                 @click="saveTemplate"
               />
             </div>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
+
+  <!-- Data variabel dimuat lazy, lalu dipakai ulang oleh Preview. -->
+  <UModal v-model:open="varOpen" :ui="{ content: 'sm:max-w-4xl h-[88vh] max-h-[88vh] overflow-hidden' }">
+    <template #content>
+      <UCard class="flex h-full min-h-0 flex-col overflow-hidden" :ui="{ header: 'shrink-0', body: 'flex min-h-0 flex-1 flex-col overflow-hidden', footer: 'shrink-0' }">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="font-semibold">
+                Data Variabel Print MCU
+              </h2>
+              <p class="text-xs text-muted">
+                Data nyata exam ini. Klik baris object/array untuk buka-tutup.
+              </p>
+            </div>
+            <UButton
+              icon="i-lucide-refresh-cw"
+              label="Refresh Data"
+              size="sm"
+              variant="outline"
+              :loading="varLoading"
+              @click="refreshData"
+            />
+          </div>
+        </template>
+
+        <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div class="flex items-center gap-2">
+            <UInput
+              v-model="varQuery"
+              icon="i-lucide-search"
+              placeholder="Cari path atau nilai..."
+              class="flex-1"
+            />
+            <UButton
+              icon="i-lucide-copy"
+              label="Copy JSON"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              :disabled="!cachedPayload"
+              @click="cachedPayload && copyPath('root', cachedPayload)"
+            />
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-muted">
+            <span><i class="mr-1 inline-block size-2 rounded-full bg-emerald-500" />string</span>
+            <span><i class="mr-1 inline-block size-2 rounded-full bg-blue-500" />number</span>
+            <span><i class="mr-1 inline-block size-2 rounded-full bg-violet-500" />boolean</span>
+            <span><i class="mr-1 inline-block size-2 rounded-full bg-rose-500" />null</span>
+          </div>
+          <div v-if="varLoading" class="py-8 text-center text-sm text-muted">
+            Memuat data variabel...
+          </div>
+          <div v-else-if="!cachedPayload" class="py-8 text-center text-sm text-muted">
+            Data belum tersedia.
+          </div>
+          <div v-else class="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded border bg-default p-2">
+            <JsonTreeNode
+              v-if="cachedPayload"
+              name="payload"
+              :value="cachedPayload"
+              path=""
+              :query="varQuery"
+              default-open
+              @copy="copyPath"
+            />
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex w-full justify-end">
+            <UButton label="Tutup" variant="soft" @click="varOpen = false" />
           </div>
         </template>
       </UCard>
