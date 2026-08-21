@@ -27,6 +27,7 @@ export type McuPrintPayload = {
   physical: Array<{
     label: string
     value: string
+    group?: string
   }>
   physicalEmpty: boolean
   resultPages: Array<{
@@ -231,7 +232,29 @@ const PHYSICAL_VITAL: Array<{ keywords: string[], label: string }> = [
   { keywords: ['TEMPERATURE'], label: '4. Temperature' }
 ]
 
-export function buildPhysicalRows(raw: Array<{ label: string, value: string }>): PhysicalPrintRow[] {
+export function buildPhysicalRows(raw: Array<{ label: string, value: string, group?: string }>): PhysicalPrintRow[] {
+  // DoctorExam structured formatter dari BE sudah menghasilkan baris report final.
+  // Kelompokkan berdasarkan `group` agar template existing tetap menerima
+  // {label, subLabels, subValues, showSub}; legacy label-keyed lanjut ke parser lama.
+  if (raw.some(entry => entry.group)) {
+    const grouped = new Map<string, Array<{ label: string, value: string }>>()
+    for (const entry of raw) {
+      const group = entry.group || entry.label
+      const values = grouped.get(group) ?? []
+      values.push({ label: entry.label, value: entry.value })
+      grouped.set(group, values)
+    }
+    return [...grouped].map(([group, entries]) => {
+      const showSub = entries.length > 1 || entries.some(entry => entry.label !== group)
+      return {
+        label: group,
+        subLabels: showSub ? entries.map(entry => entry.label.replace(`${group} · `, '')) : [''],
+        subValues: entries.map(entry => entry.value),
+        showSub
+      }
+    })
+  }
+
   const upper = raw.map(entry => ({ label: String(entry.label).toUpperCase(), value: String(entry.value ?? '') }))
   const rows: PhysicalPrintRow[] = []
   const isYes = (value: string | undefined) => value?.trim().toUpperCase() === 'YES'

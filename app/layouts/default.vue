@@ -530,8 +530,9 @@ const links = computed<NavigationMenuItem[][]>(() => [
   []
 ])
 
-// [DENTAL] State shared dari queue-work: jika true, queue-work panel penuh tanpa sidebar
-const dentalWorkState = useState<boolean>('queue-work-dental', () => false)
+// [FULL-WIDTH] State shared dari queue-work: jika true (seluruh item renderer
+// custom: dental / physical), queue-work panel penuh tanpa sidebar aplikasi.
+const fullWidthWorkState = useState<boolean>('queue-work-full', () => false)
 
 const hideNavigationForExternalDoctor = computed(() => {
   if (!isExternalDoctor.value) return false
@@ -545,8 +546,8 @@ const hideSidebar = computed(() => {
   if (/^\/result\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path)) return true
   // Sembunyikan untuk external doctor di halaman exam-results detail legacy
   if (hideNavigationForExternalDoctor.value) return true
-  // Sembunyikan saat queue-work hanya berisi item dental (full-width panel)
-  if (/^\/rooms\/queue-work\/[A-Za-z0-9_-]+$/.test(route.path) && dentalWorkState.value) return true
+  // Sembunyikan saat queue-work hanya berisi item renderer custom (full-width panel)
+  if (/^\/rooms\/queue-work\/[A-Za-z0-9_-]+$/.test(route.path) && fullWidthWorkState.value) return true
   return false
 })
 

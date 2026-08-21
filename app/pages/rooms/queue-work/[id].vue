@@ -1,6 +1,8 @@
-<script setup lang="ts">
-import PhysicalExaminationDoctor from '~/components/rooms/PhysicalExaminationDoctor.vue'
+﻿<script setup lang="ts">
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
+import PhysicalExamWorkPanel from '~/components/rooms/PhysicalExamWorkPanel.vue'
+import DoctorTestWorkPanel from '~/components/rooms/DoctorTestWorkPanel.vue'
+import { resolveRenderer } from '~/constants/exam-renderers'
 import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
 import { useAudit } from '~/composables/useAudit'
 
@@ -195,7 +197,8 @@ type RoomExamItem = {
       } | null
     } | null
     templateSnapshotAt?: string | null
-    resultTemplateSnapshot?: unknown
+    resultTemplateSnapshot?: { rendererKey?: string | null } | null
+    rendererKey?: string | null
     resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED'
     workStatus?: string
     exam?: {
@@ -210,6 +213,7 @@ type RoomExamItem = {
       resultTiming?: 'inline' | 'deferred' | null
       externalResult?: boolean
       requiresAttachmentForDone?: boolean
+      rendererKey?: string | null
       inputans?: ExamInput[]
       department?: {
         id: string
@@ -774,27 +778,51 @@ function canReceiveSample(item: RoomExamItem) {
   return !!getCollectedCollection(item)
 }
 
-function isDentalExamItem(item: RoomExamItem) {
-  const deptCode = item.trxExamItem?.item?.department?.code?.toUpperCase()
-  return deptCode === 'DENTAL'
+function rendererFor(item: RoomExamItem) {
+  const master = item.trxExamItem?.item ?? {}
+  const snapshot = item.trxExamItem?.resultTemplateSnapshot ?? (item.trxExamItem?.rendererKey ? { rendererKey: item.trxExamItem.rendererKey } : null)
+  return resolveRenderer(master, snapshot)
 }
 
-// Item dental ditampilkan terpisah dari item pemeriksaan lain.
+function isDentalExamItem(item: RoomExamItem) {
+  return rendererFor(item) === DentalExamWorkPanel
+}
+
+function isPhysicalExamItem(item: RoomExamItem) {
+  return rendererFor(item) === PhysicalExamWorkPanel
+}
+
+function isDoctorTestExamItem(item: RoomExamItem) {
+  return rendererFor(item) === DoctorTestWorkPanel
+}
+
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
-// [DENTAL] State shared ke layout default untuk sembunyikan sidebar + aside list
-const isDentalWork = computed(() => dentalItems.value.length > 0 && nonDentalItems.value.length === 0)
-const dentalWorkState = useState<boolean>('queue-work-dental', () => false)
-watch(isDentalWork, (v) => { dentalWorkState.value = v }, { immediate: true })
-onBeforeUnmount(() => { dentalWorkState.value = false })
+function isCustomDoctorExamItem(item: RoomExamItem) {
+  return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item)
+}
+
+// [FULL-WIDTH] Semua renderer custom dokter tampil full-page. Item generik,
+// ECG, external, dan sample-managed tetap memakai layout/sidebar lama.
+const isFullWidthWork = computed(() =>
+  roomExamItems.value.length > 0
+  && roomExamItems.value.every(isCustomDoctorExamItem)
+)
+const fullWidthWorkState = useState<boolean>('queue-work-full', () => false)
+watch(isFullWidthWork, (v) => {
+  fullWidthWorkState.value = v
+}, { immediate: true })
+onBeforeUnmount(() => {
+  fullWidthWorkState.value = false
+})
 
 const selectedItemId = ref('')
 const isDrawerOpen = ref(false)
 const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
   'erp-kyoai:queue-work:input-columns',
   { columns: 2 },
-  (value: any) => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
+  value => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
 )
 const inputColumnsCount = toRef(inputColumns, 'columns') as Ref<1 | 2>
 
@@ -904,12 +932,6 @@ function getStatusTextClass(color: string) {
   }
   return map[color] ?? 'text-muted'
 }
-function isPhysicalExamItem(item: RoomExamItem) {
-  const code = item.trxExamItem?.item?.code?.toUpperCase()
-  const name = item.trxExamItem?.item?.name?.toUpperCase()
-  return code === 'PHYSICAL_EXAMINATION' || name === 'PHYSICAL EXAMINATION'
-}
-
 function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
 }
@@ -965,6 +987,7 @@ function canDoneItem(item: RoomExamItem) {
   if (isDentalExamItem(item)) return true
   // Deferred: hasil diisi belakangan, item tetap bisa diselesaikan sekarang
   if (item.trxExamItem?.item?.resultTiming === 'deferred') return true
+  if (isPhysicalExamItem(item)) return isExamResultSubmitted(item)
   if (!hasStructuredInputs(item)) return true
   return isExamResultSubmitted(item)
 }
@@ -1033,7 +1056,7 @@ function getSubmittedResultRows(item: RoomExamItem): SubmittedResultRow[] {
             flag: (getStoredResult(item, inputan.id)?.flag as 'normal' | 'abnormal' | null) ?? null
           }
     })
-    .filter((row): row is SubmittedResultRow => Boolean(row))
+    .filter((row): row is { id: string, label: string, value: string, uom: string | null | undefined, flag: 'normal' | 'abnormal' | null } => Boolean(row))
 }
 
 function shouldShowResultDocument(item: RoomExamItem) {
@@ -1041,13 +1064,8 @@ function shouldShowResultDocument(item: RoomExamItem) {
   return item.status === 'DONE' || isExamResultSubmitted(item)
 }
 
-function physicalAllNormal(item: RoomExamItem) {
-  const rows = getSubmittedResultRows(item)
-  return rows.length > 0 && rows.every(row => !row.flag || row.flag === 'normal')
-}
-
-function physicalAbnormalCount(item: RoomExamItem) {
-  return getSubmittedResultRows(item).filter(row => row.flag && row.flag !== 'normal').length
+function getPhysicalLegacyRows(item: RoomExamItem): Array<{ id: string, label: string, value: string, uom?: string | null, flag?: 'normal' | 'abnormal' | null }> {
+  return getSubmittedResultRows(item)
 }
 
 function getOperationalStatusLabel(item: RoomExamItem) {
@@ -2063,16 +2081,35 @@ async function handleSubmitItemAction() {
             description="Masih ada item pemeriksaan yang statusnya belum final. Lengkapi hasil atau dokumentasi lalu selesaikan setiap item."
           />
 
+          <!-- Custom doctor renderer: navigasi item menjadi tab di bawah detail pasien. -->
+          <div v-if="isFullWidthWork" class="flex flex-wrap gap-2 border-b border-default pb-4">
+            <UButton
+              v-for="master in masterItems"
+              :key="master.id"
+              :variant="selectedItemId === master.id ? 'solid' : 'outline'"
+              :color="selectedItemId === master.id ? 'primary' : 'neutral'"
+              @click="selectItem(master.id)"
+            >
+              {{ master.index }}. {{ master.name }}
+              <UBadge
+                class="ml-2"
+                :label="master.statusLabel"
+                :color="master.statusColor"
+                variant="subtle"
+              />
+            </UButton>
+          </div>
+
           <div class="grid grid-cols-12 items-start gap-5">
             <div
-              v-if="!isDentalWork"
+              v-if="!isFullWidthWork"
               class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
               :class="isDrawerOpen ? 'block' : 'hidden'"
               @click="toggleDrawer()"
             />
 
             <aside
-              v-if="!isDentalWork"
+              v-if="!isFullWidthWork"
               class="fixed left-0 top-0 z-40 flex h-full w-80 flex-col gap-2 border-r border-default/80 bg-default p-4 transition-transform duration-300 ease-in-out lg:static lg:z-0 lg:h-auto lg:w-auto lg:translate-x-0 lg:border-none lg:bg-transparent lg:p-0 lg:col-span-4"
               :class="isDrawerOpen ? 'translate-x-0' : '-translate-x-full'"
             >
@@ -2126,7 +2163,7 @@ async function handleSubmitItemAction() {
               </div>
             </aside>
 
-            <div :class="['flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-default shadow-sm', isDentalWork ? 'col-span-12' : 'col-span-12 lg:col-span-8']">
+            <div :class="['flex min-h-[480px] flex-col justify-between overflow-hidden rounded-2xl border border-default/80 bg-default shadow-sm', isFullWidthWork ? 'col-span-12' : 'col-span-12 lg:col-span-8']">
               <template v-if="selectedItem">
                 <DentalExamWorkPanel
                   v-if="isDentalExamItem(selectedItem)"
@@ -2144,6 +2181,41 @@ async function handleSubmitItemAction() {
                   @retest="openItemActionModal(selectedItem, 'retest')"
                   @refreshed="loadPage(true)"
                   @back="router.push('/rooms/queue')"
+                />
+
+                <PhysicalExamWorkPanel
+                  v-else-if="isPhysicalExamItem(selectedItem)"
+                  class="border-0 shadow-none"
+                  :item="selectedItem"
+                  :can-start="isExamStageActive()"
+                  :can-done="canDoneItem(selectedItem)"
+                  :can-manage-actions="canManageItemActions"
+                  :start-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  :done-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  :legacy-results="getPhysicalLegacyRows(selectedItem)"
+                  @start="handleStartItem(selectedItem)"
+                  @done="handleDoneItem(selectedItem)"
+                  @refuse="openItemActionModal(selectedItem, 'refuse')"
+                  @reschedule="openItemActionModal(selectedItem, 'reschedule')"
+                  @retest="openItemActionModal(selectedItem, 'retest')"
+                  @refreshed="loadPage(true)"
+                  @back="router.push('/rooms/queue')"
+                />
+
+                <DoctorTestWorkPanel
+                  v-else-if="isDoctorTestExamItem(selectedItem)"
+                  :item="selectedItem"
+                  :can-start="isExamStageActive()"
+                  :can-done="canDoneItem(selectedItem)"
+                  :can-manage-actions="canManageItemActions"
+                  :start-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  :done-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  @start="handleStartItem(selectedItem)"
+                  @done="handleDoneItem(selectedItem)"
+                  @refuse="openItemActionModal(selectedItem, 'refuse')"
+                  @reschedule="openItemActionModal(selectedItem, 'reschedule')"
+                  @retest="openItemActionModal(selectedItem, 'retest')"
+                  @refreshed="loadPage(true)"
                 />
 
                 <template v-else>
@@ -2309,60 +2381,6 @@ async function handleSubmitItemAction() {
                     />
 
                     <div
-                      v-if="isPhysicalExamItem(selectedItem) && !canRenderExamInputs(selectedItem)"
-                      class="overflow-hidden rounded-xl border border-default"
-                    >
-                      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-default bg-elevated/40 px-4 py-3">
-                        <div class="flex min-w-0 items-center gap-3">
-                          <h4 class="truncate font-semibold">
-                            Physical Exam
-                          </h4>
-                          <small class="text-xs text-muted">Result approved dari department</small>
-                        </div>
-                        <span
-                          v-if="physicalAllNormal(selectedItem)"
-                          class="text-xs font-semibold text-success"
-                        >
-                          ✓ Normal
-                        </span>
-                        <span v-else class="text-xs font-semibold text-error">
-                          ⚠ {{ physicalAbnormalCount(selectedItem) }} abnormal
-                        </span>
-                      </div>
-                      <div class="p-4">
-                        <p v-if="getSubmittedResultRows(selectedItem).length === 0" class="rounded-lg border border-dashed border-default bg-default px-3 py-2 text-sm text-muted">
-                          Belum ada hasil.
-                        </p>
-                        <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <div
-                            v-for="row in getSubmittedResultRows(selectedItem)"
-                            :key="row.id"
-                            class="rounded-lg border border-default bg-default px-3 py-2"
-                          >
-                            <p class="text-xs text-muted">
-                              {{ row.label }}
-                            </p>
-                            <p
-                              class="text-sm font-semibold"
-                              :class="row.flag === 'abnormal' ? 'text-error' : 'text-highlighted'"
-                            >
-                              {{ row.value }}<span v-if="row.uom" class="ml-1 text-xs font-normal text-muted">{{ row.uom }}</span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <PhysicalExaminationDoctor
-                      v-if="canRenderExamInputs(selectedItem) && isPhysicalExamItem(selectedItem)"
-                      :exam-id="selectedItem.trxExamItem?.exam?.id || ''"
-                      :exam-item-id="selectedItem.trxExamItem?.id || ''"
-                      :inputans="selectedItem.trxExamItem?.item?.inputans || []"
-                      :results="selectedItem.trxExamItem?.exam?.results || []"
-                      @saved="loadPage(true)"
-                    />
-
-                    <div
                       v-if="canRenderExamInputs(selectedItem) && !isPhysicalExamItem(selectedItem)"
                       class="space-y-3"
                     >
@@ -2385,98 +2403,98 @@ async function handleSubmitItemAction() {
                           ? 'grid grid-cols-1 gap-3 sm:grid-cols-2'
                           : 'space-y-3'"
                       >
-                      <div
-                        v-for="inputan in selectedItem.trxExamItem?.item?.inputans || []"
-                        :key="inputan.id"
-                        :class="getInputContainerClass(selectedItem.id, inputan)"
-                      >
-                        <div class="mb-2 flex items-start justify-between gap-3">
-                          <label class="block text-sm font-medium text-highlighted">
-                            {{ inputan.label }}
-                            <span v-if="inputan.uom" class="text-xs text-muted">({{ inputan.uom }})</span>
-                          </label>
-
-                          <UBadge
-                            v-if="getInputEvaluation(selectedItem.id, inputan)"
-                            :color="getEvaluationBadgeColor(getInputEvaluation(selectedItem.id, inputan)?.status)"
-                            variant="soft"
-                            :label="getInputEvaluation(selectedItem.id, inputan)?.label"
-                          />
-                        </div>
-
                         <div
-                          v-if="inputan.inputType === 'number' && getNumericNormalRanges(inputan).length > 0"
-                          class="mb-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                          v-for="inputan in selectedItem.trxExamItem?.item?.inputans || []"
+                          :key="inputan.id"
+                          :class="getInputContainerClass(selectedItem.id, inputan)"
                         >
-                          <p
-                            v-for="range in getNumericNormalRanges(inputan)"
-                            :key="range.id"
+                          <div class="mb-2 flex items-start justify-between gap-3">
+                            <label class="block text-sm font-medium text-highlighted">
+                              {{ inputan.label }}
+                              <span v-if="inputan.uom" class="text-xs text-muted">({{ inputan.uom }})</span>
+                            </label>
+
+                            <UBadge
+                              v-if="getInputEvaluation(selectedItem.id, inputan)"
+                              :color="getEvaluationBadgeColor(getInputEvaluation(selectedItem.id, inputan)?.status)"
+                              variant="soft"
+                              :label="getInputEvaluation(selectedItem.id, inputan)?.label"
+                            />
+                          </div>
+
+                          <div
+                            v-if="inputan.inputType === 'number' && getNumericNormalRanges(inputan).length > 0"
+                            class="mb-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
                           >
-                            {{ formatNumericNormalRange(inputan, range) }}
-                          </p>
-                        </div>
+                            <p
+                              v-for="range in getNumericNormalRanges(inputan)"
+                              :key="range.id"
+                            >
+                              {{ formatNumericNormalRange(inputan, range) }}
+                            </p>
+                          </div>
 
-                        <div
-                          v-else-if="inputan.inputType === 'selected' && getSelectedNormalRanges(inputan).length > 0"
-                          class="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
-                        >
-                          <p class="font-medium">
-                            Nilai normal
-                          </p>
-                          <p
-                            v-for="range in getSelectedNormalRanges(inputan)"
-                            :key="range.id"
+                          <div
+                            v-else-if="inputan.inputType === 'selected' && getSelectedNormalRanges(inputan).length > 0"
+                            class="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
                           >
-                            {{ formatSelectedNormalRange(range) }}
-                          </p>
-                        </div>
+                            <p class="font-medium">
+                              Nilai normal
+                            </p>
+                            <p
+                              v-for="range in getSelectedNormalRanges(inputan)"
+                              :key="range.id"
+                            >
+                              {{ formatSelectedNormalRange(range) }}
+                            </p>
+                          </div>
 
-                        <input
-                          v-if="inputan.inputType === 'number'"
-                          v-model="getInputDraft(selectedItem.id, inputan.id).valueNumber"
-                          type="number"
-                          :class="getInputValueClass(selectedItem.id, inputan)"
-                          :placeholder="`Isi ${inputan.label}`"
-                        >
-
-                        <input
-                          v-else-if="inputan.inputType === 'string'"
-                          v-model="getInputDraft(selectedItem.id, inputan.id).valueString"
-                          type="text"
-                          class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                          :placeholder="`Isi ${inputan.label}`"
-                        >
-
-                        <select
-                          v-else-if="inputan.inputType === 'selected'"
-                          v-model="getInputDraft(selectedItem.id, inputan.id).valueSelected"
-                          class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                        >
-                          <option value="">
-                            Pilih hasil
-                          </option>
-                          <option
-                            v-for="opsi in inputan.opsis || []"
-                            :key="opsi.id"
-                            :value="opsi.value"
-                          >
-                            {{ opsi.label }}
-                          </option>
-                        </select>
-
-                        <div v-else>
                           <input
-                            v-model="getInputDraft(selectedItem.id, inputan.id).valueCalculated"
+                            v-if="inputan.inputType === 'number'"
+                            v-model="getInputDraft(selectedItem.id, inputan.id).valueNumber"
                             type="number"
-                            disabled
-                            class="w-full rounded-lg border border-default bg-muted/40 px-3 py-2 text-sm text-muted"
-                            placeholder="Dihitung otomatis"
+                            :class="getInputValueClass(selectedItem.id, inputan)"
+                            :placeholder="`Isi ${inputan.label}`"
                           >
-                          <p v-if="inputan.formula?.formula" class="mt-1 truncate text-[11px] text-muted">
-                            {{ inputan.formula.formula }}
-                          </p>
+
+                          <input
+                            v-else-if="inputan.inputType === 'string'"
+                            v-model="getInputDraft(selectedItem.id, inputan.id).valueString"
+                            type="text"
+                            class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                            :placeholder="`Isi ${inputan.label}`"
+                          >
+
+                          <select
+                            v-else-if="inputan.inputType === 'selected'"
+                            v-model="getInputDraft(selectedItem.id, inputan.id).valueSelected"
+                            class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
+                          >
+                            <option value="">
+                              Pilih hasil
+                            </option>
+                            <option
+                              v-for="opsi in inputan.opsis || []"
+                              :key="opsi.id"
+                              :value="opsi.value"
+                            >
+                              {{ opsi.label }}
+                            </option>
+                          </select>
+
+                          <div v-else>
+                            <input
+                              v-model="getInputDraft(selectedItem.id, inputan.id).valueCalculated"
+                              type="number"
+                              disabled
+                              class="w-full rounded-lg border border-default bg-muted/40 px-3 py-2 text-sm text-muted"
+                              placeholder="Dihitung otomatis"
+                            >
+                            <p v-if="inputan.formula?.formula" class="mt-1 truncate text-[11px] text-muted">
+                              {{ inputan.formula.formula }}
+                            </p>
+                          </div>
                         </div>
-                      </div>
                       </div>
                     </div>
 

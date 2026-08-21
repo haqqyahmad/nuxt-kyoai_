@@ -2,6 +2,8 @@
 import { reactive, computed, watch, ref } from 'vue'
 import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
 import { useRoomTypes } from '~/composables/useRoomTypes'
+import { RENDERER_OPTIONS } from '~/constants/exam-renderers'
+import type { RendererKey } from '~/types/physical'
 
 const emit = defineEmits<{
   success: []
@@ -13,6 +15,7 @@ const props = defineProps<{
     code: string
     name: string
     resultTiming: 'inline' | 'deferred'
+    rendererKey?: RendererKey | null
     externalResult?: boolean
     requiresAttachmentForDone?: boolean
     departmentId: string | null
@@ -73,6 +76,7 @@ const form = reactive({
   code: '',
   name: '',
   resultTiming: 'inline',
+  rendererKey: 'GENERIC' as RendererKey,
   externalResult: false,
   externalProcessSlaDays: 3,
   requiresAttachmentForDone: false,
@@ -155,6 +159,7 @@ watch(() => props.item, (item) => {
     form.code = item.code
     form.name = item.name
     form.resultTiming = item.resultTiming
+    form.rendererKey = item.rendererKey ?? 'GENERIC'
     form.externalResult = Boolean(item.externalResult)
     form.externalProcessSlaDays = item.externalProcessSlaDays ?? 3
     form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
@@ -272,6 +277,7 @@ function resetAll() {
   form.code = ''
   form.name = ''
   form.resultTiming = 'inline'
+  form.rendererKey = 'GENERIC'
   form.externalResult = false
   form.externalProcessSlaDays = 3
   form.requiresAttachmentForDone = false
@@ -302,6 +308,7 @@ watch(open, (val) => {
       form.code = item.code
       form.name = item.name
       form.resultTiming = item.resultTiming
+      form.rendererKey = item.rendererKey ?? 'GENERIC'
       form.externalResult = Boolean(item.externalResult)
       form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
       form.departmentId = item.departmentId || ''
@@ -341,6 +348,7 @@ async function ensureItemCreated() {
       code: form.code,
       name: form.name,
       resultTiming: form.resultTiming,
+      rendererKey: form.rendererKey,
       externalResult: form.externalResult,
       externalProcessSlaDays: form.externalProcessSlaDays,
       requiresAttachmentForDone: form.requiresAttachmentForDone,
@@ -408,6 +416,7 @@ async function submit() {
         code: form.code,
         name: form.name,
         resultTiming: form.resultTiming,
+        rendererKey: form.rendererKey,
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
@@ -436,6 +445,7 @@ async function submit() {
         code: form.code,
         name: form.name,
         resultTiming: form.resultTiming,
+        rendererKey: form.rendererKey,
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
@@ -615,6 +625,17 @@ function handleDone() {
                     value-key="value"
                     label-key="label"
                     placeholder="Select timing"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Renderer" description="Tampilan input custom saat pemeriksaan (item dokter).">
+                  <USelectMenu
+                    v-model="form.rendererKey"
+                    :items="RENDERER_OPTIONS"
+                    value-key="value"
+                    label-key="label"
+                    placeholder="Select renderer"
                     class="w-full"
                   />
                 </UFormField>
