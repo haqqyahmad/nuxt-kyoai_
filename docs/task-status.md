@@ -2,6 +2,18 @@
 
 Last updated: 2026-08-20
 
+## Completed — 2026-08-20: Rapikan halaman exam-results & tab settings
+
+- **`my-app` `pages/result/exam-results/index.vue`:**
+  - Card filter responsif (`grid-cols-1 sm:2 lg:3 xl:6`); Date Range `col-span-2`.
+  - Tabel responsif: `min-w`+`overflow-x-auto`; kolom Type/Check-in disembunyikan di layar kecil; header `bg-elevated`.
+  - Pagination: **select 10/20/50 per halaman** (resize → reset page 1 + reload).
+  - Badge `DEPARTMENT_APPROVED` → "Approved"; `DEPARTMENT_REVIEW` → "Pending Approval" (juga DetailDrawer).
+- **`my-app` `pages/settings.vue` (tab):**
+  - Tab **Workflow Approval** gate `hasPermission('result-workflow')`; tab **Roles** `hasPermission('role')`; tab **Permission** `hasPermission('permission')`.
+  - (Sempat ke `isSuperAdmin` lalu dibalik ke `hasPermission` sesuai keputusan user — ikut aturan permission backend.)
+- Commit: berbagai (lihat git log), e.g. pagination `5220143`, badge `d5b8901`, tab `7b51544`.
+
 ## Completed — 2026-08-20: Print laporan dental ikuti referensi modern view + SIP dokter
 
 - **Halaman print dental (`my-app` `app/pages/rooms/dental/print/[id].vue`) di-restyle mengikuti `dental_report_modern_view_v2`:**
