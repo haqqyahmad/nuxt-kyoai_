@@ -1009,9 +1009,17 @@ function getResultDisplayValue(item: RoomExamItem, inputan: ExamInput) {
   return null
 }
 
-function getSubmittedResultRows(item: RoomExamItem) {
+type SubmittedResultRow = {
+  id: string
+  label: string
+  value: string
+  uom?: string | null
+  flag: 'normal' | 'abnormal' | null
+}
+
+function getSubmittedResultRows(item: RoomExamItem): SubmittedResultRow[] {
   return (item.trxExamItem?.item?.inputans ?? [])
-    .map((inputan) => {
+    .map((inputan): SubmittedResultRow | null => {
       const value = getResultDisplayValue(item, inputan)
       return value == null
         ? null
@@ -1019,11 +1027,11 @@ function getSubmittedResultRows(item: RoomExamItem) {
             id: inputan.id,
             label: inputan.label,
             value,
-            uom: inputan.uom,
-            flag: getStoredResult(item, inputan.id)?.flag ?? null
+            uom: inputan.uom ?? null,
+            flag: (getStoredResult(item, inputan.id)?.flag as 'normal' | 'abnormal' | null) ?? null
           }
     })
-    .filter((row): row is { id: string, label: string, value: string, uom?: string | null, flag: 'normal' | 'abnormal' | null } => Boolean(row))
+    .filter((row): row is SubmittedResultRow => Boolean(row))
 }
 
 function shouldShowResultDocument(item: RoomExamItem) {
