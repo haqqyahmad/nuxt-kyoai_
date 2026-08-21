@@ -91,8 +91,10 @@ type RoomQueueItem = {
   } | null
   stageItems?: Array<{
     id: string
+    stageId?: string | null
     stageOrder: number
     status: string
+    roomId?: string | null
     stage?: {
       id: string
       code: string
@@ -519,14 +521,14 @@ const waitingItems = computed(() =>
 function itemHasMyStage(item: RoomQueueItem): boolean {
   if (!myStageIds.value.length) return isSuperAdmin.value
   if (!item.stageItems?.length) return false
-  return item.stageItems.some(stage => myStageIds.value.includes(stage.stageId))
+  return item.stageItems.some(stage => !!stage.stageId && myStageIds.value.includes(stage.stageId))
 }
 
 function itemHandledByMyRoom(item: RoomQueueItem): boolean {
   if (!myRoomId.value) return false
   if (!item.stageItems?.length) return false
   return item.stageItems.some(
-    stage => myStageIds.value.includes(stage.stageId) && stage.roomId === myRoomId.value
+    stage => !!stage.stageId && myStageIds.value.includes(stage.stageId) && stage.roomId === myRoomId.value
   )
 }
 
@@ -534,7 +536,7 @@ function itemInPublicWaiting(item: RoomQueueItem): boolean {
   if (!myStageIds.value.length) return isSuperAdmin.value
   if (!item.stageItems?.length) return false
   return item.stageItems.some(
-    stage => myStageIds.value.includes(stage.stageId) && !stage.roomId
+    stage => !!stage.stageId && myStageIds.value.includes(stage.stageId) && !stage.roomId
   )
 }
 
@@ -673,7 +675,7 @@ function formatSessionTime(value?: string) {
 function formatExamDate(dateString?: string | null) {
   if (!dateString) return '-'
 
-  const [datePart] = dateString.split('T')
+  const [datePart = ''] = dateString.split('T')
   const [year, month, day] = datePart.split('-').map(Number)
   if (!year || !month || !day) return '-'
 
@@ -1274,7 +1276,8 @@ watch(
   ([superAdmin, options]) => {
     if (!superAdmin) return
     if (!selectedHistoryDepartmentId.value && options.length) {
-      selectedHistoryDepartmentId.value = options[0].id
+      const first = options[0]
+      if (first) selectedHistoryDepartmentId.value = first.id
     }
   },
   { immediate: true }
@@ -1379,7 +1382,7 @@ watch(
                 variant="soft"
                 size="sm"
                 :loading="activeSessionsPending"
-                @click="refreshActiveSessions"
+                @click="() => void refreshActiveSessions()"
               >
                 Refresh
               </UButton>
@@ -1744,7 +1747,7 @@ watch(
                 color="neutral"
                 variant="soft"
                 :loading="waitingPending"
-                @click="refreshWaiting"
+                @click="() => void refreshWaiting()"
               >
                 Refresh
               </UButton>
@@ -1904,8 +1907,8 @@ watch(
                           color="primary"
                           variant="soft"
                           icon="i-lucide-log-in"
-                          :loading="waitingRowActionLoading[row.id]"
-                          :disabled="!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId)"
+                          :loading="Boolean(waitingRowActionLoading[row.id])"
+                          :disabled="Boolean(!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId))"
                           @click="handleWaitingRowCall(row)"
                         >
                           Ambil Pasien
