@@ -124,6 +124,7 @@ type QueueHistoryRow = {
   patientDob: string | null
   patientPhone: string | null
   examDate: string | null
+  roomName: string
   roomLabel: string
   itemSummary: string
   stageSummary: string
@@ -562,7 +563,8 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       .filter((value): value is string => Boolean(value))
     const sampleParts = (item.queueEntry?.sampleCollections ?? []).map(sample => `${sample.sampleType?.name || 'Sample'}: ${getSampleStatusLabel(sample.status)}`)
     const stageSummary = formatStageColumn(item.stageItems)
-    const statusBadge = buildStatusBadge(item.status, item.queueEntry?.sampleCollections ?? [], item.stageItems)
+    const roomBadge = buildRoomStatusBadge(item)
+    const itemRoom = roomTypeNameById(item.roomTypeId)
 
     return {
       id: item.id,
@@ -576,6 +578,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       patientDob: patient?.dob ?? null,
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
+      roomName: itemRoom,
       roomLabel: assignment.value?.roomType?.name
         ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
         : `Tier ${item.tierOrder}`,
@@ -586,8 +589,8 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       sampleSummary: sampleParts.length > 0 ? sampleParts.join(' | ') : '-',
       hasSample: (item.queueEntry?.sampleCollections ?? []).length > 0,
       status: item.status,
-      statusLabel: statusBadge.label,
-      statusColor: statusBadge.color,
+      statusLabel: roomBadge.label,
+      statusColor: roomBadge.color,
       checkinAt: item.queueEntry?.checkinAt ?? null,
       completedAt: item.doneAt ?? item.queueEntry?.doneAt ?? null,
       registrationId: registration?.id ?? null,
@@ -801,6 +804,48 @@ function buildStatusBadge(
     default:
       return build(getItemStatusLabel(status), getQueueBadgeColor(status))
   }
+}
+
+// Status proses pasien di ROOM (bukan status sample).
+// Prioritas: aksi item (tolak/reschedule/retest) → selesai → in-progress item → in-room → called → waiting.
+function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
+  const build = (label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral') => ({ label, color })
+
+  const examStatuses = (item.examItems ?? []).map(e => e.status)
+
+  // Aksi per item pasien.
+  if (examStatuses.includes('RESCHEDULED')) return build('Reschedule', 'warning')
+  if (examStatuses.includes('REFUSED')) return build('Pasien Menolak', 'error')
+  if (examStatuses.includes('RETEXT')) return build('Retest', 'error')
+  if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
+
+  // Selesai: semua stage DONE.
+  const stages = item.stageItems ?? []
+  if (stages.length > 0 && stages.every(s => ['DONE', 'SKIPPED'].includes(s.status))) {
+    return build('Completed', 'success')
+  }
+  if (item.status === 'DONE') return build('Completed', 'success')
+
+  // Mulai Item (exam item dikerjakan).
+  if (examStatuses.includes('IN_PROGRESS')) return build('In Progress', 'warning')
+
+  // Mulai Pemeriksaan (stage room dijalankan).
+  if (stages.some(s => s.status === 'IN_PROGRESS')) return build('In Room', 'info')
+
+  // Dipanggil.
+  if (stages.some(s => s.status === 'CALLED')) return build('Called', 'info')
+
+  // Belum dipanggil.
+  if (item.status === 'WAITING' || stages.some(s => s.status === 'WAITING')) return build('Waiting', 'neutral')
+
+  return build(getItemStatusLabel(item.status), getQueueBadgeColor(item.status))
+}
+
+// Nama room type utk kolom Room (dari roomTypeOptions per id).
+function roomTypeNameById(id?: string | null): string {
+  if (!id) return '-'
+  const found = roomTypeOptions.value.find(o => String(o.value) === id)
+  return found?.label ?? '-'
 }
 
 function getSampleStatusLabel(status: string) {
@@ -1572,6 +1617,9 @@ watch(
                     Exam Date
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Room
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Item
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -1620,6 +1668,11 @@ watch(
                   <td class="border-b border-default px-4 py-4">
                     <p class="text-sm text-highlighted">
                       {{ formatExamDate(row.examDate) }}
+                    </p>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ row.roomName }}
                     </p>
                   </td>
                   <td class="border-b border-default px-4 py-4">
