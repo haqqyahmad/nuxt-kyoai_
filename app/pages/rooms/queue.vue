@@ -1140,8 +1140,10 @@ async function handleChangeRoom(roomId: string) {
     if (activeRoomSession.value) {
       await exitRoomSession()
     }
-    // Pindahkan assignment aktif hari ini ke room tujuan.
-    await api.post('/room-assignments/me/change-room', { roomId })
+    // Superadmin tak punya assignment harian → cukup pindah sesi.
+    if (!isSuperAdmin.value) {
+      await api.post('/room-assignments/me/change-room', { roomId })
+    }
     await enterRoomSession({ roomId })
     await refreshAll()
     await refreshRoomSession()
