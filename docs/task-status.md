@@ -1,6 +1,18 @@
 # Project Task Status
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
+
+## Completed — 2026-08-21: Self-assign auto-enter + Change Room (pindah assignment) + superadmin
+
+- **`my-app` `rooms/assignments.vue`:** self-assign → `enterRoomSession({roomId})` otomatis → redirect ke `/rooms/queue` (sebelumnya ke `/rooms/sample-collection` utk LAB).
+- **`my-app` `rooms/queue.vue`:**
+  - Tombol **Masuk Room & Keluar Room dihapus** → ganti tombol **"Change Room"** (modal pilih ruangan).
+  - Modal Change Room: non-superadmin tampilkan `allowedSelfRooms` (room access); **superadmin tampilkan semua room aktif** (`GET /medical/rooms/rooms?isActive=true`).
+  - `handleChangeRoom`: exit sesi lama → `changeMyRoom` → `enterRoomSession` → refresh.
+- **Backend `express_dash`:**
+  - `enterRoomSession` izinkan **superadmin masuk room tanpa assignment**.
+  - Endpoint baru `POST /room-assignments/me/change-room` (`changeMyRoom`): pindahkan assignment aktif hari ini ke room tujuan; utk user **tanpa assignment (superadmin) → auto-create assignment SELF** + bypass room-access.
+- Commits BE: `93430f5`, `fe73aaf`, `c30433d`. Commits FE: `a329b9c`, `dc0a549`, `ed4fe5a`, `3426a65`, `7ba4fa9`.
 
 ## Completed — 2026-08-20: Rapikan halaman exam-results & tab settings
 
