@@ -130,6 +130,8 @@ type QueueHistoryRow = {
   sampleSummary: string
   hasSample: boolean
   status: string
+  statusLabel: string
+  statusColor: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
   checkinAt: string | null
   completedAt: string | null
   registrationId?: number | null
@@ -200,6 +202,8 @@ type WaitingRow = {
   itemSummary: string
   stageSummary: string
   status: string
+  statusLabel: string
+  statusColor: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
   checkinAt: string | null
 }
 
@@ -549,6 +553,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       .filter((value): value is string => Boolean(value))
     const sampleParts = (item.queueEntry?.sampleCollections ?? []).map(sample => `${sample.sampleType?.name || 'Sample'}: ${getSampleStatusLabel(sample.status)}`)
     const stageSummary = formatStageColumn(item.stageItems)
+    const statusBadge = buildStatusBadge(item.status, item.queueEntry?.sampleCollections ?? [], item.stageItems)
 
     return {
       id: item.id,
@@ -572,6 +577,8 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       sampleSummary: sampleParts.length > 0 ? sampleParts.join(' | ') : '-',
       hasSample: (item.queueEntry?.sampleCollections ?? []).length > 0,
       status: item.status,
+      statusLabel: statusBadge.label,
+      statusColor: statusBadge.color,
       checkinAt: item.queueEntry?.checkinAt ?? null,
       completedAt: item.doneAt ?? item.queueEntry?.doneAt ?? null,
       registrationId: registration?.id ?? null,
@@ -589,6 +596,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       .filter((value): value is string => Boolean(value))
     const stageSummary = formatStageColumn(item.stageItems)
     const waitingStage = (item.stageItems ?? []).find(stage => stage.status === 'WAITING')
+    const statusBadge = buildStatusBadge(item.status, item.queueEntry?.sampleCollections ?? [], item.stageItems)
 
     return {
       id: item.id,
@@ -607,6 +615,8 @@ const waitingRows = computed<WaitingRow[]>(() =>
         : '-',
       stageSummary,
       status: item.status,
+      statusLabel: statusBadge.label,
+      statusColor: statusBadge.color,
       checkinAt: item.queueEntry?.checkinAt ?? null
     }
   })
@@ -719,7 +729,7 @@ function formatStageColumn(stageItems: RoomQueueItem['stageItems']) {
     .join(' | ')
 }
 
-function getQueueBadgeColor(status: string) {
+function getQueueBadgeColor(status: string): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' {
   if (status === 'DONE') return 'success'
   if (status === 'WAITING') return 'warning'
   if (status === 'CALLED') return 'info'
@@ -728,6 +738,29 @@ function getQueueBadgeColor(status: string) {
   if (status === 'REFUSED') return 'error'
   if (status === 'RETEXT') return 'warning'
   return 'neutral'
+}
+
+function buildStatusBadge(
+  status: string,
+  sampleCollections: Array<{ status: string }>,
+  stageItems: RoomQueueItem['stageItems'],
+): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
+  const terminal = ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT']
+  if (terminal.includes(status)) {
+    return { label: getItemStatusLabel(status), color: getQueueBadgeColor(status) }
+  }
+
+  const stages = stageItems ?? []
+  const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE'].includes(stage.stage?.code ?? ''))
+  if (!isLabFlow) {
+    return { label: getItemStatusLabel(status), color: getQueueBadgeColor(status) }
+  }
+
+  const statuses = (sampleCollections ?? []).map(s => s.status)
+  if (statuses.some(s => s === 'PENDING')) return { label: 'Menunggu Ambil Sample', color: 'warning' }
+  if (statuses.some(s => s === 'REJECTED' || s === 'RESCHEDULED')) return { label: getItemStatusLabel(status), color: 'error' }
+  if (statuses.some(s => s === 'COLLECTED')) return { label: 'Menunggu Diterima Lab', color: 'info' }
+  return { label: 'Menunggu diproses Lab', color: 'warning' }
 }
 
 function getSampleStatusLabel(status: string) {
@@ -1535,8 +1568,8 @@ watch(
                   </td>
                   <td class="border-b border-default px-4 py-4">
                     <UBadge
-                      :label="getItemStatusLabel(row.status)"
-                      :color="getQueueBadgeColor(row.status)"
+                      :label="row.statusLabel"
+                      :color="row.statusColor"
                       variant="subtle"
                     />
                   </td>
@@ -1737,8 +1770,8 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4">
                       <UBadge
-                        :label="getItemStatusLabel(row.status)"
-                        :color="getQueueBadgeColor(row.status)"
+                        :label="row.statusLabel"
+                        :color="row.statusColor"
                         variant="subtle"
                       />
                     </td>
