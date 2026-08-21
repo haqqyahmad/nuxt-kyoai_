@@ -590,6 +590,7 @@ const checkoutLoading = ref(false)
 const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
+  warnings?: string[]
   nonFinalItems?: Array<{ itemName?: string, reason?: string }>
 } | null>(null)
 
@@ -751,6 +752,15 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             </div>
           </div>
         </div>
+
+        <UAlert
+          v-if="checkoutEligibility?.warnings?.length"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-alert-triangle"
+          title="Ada item yang di-reschedule"
+          :description="checkoutEligibility.warnings.join(' ')"
+        />
 
         <UAlert
           v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
