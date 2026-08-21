@@ -2,13 +2,9 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const { permissions, isSuperAdmin } = await useCurrentUser()
+const { isSuperAdmin } = await useCurrentUser()
 
 const wideSettingsPages = ['/settings/permissions', '/settings/result-workflow']
-
-function hasPermission(perm: string) {
-  return permissions.value.some(p => p === perm || p.startsWith(`${perm}:`))
-}
 
 const links = computed<NavigationMenuItem[][]>(() => {
   const items: NavigationMenuItem[] = [
@@ -38,7 +34,7 @@ const links = computed<NavigationMenuItem[][]>(() => {
     })
   }
 
-  if (hasPermission('role')) {
+  if (isSuperAdmin.value) {
     items.push({
       label: 'Roles',
       icon: 'i-lucide-circle-user-round',
@@ -46,7 +42,7 @@ const links = computed<NavigationMenuItem[][]>(() => {
     })
   }
 
-  if (hasPermission('permission')) {
+  if (isSuperAdmin.value) {
     items.push({
       label: 'Permission',
       icon: 'i-lucide-shield-check',
