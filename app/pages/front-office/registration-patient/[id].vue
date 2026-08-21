@@ -595,6 +595,13 @@ const checkoutEligibility = ref<{
   nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
 } | null>(null)
 
+// Item non-final yang benar-benar bermasalah (retest/refuse/sample ditolak) — utk banner Note.
+const noteIssueItems = computed(() =>
+  (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
+    ['RETEXT', 'REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
+  )
+)
+
 async function loadCheckoutEligibility() {
   if (!reg.value || !isCheckedIn.value || reg.value.statusRegistration === 'CheckOut') {
     checkoutEligibility.value = null
@@ -798,7 +805,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <UAlert
-          v-if="checkoutEligibility?.nonFinalItems?.length"
+          v-if="noteIssueItems.length"
           color="info"
           variant="soft"
           icon="i-lucide-sticky-note"
@@ -809,9 +816,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             <div class="mt-1 space-y-1">
               <p>Item berikut ada yang retest / ditolak pasien:</p>
               <ul class="list-disc pl-5 text-xs">
-                <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
+                <li v-for="(item, index) in noteIssueItems" :key="index">
                   {{ item.itemName ?? '-' }} —
-                  {{ item.reason || (item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : 'belum selesai') }}
+                  {{ getExamItemStatusLabel(item.currentRoomStatus ?? '') }}
                 </li>
               </ul>
             </div>
