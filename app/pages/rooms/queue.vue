@@ -718,12 +718,14 @@ function formatStageColumn(stageItems: RoomQueueItem['stageItems']) {
   const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE'].includes(stage.stage?.code ?? ''))
 
   return stages
-    .filter(stage => !(isLabFlow && stage.stage?.code === 'EXAM'))
     .map((stage) => {
       const code = stage.stage?.code
-      const label = (isLabFlow && code === 'RECEIVE' && stage.status === 'WAITING')
-        ? 'Menunggu Diterima Lab'
-        : getItemStatusLabel(stage.status)
+      let label = getItemStatusLabel(stage.status)
+      if (isLabFlow && code === 'RECEIVE' && stage.status === 'WAITING') {
+        label = 'Menunggu Diterima Lab'
+      } else if (isLabFlow && code === 'EXAM' && stage.status === 'WAITING') {
+        label = 'Menunggu diproses Lab'
+      }
       return `Stage ${stage.stageOrder}: ${label}`
     })
     .join(' | ')
