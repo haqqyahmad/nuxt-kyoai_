@@ -759,7 +759,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           color="warning"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Ada item yang di-reschedule"
+          title="Reschedule Items"
         >
           <template #description>
             <div class="mt-1 space-y-1">
