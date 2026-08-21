@@ -93,6 +93,11 @@ type RoomQueueItem = {
     id: string
     stageOrder: number
     status: string
+    stage?: {
+      id: string
+      code: string
+      name: string
+    } | null
   }>
   examItems?: Array<{
     id: string
@@ -542,8 +547,8 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
     const itemNames = (item.examItems ?? [])
       .map(examItem => examItem.trxExamItem?.item?.name)
       .filter((value): value is string => Boolean(value))
-    const stageParts = (item.stageItems ?? []).map(stage => `Stage ${stage.stageOrder}: ${getItemStatusLabel(stage.status)}`)
     const sampleParts = (item.queueEntry?.sampleCollections ?? []).map(sample => `${sample.sampleType?.name || 'Sample'}: ${getSampleStatusLabel(sample.status)}`)
+    const stageSummary = formatStageColumn(item.stageItems)
 
     return {
       id: item.id,
@@ -563,7 +568,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
         : '-',
-      stageSummary: stageParts.length > 0 ? stageParts.join(' | ') : '-',
+      stageSummary,
       sampleSummary: sampleParts.length > 0 ? sampleParts.join(' | ') : '-',
       hasSample: (item.queueEntry?.sampleCollections ?? []).length > 0,
       status: item.status,
@@ -582,7 +587,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
     const itemNames = (item.examItems ?? [])
       .map(examItem => examItem.trxExamItem?.item?.name)
       .filter((value): value is string => Boolean(value))
-    const stageParts = (item.stageItems ?? []).map(stage => `Stage ${stage.stageOrder}: ${getItemStatusLabel(stage.status)}`)
+    const stageSummary = formatStageColumn(item.stageItems)
     const waitingStage = (item.stageItems ?? []).find(stage => stage.status === 'WAITING')
 
     return {
@@ -600,7 +605,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
         : '-',
-      stageSummary: stageParts.length > 0 ? stageParts.join(' | ') : '-',
+      stageSummary,
       status: item.status,
       checkinAt: item.queueEntry?.checkinAt ?? null
     }
@@ -694,6 +699,24 @@ function getItemStatusLabel(status: string) {
   if (status === 'RETEXT') return 'Perlu Tes Ulang'
   if (status === 'LOCKED') return 'Terkunci'
   return 'Menunggu'
+}
+
+function formatStageColumn(stageItems: RoomQueueItem['stageItems']) {
+  const stages = stageItems ?? []
+  if (stages.length === 0) return '-'
+
+  const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE'].includes(stage.stage?.code ?? ''))
+
+  return stages
+    .filter(stage => !(isLabFlow && stage.stage?.code === 'EXAM'))
+    .map((stage) => {
+      const code = stage.stage?.code
+      const label = (isLabFlow && code === 'RECEIVE' && stage.status === 'WAITING')
+        ? 'Menunggu Diterima Lab'
+        : getItemStatusLabel(stage.status)
+      return `Stage ${stage.stageOrder}: ${label}`
+    })
+    .join(' | ')
 }
 
 function getQueueBadgeColor(status: string) {
