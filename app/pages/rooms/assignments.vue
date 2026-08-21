@@ -8,7 +8,7 @@ definePageMeta({
 const toast = useToast()
 const api = useApi()
 
-const { session: mySession, exitRoomSession } = await useRoomSession()
+const { session: mySession, enterRoomSession, exitRoomSession } = await useRoomSession()
 
 const {
   user: currentUser,
@@ -495,15 +495,18 @@ async function submitSelfAssignment() {
       color: 'success'
     })
 
-    await refreshMyAssignment()
+      await refreshMyAssignment()
 
-    const assignedRoom = rooms.value.find(r => r.id === selfForm.roomId)
-    const roomTypeCode = assignedRoom?.roomType?.code
+      // [SELF-ASSIGN] aktifkan sesi room otomatis utk room yang dipilih,
+      // lalu arahkan ke /rooms/queue (bukan sample-collection) agar langsung bisa ambil pasien.
+      try {
+        await enterRoomSession({ roomId: selfForm.roomId })
+      } catch {
+        // best-effort: jika gagal enter, tetap ke queue
+      }
 
-    if (roomTypeCode === 'LAB' || roomTypeCode === 'LAB-MCU') {
-      await navigateTo('/rooms/sample-collection')
-    }
-  } catch (error: unknown) {
+      await navigateTo('/rooms/queue')
+    } catch (error: unknown) {
     toast.add({
       title: 'Gagal',
       description: getErrorMessage(error, 'Gagal membuat self assignment'),

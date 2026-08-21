@@ -210,7 +210,7 @@ type WaitingRow = {
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
-const { user, isSuperAdmin } = await useCurrentUser()
+const { user, isSuperAdmin, allowedSelfRooms } = await useCurrentUser()
 const {
   session: roomSession,
   pending: roomSessionPending,
@@ -227,8 +227,10 @@ const today = new Date().toISOString().slice(0, 10)
 const isWaitingModalOpen = ref(false)
 const isEnterRoomModalOpen = ref(false)
 const isExitRoomModalOpen = ref(false)
+const isChangeRoomModalOpen = ref(false)
 const roomEnterActionLoading = ref(false)
 const roomExitActionLoading = ref(false)
+const changeRoomLoading = ref(false)
 const waitingRowActionLoading = ref<Record<string, boolean>>({})
 type WaitingStatusFilter = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
 type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
@@ -1106,6 +1108,40 @@ async function handleExitRoom() {
   }
 }
 
+function openChangeRoomModal() {
+  if (!allowedSelfRooms.value.length) {
+    toast.add({
+      title: 'Tidak ada room tersedia',
+      description: 'Tidak ada room akses yang bisa dipilih.',
+      color: 'warning'
+    })
+    return
+  }
+  isChangeRoomModalOpen.value = true
+}
+
+async function handleChangeRoom(roomId: string) {
+  if (changeRoomLoading.value) return
+  changeRoomLoading.value = true
+  try {
+    if (activeRoomSession.value) {
+      await exitRoomSession()
+    }
+    await enterRoomSession({ roomId })
+    await refreshRoomSession()
+    isChangeRoomModalOpen.value = false
+    toast.add({ title: 'Berhasil', description: 'Room aktif diganti.', color: 'success' })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal ganti room',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengganti room aktif.'),
+      color: 'error'
+    })
+  } finally {
+    changeRoomLoading.value = false
+  }
+}
+
 async function refreshAll() {
   await Promise.all([
     refreshAssignment(),
@@ -1215,25 +1251,13 @@ watch(
           />
 
           <UButton
-            v-if="canEnterRoom"
-            color="primary"
+            icon="i-lucide-rotate-ccw"
+            color="neutral"
             variant="soft"
-            icon="i-lucide-log-in"
-            :loading="assignmentPending || roomEnterActionLoading"
-            @click="openEnterRoomModal"
+            :loading="assignmentPending || roomEnterActionLoading || roomExitActionLoading"
+            @click="openChangeRoomModal"
           >
-            <span class="hidden lg:inline">Masuk Room</span>
-          </UButton>
-
-          <UButton
-            v-if="activeRoomSession"
-            color="warning"
-            variant="soft"
-            icon="i-lucide-log-out"
-            :loading="roomExitActionLoading"
-            @click="openExitRoomModal"
-          >
-            <span class="hidden lg:inline">Keluar Room</span>
+            <span class="hidden lg:inline">Change Room</span>
           </UButton>
 
           <UButton
@@ -1918,6 +1942,53 @@ watch(
               @click="handleExitRoom"
             >
               Keluar Room
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="isChangeRoomModalOpen" title="Change Room">
+        <template #body>
+          <div class="space-y-2">
+            <p class="text-sm text-muted">Pilih room aktif yang baru.</p>
+            <div v-if="allowedSelfRooms.length === 0" class="py-6 text-center text-sm text-muted">
+              Tidak ada room akses tersedia.
+            </div>
+            <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                v-for="room in allowedSelfRooms"
+                :key="room.id"
+                type="button"
+                class="flex items-center justify-between rounded-xl border p-3 text-left transition-all"
+                :class="room.id === activeRoomSession?.roomId
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-default/80 hover:bg-muted/30'"
+                :disabled="changeRoomLoading"
+                @click="handleChangeRoom(room.id)"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-highlighted">{{ room.name }}</p>
+                  <p class="text-xs text-muted">{{ room.code }} · {{ room.roomType?.name }}</p>
+                </div>
+                <UBadge
+                  v-if="room.id === activeRoomSession?.roomId"
+                  color="primary"
+                  variant="soft"
+                  label="Aktif"
+                />
+              </button>
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="changeRoomLoading"
+              @click="isChangeRoomModalOpen = false"
+            >
+              Tutup
             </UButton>
           </div>
         </template>
