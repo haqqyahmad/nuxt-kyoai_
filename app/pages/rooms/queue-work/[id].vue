@@ -38,6 +38,7 @@ type SampleCollection = {
     id: string
     name: string
   } | null
+  items?: Array<{ itemId: string }>
 }
 
 type RoomAssignment = {
@@ -213,6 +214,7 @@ type RoomExamItem = {
       department?: {
         id: string
         name: string
+        code?: string | null
       } | null
       group?: {
         id: string
@@ -792,7 +794,7 @@ const isDrawerOpen = ref(false)
 const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
   'erp-kyoai:queue-work:input-columns',
   { columns: 2 },
-  (value) => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
+  (value: any) => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
 )
 const inputColumnsCount = toRef(inputColumns, 'columns') as Ref<1 | 2>
 
@@ -1485,7 +1487,7 @@ function buildResultsPayload(item: RoomExamItem) {
       ...base,
       valueString: getDraftText(draft.valueString)
     }
-  }).filter((value): value is Record<string, unknown> => Boolean(value))
+  }).filter((value): value is NonNullable<typeof value> => Boolean(value))
 }
 
 async function handleReturnPatient() {
