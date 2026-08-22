@@ -598,10 +598,10 @@ const checkoutEligibility = ref<{
   nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
 } | null>(null)
 
-// Item non-final yang benar-benar bermasalah (retest/refuse/sample ditolak) — utk banner Note.
+// Item non-final yang bermasalah utk banner Note (retest sudah di banner utama).
 const noteIssueItems = computed(() =>
   (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
-    ['RETEXT', 'REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
+    ['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 )
 
@@ -813,11 +813,11 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           variant="soft"
           icon="i-lucide-sticky-note"
           title="Note"
-          description="Item berikut ada yang retest / ditolak pasien:"
+          description="Item berikut ada yang ditolak pasien / sample ditolak:"
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>Item berikut ada yang retest / ditolak pasien:</p>
+              <p>Item berikut ada yang ditolak pasien / sample ditolak:</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in noteIssueItems" :key="index">
                   {{ item.itemName ?? '-' }} —
