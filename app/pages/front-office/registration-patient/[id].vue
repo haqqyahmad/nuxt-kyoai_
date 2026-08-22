@@ -1193,8 +1193,8 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                         </div>
                         <UBadge
                           class="sm:col-start-1"
-                          :label="getSampleStatusLabel(sample.status)"
-                          :color="getSampleStatusColor(sample.status)"
+                          :label="item.status === 'REFUSED' ? 'Rejected' : getSampleStatusLabel(sample.status)"
+                          :color="item.status === 'REFUSED' ? 'error' : getSampleStatusColor(sample.status)"
                           variant="soft"
                           size="xs"
                         />
