@@ -195,6 +195,9 @@ function getExamItemStatus(ei: ExamItem) {
   // Lab sample-based: jika semua sample sudah RECEIVED → status FO = selesai
   const samples = getSampleCollectionsForItem(ei.item.id)
   if (samples.length > 0) {
+    // Item lab yang pasien tolak (REFUSED) → status "Menolak" walau sample PENDING.
+    const roomStatuses = ei.roomExamItems?.map(item => item.status) ?? []
+    if (roomStatuses.includes('REFUSED')) return 'REFUSED'
     if (samples.every(s => s.status === 'RECEIVED')) return 'DONE'
     if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
