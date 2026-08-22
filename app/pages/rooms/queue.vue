@@ -202,6 +202,7 @@ type WaitingRow = {
   patientDob: string | null
   patientPhone: string | null
   examDate: string | null
+  roomName: string
   itemSummary: string
   stageSummary: string
   status: string
@@ -618,7 +619,8 @@ const waitingRows = computed<WaitingRow[]>(() =>
       .filter((value): value is string => Boolean(value))
     const stageSummary = formatStageColumn(item.stageItems)
     const waitingStage = (item.stageItems ?? []).find(stage => stage.status === 'WAITING')
-    const statusBadge = buildStatusBadge(item.status, item.queueEntry?.sampleCollections ?? [], item.stageItems)
+    const statusBadge = buildRoomStatusBadge(item)
+    const itemRoom = roomTypeNameById(item.roomTypeId)
 
     return {
       id: item.id,
@@ -632,6 +634,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       patientDob: patient?.dob ?? null,
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
+      roomName: itemRoom,
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
         : '-',
@@ -1843,10 +1846,10 @@ watch(
                       Exam Date
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                      Item
+                      Room
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                      Stage
+                      Item
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       Status
@@ -1895,12 +1898,12 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4">
                       <p class="text-sm text-highlighted">
-                        {{ row.itemSummary }}
+                        {{ row.roomName }}
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
-                      <p class="text-sm text-muted">
-                        {{ row.stageSummary }}
+                      <p class="text-sm text-highlighted">
+                        {{ row.itemSummary }}
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
