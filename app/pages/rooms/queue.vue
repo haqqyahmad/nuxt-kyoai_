@@ -224,7 +224,8 @@ const {
 } = await useRoomSession()
 const {
   roomTypeOptions,
-  pending: roomTypesPending
+  pending: roomTypesPending,
+  refresh: refreshRoomTypes
 } = await useRoomTypes()
 
 const today = new Date().toISOString().slice(0, 10)
@@ -1266,6 +1267,8 @@ async function openWaitingPatientsModal() {
   }
 
   if (isSuperAdmin.value) {
+    // Pastikan daftar room type fresh (termasuk lab/sample collection).
+    await refreshRoomTypes()
     const availableRoomTypeIds = new Set(roomTypeOptions.value.map(option => option.value))
     if (!availableRoomTypeIds.has(selectedWaitingRoomTypeId.value)) {
       selectedWaitingRoomTypeId.value = availableRoomTypeIds.has(roomTypeId.value ?? '')
