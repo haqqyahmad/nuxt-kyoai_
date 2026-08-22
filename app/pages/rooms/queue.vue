@@ -483,14 +483,18 @@ const {
     const status = waitingStatusFilter.value === 'ALL' ? undefined : waitingStatusFilter.value
 
     const params: Record<string, any> = {
-      queueDate: today,
       status,
       limit: 100,
       page: 1,
       _: Date.now()
     }
+    // Filter exam date: jika diisi, queueDate dilepas agar examDate jadi filter utama
+    // (queueDate & examDate bisa beda hari; AND keduanya membuat hasil kosong).
     if (waitingExamDateFrom.value) params.examDateFrom = waitingExamDateFrom.value
     if (waitingExamDateTo.value) params.examDateTo = waitingExamDateTo.value
+    if (!waitingExamDateFrom.value && !waitingExamDateTo.value) {
+      params.queueDate = today
+    }
 
     const res = await api.get(`/medical/exams/queue/room/${effectiveWaitingRoomTypeId.value}`, { params })
 
