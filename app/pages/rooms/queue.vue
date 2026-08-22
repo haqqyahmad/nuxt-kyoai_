@@ -293,6 +293,8 @@ const queueFilterState = useSafeLocalStorageState<QueueStoredFilters>(
 const selectedWaitingRoomTypeId = toRef(queueFilterState, 'waitingRoomTypeId')
 const selectedHistoryDepartmentId = toRef(queueFilterState, 'historyDepartmentId')
 const waitingStatusFilter = toRef(queueFilterState, 'waitingStatus')
+const waitingExamDateFrom = ref('')
+const waitingExamDateTo = ref('')
 const historyStatusFilter = toRef(queueFilterState, 'historyStatus')
 const examDateFromFilter = toRef(queueFilterState, 'examDateFrom')
 const examDateToFilter = toRef(queueFilterState, 'examDateTo')
@@ -480,22 +482,24 @@ const {
     if (!isWaitingModalOpen.value || !effectiveWaitingRoomTypeId.value) return []
     const status = waitingStatusFilter.value === 'ALL' ? undefined : waitingStatusFilter.value
 
-    const res = await api.get(`/medical/exams/queue/room/${effectiveWaitingRoomTypeId.value}`, {
-      params: {
-        queueDate: today,
-        status,
-        limit: 100,
-        page: 1,
-        _: Date.now()
-      }
-    })
+    const params: Record<string, any> = {
+      queueDate: today,
+      status,
+      limit: 100,
+      page: 1,
+      _: Date.now()
+    }
+    if (waitingExamDateFrom.value) params.examDateFrom = waitingExamDateFrom.value
+    if (waitingExamDateTo.value) params.examDateTo = waitingExamDateTo.value
+
+    const res = await api.get(`/medical/exams/queue/room/${effectiveWaitingRoomTypeId.value}`, { params })
 
     const payload = res.data?.data ?? res.data
     return Array.isArray(payload) ? payload : payload?.data ?? []
   },
   {
     default: () => [],
-    watch: [effectiveWaitingRoomTypeId, isWaitingModalOpen, waitingStatusFilter],
+    watch: [effectiveWaitingRoomTypeId, isWaitingModalOpen, waitingStatusFilter, waitingExamDateFrom, waitingExamDateTo],
     server: false
   }
 )
@@ -1782,6 +1786,15 @@ watch(
                     { label: 'Semua', value: 'ALL' }
                   ]"
                 />
+              </UFormField>
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <UFormField label="Exam Date Dari" class="flex-1">
+                <UInput v-model="waitingExamDateFrom" type="date" />
+              </UFormField>
+              <UFormField label="Exam Date Sampai" class="flex-1">
+                <UInput v-model="waitingExamDateTo" type="date" />
               </UFormField>
             </div>
 
