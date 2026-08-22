@@ -1742,28 +1742,26 @@ watch(
         </UCard>
       </div>
 
-      <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
+      <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl', header: 'relative pr-16' }">
         <template #header>
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0 flex-1">
-              <h3 class="text-lg font-semibold text-highlighted">
-                Pasien di Ruang Tunggu
-              </h3>
-              <p class="text-sm text-muted">
-                Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
-              </p>
-            </div>
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="soft"
-              class="shrink-0"
-              :loading="waitingPending"
-              @click="() => void refreshWaiting()"
-            >
-              Refresh
-            </UButton>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-lg font-semibold text-highlighted">
+              Pasien di Ruang Tunggu
+            </h3>
+            <p class="mt-0.5 text-sm text-muted">
+              Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
+            </p>
           </div>
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="soft"
+            class="absolute right-4 top-1/2 -translate-y-1/2"
+            :loading="waitingPending"
+            @click="() => void refreshWaiting()"
+          >
+            Refresh
+          </UButton>
         </template>
         <template #body>
           <div class="space-y-4 rounded-2xl bg-default p-6 shadow-xl">
