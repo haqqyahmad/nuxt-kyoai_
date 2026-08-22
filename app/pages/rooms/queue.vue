@@ -1779,11 +1779,8 @@ watch(
               </UFormField>
             </div>
 
-            <div class="space-y-2">
-              <UFormField
-                label="Status"
-                description="Default hanya waiting agar pasien yang sudah diambil tidak ikut tampil."
-              >
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <UFormField label="Status">
                 <USelect
                   v-model="waitingStatusFilter"
                   :items="[
@@ -1794,13 +1791,10 @@ watch(
                   ]"
                 />
               </UFormField>
-            </div>
-
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <UFormField label="Exam Date Dari" class="flex-1">
+              <UFormField label="Exam Date Dari">
                 <UInput v-model="waitingExamDateFrom" type="date" />
               </UFormField>
-              <UFormField label="Exam Date Sampai" class="flex-1">
+              <UFormField label="Exam Date Sampai">
                 <UInput v-model="waitingExamDateTo" type="date" />
               </UFormField>
             </div>
