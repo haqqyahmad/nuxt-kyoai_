@@ -800,7 +800,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
-                  {{ item.itemName }} — {{ item.reason }}
+                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : (item.reason || 'belum selesai') }}
                 </li>
               </ul>
             </div>
