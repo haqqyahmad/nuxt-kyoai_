@@ -1744,7 +1744,7 @@ watch(
 
       <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
         <template #header>
-          <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center justify-between gap-4">
             <div>
               <h3 class="text-lg font-semibold text-highlighted">
                 Pasien di Ruang Tunggu
@@ -1757,6 +1757,7 @@ watch(
               icon="i-lucide-refresh-cw"
               color="neutral"
               variant="soft"
+              class="shrink-0"
               :loading="waitingPending"
               @click="() => void refreshWaiting()"
             >
