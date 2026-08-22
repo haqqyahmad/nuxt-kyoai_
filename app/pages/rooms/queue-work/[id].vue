@@ -2149,7 +2149,7 @@ async function handleSubmitItemAction() {
                   :item="selectedItem"
                   :can-start="activeStage?.status === 'IN_PROGRESS'"
                   :can-done="canDoneItem(selectedItem)"
-                  :can-manage-actions="canManageItemActions && roomStageInProgress"
+                  :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   @start="handleStartItem(selectedItem)"
@@ -2167,7 +2167,7 @@ async function handleSubmitItemAction() {
                   :item="selectedItem"
                   :can-start="isExamStageActive()"
                   :can-done="canDoneItem(selectedItem)"
-                  :can-manage-actions="canManageItemActions && roomStageInProgress"
+                  :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :legacy-results="getPhysicalLegacyRows(selectedItem)"
@@ -2185,7 +2185,7 @@ async function handleSubmitItemAction() {
                   :item="selectedItem"
                   :can-start="isExamStageActive()"
                   :can-done="canDoneItem(selectedItem)"
-                  :can-manage-actions="canManageItemActions && roomStageInProgress"
+                  :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   @start="handleStartItem(selectedItem)"
@@ -2296,7 +2296,7 @@ async function handleSubmitItemAction() {
 
                     <div class="flex flex-wrap items-center gap-1.5">
                       <UButton
-                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
                         color="error"
                         variant="soft"
                         size="sm"
@@ -2308,7 +2308,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
                         color="warning"
                         variant="soft"
                         size="sm"
@@ -2320,7 +2320,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED'].includes(selectedItem.status)"
                         color="primary"
                         variant="soft"
                         size="sm"
