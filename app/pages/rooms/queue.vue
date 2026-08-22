@@ -1744,8 +1744,8 @@ watch(
 
       <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl' }">
         <template #header>
-          <div class="flex items-center justify-end gap-4">
-            <div>
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
               <h3 class="text-lg font-semibold text-highlighted">
                 Pasien di Ruang Tunggu
               </h3>
