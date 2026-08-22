@@ -9,6 +9,7 @@ type ExamItem = {
   id: string
   source: 'paket' | 'additional'
   sortOrder: number
+  workStatus?: string | null
   roomExamItems?: Array<{
     id: string
     status: string
@@ -208,6 +209,8 @@ function getExamItemStatus(ei: ExamItem) {
   if (statuses.includes('REFUSED')) return 'REFUSED'
   if (statuses.includes('RESCHEDULED')) return 'RESCHEDULED'
   if (statuses.includes('SKIPPED')) return 'SKIPPED'
+  // Retest disimpan di workStatus (roomExamItem di-reset PENDING saat retest)
+  if (ei.workStatus === 'RETEXT') return 'RETEXT'
   return statuses[0] ?? 'PENDING'
 }
 
