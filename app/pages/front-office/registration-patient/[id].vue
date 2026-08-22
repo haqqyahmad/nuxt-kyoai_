@@ -223,7 +223,7 @@ function getExamItemStatusLabel(status: string) {
   if (status === 'CALLED') return 'Dipanggil'
   if (status === 'SKIPPED') return 'Skip'
   if (status === 'RESCHEDULED') return 'Reschedule'
-  if (status === 'REFUSED') return 'Menolak'
+  if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
   if (status === 'WAITING_SAMPLE') return 'Menunggu Sample'
   if (status === 'REJECTED') return 'Sample Ditolak'
