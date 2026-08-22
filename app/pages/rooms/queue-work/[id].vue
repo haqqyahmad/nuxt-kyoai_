@@ -695,10 +695,27 @@ const allSamplesReceived = computed(() =>
   && sampleCollections.value.every(collection => collection.status === 'RECEIVED')
 )
 
-const allSamplesCollected = computed(() =>
-  sampleCollections.value.length > 0
-  && sampleCollections.value.every(collection => ['COLLECTED', 'RECEIVED'].includes(collection.status))
-)
+const refusedItemIds = computed(() => {
+  const ids = new Set<string>()
+  for (const item of roomExamItems.value) {
+    if (item.status === 'REFUSED' && item.trxExamItem?.item?.id) {
+      ids.add(item.trxExamItem.item.id)
+    }
+  }
+  return ids
+})
+
+const allSamplesCollected = computed(() => {
+  if (sampleCollections.value.length === 0) return false
+  return sampleCollections.value.every((collection) => {
+    if (['COLLECTED', 'RECEIVED'].includes(collection.status)) return true
+    // Sample PENDING/REJECTED utk item yang pasien tolak (REFUSED) dianggap final.
+    if (collection.items?.length) {
+      return collection.items.every((si) => refusedItemIds.value.has(si.itemId))
+    }
+    return false
+  })
+})
 
 const canFinishWork = computed(() =>
   activeStageCode.value === 'COLLECT' ? allSamplesCollected.value : allItemsFinal.value
