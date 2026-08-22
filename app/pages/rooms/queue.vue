@@ -1765,10 +1765,10 @@ watch(
               </UButton>
             </div>
 
-            <div v-if="isSuperAdmin" class="space-y-2">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4" :class="isSuperAdmin ? '' : 'lg:grid-cols-3'">
               <UFormField
+                v-if="isSuperAdmin"
                 label="Room Type"
-                description="Pilih room type yang ingin dilihat daftar waiting-nya."
               >
                 <USelect
                   v-model="selectedWaitingRoomTypeId"
@@ -1777,9 +1777,6 @@ watch(
                   placeholder="Pilih room type"
                 />
               </UFormField>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <UFormField label="Status">
                 <USelect
                   v-model="waitingStatusFilter"
