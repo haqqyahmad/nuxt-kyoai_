@@ -1201,6 +1201,10 @@ async function handleChangeRoom(roomId: string) {
     // Pindahkan assignment aktif (superadmin dgn tanpa assignment → auto-create).
     await api.post('/room-assignments/me/change-room', { roomId })
     await enterRoomSession({ roomId })
+    // Superadmin: ikutkan filter modal waiting ke room type sesi baru.
+    if (isSuperAdmin.value && activeRoomSession.value?.roomTypeId) {
+      selectedWaitingRoomTypeId.value = activeRoomSession.value.roomTypeId
+    }
     await refreshAll()
     await refreshRoomSession()
     isChangeRoomModalOpen.value = false
