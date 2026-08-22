@@ -1842,10 +1842,10 @@ watch(
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       Pasien
                     </th>
-                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                       Exam Date
                     </th>
-                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                       Room
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -1891,12 +1891,12 @@ watch(
                         </p>
                       </div>
                     </td>
-                    <td class="border-b border-default px-4 py-4">
+                    <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
                         {{ formatExamDate(row.examDate) }}
                       </p>
                     </td>
-                    <td class="border-b border-default px-4 py-4">
+                    <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
                         {{ row.roomName }}
                       </p>
