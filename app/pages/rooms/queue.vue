@@ -1824,10 +1824,10 @@ watch(
               <USkeleton class="h-14 rounded-xl" />
             </div>
 
-            <div v-else-if="waitingRows.length" class="overflow-x-auto">
+            <div v-else-if="waitingRows.length" class="max-h-[50vh] overflow-auto rounded-xl border border-default">
               <table class="min-w-full border-separate border-spacing-0">
                 <thead>
-                  <tr class="bg-muted/30">
+                  <tr class="sticky top-0 z-10 bg-muted/30">
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       Queue
                     </th>
