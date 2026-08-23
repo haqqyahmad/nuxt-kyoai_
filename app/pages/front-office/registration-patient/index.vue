@@ -36,6 +36,7 @@ type Patient = {
   examDate: string
   canCheckout?: boolean
   checkoutDone?: boolean
+  rescheduleVisitDate?: string | null
 
 }
 
@@ -68,6 +69,7 @@ function mapPatient(item: any): Patient & { id_reg: string } {
 
     canCheckout: item.canCheckout,
     checkoutDone: item.checkoutDone,
+    rescheduleVisitDate: item.rescheduleVisitDate ?? null,
 
     // 🔥 penting
     id_reg: item.id_reg
@@ -383,18 +385,28 @@ const columns: TableColumn<Patient>[] = [
       const p = row.original
       const canCheckout = Boolean(p.canCheckout)
 
-      return h('div', { class: 'flex items-center gap-2' }, [
-        h(UBadge, {
-          label: STATUS_LABEL[status] ?? status ?? '-',
-          color: STATUS_COLOR[status] ?? 'neutral',
-          variant: 'subtle'
-        }),
-        canCheckout
+      return h('div', { class: 'flex flex-col items-start gap-1' }, [
+        h('div', { class: 'flex items-center gap-2' }, [
+          h(UBadge, {
+            label: STATUS_LABEL[status] ?? status ?? '-',
+            color: STATUS_COLOR[status] ?? 'neutral',
+            variant: 'subtle'
+          }),
+          canCheckout
+            ? h(UBadge, {
+                label: 'Siap Check-out',
+                color: 'success',
+                variant: 'outline',
+                icon: 'i-lucide-log-out'
+              })
+            : null
+        ]),
+        p.rescheduleVisitDate
           ? h(UBadge, {
-              label: 'Siap Check-out',
-              color: 'success',
+              label: `Datang lagi: ${p.rescheduleVisitDate}`,
+              color: 'warning',
               variant: 'outline',
-              icon: 'i-lucide-log-out'
+              icon: 'i-lucide-calendar-clock'
             })
           : null
       ])
