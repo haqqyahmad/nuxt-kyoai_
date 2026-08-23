@@ -843,8 +843,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <p>The following items have been rejected by the patient / sample rejected:</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in noteIssueItems" :key="index">
-                  {{ item.itemName ?? '-' }} —
-                  {{ getExamItemStatusLabel(item.currentRoomStatus ?? '') }}
+                  {{ item.itemName ?? '-' }}
                 </li>
               </ul>
             </div>
