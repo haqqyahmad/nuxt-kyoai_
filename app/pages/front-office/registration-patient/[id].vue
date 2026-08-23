@@ -16,6 +16,7 @@ type ExamItem = {
     startAt?: string | null
     doneAt?: string | null
     updatedAt?: string | null
+    rescheduleVisitDate?: string | null
   }>
   item: {
     id: string
@@ -241,6 +242,12 @@ function getExamItemStatusLabelEn(status: string) {
   if (status === 'REJECTED') return 'Rejected'
   if (status === 'REFUSED') return 'Rejected'
   return status || 'Pending'
+}
+
+function getRescheduleVisitDate(examItemId: string): string {
+  const ei = (reg.value?.exam?.examItems ?? []).find(e => e.id === examItemId)
+  const re = ei?.roomExamItems?.find(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+  return re?.rescheduleVisitDate?.slice(0, 10) ?? ''
 }
 
 function getExamItemStatusColor(status: string) {
@@ -664,10 +671,50 @@ async function handleRefreshPage() {
   }
 }
 
+type RescheduleDraftItem = { roomExamItemId: string, itemName: string, visitDate: string }
+
+const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
+  if (!reg.value?.exam?.examItems) return []
+  const out: RescheduleDraftItem[] = []
+  for (const ei of reg.value.exam.examItems) {
+    for (const re of ei.roomExamItems ?? []) {
+      if (re.status === 'RESCHEDULED') {
+        out.push({
+          roomExamItemId: re.id,
+          itemName: ei.item?.name ?? '-',
+          visitDate: re.rescheduleVisitDate?.slice(0, 10) ?? '',
+        })
+      }
+    }
+  }
+  return out
+})
+
+const showRescheduleModal = ref(false)
+const rescheduleDraft = ref<RescheduleDraftItem[]>([])
+const savingReschedule = ref(false)
+
 async function confirmCheckout() {
   if (!reg.value || checkoutLoading.value) return
+  // Jika ada item reschedule → tanya tanggal datang ulang dulu.
+  if (rescheduleCheckoutItems.value.length) {
+    rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
+    showRescheduleModal.value = true
+    return
+  }
+  await doCheckout()
+}
+
+async function doCheckout() {
+  if (!reg.value || checkoutLoading.value) return
   checkoutLoading.value = true
+  savingReschedule.value = true
   try {
+    if (rescheduleDraft.value.length) {
+      await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
+        items: rescheduleDraft.value.map(i => ({ roomExamItemId: i.roomExamItemId, visitDate: i.visitDate || null })),
+      })
+    }
     await api.patch(`/registration/${reg.value.id_reg}/checkout`)
     toast.add({
       title: 'Berhasil',
@@ -683,6 +730,8 @@ async function confirmCheckout() {
     toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
   } finally {
     checkoutLoading.value = false
+    savingReschedule.value = false
+    showRescheduleModal.value = false
   }
 }
 
@@ -1280,7 +1329,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                         <span v-if="['RESCHEDULED', 'REFUSED', 'RETEXT', 'REJECTED'].includes(item.status)" class="flex items-center gap-1.5 text-[11px] font-semibold"
                           :class="getExamItemStatusColor(item.status) === 'error' ? 'text-error' : 'text-warning'">
                           <UIcon :name="getExamItemStatusIcon(item.status)" class="size-3.5 shrink-0" />
-                          {{ getExamItemStatusLabel(item.status) }} — FO Attention Required.
+                          {{ getExamItemStatusLabel(item.status) }} — FO Attention Required.{{ item.status === 'RESCHEDULED' && getRescheduleVisitDate(item.id) ? ` (${getRescheduleVisitDate(item.id)})` : '' }}
                         </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
                           <UIcon name="i-lucide-play" class="size-3" />
@@ -1607,6 +1656,24 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               label="Close"
               @click="modalOpen = false"
             />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="showRescheduleModal" title="Reschedule Visit Date">
+        <template #body>
+          <div class="space-y-4">
+            <p class="text-sm text-muted">Pilih tanggal datang ulang pasien untuk item yang di-reschedule:</p>
+            <div v-for="(item, idx) in rescheduleDraft" :key="item.roomExamItemId" class="flex flex-col gap-2 rounded-lg border border-default p-3">
+              <p class="text-sm font-semibold text-highlighted">{{ item.itemName }}</p>
+              <UInput v-model="item.visitDate" type="date" class="w-full" />
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton label="Batal" variant="outline" :disabled="savingReschedule" @click="showRescheduleModal = false" />
+            <UButton label="Simpan & Checkout" color="primary" :loading="savingReschedule" @click="doCheckout" />
           </div>
         </template>
       </UModal>
