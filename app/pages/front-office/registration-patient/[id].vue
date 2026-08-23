@@ -816,11 +816,11 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           variant="soft"
           icon="i-lucide-octagon-x"
           title="Rejected Items"
-          description="Item berikut ditolak pasien / sample ditolak:"
+          description="The following items have been rejected by the patient / sample rejected:"
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>Item berikut ditolak pasien / sample ditolak:</p>
+              <p>The following items have been rejected by the patient / sample rejected:</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in noteIssueItems" :key="index">
                   {{ item.itemName ?? '-' }} —
