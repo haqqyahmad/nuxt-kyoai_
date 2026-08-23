@@ -368,7 +368,16 @@ const mcuCategories = computed(() => {
       pending: pendingItems.length,
       completedItems,
       pendingItems,
-      status: total > 0 && completed === total ? 'DONE' : 'PENDING'
+      status:
+        total > 0 && completed === total
+          ? 'DONE'
+          : category.items.some(item => item.status === 'RETEXT')
+            ? 'RETEXT'
+            : category.items.some(item => item.status === 'RESCHEDULED')
+              ? 'RESCHEDULED'
+              : category.items.some(item => ['REFUSED', 'REJECTED'].includes(item.status))
+                ? 'REFUSED'
+                : 'PENDING'
     }
   })
 })
@@ -1149,13 +1158,13 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                       <h4 class="text-sm font-semibold text-highlighted">
                         {{ cat.label }}
                       </h4>
-<UBadge
-  :label="cat.status === 'DONE' ? 'Selesai' : 'Menunggu'"
-  :color="cat.status === 'DONE' ? 'success' : 'neutral'"
-  variant="soft"
-  size="xs"
-  :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-/>
+              <UBadge
+                :label="getExamItemStatusLabel(cat.status)"
+                :color="getExamItemStatusColor(cat.status)"
+                variant="soft"
+                size="xs"
+                :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
+              />
 {{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
                     </div>
                     <p class="mt-1 text-xs text-muted">
