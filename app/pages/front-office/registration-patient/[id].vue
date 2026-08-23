@@ -230,6 +230,19 @@ function getExamItemStatusLabel(status: string) {
   return 'Menunggu'
 }
 
+function getExamItemStatusLabelEn(status: string) {
+  if (status === 'DONE') return 'Done'
+  if (status === 'IN_PROGRESS') return 'In Progress'
+  if (status === 'CALLED') return 'Called'
+  if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'RETEXT') return 'Retest'
+  if (status === 'WAITING_SAMPLE') return 'Waiting Sample'
+  if (status === 'REJECTED') return 'Rejected'
+  if (status === 'REFUSED') return 'Rejected'
+  return status || 'Pending'
+}
+
 function getExamItemStatusColor(status: string) {
   if (status === 'DONE') return 'success'
   if (status === 'IN_PROGRESS') return 'warning'
@@ -810,7 +823,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in dischargePendingItems" :key="index">
-                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : (item.reason || 'not finished') }}
+                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabelEn(item.currentRoomStatus) : (item.reason || 'not finished') }}
                 </li>
               </ul>
             </div>
