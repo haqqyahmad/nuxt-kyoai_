@@ -792,18 +792,18 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           variant="soft"
           :icon="checkoutEligibility.canCheckout ? 'i-lucide-log-out' : 'i-lucide-alert-circle'"
           :title="checkoutEligibility.canCheckout
-            ? 'Semua pemeriksaan selesai — pasien dapat dipulangkan'
-            : 'Pasien belum bisa dipulangkan'"
+            ? 'All examinations complete — patient can be discharged'
+            : 'Patient cannot be discharged yet'"
           :description="checkoutEligibility.canCheckout
-            ? 'Klik tombol Check Out untuk menandai pasien selesai dan dapat pulang.'
-            : checkoutEligibility.reasons?.join('; ') || 'Masih ada item pemeriksaan yang belum selesai.'"
+            ? 'Click the Check Out button to mark the patient finished and ready to leave.'
+            : checkoutEligibility.reasons?.join('; ') || 'There are still unfinished examination items.'"
         >
           <template v-if="checkoutEligibility.nonFinalItems?.length" #description>
             <div class="mt-1 space-y-1">
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
-                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : (item.reason || 'belum selesai') }}
+                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : (item.reason || 'not finished') }}
                 </li>
               </ul>
             </div>
