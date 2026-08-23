@@ -237,6 +237,7 @@ const changeRoomOptions = ref<Array<{ id: string, name?: string, code?: string |
 const roomEnterActionLoading = ref(false)
 const roomExitActionLoading = ref(false)
 const changeRoomLoading = ref(false)
+const isChangingRoom = ref(false)
 const waitingRowActionLoading = ref<Record<string, boolean>>({})
 type WaitingStatusFilter = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
 type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
@@ -1195,6 +1196,7 @@ async function openChangeRoomModal() {
 async function handleChangeRoom(roomId: string) {
   if (changeRoomLoading.value) return
   changeRoomLoading.value = true
+  isChangingRoom.value = true
   try {
     if (activeRoomSession.value) {
       await exitRoomSession()
@@ -1218,6 +1220,7 @@ async function handleChangeRoom(roomId: string) {
     })
   } finally {
     changeRoomLoading.value = false
+    isChangingRoom.value = false
   }
 }
 
@@ -1316,7 +1319,7 @@ watch(
 watch(
   [activeRoomSession, assignment],
   async () => {
-    if (!activeRoomSession.value) return
+    if (!activeRoomSession.value || isChangingRoom.value) return
     const assignedRoomTypeId = assignment.value?.roomTypeId ?? null
     const sessionRoomTypeId = activeRoomSession.value?.roomTypeId ?? null
     const sessionRoomId = activeRoomSession.value?.roomId ?? null
