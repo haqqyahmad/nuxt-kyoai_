@@ -815,12 +815,12 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           color="info"
           variant="soft"
           icon="i-lucide-sticky-note"
-          title="Note"
-          description="Item berikut ada yang ditolak pasien / sample ditolak:"
+          title="Rejected Items"
+          description="Item berikut ditolak pasien / sample ditolak:"
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>Item berikut ada yang ditolak pasien / sample ditolak:</p>
+              <p>Item berikut ditolak pasien / sample ditolak:</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in noteIssueItems" :key="index">
                   {{ item.itemName ?? '-' }} —
