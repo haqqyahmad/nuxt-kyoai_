@@ -608,6 +608,13 @@ const noteIssueItems = computed(() =>
   )
 )
 
+// Item belum selesai utk banner "Patient cannot be discharged yet" — tanpa utk yg rejected (sudah di Rejected Items).
+const dischargePendingItems = computed(() =>
+  (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
+    !['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
+  )
+)
+
 async function loadCheckoutEligibility() {
   if (!reg.value || !isCheckedIn.value || reg.value.statusRegistration === 'CheckOut') {
     checkoutEligibility.value = null
@@ -798,11 +805,11 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             ? 'Click the Check Out button to mark the patient finished and ready to leave.'
             : checkoutEligibility.reasons?.join('; ') || 'There are still unfinished examination items.'"
         >
-          <template v-if="checkoutEligibility.nonFinalItems?.length" #description>
+          <template v-if="dischargePendingItems.length" #description>
             <div class="mt-1 space-y-1">
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
-                <li v-for="(item, index) in checkoutEligibility.nonFinalItems" :key="index">
+                <li v-for="(item, index) in dischargePendingItems" :key="index">
                   {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabel(item.currentRoomStatus) : (item.reason || 'not finished') }}
                 </li>
               </ul>
