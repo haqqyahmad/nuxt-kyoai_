@@ -38,6 +38,7 @@ type QueueSampleCollection = {
 }
 
 type QueueInfo = {
+  id: string
   queueCode: string
   queueNumber: number
   sampleCollections?: QueueSampleCollection[]
@@ -671,6 +672,41 @@ async function handleRefreshPage() {
   }
 }
 
+const resampling = ref(false)
+const hasRescheduleItem = computed(() =>
+  (reg.value?.exam?.examItems ?? []).some(ei =>
+    (ei.roomExamItems ?? []).some(re => re.status === 'RESCHEDULED')
+  )
+)
+async function handleResampleCheckin() {
+  if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
+    toast.add({ title: 'Gagal', description: 'Data resample tidak lengkap (queue/branch).', color: 'error' })
+    return
+  }
+  resampling.value = true
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    await api.post('/medical/exams/queue/checkin/resample', {
+      registrationId: reg.value.id,
+      branchId: reg.value.branch.branchId,
+      queueDate: today,
+      parentQueueEntryId: reg.value.queue.id,
+    })
+    toast.add({ title: 'Berhasil', description: 'Pasien dijadwalkan ulang (resample) — dapat diproses lagi.', color: 'success' })
+    await refresh()
+    await loadStatusHistory()
+    await loadCheckoutEligibility()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal resample',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan.',
+      color: 'error',
+    })
+  } finally {
+    resampling.value = false
+  }
+}
+
 type RescheduleDraftItem = { roomExamItemId: string, itemName: string, visitDate: string }
 
 const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
@@ -772,6 +808,15 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             >
               Refresh
             </UButton>
+            <UButton
+              v-if="hasRescheduleItem && reg.queue?.id && reg.branch?.branchId"
+              icon="i-lucide-rotate-ccw"
+              color="warning"
+              variant="soft"
+              label="Pasien Datang Kembali"
+              :loading="resampling"
+              @click="handleResampleCheckin"
+            />
             <UButton
               icon="i-lucide-printer"
               color="neutral"
