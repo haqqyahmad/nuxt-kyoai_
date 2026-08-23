@@ -374,7 +374,7 @@ const {
 )
 
 const assignment = computed(() => assignmentData.value ?? null)
-const roomTypeId = computed(() => assignment.value?.roomTypeId ?? null)
+const roomTypeId = computed(() => assignment.value?.roomTypeId ?? activeRoomSession.value?.roomTypeId ?? null)
 
 const {
   data: myRoomData
