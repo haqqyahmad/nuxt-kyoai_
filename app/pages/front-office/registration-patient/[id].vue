@@ -650,6 +650,20 @@ async function loadCheckoutEligibility() {
   }
 }
 
+const pageRefreshing = ref(false)
+async function handleRefreshPage() {
+  if (pageRefreshing.value) return
+  pageRefreshing.value = true
+  try {
+    await refresh()
+    await loadCheckoutEligibility()
+    await loadStatusHistory()
+    await loadQuestionnaires()
+  } finally {
+    pageRefreshing.value = false
+  }
+}
+
 async function confirmCheckout() {
   if (!reg.value || checkoutLoading.value) return
   checkoutLoading.value = true
@@ -700,6 +714,15 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </template>
         <template #right>
           <div class="flex items-center gap-2">
+            <UButton
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="soft"
+              :loading="pageRefreshing"
+              @click="() => void handleRefreshPage()"
+            >
+              Refresh
+            </UButton>
             <UButton
               icon="i-lucide-printer"
               color="neutral"
