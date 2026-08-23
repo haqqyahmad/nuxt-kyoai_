@@ -812,9 +812,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
 
         <UAlert
           v-if="noteIssueItems.length"
-          color="info"
+          color="error"
           variant="soft"
-          icon="i-lucide-sticky-note"
+          icon="i-lucide-octagon-x"
           title="Rejected Items"
           description="Item berikut ditolak pasien / sample ditolak:"
         >
