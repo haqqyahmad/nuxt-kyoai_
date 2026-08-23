@@ -1311,6 +1311,26 @@ watch(
   () => assignment.value?.id,
   () => refreshRoomSession()
 )
+
+// Auto-exit session bila room aktif tak sesuai assignment hari ini.
+// (Superadmin dibebaskan — boleh masuk sesi tanpa assignment.)
+watch(
+  [activeRoomSession, assignment],
+  async () => {
+    if (!activeRoomSession.value || isSuperAdmin.value) return
+    const assignedRoomTypeId = assignment.value?.roomTypeId ?? null
+    const sessionRoomTypeId = activeRoomSession.value?.roomTypeId ?? null
+    const sessionRoomId = activeRoomSession.value?.roomId ?? null
+    if (assignedRoomTypeId !== sessionRoomTypeId || (assignedRoomTypeId && assignment.value?.roomId !== sessionRoomId)) {
+      try {
+        await exitRoomSession()
+        await refreshRoomSession()
+      } catch {
+        // best-effort
+      }
+    }
+  }
+)
 </script>
 
 <template>
