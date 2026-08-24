@@ -213,6 +213,7 @@ type RoomExamItem = {
       resultTiming?: 'inline' | 'deferred' | null
       externalResult?: boolean
       requiresAttachmentForDone?: boolean
+      mealPrerequisite?: boolean
       rendererKey?: string | null
       inputans?: ExamInput[]
       department?: {
@@ -863,6 +864,11 @@ const selectedItem = computed(() =>
 
 const selectedMaster = computed(() =>
   masterItems.value.find(m => m.id === selectedItemId.value) ?? null
+)
+
+// Item yang sedang dikerjakan termasuk Prerequisite Meal.
+const selectedItemIsMealPrereq = computed(() =>
+  Boolean(selectedItem.value?.trxExamItem?.item?.mealPrerequisite)
 )
 
 const selectedQueueCode = computed(() => roomQueueDetail.value?.queueEntry?.queueCode ?? '')
@@ -2070,6 +2076,15 @@ async function handleSubmitItemAction() {
           <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
 
           <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
+
+          <UAlert
+            v-if="selectedItemIsMealPrereq"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-utensils"
+            title="Prerequisite Meal"
+            description="Once this exam is completed, the patient may proceed to meal time."
+          />
 
           <UAlert
             v-if="!canFinishWork"

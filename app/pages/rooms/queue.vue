@@ -219,6 +219,7 @@ type MealInfo = {
   examId?: string | null
   status: string | null
   startedAt?: string | null
+  completedAt?: string | null
   durationMinutes?: number | null
 }
 
@@ -258,6 +259,13 @@ function mealTimeRemaining(row: WaitingRow): string {
   const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
   const ss = String(totalSec % 60).padStart(2, '0')
   return `${mm}:${ss}`
+}
+
+function mealShortTime(value: string | undefined | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
 async function completeMealFromList(row: WaitingRow) {
@@ -1954,7 +1962,7 @@ watch(
                       Item
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                      Status
+                      Meal Time
                     </th>
                     <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                       Aksi
@@ -2009,7 +2017,22 @@ watch(
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
+                      <template v-if="row.meal?.startedAt">
+                        <p class="text-xs text-muted">
+                          Mulai {{ mealShortTime(row.meal.startedAt) }}
+                        </p>
+                        <p v-if="row.meal?.status === 'COMPLETED' && row.meal.completedAt" class="text-xs text-muted">
+                          Selesai {{ mealShortTime(row.meal.completedAt) }}
+                        </p>
+                        <p v-else class="text-xs text-muted">
+                          Berlangsung
+                        </p>
+                      </template>
+                      <template v-else-if="row.meal?.status === 'COMPLETED'">
+                        <p class="text-xs text-muted">Selesai</p>
+                      </template>
                       <UBadge
+                        v-else
                         :label="row.statusLabel"
                         :color="row.statusColor"
                         variant="subtle"

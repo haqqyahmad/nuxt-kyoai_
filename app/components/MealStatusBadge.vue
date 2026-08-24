@@ -36,6 +36,13 @@ const remainingText = computed(() => {
   return `${mm}:${ss}`
 })
 
+function shortTime(value: string | undefined | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+
 async function fetchMeal() {
   if (!props.examId || loading.value) return
   loading.value = true
@@ -139,6 +146,13 @@ const statusMeta: Record<string, { label: string, color: BadgeColor, icon: strin
         · {{ meal.mealDurationMinutes }} mnt
       </template>
     </UBadge>
+
+    <span v-if="shortTime(meal.startedAt)" class="text-xs text-muted">
+      Mulai {{ shortTime(meal.startedAt) }}
+    </span>
+    <span v-if="meal.status === 'COMPLETED' && shortTime(meal.completedAt)" class="text-xs text-muted">
+      · Selesai {{ shortTime(meal.completedAt) }}
+    </span>
 
     <UButton
       v-if="meal.status === 'READY'"
