@@ -113,11 +113,7 @@ type RoomQueueItem = {
       } | null
     } | null
   }>
-  meal?: {
-    status: string | null
-    startedAt?: string | null
-    durationMinutes?: number | null
-  } | null
+  meal?: MealInfo | null
 }
 
 type QueueHistoryRow = {
@@ -216,11 +212,14 @@ type WaitingRow = {
   statusLabel: string
   statusColor: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
   checkinAt: string | null
-  meal?: {
-    status: string | null
-    startedAt?: string | null
-    durationMinutes?: number | null
-  } | null
+  meal?: MealInfo | null
+}
+
+type MealInfo = {
+  examId?: string | null
+  status: string | null
+  startedAt?: string | null
+  durationMinutes?: number | null
 }
 
 const api = useApi()
@@ -249,7 +248,6 @@ function syncMealProgression(rows: { meal?: { status: string | null } | null }[]
     clockTimer = null
   }
 }
-
 function mealTimeRemaining(row: WaitingRow): string {
   if (row.meal?.status !== 'IN_PROGRESS' || !row.meal.startedAt) return ''
   const started = new Date(row.meal.startedAt).getTime()
@@ -260,6 +258,19 @@ function mealTimeRemaining(row: WaitingRow): string {
   const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
   const ss = String(totalSec % 60).padStart(2, '0')
   return `${mm}:${ss}`
+}
+
+async function completeMealFromList(row: WaitingRow) {
+  const examId = row.meal?.examId
+  if (!examId) return
+  try {
+    await api.post(`/medical/exams/${examId}/meal/complete`)
+    toast.add({ title: 'Berhasil', description: 'Meal selesai', color: 'success' })
+    void refreshWaiting()
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+    toast.add({ title: 'Gagal', description: msg || 'Gagal menyelesaikan meal', color: 'error' })
+  }
 }
 const { user, isSuperAdmin, allowedSelfRooms } = await useCurrentUser()
 const {
@@ -2024,6 +2035,16 @@ watch(
                         >
                           Meal · {{ mealTimeRemaining(row) }}
                         </UBadge>
+                        <UButton
+                          v-if="row.meal?.status === 'IN_PROGRESS' && row.meal.examId"
+                          size="sm"
+                          color="success"
+                          variant="soft"
+                          icon="i-lucide-check"
+                          @click="completeMealFromList(row)"
+                        >
+                          Complete Meal
+                        </UButton>
                       </div>
                     </td>
                   </tr>
