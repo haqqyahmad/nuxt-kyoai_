@@ -680,7 +680,9 @@ async function handleRefreshPage() {
 const resampling = ref(false)
 const hasRescheduleItem = computed(() =>
   (reg.value?.exam?.examItems ?? []).some(ei =>
-    getExamItemStatus(ei) === 'RESCHEDULED'
+    (ei.roomExamItems ?? []).some(r =>
+      r.status === 'RESCHEDULED' && r.rescheduleVisitDate
+    )
   )
 )
 async function handleResampleCheckin() {
