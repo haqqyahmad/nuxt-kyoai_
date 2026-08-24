@@ -726,7 +726,19 @@ watch(
   { deep: true }
 )
 
-function getErrorMessage(error: unknown, fallback: string) {  if (typeof error === 'object' && error && 'response' in error) {
+// Hentikan polling saat modal tutup — interval tak boleh jalan di background.
+watch(
+  () => isWaitingModalOpen.value,
+  (open) => {
+    if (!open && clockTimer) {
+      clearInterval(clockTimer)
+      clockTimer = null
+    }
+  }
+)
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
     const response = (error as { response?: { data?: { message?: string, errors?: unknown } } }).response
     return response?.data?.message || fallback
   }
