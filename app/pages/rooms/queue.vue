@@ -113,6 +113,11 @@ type RoomQueueItem = {
       } | null
     } | null
   }>
+  meal?: {
+    status: string | null
+    startedAt?: string | null
+    durationMinutes?: number | null
+  } | null
 }
 
 type QueueHistoryRow = {
@@ -211,11 +216,51 @@ type WaitingRow = {
   statusLabel: string
   statusColor: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
   checkinAt: string | null
+  meal?: {
+    status: string | null
+    startedAt?: string | null
+    durationMinutes?: number | null
+  } | null
 }
 
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
+const now = ref(Date.now())
+let clockTimer: ReturnType<typeof setInterval> | null = null
+
+function syncMealProgression(rows: { meal?: { status: string | null } | null }[]) {
+  const hasInProgress = rows.some(r => r.meal?.status === 'IN_PROGRESS')
+  if (hasInProgress) {
+    if (!clockTimer) {
+      let tickCount = 0
+      clockTimer = setInterval(() => {
+        now.value = Date.now()
+        tickCount += 1
+        // Polling berkala: setelah countdown habis/berubah (≈15s), refresh data
+        // supaya tombol "Ambil Pasien" kembali muncul begitu meal selesai.
+        if (tickCount % 15 === 0) {
+          void refreshWaiting()
+        }
+      }, 1000)
+    }
+  } else if (clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
+}
+
+function mealTimeRemaining(row: WaitingRow): string {
+  if (row.meal?.status !== 'IN_PROGRESS' || !row.meal.startedAt) return ''
+  const started = new Date(row.meal.startedAt).getTime()
+  const durationMs = (row.meal.durationMinutes ?? 0) * 60 * 1000
+  if (!started || !durationMs) return ''
+  const remaining = Math.max(0, started + durationMs - now.value)
+  const totalSec = Math.floor(remaining / 1000)
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
+  const ss = String(totalSec % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+}
 const { user, isSuperAdmin, allowedSelfRooms } = await useCurrentUser()
 const {
   session: roomSession,
@@ -647,7 +692,8 @@ const waitingRows = computed<WaitingRow[]>(() =>
       status: item.status,
       statusLabel: statusBadge.label,
       statusColor: statusBadge.color,
-      checkinAt: item.queueEntry?.checkinAt ?? null
+      checkinAt: item.queueEntry?.checkinAt ?? null,
+      meal: item.meal ?? null
     }
   })
 )
@@ -658,8 +704,18 @@ const historyStats = computed(() => ({
   access: isSuperAdmin.value ? 'Super Admin' : (roomTypeId.value ? 'Assignment Room' : 'Butuh Assignment')
 }))
 
-function getErrorMessage(error: unknown, fallback: string) {
-  if (typeof error === 'object' && error && 'response' in error) {
+watch(
+  () => waitingRows.value,
+  (rows) => {
+    syncMealProgression(rows)
+    if (!rows.some(r => r.meal?.status === 'IN_PROGRESS')) {
+      now.value = Date.now()
+    }
+  },
+  { deep: true }
+)
+
+function getErrorMessage(error: unknown, fallback: string) {  if (typeof error === 'object' && error && 'response' in error) {
     const response = (error as { response?: { data?: { message?: string, errors?: unknown } } }).response
     return response?.data?.message || fallback
   }
@@ -1937,8 +1993,9 @@ watch(
                       />
                     </td>
                     <td class="border-b border-default px-4 py-4 text-right">
-                      <div class="flex justify-end gap-2">
+                      <div class="flex items-center justify-end gap-2">
                         <UButton
+                          size="sm"
                           color="neutral"
                           variant="soft"
                           icon="i-lucide-clipboard-list"
@@ -1947,9 +2004,10 @@ watch(
                           View Queue Work
                         </UButton>
                         <UButton
-                          v-if="row.stageId"
+                          v-if="row.stageId && row.meal?.status !== 'IN_PROGRESS'"
+                          size="sm"
                           color="primary"
-                          variant="soft"
+                          variant="solid"
                           icon="i-lucide-log-in"
                           :loading="Boolean(waitingRowActionLoading[row.id])"
                           :disabled="Boolean(!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId))"
@@ -1957,6 +2015,15 @@ watch(
                         >
                           Ambil Pasien
                         </UButton>
+                        <UBadge
+                          v-else-if="row.meal?.status === 'IN_PROGRESS'"
+                          color="info"
+                          variant="subtle"
+                          class="whitespace-nowrap"
+                          icon="i-lucide-loader"
+                        >
+                          Meal · {{ mealTimeRemaining(row) }}
+                        </UBadge>
                       </div>
                     </td>
                   </tr>

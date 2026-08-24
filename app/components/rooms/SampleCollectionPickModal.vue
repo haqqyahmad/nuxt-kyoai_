@@ -8,6 +8,11 @@ interface SampleCollectionRow {
   barcode?: string | null
   collectedAt?: string | null
   sampleType?: { id: string, name?: string | null } | null
+  meal?: {
+    status: string | null
+    startedAt?: string | null
+    durationMinutes?: number | null
+  } | null
   queueEntry?: {
     id: string
     queueCode?: string | null
@@ -34,6 +39,9 @@ type GroupedRow = {
   samples: SampleCollectionRow[]
   sampleTypes: string[]
   statuses: string[]
+  mealStatus: string | null
+  mealStartedAt: string | null
+  mealDurationMinutes: number | null
 }
 
 type StageQueueItem = {
@@ -79,6 +87,8 @@ const dateFrom = ref(today)
 const dateTo = ref(today)
 const callLoading = ref<Record<string, boolean>>({})
 const toast = useToast()
+const now = ref(Date.now())
+let clockTimer: ReturnType<typeof setInterval> | null = null
 
 const isOpen = computed({
   get: () => props.open,
@@ -112,7 +122,10 @@ function groupByPatient(rows: SampleCollectionRow[]): GroupedRow[] {
         patientId: p?.PatientId || '-',
         samples: [],
         sampleTypes: [],
-        statuses: []
+        statuses: [],
+        mealStatus: row.meal?.status ?? null,
+        mealStartedAt: row.meal?.startedAt ?? null,
+        mealDurationMinutes: row.meal?.durationMinutes ?? null
       })
     }
     const group = map.get(key)!
@@ -143,6 +156,7 @@ async function load() {
     allRows.value = list as SampleCollectionRow[]
     groupedRows.value = groupByPatient(allRows.value)
     filterRows()
+    startClock()
   } catch {
     // error handled by global interceptor
   } finally {
@@ -163,6 +177,39 @@ function filterRows() {
       || row.queueCode.toLowerCase().includes(q)
       || row.sampleTypes.some(t => t.toLowerCase().includes(q))
   })
+}
+
+// Clock 1s utk update countdown meal di list.
+function startClock() {
+  stopClock()
+  if (groupedRows.value.some(r => r.mealStatus === 'IN_PROGRESS')) {
+    clockTimer = setInterval(() => {
+      now.value = Date.now()
+      const stillRunning = groupedRows.value.some(r => r.mealStatus === 'IN_PROGRESS')
+      if (!stillRunning) {
+        stopClock()
+      }
+    }, 1000)
+  }
+}
+
+function stopClock() {
+  if (clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
+}
+
+function mealRemaining(row: GroupedRow): string {
+  if (row.mealStatus !== 'IN_PROGRESS' || !row.mealStartedAt) return ''
+  const started = new Date(row.mealStartedAt).getTime()
+  const durationMs = (row.mealDurationMinutes ?? 0) * 60 * 1000
+  if (!started || !durationMs) return ''
+  const remaining = Math.max(0, started + durationMs - now.value)
+  const totalSec = Math.floor(remaining / 1000)
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
+  const ss = String(totalSec % 60).padStart(2, '0')
+  return `${mm}:${ss}`
 }
 
 function statusLabel(status: string) {
@@ -287,9 +334,12 @@ watch(
   () => props.open,
   (open) => {
     if (open) load()
+    else stopClock()
   },
   { immediate: true }
 )
+
+onUnmounted(stopClock)
 </script>
 
 <template>
@@ -399,6 +449,16 @@ watch(
                     <p class="text-xs text-muted">
                       {{ row.patientId }}
                     </p>
+                    <UBadge
+                      v-if="row.mealStatus === 'IN_PROGRESS'"
+                      color="info"
+                      variant="soft"
+                      size="sm"
+                      icon="i-lucide-loader"
+                      class="mt-1"
+                    >
+                      Meal · {{ mealRemaining(row) }}
+                    </UBadge>
                   </td>
                   <td class="px-4 py-3 text-sm text-muted">
                     {{ row.idReg }}
@@ -434,6 +494,7 @@ watch(
                   </td>
                   <td class="px-4 py-3 text-center">
                     <UButton
+                      v-if="row.mealStatus !== 'IN_PROGRESS'"
                       size="xs"
                       color="primary"
                       variant="soft"
@@ -444,6 +505,9 @@ watch(
                     >
                       Pilih
                     </UButton>
+                    <span v-else class="text-xs text-muted">
+                      Menunggu meal selesai
+                    </span>
                   </td>
                 </tr>
               </tbody>
