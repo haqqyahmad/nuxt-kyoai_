@@ -2069,6 +2069,8 @@ async function handleSubmitItemAction() {
 
           <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
 
+          <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
+
           <UAlert
             v-if="!canFinishWork"
             color="warning"

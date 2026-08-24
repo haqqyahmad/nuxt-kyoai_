@@ -28,6 +28,7 @@ type Item = {
   resultTiming?: 'inline' | 'deferred'
   externalResult?: boolean
   requiresAttachmentForDone?: boolean
+  mealPrerequisite?: boolean
   departmentId?: string | null
   roomTypeId?: string
   groupId?: string | null
@@ -571,6 +572,86 @@ function editItem(item: ItemDetail) {
   isEditModalOpen.value = true
 }
 
+// ─── Meal Config Modal ─────────────────────────────────────────────────────────
+const isMealConfigOpen = ref(false)
+const mealConfigSaving = ref(false)
+const mealDurationValue = ref<number | null>(null)
+const selectedMealItemIds = ref<string[]>([])
+const mealConfigItems = ref<Item[]>([])
+
+const mealItemOptions = computed(() =>
+  mealConfigItems.value.map((item) => ({
+    label: `${item.code} - ${item.name}`,
+    value: item.id
+  }))
+)
+
+const selectedMealItemNames = computed(() =>
+  selectedMealItemIds.value
+    .map((id) => mealConfigItems.value.find((item) => item.id === id)?.name)
+    .filter(Boolean) as string[]
+)
+
+async function openMealConfigGlobal() {
+  mealConfigItems.value = []
+  selectedMealItemIds.value = []
+  mealDurationValue.value = null
+  isMealConfigOpen.value = true
+
+  try {
+    const [itemsRes, cfgRes] = await Promise.all([
+      api.get('/mcu/items', { params: { page: 1, limit: 1000 } }),
+      api.get('/master/app-config/meal_duration_minutes')
+    ])
+    const payload = itemsRes.data?.data ?? itemsRes.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    mealConfigItems.value = list as Item[]
+    selectedMealItemIds.value = mealConfigItems.value
+      .filter((item) => Boolean(item.mealPrerequisite))
+      .map((item) => item.id)
+    const cfg = cfgRes.data?.data ?? null
+    mealDurationValue.value = cfg?.value ? Number(cfg.value) : null
+  } catch (error: any) {
+    mealConfigItems.value = []
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Gagal memuat konfigurasi meal',
+      color: 'error'
+    })
+  }
+}
+
+async function saveMealConfigGlobal() {
+  if (mealConfigSaving.value) return
+  mealConfigSaving.value = true
+  try {
+    const selected = new Set(selectedMealItemIds.value)
+    await Promise.all([
+      api.put('/master/app-config/meal_duration_minutes', { value: mealDurationValue.value ? String(mealDurationValue.value) : null }),
+      ...mealConfigItems.value.map((item) =>
+        api.put(`/mcu/items/${item.id}`, {
+          mealPrerequisite: selected.has(item.id)
+        })
+      )
+    ])
+    toast.add({
+      title: 'Berhasil',
+      description: 'Konfigurasi meal tersimpan',
+      color: 'success'
+    })
+    isMealConfigOpen.value = false
+    await refresh()
+  } catch (error: any) {
+    toast.add({
+      title: 'Gagal',
+      description: error?.response?.data?.message || 'Gagal menyimpan konfigurasi meal',
+      color: 'error'
+    })
+  } finally {
+    mealConfigSaving.value = false
+  }
+}
+
 function sortableHeader(label: string, column: SortableColumn) {
   const isSorted = column.getIsSorted()
   return h(UButton, {
@@ -693,6 +774,16 @@ const columns: TableColumn<Item>[] = [
       : '-'
   },
   {
+    id: 'mealPrerequisite',
+    header: ({ column }) => sortableHeader('Meal', column),
+    cell: ({ row }) =>
+      h(UBadge, {
+        label: row.original.mealPrerequisite ? 'Pre-req' : '-',
+        color: row.original.mealPrerequisite ? 'warning' : 'neutral',
+        variant: 'subtle'
+      })
+  },
+  {
     accessorKey: 'isActive',
     header: ({ column }) => sortableHeader('Status', column),
     cell: ({ row }) =>
@@ -776,6 +867,13 @@ watch(currentPage, (page) => {
           <UDashboardSidebarCollapse />
         </template>
         <template #trailing>
+          <UButton
+            icon="i-lucide-utensils"
+            label="Konfigurasi Meal"
+            color="warning"
+            variant="soft"
+            @click="openMealConfigGlobal"
+          />
           <UButton
             to="/items/groups"
             label="Manage Groups"
@@ -1016,6 +1114,84 @@ watch(currentPage, (page) => {
         :item-name="selectedTemplateItem.name"
         @close="selectedTemplateItem = null"
       />
+
+      <!-- Meal config modal -->
+      <UModal v-model:open="isMealConfigOpen">
+        <template #content>
+          <UCard class="flex flex-col" :ui="{ body: 'min-h-0' }">
+            <template #header>
+              <div>
+                <h2 class="text-lg font-semibold">Konfigurasi Meal</h2>
+                <p class="text-sm text-muted">
+                  Atur durasi makan dan pilih item yang wajib selesai sebelum pasien dapat mulai meal.
+                </p>
+              </div>
+            </template>
+
+            <div class="space-y-5">
+              <UFormField label="Durasi Meal (menit)">
+                <UInput
+                  v-model.number="mealDurationValue"
+                  type="number"
+                  min="0"
+                  placeholder="15"
+                  class="max-w-xs"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Prerequisite Meal"
+                description="Pilih item (bisa banyak) yang harus selesai sebelum pasien dapat mulai meal."
+              >
+                <USelectMenu
+                  v-model="selectedMealItemIds"
+                  :items="mealItemOptions"
+                  value-key="value"
+                  label-key="label"
+                  multiple
+                  searchable
+                  placeholder="Pilih satu atau lebih item"
+                  class="w-full"
+                >
+                  <template #default>
+                    <template v-if="selectedMealItemIds.length">
+                      <div class="flex flex-wrap gap-1 pr-6">
+                        <UBadge
+                          v-for="(name, i) in selectedMealItemNames"
+                          :key="i"
+                          color="warning"
+                          variant="soft"
+                          size="sm"
+                        >
+                          {{ name }}
+                        </UBadge>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <span class="text-muted">Pilih satu atau lebih item</span>
+                    </template>
+                  </template>
+                </USelectMenu>
+              </UFormField>
+            </div>
+
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton color="neutral" variant="soft" @click="isMealConfigOpen = false">
+                  Batal
+                </UButton>
+                <UButton
+                  :loading="mealConfigSaving"
+                  icon="i-lucide-save"
+                  @click="saveMealConfigGlobal"
+                >
+                  Simpan
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
     </template>
   </UDashboardPanel>
 </template>

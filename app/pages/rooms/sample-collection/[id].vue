@@ -196,6 +196,21 @@ const patientName = computed(() => {
 const patientId = computed(() => samples.value[0]?.queueEntry?.registration?.patient?.PatientId || null)
 const regNo = computed(() => samples.value[0]?.queueEntry?.registration?.id_reg || null)
 const queueCode = computed(() => samples.value[0]?.queueEntry?.queueCode || null)
+
+const examIdForMeal = ref<string | null>(null)
+watch(regNo, async (idReg) => {
+  if (!idReg) {
+    examIdForMeal.value = null
+    return
+  }
+  try {
+    const res = await api.get(`/registration/number/${idReg}`)
+    const data = res.data?.data ?? null
+    examIdForMeal.value = data?.exam?.id ?? null
+  } catch {
+    examIdForMeal.value = null
+  }
+})
 const examDate = computed(() => samples.value[0]?.queueEntry?.registration?.examDate || null)
 
 const pendingCount = computed(() => samples.value.filter(s => s.status === 'PENDING').length)
@@ -674,6 +689,8 @@ onMounted(() => {
                       variant="soft"
                       :label="`${stat.label}: ${stat.value}`"
                     />
+
+                    <MealStatusBadge v-if="examIdForMeal" :exam-id="examIdForMeal" />
                   </div>
                 </div>
 

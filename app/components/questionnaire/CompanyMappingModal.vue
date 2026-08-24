@@ -372,12 +372,13 @@ async function confirmDelete() {
           </UFormField>
 
           <UFormField label="Questionnaire" name="questionnaireIds" required>
-            <USelect
+            <USelectMenu
               v-model="state.questionnaireIds"
               :items="questionnaireItems"
               value-key="value"
               label-key="label"
               multiple
+              searchable
               placeholder="Pilih satu atau lebih questionnaire"
               class="w-full"
             >
@@ -399,7 +400,7 @@ async function confirmDelete() {
                   <span class="text-muted">Pilih satu atau lebih questionnaire</span>
                 </template>
               </template>
-            </USelect>
+            </USelectMenu>
           </UFormField>
 
           <UFormField label="Status" name="isActive">

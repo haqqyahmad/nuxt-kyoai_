@@ -369,6 +369,10 @@ const mcuCategories = computed(() => {
     const pendingItems = category.items.filter(item => !item.done)
     const completed = completedItems.length
     const total = category.items.length
+    const updatedAt = category.items.reduce<string | null>(
+      (latest, item) => (item.updatedAt && (!latest || item.updatedAt > latest) ? item.updatedAt : latest),
+      null
+    )
     return {
       ...category,
       completed,
@@ -376,6 +380,7 @@ const mcuCategories = computed(() => {
       pending: pendingItems.length,
       completedItems,
       pendingItems,
+      updatedAt,
       status:
         total > 0 && completed === total
           ? 'DONE'
@@ -808,8 +813,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             >
               Refresh
             </UButton>
+            <MealStatusBadge v-if="reg?.exam?.id" :exam-id="reg.exam.id" />
             <UButton
-              v-if="hasRescheduleItem && reg.queue?.id && reg.branch?.branchId"
+              v-if="hasRescheduleItem && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
@@ -829,7 +835,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               color="primary"
               variant="soft"
               label="Status Exam"
-              :to="`/result/exam-status/${reg.id_reg}`"
+              :to="`/result/exam-status/${reg?.id_reg}`"
             />
             <UButton
               v-if="isCheckedIn && checkoutEligibility?.canCheckout"
@@ -850,7 +856,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               @click="cancelRegistration"
             />
             <UButton
-              v-if="!isCancelled && isCheckedIn && reg.statusRegistration !== 'CheckOut' && canUndoCheckin"
+              v-if="!isCancelled && isCheckedIn && reg?.statusRegistration !== 'CheckOut' && canUndoCheckin"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
