@@ -76,6 +76,9 @@ type Registration = {
   exam: {
     id: string
     status: string
+    mealStatus?: string
+    mealStartedAt?: string | null
+    mealCompletedAt?: string | null
     paket: { id: string, name: string } | null
     examItems: ExamItem[]
     results: unknown[]
@@ -243,6 +246,13 @@ function getExamItemStatusLabelEn(status: string) {
   if (status === 'REJECTED') return 'Rejected'
   if (status === 'REFUSED') return 'Rejected'
   return status || 'Pending'
+}
+
+function shortTime(value: string | undefined | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
 function getRescheduleVisitDate(examItemId: string): string {
@@ -678,6 +688,54 @@ async function handleRefreshPage() {
 }
 
 const resampling = ref(false)
+const mealTimerNow = ref(Date.now())
+const mealTimerDuration = ref<number | null>(null)
+let mealTimerInterval: ReturnType<typeof setInterval> | null = null
+
+// Ambil durasi meal utk countdown; polling saat IN_PROGRESS biar timer & status update.
+const examMealStatus = computed(() => reg.value?.exam?.mealStatus ?? null)
+const examMealStartedAt = computed(() => reg.value?.exam?.mealStartedAt ?? null)
+
+async function fetchMealDuration() {
+  const examId = reg.value?.exam?.id
+  if (!examId) return
+  try {
+    const res = await api.get(`/medical/exams/${examId}/meal`)
+    mealTimerDuration.value = res.data?.data?.mealDurationMinutes ?? null
+  } catch {
+    mealTimerDuration.value = null
+  }
+}
+
+const examMealRemainingText = computed(() => {
+  if (examMealStatus.value !== 'IN_PROGRESS') return ''
+  const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
+  const durationMs = (mealTimerDuration.value ?? 0) * 60 * 1000
+  if (!started || !durationMs) return ''
+  const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
+  const totalSec = Math.floor(remaining / 1000)
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, '0')
+  const ss = String(totalSec % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+})
+
+watch(examMealStatus, (s) => {
+  if (mealTimerInterval) {
+    clearInterval(mealTimerInterval)
+    mealTimerInterval = null
+  }
+  if (s === 'IN_PROGRESS') {
+    mealTimerNow.value = Date.now()
+    mealTimerInterval = setInterval(() => {
+      mealTimerNow.value = Date.now()
+    }, 1000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (mealTimerInterval) clearInterval(mealTimerInterval)
+})
+
 const hasRescheduleItem = computed(() =>
   (reg.value?.exam?.examItems ?? []).some(ei =>
     (ei.roomExamItems ?? []).some(r =>
@@ -736,12 +794,44 @@ const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
 const showRescheduleModal = ref(false)
 const rescheduleDraft = ref<RescheduleDraftItem[]>([])
 const savingReschedule = ref(false)
+const rescheduleMode = ref<'checkout' | 'dates'>('checkout')
+
+// Petugas ubah tanggal datang ulang pasien yang gagal datang (tanpa checkout).
+function openRescheduleDates() {
+  rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
+  rescheduleMode.value = 'dates'
+  showRescheduleModal.value = true
+}
+
+async function saveRescheduleDatesOnly() {
+  if (!reg.value || savingReschedule.value) return
+  savingReschedule.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
+      items: rescheduleDraft.value.map(i => ({ roomExamItemId: i.roomExamItemId, visitDate: i.visitDate || null })),
+    })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Tanggal datang ulang diperbarui.',
+      color: 'success'
+    })
+    await refresh()
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      ?? 'Gagal memperbarui tanggal datang ulang.'
+    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+  } finally {
+    savingReschedule.value = false
+    showRescheduleModal.value = false
+  }
+}
 
 async function confirmCheckout() {
   if (!reg.value || checkoutLoading.value) return
   // Jika ada item reschedule → tanya tanggal datang ulang dulu.
   if (rescheduleCheckoutItems.value.length) {
     rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
+    rescheduleMode.value = 'checkout'
     showRescheduleModal.value = true
     return
   }
@@ -782,6 +872,7 @@ onMounted(() => {
   loadQuestionnaires()
   loadStatusHistory()
   void loadCheckoutEligibility()
+  void fetchMealDuration()
 })
 
 watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
@@ -815,15 +906,22 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             >
               Refresh
             </UButton>
-            <MealStatusBadge v-if="reg?.exam?.id" :exam-id="reg.exam.id" />
             <UButton
               v-if="hasRescheduleItem && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
-              label="Pasien Datang Kembali"
+              label="Patient Return Visit"
               :loading="resampling"
               @click="handleResampleCheckin"
+            />
+            <UButton
+              v-if="hasRescheduleItem"
+              icon="i-lucide-calendar-days"
+              color="info"
+              variant="soft"
+              label="Change Follow-up Date"
+              @click="openRescheduleDates"
             />
             <UButton
               icon="i-lucide-printer"
@@ -1101,6 +1199,21 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <div v-if="reg.exam?.paket" class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Paket</span>
                 <span class="text-sm font-semibold">{{ reg.exam?.paket?.name ?? '-' }}</span>
+              </div>
+              <div
+                v-if="reg.exam?.mealStartedAt"
+                class="flex items-center justify-between px-5 py-3"
+              >
+                <span class="text-xs text-muted">Meal Time</span>
+                <span class="text-sm font-semibold">
+                  Mulai {{ shortTime(reg.exam.mealStartedAt) }}
+                  <template v-if="reg.exam.mealCompletedAt">
+                    · Selesai {{ shortTime(reg.exam.mealCompletedAt) }}
+                  </template>
+                  <template v-else-if="reg.exam.mealStatus === 'IN_PROGRESS'">
+                    · {{ examMealRemainingText }}
+                  </template>
+                </span>
               </div>
             </div>
           </div>
@@ -1726,7 +1839,20 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton label="Batal" variant="outline" :disabled="savingReschedule" @click="showRescheduleModal = false" />
-            <UButton label="Simpan & Checkout" color="primary" :loading="savingReschedule" @click="doCheckout" />
+            <UButton
+              v-if="rescheduleMode === 'dates'"
+              label="Simpan Tanggal"
+              color="primary"
+              :loading="savingReschedule"
+              @click="saveRescheduleDatesOnly"
+            />
+            <UButton
+              v-else
+              label="Simpan & Checkout"
+              color="primary"
+              :loading="savingReschedule"
+              @click="doCheckout"
+            />
           </div>
         </template>
       </UModal>
