@@ -124,10 +124,12 @@ type QueueHistoryRow = {
   tierOrder: number
   patientName: string
   patientId: string
+  patientReg: string | null
   patientGender: string | null
   patientDob: string | null
   patientPhone: string | null
   examDate: string | null
+  rescheduleDate: string | null
   roomName: string
   roomLabel: string
   itemSummary: string
@@ -653,10 +655,12 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       tierOrder: item.tierOrder,
       patientName: formatPatientName(patient ?? null),
       patientId: patient?.PatientId || '-',
+      patientReg: registration?.id_reg ?? null,
       patientGender: patient?.gender ?? null,
       patientDob: patient?.dob ?? null,
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
+      rescheduleDate: registration?.scheduleDateExam ?? null,
       roomName: itemRoom,
       roomLabel: assignment.value?.roomType?.name
         ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
@@ -796,7 +800,7 @@ function formatPatientName(patient?: PatientName | null) {
 }
 
 function formatPatientMeta(gender?: string | null, dob?: string | null, phone?: string | null) {
-  const genderLabel = gender === 'MALE' ? 'Laki-laki' : gender === 'FEMALE' ? 'Perempuan' : null
+  const genderLabel = gender === 'MALE' ? 'L' : gender === 'FEMALE' ? 'P' : null
   const age = dob ? getPatientAgeAtDate(dob, today) : null
   const profile = [genderLabel, age != null ? `${age} th` : null].filter(Boolean).join(' · ')
   return [profile, phone].filter(Boolean).join(' · ')
@@ -862,7 +866,7 @@ function getQueueBadgeColor(status: string): 'primary' | 'secondary' | 'success'
 function buildStatusBadge(
   status: string,
   sampleCollections: Array<{ status: string }>,
-  stageItems: RoomQueueItem['stageItems'],
+  stageItems: RoomQueueItem['stageItems']
 ): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
   const terminal = ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT']
   if (terminal.includes(status)) {
@@ -1742,13 +1746,19 @@ watch(
               <thead>
                 <tr class="bg-muted/30">
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Queue
+                    Regist No.
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Pasien
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Queue
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Exam Date
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Reschedule
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Room
@@ -1772,30 +1782,25 @@ watch(
                 >
                   <td class="border-b border-default px-4 py-4">
                     <div class="space-y-1">
-                      <p class="font-semibold text-highlighted">
-                        {{ row.queueCode }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        {{ row.queueType }} · Tier {{ row.tierOrder }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        Check-in {{ formatQueueDate(row.checkinAt) }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        Selesai {{ formatQueueDate(row.completedAt) }}
+                      <p class="font-medium text-highlighted">
+                        {{ row.patientReg }}
                       </p>
                     </div>
                   </td>
                   <td class="border-b border-default px-4 py-4">
                     <div class="space-y-1">
                       <p class="font-medium text-highlighted">
-                        {{ row.patientName }}
+                        {{ row.patientName }} ( {{ formatPatientMeta(row.patientGender, row.patientDob) }} )
+                      </p>
+                    </div>
+                  </td>
+                  <td class="border-b border-default px-4 py-4">
+                    <div class="space-y-1">
+                      <p class="font-semibold text-highlighted">
+                        {{ row.queueCode }}
                       </p>
                       <p class="text-xs text-muted">
-                        RM {{ row.patientId }}
-                      </p>
-                      <p v-if="formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone)" class="text-xs text-muted">
-                        {{ formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone) }}
+                        {{ row.queueType }}
                       </p>
                     </div>
                   </td>
@@ -1804,9 +1809,19 @@ watch(
                       {{ formatExamDate(row.examDate) }}
                     </p>
                   </td>
+
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
+                    </p>
+                  </td>
+
                   <td class="border-b border-default px-4 py-4">
                     <p class="text-sm text-highlighted">
                       {{ row.roomName }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      ( Tier {{ row.tierOrder }} )
                     </p>
                   </td>
                   <td class="border-b border-default px-4 py-4">
@@ -1846,7 +1861,7 @@ watch(
                 :items="[
                   { label: '10', value: 10 },
                   { label: '20', value: 20 },
-                  { label: '50', value: 50 },
+                  { label: '50', value: 50 }
                 ]"
                 size="xs"
                 class="w-20"
@@ -2029,7 +2044,9 @@ watch(
                         </p>
                       </template>
                       <template v-else-if="row.meal?.status === 'COMPLETED'">
-                        <p class="text-xs text-muted">Selesai</p>
+                        <p class="text-xs text-muted">
+                          Selesai
+                        </p>
                       </template>
                       <UBadge
                         v-else
@@ -2173,7 +2190,9 @@ watch(
       <UModal v-model:open="isChangeRoomModalOpen" title="Change Room">
         <template #body>
           <div class="space-y-2">
-            <p class="text-sm text-muted">Pilih room aktif yang baru.</p>
+            <p class="text-sm text-muted">
+              Pilih room aktif yang baru.
+            </p>
             <div v-if="changeRoomOptions.length === 0" class="py-6 text-center text-sm text-muted">
               Tidak ada room tersedia.
             </div>
@@ -2190,8 +2209,12 @@ watch(
                 @click="handleChangeRoom(room.id)"
               >
                 <div>
-                  <p class="text-sm font-semibold text-highlighted">{{ room.name }}</p>
-                  <p class="text-xs text-muted">{{ room.code }} · {{ room.roomType?.name }}</p>
+                  <p class="text-sm font-semibold text-highlighted">
+                    {{ room.name }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ room.code }} · {{ room.roomType?.name }}
+                  </p>
                 </div>
                 <UBadge
                   v-if="room.id === activeRoomSession?.roomId"
