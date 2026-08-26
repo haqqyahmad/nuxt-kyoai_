@@ -1921,7 +1921,7 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
-                        {{ row.rescheduleDate || row.roomName }}
+                        {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : row.roomName }}
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
