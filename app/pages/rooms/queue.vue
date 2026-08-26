@@ -69,6 +69,7 @@ type RoomQueueItem = {
       id: number
       id_reg?: string | null
       examDate?: string | null
+      scheduleDateExam?: string | null
       patient?: {
         id: number
         PatientId?: string | null
@@ -202,6 +203,7 @@ type WaitingRow = {
   patientDob: string | null
   patientPhone: string | null
   examDate: string | null
+  rescheduleDate?: string | null
   roomName: string
   itemSummary: string
   stageSummary: string
@@ -636,6 +638,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       patientDob: patient?.dob ?? null,
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
+      rescheduleDate: registration?.scheduleDateExam ?? null,
       roomName: itemRoom,
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
@@ -1866,7 +1869,7 @@ watch(
                       Exam Date
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
-                      Room
+                      Reschedule
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       Item
@@ -1918,7 +1921,7 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
-                        {{ row.roomName }}
+                        {{ row.rescheduleDate || row.roomName }}
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
