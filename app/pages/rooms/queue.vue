@@ -129,6 +129,7 @@ type QueueHistoryRow = {
   patientDob: string | null
   patientPhone: string | null
   examDate: string | null
+  rescheduleDate: string | null
   roomName: string
   roomLabel: string
   itemSummary: string
@@ -659,6 +660,7 @@ const historyRows = computed<QueueHistoryRow[]>(() =>
       patientDob: patient?.dob ?? null,
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
+      rescheduleDate: registration?.scheduleDateExam ?? null,
       roomName: itemRoom,
       roomLabel: assignment.value?.roomType?.name
         ? `${assignment.value.roomType.name} · Tier ${item.tierOrder}`
@@ -1756,6 +1758,9 @@ watch(
                     Exam Date
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Reschedule
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Room
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -1804,9 +1809,19 @@ watch(
                       {{ formatExamDate(row.examDate) }}
                     </p>
                   </td>
+
                   <td class="border-b border-default px-4 py-4">
                     <p class="text-sm text-highlighted">
-                      {{ row.roomName }} ( T{{ row.tierOrder }} )
+                      {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
+                    </p>
+                  </td>
+
+                  <td class="border-b border-default px-4 py-4">
+                    <p class="text-sm text-highlighted">
+                      {{ row.roomName }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      ( Tier {{ row.tierOrder }} )
                     </p>
                   </td>
                   <td class="border-b border-default px-4 py-4">
