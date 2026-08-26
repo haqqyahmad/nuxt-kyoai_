@@ -1,6 +1,23 @@
 # Project Task Status
 
-Last updated: 2026-08-21
+Last updated: 2026-08-23
+
+## Completed — 2026-08-23: Reschedule datang-ulang + appointment + kolom Reschedule modal waiting
+
+- **Backend `express_dash`:**
+  - `RoomExamItem` tambah kolom `rescheduleVisitDate DateTime?` (tanggal datang kembali per item reschedule) + `prisma db push`.
+  - `Registration.scheduleDateExam` otomatis di-set ke tanggal datang-ulang (terdekat) saat `saveRescheduleVisitDates`.
+  - Endpoint baru `PATCH /registration/:id_reg/reschedule-dates` (simpan tanggal per item reschedule; idempotent-ish).
+  - **Hapus `@unique` di `QueueEntry.registrationId`** (boleh banyak QueueEntry per registration utk RESAMPLE), relasi `Registration.queueEntry` → `queueEntries[]`, index registrationId. Refactor `findUnique→findFirst`.
+  - `resampleCheckin` idempotent (cegah duplikat resample aktif).
+  - `ROOM_QUEUE_ITEM_INCLUDE_LIST` expose `scheduleDateExam`.
+  - `findByRegNumber`/list expose `rescheduleVisitDate` & `queue.id`, `scheduleDateExam`.
+- **FE `my-app`:**
+  - FO registration-patient: tombol **"Pasien Datang Kembali"** (resampleCheckin) + tombol **Refresh**; modal **Reschedule Visit Date** saat Check Out (pilih tanggal per item); tampil tanggal di card item reschedule; badge departemen pakai status kategori; banner Rejected Items & reschedule (English).
+  - list registration: badge **"Datang lagi: <tanggal>"**.
+  - modal `/rooms/queue` "Lihat Pasien Menunggu": filter pakai **queueDate** (bukan examDate) utk pasien resample; kolom **Room → Reschedule** (tampil `scheduleDateExam`, format sama exam date).
+  - auto-exit session utk non-superadmin (dan superadmin) bila assignment hari ini tidak cocok.
+- Commit BE & FE banyak (lihat git log).
 
 ## Completed — 2026-08-21: Histori Queue (kolom Room + status proses room) & bersihkan type error
 
