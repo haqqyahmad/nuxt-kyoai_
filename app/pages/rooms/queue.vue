@@ -491,10 +491,10 @@ const {
       page: 1,
       _: Date.now()
     }
-    // Filter exam date: jika diisi, queueDate dilepas agar examDate jadi filter utama
-    // (queueDate & examDate bisa beda hari; AND keduanya membuat hasil kosong).
-    if (waitingExamDateFrom.value) params.examDateFrom = waitingExamDateFrom.value
-    if (waitingExamDateTo.value) params.examDateTo = waitingExamDateTo.value
+    // Filter berdasar tanggal antrian (queueDate) — pasien tampil sesuai hari masuk antrian
+    // (termasuk resample/datang kembali), bukan examDate registration.
+    if (waitingExamDateFrom.value) params.queueDateFrom = waitingExamDateFrom.value
+    if (waitingExamDateTo.value) params.queueDateTo = waitingExamDateTo.value
     if (!waitingExamDateFrom.value && !waitingExamDateTo.value) {
       params.queueDate = today
     }
