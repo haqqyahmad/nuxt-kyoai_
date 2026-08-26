@@ -10,15 +10,17 @@ import JsonTreeNode from '~/components/mcu/JsonTreeNode.vue'
 
 const props = defineProps<{
   examId: string
+  itemTemplates?: Array<{ id: string, code: string, name: string, templateName: string, hasTemplate: boolean }>
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
 
 const api = useApi()
 const toast = useToast()
-const { loadPrintData, renderMcuReportHtml } = useMcuReportPrint()
+const { loadPrintData, renderMcuReportHtml, renderMcuItemReportHtml } = useMcuReportPrint()
 
 const template = ref('')
+const templateKey = ref('MCU_REPORT')
 const editorTheme = ref<'light' | 'dark'>('light')
 const versions = ref<Array<{ id: string, version: number, isActive: boolean, createdAt: string }>>([])
 const loading = ref(false)
@@ -32,6 +34,12 @@ const varQuery = ref('')
 const dataCopied = ref<string | null>(null)
 
 const PRINT_TEMPLATE_KEY = '__mcu_draft_template__'
+
+const templateOptions = computed(() => [
+  { label: 'Laporan MCU', value: 'MCU_REPORT' },
+  ...(props.itemTemplates ?? []).map(item => ({ label: `${item.name} (${item.code})`, value: item.templateName }))
+])
+const templateLabel = computed(() => templateOptions.value.find(option => option.value === templateKey.value)?.label ?? templateKey.value)
 
 // Variabel yang boleh dipakai template (help box)
 const availableVars = [
@@ -54,11 +62,16 @@ const availableVars = [
   { var: '{{ submission.finalComment }}', desc: 'Komentar dokter' },
   { var: '{{ submission.internalNote }}', desc: 'Catatan internal' },
   { var: '{{ submission.doctorName }}', desc: 'Nama dokter' },
-  { var: '{{ attachments }}', desc: 'Daftar lampiran PDF (loop {% for a in attachments %})' }
+  { var: '{{ attachments }}', desc: 'Daftar lampiran PDF (loop {% for a in attachments %})' },
+  { var: '{{ item.code }}', desc: 'Kode item (mis. ECG/USG/EYE)' },
+  { var: '{{ item.name }}', desc: 'Nama item' },
+  { var: '{{ results }}', desc: 'Hasil item (loop {% for r in results %}): {{ r.label }} {{ r.value }} {{ r.uom }} ({{ r.flag }})' }
 ]
 
+const draftKey = () => `${PRINT_TEMPLATE_KEY}:${templateKey.value}`
+
 function loadVersions() {
-  return api.get('/mcu/print-templates/versions').then((res) => {
+  return api.get('/mcu/print-templates/versions', { params: { name: templateKey.value } }).then((res) => {
     versions.value = ((res.data?.data ?? res.data) ?? []) as Array<{ id: string, version: number, isActive: boolean, createdAt: string }>
   })
 }
@@ -66,10 +79,10 @@ function loadVersions() {
 async function loadTemplate() {
   loading.value = true
   try {
-    const res = await api.get('/mcu/print-templates')
+    const res = await api.get('/mcu/print-templates', { params: { name: templateKey.value } })
     const active = res.data?.data ?? res.data
-    // Prioritas draft lokal, fallback versi aktif DB
-    const draft = localStorage.getItem(PRINT_TEMPLATE_KEY)
+    // Prioritas draft lokal (per jenis template), fallback versi aktif DB
+    const draft = localStorage.getItem(draftKey())
     template.value = draft ?? active?.html ?? ''
     await loadVersions()
   } catch (err) {
@@ -81,9 +94,10 @@ async function loadTemplate() {
 }
 
 function useVersion(version: { id: string, version: number }) {
-  api.get(`/mcu/print-templates/versions/${version.id}`).then((res) => {
+  api.get(`/mcu/print-templates/versions/${version.id}`, { params: { name: templateKey.value } }).then((res) => {
     const row = res.data?.data ?? res.data
     if (row?.html) template.value = row.html
+    localStorage.removeItem(draftKey())
   }).catch(() => {
     toast.add({ title: 'Gagal', description: 'Tidak dapat memuat versi template', color: 'error' })
   })
@@ -110,9 +124,71 @@ async function refreshData() {
 async function runPreview() {
   const payload = await ensurePayload()
   if (!payload) return
-  const draft: McuPrintPayload = { ...payload, printTemplate: template.value }
-  previewHtml.value = renderMcuReportHtml(draft)
+  const headerImageUrl = await loadHeaderImageDataUri()
+  if (templateKey.value !== 'MCU_REPORT') {
+    const section = (payload as unknown as { itemSections?: Array<Record<string, unknown>> }).itemSections?.find(
+      section => section.templateName === templateKey.value
+    )
+    previewHtml.value = renderMcuItemReportHtml(template.value, payload, (
+      Array.isArray(section?.results) ? section : undefined
+    ) as never, { headerImageUrl })
+  } else {
+    const draft: McuPrintPayload = { ...payload, printTemplate: template.value }
+    previewHtml.value = renderMcuReportHtml(draft, { headerImageUrl })
+  }
   previewOpen.value = true
+}
+
+async function loadHeaderImageDataUri(): Promise<string> {
+  try {
+    const res = await api.get('/mcu/print-templates/image', { params: { name: templateKey.value }, responseType: 'blob' })
+    if (!res.data || res.data.size === 0) return ''
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result ?? ''))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(res.data)
+    })
+  } catch {
+    return ''
+  }
+}
+
+const headerFileInput = ref<HTMLInputElement | null>(null)
+const uploadingHeader = ref(false)
+
+async function uploadHeaderImage() {
+  const file = headerFileInput.value?.files?.[0]
+  if (!file) return
+  uploadingHeader.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('name', templateKey.value)
+    await api.post('/mcu/print-templates/image', form)
+    toast.add({ title: 'Tersimpan', description: 'Header image berhasil diupload untuk template ini.', color: 'success' })
+    // Sisipkan snippet img header bila belum ada di template
+    if (!template.value.includes('headerImageUrl')) {
+      const snippet = '\n{% if headerImageUrl %}<img class="header-img" src="{{ headerImageUrl }}" alt="Logo" />{% endif %}\n'
+      const headerMatch = /<header[^>]*>/i.exec(template.value)
+      if (headerMatch) {
+        const at = headerMatch.index + headerMatch[0].length
+        template.value = template.value.slice(0, at) + snippet + template.value.slice(at)
+      } else {
+        template.value = template.value.replace(/<body[^>]*>/i, m => `${m}${snippet}`)
+      }
+    }
+  } catch (err) {
+    const msg = (err as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Gagal upload header image'
+    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+  } finally {
+    uploadingHeader.value = false
+    if (headerFileInput.value) headerFileInput.value.value = ''
+  }
+}
+
+function switchTemplate() {
+  loadTemplate()
 }
 
 async function openVariableViewer() {
@@ -142,10 +218,10 @@ async function saveTemplate() {
   if (!template.value.trim() || saving.value) return
   saving.value = true
   try {
-    const res = await api.post('/mcu/print-templates', { html: template.value })
+    const res = await api.post('/mcu/print-templates', { html: template.value }, { params: { name: templateKey.value } })
     const saved = res.data?.data ?? res.data
-    toast.add({ title: 'Tersimpan', description: `Template versi ${saved.version ?? ''} disimpan`, color: 'success' })
-    localStorage.removeItem(PRINT_TEMPLATE_KEY)
+    toast.add({ title: 'Tersimpan', description: `Template ${templateLabel.value} versi ${saved.version ?? ''} disimpan`, color: 'success' })
+    localStorage.removeItem(draftKey())
     await loadVersions()
   } catch (err) {
     const msg = (err as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Gagal menyimpan template'
@@ -156,12 +232,18 @@ async function saveTemplate() {
 }
 
 function resetDraft() {
-  localStorage.removeItem(PRINT_TEMPLATE_KEY)
+  localStorage.removeItem(draftKey())
   loadTemplate()
 }
 
 watch(open, (val) => {
-  if (val) loadTemplate()
+  if (val) {
+    templateKey.value = 'MCU_REPORT'
+    loadTemplate()
+  }
+})
+watch(templateKey, () => {
+  cachedPayload.value = null
 })
 watch(() => props.examId, () => {
   cachedPayload.value = null
@@ -177,13 +259,21 @@ watch(() => props.examId, () => {
           <div class="flex items-center justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold">
-                Template Print Hasil MCU
+                Template Print {{ templateKey === 'MCU_REPORT' ? 'Hasil MCU' : templateLabel }}
               </h2>
               <p class="text-sm text-muted">
                 Tersimpan terversi; disanitasi server. Script/iframe/event handler otomatis dibuang.
               </p>
             </div>
             <div class="flex items-center gap-2">
+              <USelect
+                :items="templateOptions"
+                :model-value="templateKey"
+                class="w-56"
+                searchable
+                placeholder="Cari template item..."
+                @update:model-value="templateKey = $event as string; switchTemplate()"
+              />
               <USelect
                 v-if="versions.length"
                 :items="versions.map(v => ({ label: `Versi ${v.version}${v.isActive ? ' (aktif)' : ''}`, value: v.id }))"
@@ -246,6 +336,22 @@ watch(() => props.examId, () => {
               @click="resetDraft"
             />
             <div class="flex gap-2">
+              <input
+                ref="headerFileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                class="hidden"
+                @change="uploadHeaderImage"
+              >
+              <UButton
+                label="Upload Header"
+                icon="i-lucide-image-up"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :loading="uploadingHeader"
+                @click="headerFileInput?.click()"
+              />
               <UButton
                 label="Preview"
                 icon="i-lucide-eye"

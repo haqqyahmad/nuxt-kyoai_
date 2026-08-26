@@ -346,7 +346,7 @@ export function useMcuReportPrint() {
   // CSP ketat untuk print window: blok script, connect, frame, object.
   const printCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
 
-  function renderMcuReportHtml(payload: McuPrintPayload): string {
+  function renderMcuReportHtml(payload: McuPrintPayload, opts: { headerImageUrl?: string } = {}): string {
     // Debug: lihat data print di devtools (F12 → Console). Nilai groupName
     // aktual dipakai untuk filter `{% if group.groupName not in [...] %}`.
     console.log('[McuReportPrint] payload', payload)
@@ -354,28 +354,61 @@ export function useMcuReportPrint() {
     if (!template) {
       return '<html><head>' + printCsp + '</head><body><p style="font-family:Arial,sans-serif;padding:20px;">Template print belum tersedia. Hubungi admin.</p></body></html>'
     }
-    let html = renderTemplate(template, { ...payload, physical: buildPhysicalRows(payload.physical ?? []) })
+    let html = renderTemplate(template, { ...payload, physical: buildPhysicalRows(payload.physical ?? []), headerImageUrl: opts.headerImageUrl ?? '' })
     // Inject CSP ke <head> bila ada, sisipkan setelah <head> / sebelum <head>.
     if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, m => `${m}${printCsp}`)
     else html = html.replace(/<html[^>]*>/i, m => `${m}${printCsp}`)
     return html
   }
 
-  async function printMcuReport(examId: string): Promise<boolean> {
-    const payload = await loadPrintData(examId)
-    if (!payload) return false
-
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return false
-
-    printWindow.document.write(renderMcuReportHtml(payload))
-    printWindow.document.close()
-    printWindow.onload = () => {
-      printWindow.focus()
-      printWindow.print()
+  // Render template kustom item (ECG/USG/EYE) dengan context item-nya.
+  function renderMcuItemReportHtml(
+    template: string,
+    payload: McuPrintPayload,
+    itemSection: {
+      item?: { id?: string, code?: string, name?: string }
+      results?: Array<{ label: string, uom: string, value: string, flag: string }>
+      attachments?: Array<{ id: string, originalName: string, mimeType: string, downloadUrl?: string }>
+    },
+    opts: { headerImageUrl?: string } = {}
+  ): string {
+    const ctx = {
+      ...payload,
+      item: itemSection?.item ?? {},
+      results: itemSection?.results ?? [],
+      attachments: itemSection?.attachments ?? [],
+      headerImageUrl: opts.headerImageUrl ?? ''
     }
-    return true
+    let html = renderTemplate(template, ctx)
+    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, m => `${m}${printCsp}`)
+    else html = html.replace(/<html[^>]*>/i, m => `${m}${printCsp}`)
+    return html
   }
 
-  return { loading, loadPrintData, renderMcuReportHtml, printMcuReport }
+  async function printMcuReport(examId: string): Promise<boolean> {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.add({ title: 'Popup diblokir', description: 'Izinkan popup untuk membuka PDF hasil MCU.', color: 'warning' })
+      return false
+    }
+
+    loading.value = true
+    try {
+      const res = await api.get(`/mcu/exams/${examId}/print.pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      printWindow.location.replace(url)
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return true
+    } catch (err) {
+      printWindow.close()
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
+        ?.response?.data?.message || (err as { message?: string })?.message || 'Gagal membuat PDF hasil MCU'
+      toast.add({ title: 'Error', description: msg, color: 'error' })
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { loading, loadPrintData, renderMcuReportHtml, renderMcuItemReportHtml, printMcuReport }
 }

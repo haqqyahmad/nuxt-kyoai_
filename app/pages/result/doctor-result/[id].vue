@@ -28,6 +28,7 @@ const examId = String(route.params.id)
 
 const { loading: printLoading, printMcuReport } = useMcuReportPrint()
 const isPrintTemplateModalOpen = ref(false)
+const itemTemplates = ref([])
 
 async function onPrintReport() {
   await printMcuReport(examId)
@@ -450,6 +451,11 @@ onMounted(async () => {
   await load()
   if (departments.value[0]) activeDepartmentId.value = departments.value[0].departmentId
   await Promise.all([loadGradeOptions(), loadAuditActions()])
+  try {
+    const api = useApi()
+    const res = await api.get('/mcu/print-templates/item-list')
+    itemTemplates.value = (res.data?.data ?? res.data) ?? []
+  } catch { /* item template list opsional */ }
   nextTick(setupScrollSpy)
 })
 
@@ -1087,7 +1093,7 @@ onBeforeUnmount(() => {
         </UModal>
 
         <!-- MCU print template editor -->
-        <McuPrintTemplateModal v-model:open="isPrintTemplateModalOpen" :exam-id="examId" />
+        <McuPrintTemplateModal v-model:open="isPrintTemplateModalOpen" :exam-id="examId" :item-templates="itemTemplates" />
       </div>
     </template>
   </UDashboardPanel>
