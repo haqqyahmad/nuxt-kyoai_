@@ -409,12 +409,16 @@ const links = computed<NavigationMenuItem[][]>(() => [
         }
       ].filter((item) => {
         if (isExternalDoctor.value) return !item.resultDepartmentCode
+        if (!item.resultDepartmentCode) return true
         // Superadmin: akses sesuai departemen
-        if (canAccessAllResults.value || isExternalDoctor.value) {
+        if (canAccessAllResults.value) {
           return canAccessResultDepartment(item.resultDepartmentCode)
         }
-        // Role lain: hanya akses departemen default
+        // Role mapping / lain: jika result-access sudah diset, pakai itu; jika kosong fallback ke dept default
         if (userDefaultDepartment.value) {
+          if (allowedResultDepartmentCodes.value.length > 0) {
+            return allowedResultDepartmentCodes.value.includes(item.resultDepartmentCode)
+          }
           return item.resultDepartmentCode === userDefaultDepartment.value
         }
         return canAccessResultDepartment(item.resultDepartmentCode)

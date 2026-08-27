@@ -655,16 +655,30 @@ async function assignExternalDoctor() {
   }
 }
 
+const cancelExternalOpen = ref(false)
+const cancelExternalReason = ref('')
+const cancelExternalSubmitting = ref(false)
+
+function openCancelExternal() {
+  cancelExternalReason.value = ''
+  cancelExternalOpen.value = true
+}
+
 async function cancelExternalDoctor() {
-  externalSaving.value = true
+  if (cancelExternalSubmitting.value) return
+  cancelExternalSubmitting.value = true
   try {
-    await api.post(`/mcu/exams/${props.result?.exam?.id}/cancel-external`, { examItemId: props.result?.id })
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/cancel-external`, {
+      examItemId: getExternalExamItemId(),
+      reason: cancelExternalReason.value || null
+    })
     toast.add({ title: 'Berhasil', description: 'Penugasan dokter luar dibatalkan.', color: 'success' })
+    cancelExternalOpen.value = false
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
     toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal membatalkan penugasan.'), color: 'error' })
   } finally {
-    externalSaving.value = false
+    cancelExternalSubmitting.value = false
   }
 }
 
@@ -2221,7 +2235,7 @@ onBeforeUnmount(() => {
                           color="error"
                           variant="soft"
                           :loading="externalSaving"
-                          @click="cancelExternalDoctor"
+                          @click="openCancelExternal"
                         >
                           Batalkan
                         </UButton>
@@ -2697,4 +2711,40 @@ onBeforeUnmount(() => {
       </div>
     </template>
   </BaseFullscreenModal>
+
+  <UModal v-model:open="cancelExternalOpen" title="Batalkan Penugasan Dokter Luar">
+    <template #body>
+      <p class="text-sm text-muted">
+        Batalkan penugasan dokter luar untuk item ini? Alasan dicatat dalam riwayat audit.
+      </p>
+      <UFormField label="Alasan" class="mt-4">
+        <UTextarea
+          v-model="cancelExternalReason"
+          :rows="3"
+          placeholder="Alasan pembatalan (opsional)"
+          class="w-full"
+        />
+      </UFormField>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="cancelExternalSubmitting"
+          @click="cancelExternalOpen = false"
+        >
+          No
+        </UButton>
+        <UButton
+          color="error"
+          icon="i-lucide-ban"
+          :loading="cancelExternalSubmitting"
+          @click="cancelExternalDoctor"
+        >
+          Yes, Batalkan
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

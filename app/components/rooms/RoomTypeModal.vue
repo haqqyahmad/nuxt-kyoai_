@@ -19,10 +19,11 @@ const open = defineModel<boolean>('open', {
   default: false
 })
 
-const form = reactive<RoomTypeForm>({
+const form = reactive<RoomTypeForm & { tierMode: 'STRICT' | 'FREE' }>({
   code: '',
   name: '',
   serviceType: null,
+  tierMode: 'STRICT',
   tierOrder: 1,
   isActive: true
 })
@@ -43,13 +44,14 @@ const isValid = computed(() =>
   form.code.trim()
   && form.name.trim()
   && form.serviceType !== null
-  && Number(form.tierOrder || 0) >= 1
+  && (form.tierMode === 'FREE' || Number(form.tierOrder || 0) >= 1)
 )
 
 function resetForm() {
   form.code = ''
   form.name = ''
   form.serviceType = null
+  form.tierMode = 'STRICT'
   form.tierOrder = 1
   form.isActive = true
 }
@@ -58,7 +60,8 @@ function fillForm(roomType: RoomTypeRecord) {
   form.code = roomType.code
   form.name = roomType.name
   form.serviceType = roomType.serviceType
-  form.tierOrder = roomType.tierOrder
+  form.tierMode = roomType.tierMode ?? 'STRICT'
+  form.tierOrder = roomType.tierOrder ?? 1
   form.isActive = roomType.isActive
 }
 
@@ -82,7 +85,8 @@ function submit() {
     code: form.code.trim(),
     name: form.name.trim(),
     serviceType: form.serviceType,
-    tierOrder: Number(form.tierOrder || 1),
+    tierMode: form.tierMode,
+    tierOrder: form.tierMode === 'FREE' ? null : Number(form.tierOrder || 1),
     isActive: form.isActive
   })
 }
@@ -156,13 +160,30 @@ function submit() {
                 />
               </UFormField>
 
-              <UFormField label="Tier Order">
+              <UFormField label="Tier Mode">
+                <USelect
+                  v-model="form.tierMode"
+                  :items="[
+                    { label: 'Strict (berurutan)', value: 'STRICT' },
+                    { label: 'Free (bebas)', value: 'FREE' }
+                  ]"
+                  value-key="value"
+                  label-key="label"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Tier Order"
+                :description="form.tierMode === 'FREE' ? 'Tidak berlaku untuk mode Free' : undefined"
+              >
                 <UInput
                   v-model.number="form.tierOrder"
                   type="number"
                   min="1"
                   class="w-full"
                   placeholder="1"
+                  :disabled="form.tierMode === 'FREE'"
                 />
               </UFormField>
 

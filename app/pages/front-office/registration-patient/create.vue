@@ -41,7 +41,8 @@ type Patient = {
   dob?: string
   histories?: {
     id: string
-    companyName: string
+    companyName?: string
+    company?: string
     position?: string
     startDate?: string
     endDate?: string | null
@@ -286,6 +287,14 @@ function selectPatient(p: Patient) {
   patientSearch.value = fullName(p)
   patientResults.value = []
   patientDropOpen.value = false
+  regForm.value.position = p.histories?.[0]?.position ?? ''
+
+  // Autofill perusahaan dari company history terbaru pasien
+  const companyName = p.histories?.[0]?.company ?? p.histories?.[0]?.companyName ?? ''
+  const matchedCompany = companyName
+    ? (companies.value ?? []).find(c => c.customerName?.toLowerCase() === companyName.toLowerCase())
+    : null
+  regForm.value.companyId = matchedCompany ? String(matchedCompany.id) : ''
 }
 
 function handlePatientBlur() {
@@ -297,6 +306,7 @@ function clearPatient() {
   isNewPatient.value = false
   patientSearch.value = ''
   patientResults.value = []
+  regForm.value.position = ''
 }
 
 function useNewPatient() {
@@ -370,6 +380,7 @@ const regForm = ref({
   companyId: '',
   paymentType: 'Personal',
   priorityRegist: 'Normal',
+  position: '',
   examDate: new Date().toISOString().slice(0, 10),
   scheduleDateExam: new Date().toISOString().slice(0, 10)
 })
@@ -755,6 +766,7 @@ async function submit() {
         serviceType: selectedService.value,
         paymentType: regForm.value.paymentType,
         priorityRegist: regForm.value.priorityRegist,
+        position: regForm.value.position || undefined,
         examDate: regForm.value.examDate,
         scheduleDateExam: regForm.value.scheduleDateExam
       }
@@ -1388,6 +1400,13 @@ async function cancel() {
                       }))
                     "
                     placeholder="Pilih perusahaan..."
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Position">
+                  <UInput
+                    v-model="regForm.position"
+                    placeholder="Jabatan..."
                     class="w-full"
                   />
                 </UFormField>

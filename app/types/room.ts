@@ -30,6 +30,7 @@ export type RoomTypeRecord = {
   code: string
   name: string
   serviceType: ServiceType
+  tierMode?: 'STRICT' | 'FREE' | null
   tierOrder: number
   isActive: boolean
   stages?: RoomTypeStage[]
@@ -76,6 +77,7 @@ export type RoomTypeForm = {
   code: string
   name: string
   serviceType: ServiceType | null
+  tierMode?: 'STRICT' | 'FREE' | null
   tierOrder: number | null
   isActive: boolean
 }

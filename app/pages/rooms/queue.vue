@@ -270,8 +270,17 @@ function mealShortTime(value: string | undefined | null): string {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
-async function completeMealFromList(row: WaitingRow) {
-  const examId = row.meal?.examId
+const completeMealTarget = ref<WaitingRow | null>(null)
+const completeMealConfirmOpen = ref(false)
+
+function askCompleteMeal(row: WaitingRow) {
+  completeMealTarget.value = row
+  completeMealConfirmOpen.value = true
+}
+
+async function completeMealFromList() {
+  const row = completeMealTarget.value
+  const examId = row?.meal?.examId
   if (!examId) return
   try {
     await api.post(`/medical/exams/${examId}/meal/complete`)
@@ -280,6 +289,9 @@ async function completeMealFromList(row: WaitingRow) {
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
     toast.add({ title: 'Gagal', description: msg || 'Gagal menyelesaikan meal', color: 'error' })
+  } finally {
+    completeMealTarget.value = null
+    completeMealConfirmOpen.value = false
   }
 }
 const { user, isSuperAdmin, allowedSelfRooms } = await useCurrentUser()
@@ -2023,7 +2035,7 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
-                        {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : row.roomName }}
+                        {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
                       </p>
                     </td>
                     <td class="border-b border-default px-4 py-4">
@@ -2093,7 +2105,7 @@ watch(
                           color="success"
                           variant="soft"
                           icon="i-lucide-check"
-                          @click="completeMealFromList(row)"
+                          @click="askCompleteMeal(row)"
                         >
                           Complete Meal
                         </UButton>
@@ -2381,6 +2393,33 @@ watch(
             class="py-12 text-center text-gray-500 dark:text-gray-400"
           >
             Tidak ada data pengambilan sample untuk antrian ini.
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="completeMealConfirmOpen" title="Konfirmasi Complete Meal">
+        <template #body>
+          <p class="text-sm text-muted">
+            Selesaikan meal time untuk pasien
+            <span class="font-semibold text-highlighted">{{ completeMealTarget?.patientName ?? '-' }}</span>?
+          </p>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              @click="completeMealConfirmOpen = false"
+            >
+              No
+            </UButton>
+            <UButton
+              color="primary"
+              icon="i-lucide-check"
+              @click="completeMealFromList"
+            >
+              Yes
+            </UButton>
           </div>
         </template>
       </UModal>
