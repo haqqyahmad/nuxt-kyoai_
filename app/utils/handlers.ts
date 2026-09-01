@@ -1,0 +1,33 @@
+// utils/handlers.ts
+export const showErrors = (toast: any, message: string) => {
+  toast.add({
+    title: 'Failed',
+    description: message,
+    color: 'error'
+  })
+}
+
+export const handleError = (toast: any, err: any) => {
+  const message
+    = err?.response?.data?.message
+      || err?.message
+      || 'Failed to add user'
+
+  showErrors(toast, message)
+}
+
+export const handleSuccessGeneral = (toast: any, name: string, message: string) => {
+  toast.add({
+    title: 'Success',
+    description: `New ${message} ${name} added`,
+    color: 'success'
+  })
+}
+
+export const handleSuccess = (toast: any, name: string) => {
+  toast.add({
+    title: 'Success',
+    description: `New user ${name} added`,
+    color: 'success'
+  })
+}
