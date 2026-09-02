@@ -7,7 +7,7 @@ export function useQuestionLogic() {
   function enableConditional(question: Question) {
     question.conditional = {
       parentQuestionId: '',
-      showIfOptionId: ''
+      showIfOptionIds: []
     }
   }
 

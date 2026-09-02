@@ -748,7 +748,9 @@ async function submit() {
         priorityRegist: regForm.value.priorityRegist,
         patientId: patientId || undefined,
         // [A+] Kirim keputusan FO ke backend
-        patientType: patientTypeFromQuery.value === 'new' ? 'new' : 'existing'
+        patientType: patientTypeFromQuery.value === 'new' ? 'new' : 'existing',
+        companyId: String(regForm.value.companyId || ''),
+        position: regForm.value.position || undefined
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId

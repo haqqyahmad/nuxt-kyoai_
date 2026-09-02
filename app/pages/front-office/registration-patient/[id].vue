@@ -721,6 +721,69 @@ async function handleRefreshPage() {
   }
 }
 
+// Portal URL untuk link kuesioner pasien (wa.me share / copy link).
+const runtimeConfig = useRuntimeConfig()
+const questionnairePortalUrl = computed(() => {
+  const base = (runtimeConfig.public as Record<string, unknown>).portalUrl as string | undefined
+  return `${(base || 'http://localhost:5173').replace(/\/$/, '')}/questionnaire`
+})
+
+function normalizeWaPhone(phone: string | null | undefined): string {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.replace(/^0/, '62')
+}
+
+function questionnaireLink(questionnaireId?: string): string {
+  const params = new URLSearchParams()
+  if (reg.value?.company?.id) params.set('companyId', String(reg.value.company.id))
+  if (reg.value?.branch?.branchId) params.set('branchId', reg.value.branch.branchId)
+  if (questionnaireId) params.set('questionnaireId', questionnaireId)
+  // Registrasi final punya id numerik; jawaban ter-backfill ke registrationId.
+  params.set('registrationId', String(reg.value?.id ?? ''))
+  // Gender pasien (untuk filter section "Khusus Wanita" di portal).
+  if (reg.value?.patient?.gender) params.set('gender', reg.value.patient.gender)
+  return `${questionnairePortalUrl.value}?${params.toString()}`
+}
+
+function waShareLink(questionnaireId?: string): string {
+  const phone = normalizeWaPhone(reg.value?.patient?.phone)
+  if (!phone) return ''
+  const questUrl = questionnaireLink(questionnaireId)
+  const message = `Assalamualaikum, silakan isi kuesioner medis Anda di: ${questUrl}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
+
+function shareQuestionnaireViaWa(questionnaireId?: string) {
+  const link = waShareLink(questionnaireId)
+  if (!link) {
+    toast.add({
+      title: 'Gagal',
+      description: 'Nomor HP pasien tidak tersedia',
+      color: 'error'
+    })
+    return
+  }
+  window.open(link, '_blank', 'noopener,noreferrer')
+}
+
+function copyQuestionnaireLink(questionnaireId?: string) {
+  const link = questionnaireLink(questionnaireId)
+  navigator.clipboard.writeText(link).then(() => {
+    toast.add({
+      title: 'Berhasil',
+      description: 'Link kuesioner disalin',
+      color: 'success'
+    })
+  }).catch(() => {
+    toast.add({
+      title: 'Gagal',
+      description: 'Gagal menyalin link',
+      color: 'error'
+    })
+  })
+}
+
 const resampling = ref(false)
 const mealTimerNow = ref(Date.now())
 const mealTimerDuration = ref<number | null>(null)
@@ -1411,6 +1474,23 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
+                        <UButton
+                          icon="i-lucide-message-circle"
+                          color="success"
+                          variant="ghost"
+                          size="xs"
+                          title="Kirim via WhatsApp"
+                          :disabled="!reg?.patient?.phone"
+                          @click="shareQuestionnaireViaWa(q.questionnaire_id)"
+                        />
+                        <UButton
+                          icon="i-lucide-link"
+                          color="neutral"
+                          variant="ghost"
+                          size="xs"
+                          title="Copy Link"
+                          @click="copyQuestionnaireLink(q.questionnaire_id)"
+                        />
                         <UButton
                           icon="i-lucide-eye"
                           color="primary"

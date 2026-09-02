@@ -30,7 +30,7 @@ logs
 .agents
 
 # Docs
-docs
+# docs
 
 # Graphify output (AI code analysis artifacts)
 /graphify-out/

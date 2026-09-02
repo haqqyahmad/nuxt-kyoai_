@@ -198,7 +198,7 @@ watch(
                 @click="
                   question.conditional = {
                     parentQuestionId: '',
-                    showIfOptionId: ''
+                    showIfOptionIds: []
                   }
                 "
               >

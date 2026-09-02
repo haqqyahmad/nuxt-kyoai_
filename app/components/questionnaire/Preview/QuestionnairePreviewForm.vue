@@ -23,19 +23,23 @@ function shouldShowQuestion(question: Question) {
     return true
   }
 
-  const parentQuestionId
-    = question.conditional.parentQuestionId
+  // Support both old format (showIfOptionId) and new format (showIfOptionIds)
+  const allShowIfOptionIds = [
+    ...(question.conditional.showIfOptionIds || []),
+    ...(question.conditional.showIfOptionId ? [question.conditional.showIfOptionId] : [])
+  ]
 
-  const showIfOptionId
-    = question.conditional.showIfOptionId
-
-  const answer = answers.value[parentQuestionId]
-
-  if (Array.isArray(answer)) {
-    return answer.includes(showIfOptionId)
+  if (allShowIfOptionIds.length === 0) {
+    return true
   }
 
-  return answer === showIfOptionId
+  const answer = answers.value[question.conditional.parentQuestionId]
+
+  if (Array.isArray(answer)) {
+    return answer.some((val: string) => allShowIfOptionIds.includes(val))
+  }
+
+  return allShowIfOptionIds.includes(answer)
 }
 </script>
 

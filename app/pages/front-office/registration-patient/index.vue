@@ -384,22 +384,24 @@ const columns: TableColumn<Patient>[] = [
       const status = row.getValue('statusRegistration') as string
       const p = row.original
       const canCheckout = Boolean(p.canCheckout)
+      // Saat sudah bisa checkout (masih checkin/partialexam), tampilkan "Siap Check-out"
+      // sebagai pengganti badge status "Check-in".
+      const showCheckoutBadge = canCheckout && ['checkin', 'partialexam'].includes(status)
 
       return h('div', { class: 'flex flex-col items-start gap-1' }, [
         h('div', { class: 'flex items-center gap-2' }, [
-          h(UBadge, {
-            label: STATUS_LABEL[status] ?? status ?? '-',
-            color: STATUS_COLOR[status] ?? 'neutral',
-            variant: 'subtle'
-          }),
-          canCheckout
+          showCheckoutBadge
             ? h(UBadge, {
-                label: 'Siap Check-out',
+                label: 'Ready for Check-out',
                 color: 'success',
                 variant: 'outline',
                 icon: 'i-lucide-log-out'
               })
-            : null
+            : h(UBadge, {
+                label: STATUS_LABEL[status] ?? status ?? '-',
+                color: STATUS_COLOR[status] ?? 'neutral',
+                variant: 'subtle'
+              })
         ]),
         p.rescheduleVisitDate
           ? h(UBadge, {
