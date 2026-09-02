@@ -209,12 +209,13 @@ function getQueryValue(value: unknown) {
   return ''
 }
 
-function isStatusMatchFilter(filter: string, status: string) {
+function isStatusMatchFilter(filter: string, status?: string | null) {
+  const norm = (status || '').trim()
   if (filter === 'completed') {
-    return ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(status)
+    return ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(norm)
   }
   if (filter === 'pending') {
-    return ['pending', 'DRAFT', 'DEPARTMENT_REVIEW', 'RETURNED_TO_DEPARTMENT'].includes(status)
+    return ['pending', 'DRAFT', 'DEPARTMENT_REVIEW', 'RETURNED_TO_DEPARTMENT'].includes(norm)
   }
   return true
 }

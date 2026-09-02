@@ -432,6 +432,39 @@ function matchesPatientProfile(sex?: string | null, ageMin?: number | null, ageM
   return genderMatches && ageMinMatches && ageMaxMatches
 }
 
+// Field radiologi/USG dengan batasan sex: disembunyikan bila seluruh rentang
+// normal-nya untuk gender lain. `sex: null` / tanpa rentang → tampil semua gender.
+function inputanGenderRestrictedToSexes(inputan: ExamInput): string[] {
+  const sexes = new Set<string>()
+  for (const range of [...(inputan.nilaiNormalSel ?? []), ...(inputan.nilaiNormalNum ?? [])]) {
+    if (!range.sex) return []
+    sexes.add(getPatientGenderKey(range.sex) ?? '')
+  }
+  return [...sexes].filter(Boolean)
+}
+
+function isInputanVisibleForGender(inputan: ExamInput): boolean {
+  const restricted = inputanGenderRestrictedToSexes(inputan)
+  if (!restricted.length) return true
+  const patientKey = getPatientGenderKey(patient.value?.gender) ?? ''
+  return restricted.includes(patientKey)
+}
+
+function visibleItemInputans(item: RoomExamItem): ExamInput[] {
+  return (item.trxExamItem?.item?.inputans ?? []).filter(isInputanVisibleForGender)
+}
+
+// Opsi yang membutuhkan teks detail: label berakhiran "(Text)" atau "Others"
+// (pola template radiologi & ECG). Saat dipilih, inputan valueString diaktifkan.
+function optionRequiresDetail(option: ExamInputOption): boolean {
+  return /\(Text\)$/i.test(option.label) || /^others$/i.test(option.label)
+}
+
+function selectedOptionRequiresDetail(inputan: ExamInput, selected: string): boolean {
+  const option = inputan.opsis?.find(o => o.value === selected)
+  return option ? optionRequiresDetail(option) : /\(Text\)$/i.test(selected)
+}
+
 function formatProfileSuffix(sex?: string | null, ageMin?: number | null, ageMax?: number | null) {
   const parts: string[] = []
 
@@ -1509,10 +1542,12 @@ function buildResultsPayload(item: RoomExamItem) {
 
     if (inputan.inputType === 'selected') {
       if (!getDraftText(draft.valueSelected)) return null
-      return {
-        ...base,
-        valueSelected: draft.valueSelected
-      }
+      const detail = selectedOptionRequiresDetail(inputan, draft.valueSelected)
+        ? getDraftText(draft.valueString)
+        : ''
+      return detail
+        ? { ...base, valueSelected: draft.valueSelected, valueString: detail }
+        : { ...base, valueSelected: draft.valueSelected }
     }
 
     if (inputan.inputType === 'calculated') {
@@ -2398,7 +2433,7 @@ async function handleSubmitItemAction() {
                     >
                       <div class="flex items-center justify-between gap-3 px-0.5">
                         <p class="text-xs font-medium text-muted">
-                          {{ selectedItem.trxExamItem?.item?.inputans?.length || 0 }} inputan
+                          {{ visibleItemInputans(selectedItem).length }} inputan
                         </p>
                         <UTabs
                           v-model="inputColumnsCount"
@@ -2416,7 +2451,7 @@ async function handleSubmitItemAction() {
                           : 'space-y-3'"
                       >
                         <div
-                          v-for="inputan in selectedItem.trxExamItem?.item?.inputans || []"
+                          v-for="inputan in visibleItemInputans(selectedItem)"
                           :key="inputan.id"
                           :class="getInputContainerClass(selectedItem.id, inputan)"
                         >
@@ -2493,6 +2528,21 @@ async function handleSubmitItemAction() {
                               {{ opsi.label }}
                             </option>
                           </select>
+
+                          <div
+                            v-if="inputan.inputType === 'selected' && selectedOptionRequiresDetail(inputan, getInputDraft(selectedItem.id, inputan.id).valueSelected ?? '')"
+                            class="mt-2"
+                          >
+                            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
+                              Detail {{ inputan.label }}
+                            </label>
+                            <input
+                              v-model="getInputDraft(selectedItem.id, inputan.id).valueString"
+                              type="text"
+                              class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15"
+                              :placeholder="`Tuliskan detail ${inputan.label}`"
+                            >
+                          </div>
 
                           <div v-else>
                             <input

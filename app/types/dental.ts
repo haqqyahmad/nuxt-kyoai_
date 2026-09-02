@@ -3,7 +3,7 @@
 export type DentalFinding = {
   toothNumber: string
   conditions: string[]
-  note?: string | null
+  note?: string
 }
 
 export type DentalGrade = 'A' | 'B' | 'C' | 'D'
@@ -104,12 +104,12 @@ export const DENTAL_GRADE_CONFIG: Record<DentalGrade, { label: string, comment: 
 }
 
 // FDI tooth chart
-export const TOOTH_GROUPS: Record<string, string[]> = {
+export const TOOTH_GROUPS = {
   permanentUpper: ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28'],
   permanentLower: ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38'],
   primaryUpper: ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65'],
   primaryLower: ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75']
-}
+} as const satisfies Record<string, readonly string[]>
 
 // Belah satu rahang jadi dua kuadran (kiri | kanan)
 export function splitToothGroup(teeth: readonly string[]): [string[], string[]] {

@@ -54,7 +54,7 @@ async function loadData() {
   try {
     const res = await api.get(`/mcu/exams/${props.examId}/dental`)
     data.value = (res.data?.data ?? res.data ?? null) as DentalExamData | null
-    if (data.value) editing.value = data.value.canEdit && data.value.status !== 'SUBMITTED'
+    if (data.value) editing.value = data.value.canEdit === true && data.value.status !== 'SUBMITTED'
   } catch {
     data.value = null
   } finally {

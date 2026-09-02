@@ -34,9 +34,9 @@ const state = reactive<{
   otherNote: string
   findings: FindingMap
   selectedTooth: string | null
-  suggestedGrade: DentalGrade | null
+  suggestedGrade: DentalGrade | undefined
   suggestedOverride: boolean
-  finalGrade: DentalGrade | null
+  finalGrade: DentalGrade | undefined
   doctorComment: string
   commentsManual: boolean
 }>({
@@ -48,9 +48,9 @@ const state = reactive<{
   otherNote: '',
   findings: {},
   selectedTooth: null,
-  suggestedGrade: null,
+  suggestedGrade: undefined,
   suggestedOverride: false,
-  finalGrade: null,
+  finalGrade: undefined,
   doctorComment: '',
   commentsManual: false
 })
@@ -82,13 +82,13 @@ function seed() {
   state.intraOralNote = d.intraOralNote ?? ''
   state.otherDental = d.otherDental ?? []
   state.otherNote = d.otherNote ?? ''
-  state.finalGrade = d.finalGrade ?? null
+  state.finalGrade = d.finalGrade ?? undefined
   state.doctorComment = d.doctorComment ?? ''
   state.commentsManual = Boolean(d.doctorComment)
   state.suggestedOverride = d.suggestedGrade
     ? d.suggestedGrade !== suggested.value.grade || d.gradeReason === 'Grade suggested dipilih manual oleh dokter.'
     : false
-  state.suggestedGrade = d.suggestedGrade ?? null
+  state.suggestedGrade = d.suggestedGrade ?? undefined
   const findings: FindingMap = {}
   for (const f of d.findings ?? []) {
     findings[f.toothNumber] = { toothNumber: f.toothNumber, conditions: [...f.conditions], note: f.note ?? '' }
@@ -198,7 +198,7 @@ const effectiveSuggestedGrade = computed(() =>
 )
 
 function resetSuggestedToAuto() {
-  state.suggestedGrade = null
+  state.suggestedGrade = undefined
   state.suggestedOverride = false
 }
 
@@ -518,7 +518,7 @@ if (props.data) seed()
         <UFormField label="Catatan khusus gigi" class="mt-4">
           <UInput
             v-if="state.findings[state.selectedTooth]"
-            v-model="state.findings[state.selectedTooth].note"
+            v-model="state.findings[state.selectedTooth]!.note"
             :disabled="disabled"
             placeholder="Contoh: karies pada permukaan distal"
           />

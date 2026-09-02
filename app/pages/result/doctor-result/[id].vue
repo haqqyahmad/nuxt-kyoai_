@@ -134,7 +134,7 @@ async function submitReturnDept() {
 
 // [AUDIT] History actions
 type AuditGrade = { inputanId: string; label?: string | null; grade?: string | null; comment?: string | null; source?: string | null }
-type AuditItem = { inputanId: string; label?: string | null; note?: string | null; itemCode?: string | null }
+type AuditItem = { inputanId: string; label?: string | null; note?: string | null; itemCode?: string | null; department?: string | null }
 type AuditAction = {
   action: string
   reason: string | null
@@ -1065,17 +1065,17 @@ onBeforeUnmount(() => {
 
               <div class="max-h-80 space-y-2 overflow-y-auto rounded border p-2">
                 <div
-                  v-for="(item, idx) in returnDeptItems"
+                  v-for="item in returnDeptItems"
                   :key="item.inputanId"
                   class="rounded border p-2"
                 >
                   <label class="flex items-center gap-2 text-sm font-medium">
-                    <input v-model="returnDeptItems[idx].checked" type="checkbox" class="size-4" />
+                    <input v-model="item.checked" type="checkbox" class="size-4" />
                     {{ item.label }}
                   </label>
                   <UInput
-                    v-if="returnDeptItems[idx].checked"
-                    v-model="returnDeptItems[idx].note"
+                    v-if="item.checked"
+                    v-model="item.note"
                     class="mt-2"
                     size="sm"
                     placeholder="Catatan untuk department"

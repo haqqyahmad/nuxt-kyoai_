@@ -239,11 +239,11 @@ const groupGradingSaving = ref(false)
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
 const canEditCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus === 'PROCESSING'
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result?.exam?.externalStatus === 'PROCESSING'
   return props.result?.canEditResult ?? props.result?.status === 'pending'
 })
 const canSubmitCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result.exam?.externalStatus === 'PROCESSING'
+  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result?.exam?.externalStatus === 'PROCESSING'
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
 const isExternalResultFilled = computed(() =>
@@ -303,7 +303,7 @@ async function startExternalProcessing() {
   if (!props.result?.exam?.id || !examItemId || externalStarting.value) return
   externalStarting.value = true
   try {
-    await api.post(`/mcu/exams/${props.result.exam.id}/external-processing/start`, { examItemId })
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/external-processing/start`, { examItemId })
     toast.add({ title: 'Berhasil', description: 'Pemeriksaan dokter luar dimulai. Batas waktu submit 3 jam.', color: 'success' })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
@@ -356,7 +356,7 @@ async function handleUpdateResultStatus() {
 
   statusSaving.value = true
   try {
-    await api.post(`/mcu/exams/${props.result.exam.id}/results/status`, {
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/results/status`, {
       examItemId: props.result.id,
       resultStatus: selectedResultStatus.value
     })
@@ -379,7 +379,7 @@ async function setResultStatus(status: string) {
 
   statusSaving.value = true
   try {
-    await api.post(`/mcu/exams/${props.result.exam.id}/results/status`, {
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/results/status`, {
       examItemId: props.result.id,
       resultStatus: status
     })
@@ -443,7 +443,7 @@ function getSampleImpactLabel(impact: SampleImpact) {
 async function loadGroupResults() {
   if (!props.result?.exam?.id) return
   try {
-    const { data } = await api.get(`/mcu/exams/${props.result.exam.id}/group-results`)
+    const { data } = await api.get(`/mcu/exams/${props.result?.exam?.id}/group-results`)
     const list = data?.data ?? []
     if (Array.isArray(list) && list.length > 0) {
       const g = list[0]
@@ -466,7 +466,7 @@ async function saveGroupGrading() {
     const items = (props.result.exam?.results ?? [])
       .filter((r: any) => r.grading && r.grading !== 'NORMAL')
       .map((r: any) => ({ inputanId: r.inputanId, grading: r.grading, name: inputanLabel(r.inputanId) }))
-    const { data } = await api.post(`/mcu/exams/${props.result.exam.id}/group-result`, {
+    const { data } = await api.post(`/mcu/exams/${props.result?.exam?.id}/group-result`, {
       ...groupGradingForm.value,
       items
     })
@@ -539,7 +539,7 @@ function gradingColor(grading?: string | null): BadgeColor {
 const externalResultsMap = computed(() => {
   const map = new Map<string, any>()
   if (props.result?.exam?.results) {
-    for (const r of props.result.exam.results) {
+    for (const r of props.result?.exam?.results) {
       map.set(r.inputanId, r)
     }
   }
@@ -588,12 +588,18 @@ function getExternalUploadLabel() {
   return [actor, uploadedAt].filter(value => value && value !== '-').join(' - ')
 }
 
+function optionRequiresDetail(option: ExamInputOption) {
+  return /\(Text\)$/i.test(option.label) || /^others$/i.test(option.label)
+}
+
 function hasOtherOption(inputan: ExamInput) {
-  return (inputan.opsis || []).some(option => option.value === 'Others' || option.label === 'Others')
+  return (inputan.opsis || []).some(option => optionRequiresDetail(option))
 }
 
 function isOtherSelected(inputan: ExamInput) {
-  return getInputDraft(inputan.id).valueSelected === 'Others'
+  const selected = getInputDraft(inputan.id).valueSelected
+  const option = (inputan.opsis || []).find(o => o.value === selected)
+  return Boolean(option && optionRequiresDetail(option)) || /\(Text\)$/i.test(selected)
 }
 
 function getExternalExamItemId() {
@@ -628,7 +634,7 @@ async function loadExternalAttachmentPreview() {
   externalAttachmentLoading.value = true
   try {
     const response = await api.get(
-      `/mcu/exams/${props.result.exam.id}/external-attachment/${examItemId}/download`,
+      `/mcu/exams/${props.result?.exam?.id}/external-attachment/${examItemId}/download`,
       { responseType: 'blob' }
     )
     externalAttachmentPreviewUrl.value = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
@@ -710,7 +716,7 @@ async function openExternalAttachment() {
   externalSaving.value = true
   try {
     const response = await api.get(
-      `/mcu/exams/${props.result.exam.id}/external-attachment/${examItemId}/download`,
+      `/mcu/exams/${props.result?.exam?.id}/external-attachment/${examItemId}/download`,
       { responseType: 'blob' }
     )
     const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
@@ -856,6 +862,30 @@ function getVisibleNormalRanges(inputan: ExamInput) {
   const bestAgeMin = Math.max(...ageMatched.map(range => range.ageMin ?? -1))
   return ageMatched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
 }
+
+// Visibilitas field berdasarkan jenis kelamin pasien (item radiologi/USG).
+// Field disembunyikan HANYA bila seluruh rentang normal-nya dibatasi pada sex
+// yang tidak cocok dengan gender pasien. `sex: null` atau tidak ada rentang
+// normal → selalu tampil untuk semua gender.
+function inputanGenderRestrictedToSexes(inputan: ExamInput): string[] {
+  const sexes = new Set<string>()
+  for (const range of [...(inputan.nilaiNormalSel ?? []), ...(inputan.nilaiNormalNum ?? [])]) {
+    if (!range.sex) return [] // ada rentang universal → tidak dibatasi gender
+    sexes.add(getPatientGenderKey(range.sex) ?? '')
+  }
+  return [...sexes].filter(Boolean)
+}
+
+function isInputanVisibleForGender(inputan: ExamInput): boolean {
+  const restricted = inputanGenderRestrictedToSexes(inputan)
+  if (!restricted.length) return true
+  const patientKey = getPatientGenderKey(props.result?.patient?.gender) ?? ''
+  return restricted.includes(patientKey)
+}
+
+const visibleInputans = computed(() =>
+  (props.result?.item?.inputans ?? []).filter(isInputanVisibleForGender)
+)
 
 function getMatchedNormalRange(inputan: ExamInput) {
   return getPatientMatchedDisplayNormalRanges(inputan)[0] || null
@@ -1261,7 +1291,7 @@ function seedDraftsFromExistingResults() {
   if (!props.result?.exam?.results) return
 
   const resultMap = new Map(
-    (props.result.exam.results || []).map(result => [result.inputanId, result])
+    (props.result?.exam?.results || []).map(result => [result.inputanId, result])
   )
 
   for (const inputan of props.result.item?.inputans || []) {
@@ -1304,7 +1334,7 @@ function buildResultsPayload() {
 
     if (inputan.inputType === 'selected') {
       const valueSelected = getDraftText(draft.valueSelected)
-      const valueString = valueSelected === 'Others' ? getDraftText(draft.valueString) : ''
+      const valueString = valueSelected && isOtherSelected(inputan) ? getDraftText(draft.valueString) : ''
       if (valueSelected) {
         payload.push({ ...base, valueSelected, ...(valueString ? { valueString } : {}) })
       }
@@ -1359,13 +1389,13 @@ async function handleSaveResult() {
   saving.value = true
   try {
     if (isExternalDoctorWorkspace.value) {
-      await api.post(`/mcu/exams/${props.result.exam.id}/external-result`, {
+      await api.post(`/mcu/exams/${props.result?.exam?.id}/external-result`, {
         examItemId: props.result.id,
         results,
         submit: false
       })
     } else {
-      await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
+      await api.post(`/mcu/exams/${props.result?.exam?.id}/results`, { results })
     }
 
     toast.add({
@@ -1421,7 +1451,7 @@ async function handleSubmitResult() {
   submitting.value = true
   try {
     if (isExternalDoctorWorkspace.value) {
-      await api.post(`/mcu/exams/${props.result.exam.id}/external-result`, {
+      await api.post(`/mcu/exams/${props.result?.exam?.id}/external-result`, {
         examItemId: props.result.id,
         results,
         submit: true
@@ -1437,8 +1467,8 @@ async function handleSubmitResult() {
       return
     }
 
-    await api.post(`/mcu/exams/${props.result.exam.id}/results`, { results })
-    await api.post(`/mcu/exams/${props.result.exam.id}/results/submit`, {
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/results`, { results })
+    await api.post(`/mcu/exams/${props.result?.exam?.id}/results/submit`, {
       departmentId: props.result.item?.department?.id
     })
 
@@ -1535,7 +1565,7 @@ onBeforeUnmount(() => {
               size="xs"
               color="primary"
               variant="soft"
-              :to="`/rooms/dental/${result.exam.id}`"
+              :to="`/rooms/dental/${result?.exam?.id}`"
             >
               Hasil Dental
             </UButton>
@@ -1568,7 +1598,7 @@ onBeforeUnmount(() => {
         </UButton>
 
         <div
-          v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result.exam?.externalStatus === 'PROCESSING')"
+          v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')"
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
           <UButton
@@ -1647,7 +1677,7 @@ onBeforeUnmount(() => {
                   variant="soft"
                   size="sm"
                 />
-                <UBadge :label="result.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
+                <UBadge :label="result?.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result?.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
               </div>
             </div>
           </template>
@@ -1655,7 +1685,7 @@ onBeforeUnmount(() => {
           <div v-show="externalContextOpen">
           <!-- Batas waktu pengerjaan dokter luar: 3 jam setelah mulai diproses -->
           <div
-            v-if="result.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
+            v-if="result?.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
             class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
             :class="externalProcessingOverdue ? 'border-error/40 bg-error/5' : 'border-primary/20 bg-primary/5'"
           >
@@ -1684,7 +1714,7 @@ onBeforeUnmount(() => {
             />
           </div>
           <div
-            v-else-if="result.exam?.externalStatus === 'ASSIGNED'"
+            v-else-if="result?.exam?.externalStatus === 'ASSIGNED'"
             class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-default/70 bg-muted/30 px-4 py-3"
           >
             <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
@@ -1725,7 +1755,7 @@ onBeforeUnmount(() => {
               <dt class="text-xs uppercase tracking-wide text-muted">
                 Dokter Luar
               </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
               </dd>
             </div>
             <div class="min-w-0">
@@ -1746,7 +1776,7 @@ onBeforeUnmount(() => {
               <dt class="text-xs uppercase tracking-wide text-muted">
                 Dokter Luar
               </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
               </dd>
             </div>
           </dl>
@@ -1815,7 +1845,7 @@ onBeforeUnmount(() => {
               Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh nurse.
             </div>
             <div v-if="result.item?.inputans?.length" class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28" :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'">
-              <div v-for="inputan in result.item.inputans" :key="inputan.id" class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3">
+              <div v-for="inputan in visibleInputans" :key="inputan.id" class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3">
                 <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }} <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
                 <input
                   v-if="inputan.inputType === 'number'"
@@ -1861,11 +1891,11 @@ onBeforeUnmount(() => {
                   placeholder="Dihitung otomatis"
                 >
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0], inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
+                  <span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
               </div>
               <div class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3" :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''">
-                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" />
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea :rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" />
               </div>
             </div>
             <div v-else class="flex min-h-72 items-center justify-center p-6">
@@ -1932,7 +1962,7 @@ onBeforeUnmount(() => {
                 </template>
 
                 <!-- Dokter luar: tombol Simpan Draft + Submit setelah Mulai Proses (PROCESSING) -->
-                <template v-else-if="result.exam?.externalStatus === 'PROCESSING'">
+                <template v-else-if="result?.exam?.externalStatus === 'PROCESSING'">
                   <div class="flex flex-col gap-2 sm:flex-row">
                     <UButton
                       color="neutral"
@@ -1989,34 +2019,34 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Peringatan untuk petugas: status dokter luar -->
-        <div v-if="hasExternalResultContext && !isExternalDoctor && result.exam?.externalStatus" class="border-b px-4 py-3" :class="{
-          'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200': result.exam.externalStatus === 'ASSIGNED',
-          'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200': result.exam.externalStatus === 'PROCESSING',
-          'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200': result.exam.externalStatus === 'FILLED',
-          'border-default bg-muted/30': result.exam.externalStatus === 'CANCELLED',
+        <div v-if="hasExternalResultContext && !isExternalDoctor && result?.exam?.externalStatus" class="border-b px-4 py-3" :class="{
+          'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200': result?.exam?.externalStatus === 'ASSIGNED',
+          'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200': result?.exam?.externalStatus === 'PROCESSING',
+          'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200': result?.exam?.externalStatus === 'FILLED',
+          'border-default bg-muted/30': result?.exam?.externalStatus === 'CANCELLED',
         }">
           <div class="flex items-start gap-2">
-            <UIcon :name="result.exam.externalStatus === 'PROCESSING' ? 'i-lucide-clock' : result.exam.externalStatus === 'ASSIGNED' ? 'i-lucide-alert-triangle' : 'i-lucide-check-circle'" class="mt-0.5 size-4 shrink-0" />
+            <UIcon :name="result?.exam?.externalStatus === 'PROCESSING' ? 'i-lucide-clock' : result?.exam?.externalStatus === 'ASSIGNED' ? 'i-lucide-alert-triangle' : 'i-lucide-check-circle'" class="mt-0.5 size-4 shrink-0" />
             <div class="min-w-0">
-              <p v-if="result.exam.externalStatus === 'ASSIGNED'" class="text-sm font-semibold">
+              <p v-if="result?.exam?.externalStatus === 'ASSIGNED'" class="text-sm font-semibold">
                 Dokter luar belum memulai pemeriksaan
               </p>
-              <p v-else-if="result.exam.externalStatus === 'PROCESSING'" class="text-sm font-semibold">
+              <p v-else-if="result?.exam?.externalStatus === 'PROCESSING'" class="text-sm font-semibold">
                 Dokter luar sedang mengerjakan pemeriksaan
                 <span v-if="externalProcessingOverdue" class="text-error"> — batas waktu sudah lewat (3 jam)</span>
                 <span v-else> — {{ externalProcessingRemainingLabel }}</span>
               </p>
-              <p v-else-if="result.exam.externalStatus === 'FILLED'" class="text-sm font-semibold">
+              <p v-else-if="result?.exam?.externalStatus === 'FILLED'" class="text-sm font-semibold">
                 Dokter luar sudah mengisi hasil
               </p>
               <p v-else class="text-sm font-semibold">Penugasan dibatalkan</p>
               <p class="text-xs opacity-80">
-                {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
-                <template v-if="result.exam.externalStatus === 'PROCESSING'">
-                  · Mulai {{ formatDateTime(result.exam.externalProcessingStartedAt) }}
+                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
+                <template v-if="result?.exam?.externalStatus === 'PROCESSING'">
+                  · Mulai {{ formatDateTime(result?.exam?.externalProcessingStartedAt) }}
                 </template>
-                <template v-else-if="result.exam.externalStatus === 'ASSIGNED'">
-                  · Ditugaskan {{ formatDateTime(result.exam.externalAssignedAt) }}
+                <template v-else-if="result?.exam?.externalStatus === 'ASSIGNED'">
+                  · Ditugaskan {{ formatDateTime(result?.exam?.externalAssignedAt) }}
                 </template>
               </p>
             </div>
@@ -2190,7 +2220,7 @@ onBeforeUnmount(() => {
                       Exam Code (Edisi)
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted font-mono">
-                      {{ result.exam.examCode }}
+                      {{ result?.exam?.examCode }}
                     </dd>
                   </div>
                   <div v-if="hasExternalResultContext">
@@ -2198,16 +2228,16 @@ onBeforeUnmount(() => {
                       Dokter Luar
                     </dt>
                     <dd class="mt-1 space-y-2">
-                      <UBadge v-if="result.exam?.externalStatus" :color="externalStatusColor[result.exam.externalStatus] ?? 'neutral'" variant="subtle">
-                        {{ result.exam.externalStatus }}
+                      <UBadge v-if="result?.exam?.externalStatus" :color="externalStatusColor[result?.exam?.externalStatus] ?? 'neutral'" variant="subtle">
+                        {{ result?.exam?.externalStatus }}
                       </UBadge>
                       <span v-else class="text-sm text-muted">-</span>
 
-                      <div v-if="result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'PROCESSING' || result.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
-                        {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }}
+                      <div v-if="result?.exam?.externalStatus === 'ASSIGNED' || result?.exam?.externalStatus === 'PROCESSING' || result?.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
+                        {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
                       </div>
 
-                      <div v-if="!isExternalDoctor && (!result.exam?.externalStatus || result.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
+                      <div v-if="!isExternalDoctor && (!result?.exam?.externalStatus || result?.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
                         <USelectMenu
                           v-model="selectedExternalDoctor"
                           :items="externalDoctors"
@@ -2228,9 +2258,9 @@ onBeforeUnmount(() => {
                         </UButton>
                       </div>
 
-                      <div v-if="!isExternalDoctor && (result.exam?.externalStatus === 'ASSIGNED' || result.exam?.externalStatus === 'PROCESSING')" class="flex items-center gap-2">
+                      <div v-if="!isExternalDoctor && (result?.exam?.externalStatus === 'ASSIGNED' || result?.exam?.externalStatus === 'PROCESSING')" class="flex items-center gap-2">
                         <UButton
-                          v-if="result.exam?.externalStatus === 'ASSIGNED'"
+                          v-if="result?.exam?.externalStatus === 'ASSIGNED'"
                           size="xs"
                           color="error"
                           variant="soft"
@@ -2330,7 +2360,7 @@ onBeforeUnmount(() => {
 
                       <tbody class="divide-y divide-default/60 bg-default/80">
                         <tr
-                          v-for="inputan in result.item.inputans"
+                          v-for="inputan in visibleInputans"
                           :key="inputan.id"
                           class="transition hover:bg-muted/20"
                           :class="inputanReturnNote(inputan.id) ? 'bg-error/5' : ''"
@@ -2426,6 +2456,22 @@ onBeforeUnmount(() => {
                                 </option>
                               </select>
 
+                              <div
+                                v-if="inputan.inputType === 'selected' && hasOtherOption(inputan) && isOtherSelected(inputan)"
+                                class="mt-2"
+                              >
+                                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
+                                  Detail {{ inputan.label }}
+                                </label>
+                                <input
+                                  v-model="getInputDraft(inputan.id).valueString"
+                                  type="text"
+                                  :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                                  class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
+                                  placeholder="Tuliskan detail"
+                                >
+                              </div>
+
                               <input
                                 v-else-if="inputan.inputType === 'calculated'"
                                 v-model="getInputDraft(inputan.id).valueCalculated"
@@ -2477,7 +2523,7 @@ onBeforeUnmount(() => {
                         Hasil Dokter Luar (Sudah Submit)
                       </h4>
                       <p class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                        Detail hasil yang diisi dokter luar: {{ formatExternalActor(result.exam.assignedExternalUser, result.exam.assignedExternalUserId) }} - {{ formatDateTime(result.exam.externalFilledAt) }}
+                        Detail hasil yang diisi dokter luar: {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }} - {{ formatDateTime(result?.exam?.externalFilledAt) }}
                       </p>
                     </div>
                     <UIcon name="i-lucide-user-check" class="size-4 text-emerald-600 dark:text-emerald-400" />
@@ -2506,7 +2552,7 @@ onBeforeUnmount(() => {
 
                       <tbody class="divide-y divide-emerald-200/50 dark:divide-emerald-800/30 bg-white/80 dark:bg-emerald-950/20">
                         <tr
-                          v-for="inputan in result.item.inputans"
+                          v-for="inputan in visibleInputans"
                           :key="inputan.id"
                           class="transition hover:bg-emerald-50/30 dark:hover:bg-emerald-900/20"
                         >
