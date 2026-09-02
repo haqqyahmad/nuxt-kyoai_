@@ -647,11 +647,45 @@ const checkoutEligibility = ref<{
 } | null>(null)
 
 // Item non-final yang bermasalah utk banner Note (retest sudah di banner utama).
-const noteIssueItems = computed(() =>
-  (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
+const noteIssueItems = computed(() => {
+  const fromCheckout = (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
     ['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
-)
+
+  // Get all rejected OR refused sample collections from queue
+  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter(s => 
+    ['REJECTED', 'REFUSED'].includes(s.status)
+  )
+
+  // Get item IDs from rejected/refused sample collections
+  const badItemIds = new Set<string>()
+  for (const sc of badSampleCollections) {
+    for (const item of sc.items ?? []) {
+      badItemIds.add(item.itemId)
+    }
+  }
+
+  const fromExamItems = (reg.value?.exam?.examItems ?? []).filter(item => {
+    const hasBadSampleId = badItemIds.has(item.item.id)
+    const samples = getSampleCollectionsForItem(item.item.id)
+    const hasBadSampleStatus = samples.some(s => ['REJECTED', 'REFUSED'].includes(s.status))
+    const roomStatuses = item.roomExamItems?.map(r => r.status) ?? []
+    return roomStatuses.includes('REFUSED') ||
+      roomStatuses.includes('REJECTED') ||
+      item.workStatus === 'REFUSED' ||
+      item.workStatus === 'REJECTED' ||
+      hasBadSampleId ||
+      hasBadSampleStatus
+  })
+  // Merge & dedupe by itemName
+  const merged = [...fromCheckout]
+  for (const item of fromExamItems) {
+    if (!merged.some(m => m.itemName === item.item.name)) {
+      merged.push({ itemName: item.item.name, currentRoomStatus: item.workStatus ?? 'REJECTED' })
+    }
+  }
+  return merged
+})
 
 // Item belum selesai utk banner "Patient cannot be discharged yet" — tanpa utk yg rejected (sudah di Rejected Items).
 const dischargePendingItems = computed(() =>
@@ -693,24 +727,28 @@ const mealTimerDuration = ref<number | null>(null)
 let mealTimerInterval: ReturnType<typeof setInterval> | null = null
 
 // Ambil durasi meal utk countdown; polling saat IN_PROGRESS biar timer & status update.
-const examMealStatus = computed(() => reg.value?.exam?.mealStatus ?? null)
-const examMealStartedAt = computed(() => reg.value?.exam?.mealStartedAt ?? null)
+const examObj = computed(() => reg.value?.exam as Record<string, unknown> | null)
+const examMealStatus = computed(() => reg.value?.exam?.mealStatus ?? (examObj.value?.status as string | undefined | null) ?? null)
+const examMealStartedAt = computed(() => reg.value?.exam?.mealStartedAt ?? (examObj.value?.startedAt as string | undefined | null) ?? null)
 
 async function fetchMealDuration() {
   const examId = reg.value?.exam?.id
   if (!examId) return
   try {
     const res = await api.get(`/medical/exams/${examId}/meal`)
-    mealTimerDuration.value = res.data?.data?.mealDurationMinutes ?? null
+    const data = res.data?.data as Record<string, unknown> | null
+    mealTimerDuration.value = (data?.mealDurationMinutes as number | undefined | null) ?? (data?.durationMinutes as number | undefined | null) ?? null
   } catch {
     mealTimerDuration.value = null
   }
 }
 
 const examMealRemainingText = computed(() => {
-  if (examMealStatus.value !== 'IN_PROGRESS') return ''
+  const status = examMealStatus.value
+  if (status !== 'IN_PROGRESS') return ''
   const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
-  const durationMs = (mealTimerDuration.value ?? 0) * 60 * 1000
+  const durationMin = mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
+  const durationMs = durationMin * 60 * 1000
   if (!started || !durationMs) return ''
   const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
   const totalSec = Math.floor(remaining / 1000)
@@ -719,21 +757,44 @@ const examMealRemainingText = computed(() => {
   return `${mm}:${ss}`
 })
 
+let mealPollingInterval: ReturnType<typeof setInterval> | null = null
+
 watch(examMealStatus, (s) => {
   if (mealTimerInterval) {
     clearInterval(mealTimerInterval)
     mealTimerInterval = null
   }
+  if (mealPollingInterval) {
+    clearInterval(mealPollingInterval)
+    mealPollingInterval = null
+  }
   if (s === 'IN_PROGRESS') {
     mealTimerNow.value = Date.now()
     mealTimerInterval = setInterval(() => {
       mealTimerNow.value = Date.now()
+      
+      const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
+      const durationMin = mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
+      const durationMs = durationMin * 60 * 1000
+      if (started && durationMs) {
+        const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
+        if (remaining === 0) {
+          void refresh()
+          void fetchMealDuration()
+        }
+      }
     }, 1000)
+    // Polling otomatis tiap 10-15 detik untuk memperbarui status meal dan timing dari backend
+    mealPollingInterval = setInterval(() => {
+      void refresh()
+      void fetchMealDuration()
+    }, 12000)
   }
-})
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   if (mealTimerInterval) clearInterval(mealTimerInterval)
+  if (mealPollingInterval) clearInterval(mealPollingInterval)
 })
 
 const hasRescheduleItem = computed(() =>
@@ -1020,6 +1081,26 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </div>
 
         <UAlert
+          v-if="noteIssueItems.length"
+          color="error"
+          variant="soft"
+          icon="i-lucide-octagon-x"
+          title="Rejected Items"
+          description="The following items have been rejected by the patient / sample rejected:"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>The following items have been rejected by the patient / sample rejected:</p>
+              <ul class="list-disc pl-5 text-xs">
+                <li v-for="(item, index) in noteIssueItems" :key="index">
+                  {{ item.itemName ?? '-' }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </UAlert>
+
+        <UAlert
           v-if="checkoutEligibility?.warnings?.length"
           color="warning"
           variant="soft"
@@ -1056,26 +1137,6 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in dischargePendingItems" :key="index">
                   {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabelEn(item.currentRoomStatus) : (item.reason || 'not finished') }}
-                </li>
-              </ul>
-            </div>
-          </template>
-        </UAlert>
-
-        <UAlert
-          v-if="noteIssueItems.length"
-          color="error"
-          variant="soft"
-          icon="i-lucide-octagon-x"
-          title="Rejected Items"
-          description="The following items have been rejected by the patient / sample rejected:"
-        >
-          <template #description>
-            <div class="mt-1 space-y-1">
-              <p>The following items have been rejected by the patient / sample rejected:</p>
-              <ul class="list-disc pl-5 text-xs">
-                <li v-for="(item, index) in noteIssueItems" :key="index">
-                  {{ item.itemName ?? '-' }}
                 </li>
               </ul>
             </div>

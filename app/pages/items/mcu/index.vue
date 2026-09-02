@@ -18,8 +18,6 @@ const UBadge = resolveComponent('UBadge')
 const api = useApi()
 const toast = useToast()
 
-type Department = 'Laboratory' | 'DoctorConsultation' | 'MCU' | 'Vaccine' | 'Antigen' | 'PCR' | 'VitaminInjection' | 'Pharmacy' | 'Dental' | 'Radiology'
-
 type Item = {
   id: string
   name: string
@@ -35,7 +33,7 @@ type Item = {
   price?: number
   description?: string | null
   department?: {
-    id: string,
+    id: string
     code?: string | null
     name: string
   } | null
@@ -45,13 +43,13 @@ type Item = {
     name: string
   } | null
   group?: {
-    id: string,
-    name: string,
+    id: string
+    name: string
     code?: string | null
     sortOrder?: number | null
     parent?: {
-      id: string,
-      name: string,
+      id: string
+      name: string
       code?: string | null
       sortOrder?: number | null
     } | null
@@ -66,9 +64,9 @@ type Item = {
     sortOrder: number
     allowBlank: boolean
     formula: { formula: string } | null
-    opsis: Array<{ id: string; label: string; value: string; sortOrder: number }>
-    nilaiNormalNumber: Array<{ sex: string | null; ageMin: number; minValue: number | null; maxValue: number | null }>
-    nilaiNormalSel: Array<{ id: string; sex: string | null; ageMin: number; opsiId: string }>
+    opsis: Array<{ id: string, label: string, value: string, sortOrder: number }>
+    nilaiNormalNumber: Array<{ sex: string | null, ageMin: number, minValue: number | null, maxValue: number | null }>
+    nilaiNormalSel: Array<{ id: string, sex: string | null, ageMin: number, opsiId: string }>
   }> | null
 }
 
@@ -187,7 +185,7 @@ const isAddModalOpen = ref(false)
 // ─── Filter by Room Type ─────────────────────────────────────────────────────────
 const roomTypeFilter = ref<string>('all')
 const roomTypes = computed(() => {
-  const map = new Map<string, { id: string; code: string; name: string }>()
+  const map = new Map<string, { id: string, code: string, name: string }>()
   for (const item of data.value) {
     if (item.roomType?.id && !map.has(item.roomType.id)) {
       map.set(item.roomType.id, {
@@ -202,7 +200,7 @@ const roomTypes = computed(() => {
 
 const filteredData = computed<Item[]>(() => {
   if (roomTypeFilter.value === 'all') return data.value
-  return data.value.filter((item) => item.roomType?.id === roomTypeFilter.value)
+  return data.value.filter(item => item.roomType?.id === roomTypeFilter.value)
 })
 const columnFilters = ref([{ id: 'name', value: '' }])
 const columnVisibility = ref({})
@@ -229,7 +227,7 @@ const importPreviewRows = ref<Array<{
 }>>([])
 
 function downloadImportTemplate() {
-  const exportedItems = data.value.map((item) => ({
+  const exportedItems = data.value.map(item => ({
     code: item.code || '',
     name: item.name,
     departmentCode: item.department?.code || item.department?.name || '',
@@ -241,7 +239,7 @@ function downloadImportTemplate() {
     price: 0,
     description: '',
     isActive: item.isActive !== false,
-     inputans: (item.inputans ?? []).map((inp) => {
+    inputans: (item.inputans ?? []).map((inp) => {
       const opsiList = inp.opsis ?? []
       return {
         label: inp.label,
@@ -250,21 +248,21 @@ function downloadImportTemplate() {
         sortOrder: inp.sortOrder ?? 0,
         allowBlank: inp.allowBlank ?? false,
         formula: inp.inputType === 'calculated' ? inp.formula?.formula ?? null : null,
-        opsis: opsiList.map((o) => ({
+        opsis: opsiList.map(o => ({
           label: o.label,
           value: o.value,
           sortOrder: o.sortOrder ?? 0
         })),
-        nilaiNormalNumber: (inp.nilaiNormalNumber ?? []).map((n) => ({
+        nilaiNormalNumber: (inp.nilaiNormalNumber ?? []).map(n => ({
           sex: n.sex ?? null,
           ageMin: n.ageMin ?? 0,
           minValue: n.minValue ?? null,
           maxValue: n.maxValue ?? null
         })),
-        nilaiNormalSelected: (inp.nilaiNormalSel ?? []).map((n) => ({
+        nilaiNormalSelected: (inp.nilaiNormalSel ?? []).map(n => ({
           sex: n.sex ?? null,
           ageMin: n.ageMin ?? 0,
-          opsiValue: opsiList.find((o: { id: string; label: string }) => o.id === n.opsiId)?.label ?? null
+          opsiValue: opsiList.find((o: { id: string, label: string }) => o.id === n.opsiId)?.label ?? null
         }))
       }
     })
@@ -334,7 +332,7 @@ async function resolveReferences() {
   const roomTypes = unwrap(roomRes.data) as Array<{ id: string, code?: string | null, name: string }>
 
   const groupsByDept = new Map<string, Array<{ id: string, name: string, code?: string | null, parentId: string | null }>>()
-  await Promise.all(departments.map(async dept => {
+  await Promise.all(departments.map(async (dept) => {
     try {
       const res = await api.get(`/medical/group/${dept.id}`)
       const payload = (res.data?.data ?? res.data) as unknown
@@ -406,7 +404,7 @@ async function submitImportPreview() {
     const codesPayload = codesRes.data?.data ?? codesRes.data
     const codesList = Array.isArray(codesPayload) ? codesPayload : (codesPayload?.data ?? [])
     const existingByCode = new Map<string, string>()
-    for (const c of codesList as Array<{ code?: string; id?: string }>) {
+    for (const c of codesList as Array<{ code?: string, id?: string }>) {
       if (c.code && c.id) existingByCode.set(c.code, c.id)
     }
     const existingCodes = Array.from(existingByCode.keys())
@@ -422,23 +420,45 @@ async function submitImportPreview() {
 
     let created = 0
     const errors: string[] = []
-    importPreviewRows.value.forEach(row => { row.error = '' })
+    importPreviewRows.value.forEach((row) => {
+      row.error = ''
+    })
 
     for (let i = 0; i < importPreviewRows.value.length; i++) {
       const row = importPreviewRows.value[i]!
-      if (!row.name.trim()) { row.error = 'name wajib diisi'; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (!row.name.trim()) {
+        row.error = 'name wajib diisi'
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
 
       const dept = findDept(row.departmentCode)
-      if (!dept) { row.error = `department "${row.departmentCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (!dept) {
+        row.error = `department "${row.departmentCode}" tidak ditemukan`
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
       const room = findRoom(row.roomTypeCode)
-      if (!room) { row.error = `room type "${row.roomTypeCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (!room) {
+        row.error = `room type "${row.roomTypeCode}" tidak ditemukan`
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
 
       const rootGroup = row.groupName ? findGroup(dept.id, row.groupName) : null
-      if (row.groupName && !rootGroup) { row.error = `group "${row.groupName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (row.groupName && !rootGroup) {
+        row.error = `group "${row.groupName}" tidak ditemukan`
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
       const subgroup = row.subgroupName ? findGroup(dept.id, row.subgroupName, rootGroup?.id ?? null) : null
-      if (row.subgroupName && !subgroup) { row.error = `subgroup "${row.subgroupName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (row.subgroupName && !subgroup) {
+        row.error = `subgroup "${row.subgroupName}" tidak ditemukan`
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
 
-       let code = row.code.trim()
+      let code = row.code.trim()
       if (!code) {
         const parts = [dept.code || abbrName(dept.name)]
         if (rootGroup) parts.push(rootGroup.code ? norm(rootGroup.code).replace(/[^A-Z0-9]/g, '') : abbrName(rootGroup.name))
@@ -504,7 +524,7 @@ const isDeleteModalOpen = ref(false)
 
 // ─── Exam Template Modal ───────────────────────────────────────────────────────
 const isExamTemplateModalOpen = ref(false)
-const selectedTemplateItem = ref<{ id: string; name: string } | null>(null)
+const selectedTemplateItem = ref<{ id: string, name: string } | null>(null)
 
 // ─── Edit Item Modal ───────────────────────────────────────────────────────────
 const isEditModalOpen = ref(false)
@@ -578,9 +598,11 @@ const mealConfigSaving = ref(false)
 const mealDurationValue = ref<number | null>(null)
 const selectedMealItemIds = ref<string[]>([])
 const mealConfigItems = ref<Item[]>([])
+const mealSearchTerm = ref<string>('')
+const loadingMealItems = ref(false)
 
 const mealItemOptions = computed(() =>
-  mealConfigItems.value.map((item) => ({
+  mealConfigItems.value.map(item => ({
     label: `${item.code} - ${item.name}`,
     value: item.id
   }))
@@ -588,34 +610,61 @@ const mealItemOptions = computed(() =>
 
 const selectedMealItemNames = computed(() =>
   selectedMealItemIds.value
-    .map((id) => mealConfigItems.value.find((item) => item.id === id)?.name)
+    .map(id => mealConfigItems.value.find(item => item.id === id)?.name)
     .filter(Boolean) as string[]
 )
+
+async function loadMealItems(search = '') {
+  loadingMealItems.value = true
+  try {
+    const res = await api.get('/mcu/items', { params: { search, limit: 50 } })
+    const payload = res.data?.data ?? res.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+
+    // Merge into mealConfigItems so that we don't lose items that are already selected or previously loaded
+    const existingIds = new Set(mealConfigItems.value.map(i => i.id))
+    for (const item of list as Item[]) {
+      if (!existingIds.has(item.id)) {
+        mealConfigItems.value.push(item)
+        existingIds.add(item.id)
+      }
+    }
+  } catch {
+    // keep existing items
+  } finally {
+    loadingMealItems.value = false
+  }
+}
 
 async function openMealConfigGlobal() {
   mealConfigItems.value = []
   selectedMealItemIds.value = []
   mealDurationValue.value = null
+  mealSearchTerm.value = ''
   isMealConfigOpen.value = true
 
   try {
-    const [itemsRes, cfgRes] = await Promise.all([
-      api.get('/mcu/items', { params: { page: 1, limit: 1000 } }),
-      api.get('/master/app-config/meal_duration_minutes')
-    ])
-    const payload = itemsRes.data?.data ?? itemsRes.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
-    mealConfigItems.value = list as Item[]
-    selectedMealItemIds.value = mealConfigItems.value
-      .filter((item) => Boolean(item.mealPrerequisite))
-      .map((item) => item.id)
+    const cfgPromise = api.get('/master/app-config/meal_duration_minutes')
+    const selectedRes = await api.get('/mcu/items', { params: { mealPrerequisite: true, limit: 100 } })
+
+    const selectedPayload = selectedRes.data?.data ?? selectedRes.data
+    const selectedList = Array.isArray(selectedPayload) ? selectedPayload : (selectedPayload?.data ?? [])
+
+    mealConfigItems.value = selectedList as Item[]
+    selectedMealItemIds.value = []
+
+    const cfgRes = await cfgPromise
     const cfg = cfgRes.data?.data ?? null
     mealDurationValue.value = cfg?.value ? Number(cfg.value) : null
-  } catch (error: any) {
+
+    // Load first batch of items for initial display
+    await loadMealItems('')
+  } catch (error: unknown) {
     mealConfigItems.value = []
+    const err = error as { response?: { data?: { message?: string } } }
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal memuat konfigurasi meal',
+      description: err?.response?.data?.message || 'Gagal memuat konfigurasi meal',
       color: 'error'
     })
   }
@@ -628,7 +677,7 @@ async function saveMealConfigGlobal() {
     const selected = new Set(selectedMealItemIds.value)
     await Promise.all([
       api.put('/master/app-config/meal_duration_minutes', { value: mealDurationValue.value ? String(mealDurationValue.value) : null }),
-      ...mealConfigItems.value.map((item) =>
+      ...mealConfigItems.value.map(item =>
         api.put(`/mcu/items/${item.id}`, {
           mealPrerequisite: selected.has(item.id)
         })
@@ -641,10 +690,11 @@ async function saveMealConfigGlobal() {
     })
     isMealConfigOpen.value = false
     await refresh()
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } } }
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menyimpan konfigurasi meal',
+      description: err?.response?.data?.message || 'Gagal menyimpan konfigurasi meal',
       color: 'error'
     })
   } finally {
@@ -710,19 +760,19 @@ const columns: TableColumn<Item>[] = [
     id: 'select',
     header: ({ table }) =>
       h(UCheckbox, {
-        modelValue: table.getIsSomePageRowsSelected()
+        'modelValue': table.getIsSomePageRowsSelected()
           ? 'indeterminate'
           : table.getIsAllPageRowsSelected(),
         'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
           table.toggleAllPageRowsSelected(!!value),
-        ariaLabel: 'Select all'
+        'ariaLabel': 'Select all'
       }),
     cell: ({ row }) =>
       h(UCheckbox, {
-        modelValue: row.getIsSelected(),
+        'modelValue': row.getIsSelected(),
         'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
           row.toggleSelected(!!value),
-        ariaLabel: 'Select row'
+        'ariaLabel': 'Select row'
       })
   },
   {
@@ -1049,8 +1099,12 @@ watch(currentPage, (page) => {
           <UCard class="flex max-h-[90vh] flex-col" :ui="{ body: 'min-h-0 p-0', footer: 'shrink-0' }">
             <template #header>
               <div>
-                <h2 class="text-lg font-semibold">Preview Import Item</h2>
-                <p class="text-sm text-muted">Edit data dulu. Code kosong akan dibuat otomatis saat import.</p>
+                <h2 class="text-lg font-semibold">
+                  Preview Import Item
+                </h2>
+                <p class="text-sm text-muted">
+                  Edit data dulu. Code kosong akan dibuat otomatis saat import.
+                </p>
               </div>
             </template>
 
@@ -1072,21 +1126,59 @@ watch(currentPage, (page) => {
                   <UInput v-model="row.groupName" size="sm" />
                   <UInput v-model="row.subgroupName" size="sm" />
                   <UInput v-model="row.roomTypeCode" size="sm" />
-                  <USelect v-model="row.resultTiming" :items="[{ label: 'Inline', value: 'inline' }, { label: 'Deferred', value: 'deferred' }]" value-key="value" size="sm" />
+                  <USelect
+                    v-model="row.resultTiming"
+                    :items="[{ label: 'Inline', value: 'inline' }, { label: 'Deferred', value: 'deferred' }]"
+                    value-key="value"
+                    size="sm"
+                  />
                   <UCheckbox v-model="row.externalResult" label="Ya" />
-                  <UInput v-model.number="row.price" type="number" min="0" size="sm" />
+                  <UInput
+                    v-model.number="row.price"
+                    type="number"
+                    min="0"
+                    size="sm"
+                  />
                   <UInput v-model="row.description" size="sm" />
-                  <UInput :model-value="row.inputans?.length ? `${row.inputans.length} komponen` : ''" size="sm" placeholder="Opsional (template inputan bawaan)" readonly />
-                  <UButton color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" @click="removeImportRow(index)" />
-                  <p v-if="row.error" class="col-span-12 text-xs text-error">{{ row.error }}</p>
+                  <UInput
+                    :model-value="row.inputans?.length ? `${row.inputans.length} komponen` : ''"
+                    size="sm"
+                    placeholder="Opsional (template inputan bawaan)"
+                    readonly
+                  />
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    icon="i-lucide-trash-2"
+                    @click="removeImportRow(index)"
+                  />
+                  <p v-if="row.error" class="col-span-12 text-xs text-error">
+                    {{ row.error }}
+                  </p>
                 </div>
               </div>
             </div>
 
             <template #footer>
               <div class="flex w-full justify-end gap-2">
-                <UButton color="neutral" variant="soft" :disabled="importing" @click="importPreviewOpen = false">Batal</UButton>
-                <UButton color="primary" icon="i-lucide-database" :loading="importing" :disabled="!importPreviewRows.length" @click="submitImportPreview">Import ke DB</UButton>
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  :disabled="importing"
+                  @click="importPreviewOpen = false"
+                >
+                  Batal
+                </UButton>
+                <UButton
+                  color="primary"
+                  icon="i-lucide-database"
+                  :loading="importing"
+                  :disabled="!importPreviewRows.length"
+                  @click="submitImportPreview"
+                >
+                  Import ke DB
+                </UButton>
               </div>
             </template>
           </UCard>
@@ -1121,7 +1213,9 @@ watch(currentPage, (page) => {
           <UCard class="flex flex-col" :ui="{ body: 'min-h-0' }">
             <template #header>
               <div>
-                <h2 class="text-lg font-semibold">Konfigurasi Meal</h2>
+                <h2 class="text-lg font-semibold">
+                  Konfigurasi Meal
+                </h2>
                 <p class="text-sm text-muted">
                   Atur durasi makan dan pilih item yang wajib selesai sebelum pasien dapat mulai meal.
                 </p>
@@ -1145,13 +1239,16 @@ watch(currentPage, (page) => {
               >
                 <USelectMenu
                   v-model="selectedMealItemIds"
+                  v-model:search-term="mealSearchTerm"
                   :items="mealItemOptions"
+                  :loading="loadingMealItems"
                   value-key="value"
                   label-key="label"
                   multiple
                   searchable
                   placeholder="Pilih satu atau lebih item"
                   class="w-full"
+                  @update:search-term="loadMealItems"
                 >
                   <template #default>
                     <template v-if="selectedMealItemIds.length">

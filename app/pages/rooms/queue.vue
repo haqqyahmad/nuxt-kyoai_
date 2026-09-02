@@ -231,17 +231,39 @@ const toast = useToast()
 const now = ref(Date.now())
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
-function syncMealProgression(rows: { meal?: { status: string | null } | null }[]) {
-  const hasInProgress = rows.some(r => r.meal?.status === 'IN_PROGRESS')
+function syncMealProgression(rows: WaitingRow[]) {
+  const hasInProgress = rows.some(r => {
+    const status = r.meal?.status ?? (r.meal as Record<string, unknown> | null)?.mealStatus
+    return status === 'IN_PROGRESS'
+  })
   if (hasInProgress) {
     if (!clockTimer) {
       let tickCount = 0
       clockTimer = setInterval(() => {
         now.value = Date.now()
         tickCount += 1
-        // Polling berkala: setelah countdown habis/berubah (≈15s), refresh data
-        // supaya tombol "Ambil Pasien" kembali muncul begitu meal selesai.
-        if (tickCount % 15 === 0) {
+
+        // Cek apakah ada meal yang sudah habis (remaining === 0) atau setiap 15 detik
+        let hitZero = false
+        for (const r of rows) {
+          const status = r.meal?.status ?? (r.meal as Record<string, unknown> | null)?.mealStatus
+          if (status === 'IN_PROGRESS') {
+            const mealObj = r.meal as Record<string, unknown> | null
+            const startedAt = r.meal?.startedAt ?? (mealObj?.mealStartedAt as string | undefined | null)
+            const durationMin = r.meal?.durationMinutes ?? (mealObj?.mealDurationMinutes as number | undefined | null) ?? 0
+            if (startedAt && durationMin) {
+              const started = new Date(startedAt).getTime()
+              const durationMs = durationMin * 60 * 1000
+              const remaining = Math.max(0, started + durationMs - now.value)
+              if (remaining === 0) {
+                hitZero = true
+                break
+              }
+            }
+          }
+        }
+
+        if (hitZero || tickCount % 15 === 0) {
           void refreshWaiting()
         }
       }, 1000)
@@ -252,9 +274,14 @@ function syncMealProgression(rows: { meal?: { status: string | null } | null }[]
   }
 }
 function mealTimeRemaining(row: WaitingRow): string {
-  if (row.meal?.status !== 'IN_PROGRESS' || !row.meal.startedAt) return ''
-  const started = new Date(row.meal.startedAt).getTime()
-  const durationMs = (row.meal.durationMinutes ?? 0) * 60 * 1000
+  const status = row.meal?.status
+  if (status !== 'IN_PROGRESS') return ''
+  const mealObj = row.meal as Record<string, unknown> | null
+  const startedAt = row.meal?.startedAt ?? (mealObj?.mealStartedAt as string | undefined | null)
+  if (!startedAt) return ''
+  const started = new Date(startedAt).getTime()
+  const durationMin = row.meal?.durationMinutes ?? (mealObj?.mealDurationMinutes as number | undefined | null) ?? 0
+  const durationMs = durationMin * 60 * 1000
   if (!started || !durationMs) return ''
   const remaining = Math.max(0, started + durationMs - now.value)
   const totalSec = Math.floor(remaining / 1000)
