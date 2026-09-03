@@ -410,6 +410,7 @@ type TempRegistration = {
   email?: string
   dob?: string
   maritalStatus?: string
+  companyTemp?: string | null
 }
 
 const tempLoading = ref(false)
@@ -420,6 +421,16 @@ function tempDobToInput(tempDob?: string) {
   const m = tempDob.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
   if (m) return `${m[3]}-${m[2]}-${m[1]}`
   return tempDob.slice(0, 10)
+}
+
+function safeParseCompanyTemp(raw: string | null | undefined): { position?: string, companyName?: string } | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed !== null ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 async function loadTempPrefill(temp: TempRegistration) {
@@ -437,12 +448,20 @@ async function loadTempPrefill(temp: TempRegistration) {
   regForm.value.examDate = temp.examDate?.slice(0, 10) || ''
   regForm.value.scheduleDateExam = temp.scheduleDateExam?.slice(0, 10) || ''
 
+  // Parse companyTemp (JSON: { position, companyName }) → isi Position.
+  const companyTemp = safeParseCompanyTemp(temp.companyTemp)
+  regForm.value.position = companyTemp?.position ?? ''
+
   if (temp.patientId) {
     // Patient existing → tampilkan sebagai pasien terpilih (bukan form baru)
     try {
       const res = await api.get(`/patient/${temp.patientId}`)
       const patient = res.data.data as Patient
       selectPatient(patient)
+      // selectPatient menimpa companyId/position dari history pasien yang mungkin
+      // kosong. Kembalikan nilai dari temp (portal) agar tidak hilang.
+      regForm.value.companyId = temp.companyId
+      regForm.value.position = companyTemp?.position ?? regForm.value.position
     } catch {
       tempLoadError.value = 'Gagal memuat data pasien'
     }

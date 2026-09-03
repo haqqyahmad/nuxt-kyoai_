@@ -31,7 +31,7 @@ type EcgOverview = {
   } | null
 }
 
-const props = defineProps<{ examId: string }>()
+const props = defineProps<{ examId: string, physicalExamAllNormal?: boolean }>()
 const api = useApi()
 const toast = useToast()
 const overview = ref<EcgOverview | null>(null)
@@ -46,7 +46,7 @@ const rejectReason = ref('')
 
 const fileSize = (size: number) => `${(size / 1024 / 1024).toFixed(2)} MB`
 const externalStatusColor = { ASSIGNED: 'warning', PROCESSING: 'info', CANCELLED: 'neutral', FILLED: 'success' } as const
-const canClear = computed(() => ['PENDING_DOCTOR', 'REJECTED'].includes(overview.value?.treadmill?.clearanceStatus ?? ''))
+const canClear = computed(() => !['APPROVED'].includes(overview.value?.treadmill?.clearanceStatus ?? ''))
 
 function errorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -154,7 +154,12 @@ watch(() => props.examId, loadOverview, { immediate: true })
           <h3 class="mt-1 text-base font-semibold text-highlighted">
             Hasil ECG & clearance treadmill
           </h3>
-          <UBadge v-if="overview.ecg.externalAssignment" :color="externalStatusColor[overview.ecg.externalAssignment.status]" variant="subtle" class="mt-2">
+          <UBadge
+            v-if="overview.ecg.externalAssignment"
+            :color="externalStatusColor[overview.ecg.externalAssignment.status]"
+            variant="subtle"
+            class="mt-2"
+          >
             Dokter luar: {{ overview.ecg.externalAssignment.status }}
           </UBadge>
         </div>
@@ -249,6 +254,14 @@ watch(() => props.examId, loadOverview, { immediate: true })
           Alasan: {{ overview.treadmill.clearanceReason }}
         </p>
         <div v-if="canClear" class="mt-4 space-y-3">
+          <UAlert
+            v-if="props.physicalExamAllNormal === false"
+            color="info"
+            variant="soft"
+            icon="i-lucide-info"
+            title="Clearance menunggu hasil Physical Examination"
+            description="Treadmill dapat di-approve setelah seluruh hasil Physical Examination menunjukkan No Abnormality."
+          />
           <UTextarea v-model="rejectReason" placeholder="Alasan reject treadmill (wajib saat reject)" :rows="2" />
           <div class="flex flex-wrap justify-end gap-2">
             <UButton
@@ -259,10 +272,18 @@ watch(() => props.examId, loadOverview, { immediate: true })
             >
               Reject treadmill
             </UButton>
-            <UButton color="success" :loading="clearanceLoading" @click="submitClearance('APPROVE')">
+            <UButton
+              color="success"
+              :loading="clearanceLoading"
+              :disabled="props.physicalExamAllNormal === false"
+              @click="submitClearance('APPROVE')"
+            >
               Approve & buka treadmill
             </UButton>
           </div>
+          <p v-if="props.physicalExamAllNormal === false" class="text-xs text-muted">
+            Approve hanya tersedia setelah seluruh hasil Physical Examination No Abnormality.
+          </p>
         </div>
       </div>
     </div>

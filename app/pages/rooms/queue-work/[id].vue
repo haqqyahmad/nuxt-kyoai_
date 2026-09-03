@@ -850,6 +850,19 @@ function isDoctorTestExamItem(item: RoomExamItem) {
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
+// [TREADMILL CLEARANCE] Semua hasil Physical Examination "No abnormality"?
+// Syarat agar tombol approve & buka treadmill aktif.
+const allPhysicalNoAbnormality = computed<boolean>(() => {
+  const physicalItems = roomExamItems.value.filter(isPhysicalExamItem)
+  if (!physicalItems.length) return false
+  return physicalItems.every(item => {
+    // Item harus sudah disubmit/selesai
+    if (!isExamResultSubmitted(item) && item.status !== 'DONE') return false
+    // Semua baris hasil harus normal (tidak ada flag abnormal/out-of-range)
+    return getPhysicalLegacyRows(item).every(row => !row.flag || row.flag === 'normal')
+  })
+})
+
 function isCustomDoctorExamItem(item: RoomExamItem) {
   return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item)
 }
@@ -2108,7 +2121,7 @@ async function handleSubmitItemAction() {
             </div>
           </div>
 
-          <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
+          <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" :physical-exam-all-normal="allPhysicalNoAbnormality" />
 
           <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
 
