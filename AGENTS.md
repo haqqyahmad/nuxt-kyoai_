@@ -3,6 +3,9 @@
 > ## ⚠️ CATATAN PENTING — Jangan matikan 9router
 > Ketika diminta untuk **mematikan servis yang sedang running** (FE/Portal/BE), **KECUALIKAN / jangan bunuh proses `9router`** (9router CLI / custom-server yang menjalankan agent ini, biasanya di `%APPDATA%\npm\node_modules\9router\...`). Hanya matikan proses milik project (port 3000 FE, 5173 Portal, 8000 BE) beserta anak prosesnya (nodemon/nuxt/vite). Jangan pernah `Stop-Process -Name node` secara global karena itu akan mematikan 9router.
 
+> ## ⚠️ CATATAN — Matikan service setelah selesai testing
+> Setelah selesai testing yang menggunakan service running (FE dan/atau BE dan/atau Portal), **langsung matikan kembali** servis tersebut (dengan tetap mengecualikan 9router). Jangan biarkan service berjalan jika tidak sedang dipakai.
+
 ---
 
 ## Tech Stack
