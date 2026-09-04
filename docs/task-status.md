@@ -2,6 +2,20 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Treadmill Questionnaire (screening) di panel Physical Examination
+
+Menambahkan **screening questionnaire treadmill** yang tampil sebagai sub-tab di dalam layar Physical Examination di room. Jawabannya memengaruhi kapan tombol approve treadmill bisa aktif.
+
+- **BE `express_dash`**
+  - `prisma/seedTreadmillQuestionnaire.js` (baru, idempotent): buat questionnaire `QST-TREADMILL-SCREENING` (1 section, 6 pertanyaan `radio` Yes/No) + set `clearanceQuestionnaireId` item `TREAD-0001`.
+  - `src/services/exam/ecg.service.js`: `getOverview` kini menyertakan `treadmill.questionnaire` (sections/questions/options), `questionnaireAnswers`, `questionnaireCompleted`, `registrationId`. Tambah `submitTreadmillQuestionnaire` (reuse `submitAnswers` dari questionnaire.service).
+  - `src/controller/exam/ecg.controller.js` + `src/routers/mcu/mcu.route.js`: endpoint `POST /mcu/exams/:id/ecg/treadmill-questionnaire` (permit `exam:update`).
+- **FE `my-app`**
+  - `app/components/rooms/TreadmillQuestionnairePanel.vue` (baru): form 6 radio Yes/No, prefill dari jawaban existing, badge lengkap, submit, wajib jawab semua.
+  - `app/components/rooms/PhysicalExamWorkPanel.vue`: sub-tab **Physical** & **Treadmill Questionnaire** muncul bila exam punya item Treadmill (`hasTreadmill` dari `/mcu/exams/:id/ecg`); gating approve = `Physical DONE && (tanpa treadmill ATAU questionnaireCompleted)`.
+- **Keterangan arsitektur:** item Treadmill berada di room terpisah (RoomQueueItem sendiri), namun sub-tab muncul di panel Physical karena membaca ada/tidaknya item Treadmill di exam (bukan room). Jawaban disimpan ke `QstAnswer` (registrationId).
+- **Verifikasi:** `getOverview` mengembalikan 6 pertanyaan + `questionnaireCompleted:false`; submit 6 → `count:6`, `completed:true`; `node --check` BE OK; ESLint & typecheck FE (file yang diubah) bersih.
+
 ## Completed — 2026-09-04: Seed Input Hasil Treadmill (TREAD-0001)
 
 - **BE `express_dash` `prisma/seedTreadmillTemplate.js`** (baru, idempotent, meniru `seedEcgTemplate.js`): mengisi item **Treadmill `TREAD-0001`** (sudah ada, GENERIC/deferred) dengan **7 inputan `selected`**:
