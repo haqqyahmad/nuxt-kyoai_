@@ -6,6 +6,7 @@ type RoomExamItem = {
   status: string
   trxExamItem?: {
     id: string
+    examId?: string | null
     resultStatus?: string | null
     exam?: { id: string } | null
     item?: { name?: string | null, code?: string | null, department?: { name?: string | null } | null } | null
@@ -28,7 +29,7 @@ const emit = defineEmits<{ start: [], done: [], refuse: [], reschedule: [], rete
 const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(props.item.status))
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
 const canDoneItem = computed(() => props.canDone && props.item.status === 'IN_PROGRESS')
-const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
+const examId = computed(() => props.item.trxExamItem?.exam?.id ?? props.item.trxExamItem?.examId ?? '')
 const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
 const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
 </script>
@@ -65,40 +66,6 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             Kembali
           </UButton>
           <UBadge :label="isFinal ? 'Selesai' : item.status === 'IN_PROGRESS' ? 'Sedang dikerjakan' : 'Menunggu'" :color="item.status === 'DONE' ? 'success' : item.status === 'IN_PROGRESS' ? 'warning' : 'neutral'" variant="subtle" />
-        </div>
-      </div>
-    </template>
-
-    <div class="space-y-4">
-      <UAlert
-        v-if="item.status === 'PENDING' && !canStartItem"
-        color="info"
-        variant="soft"
-        icon="i-lucide-info"
-        title="Menunggu tahap EXAM"
-        description="Pemeriksaan fisik dapat dimulai setelah stage aktif berpindah ke EXAM."
-      />
-      <PhysicalExamPanel
-        v-if="examId && examItemId"
-        :exam-id="examId"
-        :exam-item-id="examItemId"
-        :disabled="disabled"
-        :legacy-results="legacyResults"
-        @saved="emit('refreshed')"
-        @submitted="emit('refreshed')"
-      />
-      <UAlert
-        v-else
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-shield-alert"
-        description="Data exam untuk item ini belum tersedia."
-      />
-      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default pt-4">
-        <p class="text-xs text-muted">
-          Item: {{ item.trxExamItem?.item?.name || '-' }}
-        </p>
-        <div class="flex flex-wrap gap-2">
           <UButton
             v-if="canStartItem"
             color="primary"
@@ -106,7 +73,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             :loading="startLoading"
             @click="emit('start')"
           >
-            Mulai Pemeriksaan
+            Mulai Item
           </UButton>
           <UButton
             v-if="canDoneItem"
@@ -147,6 +114,34 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
           </UButton>
         </div>
       </div>
+    </template>
+
+    <div class="space-y-4">
+      <UAlert
+        v-if="item.status === 'PENDING' && !canStartItem"
+        color="info"
+        variant="soft"
+        icon="i-lucide-info"
+        title="Menunggu tahap EXAM"
+        description="Pemeriksaan fisik dapat dimulai setelah stage aktif berpindah ke EXAM."
+      />
+      <PhysicalExamPanel
+        v-if="examId && examItemId"
+        :exam-id="examId"
+        :exam-item-id="examItemId"
+        :disabled="disabled"
+        :legacy-results="legacyResults"
+        :physical-exam-all-normal="item.status === 'DONE'"
+        @saved="emit('refreshed')"
+        @submitted="emit('refreshed')"
+      />
+      <UAlert
+        v-else
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-shield-alert"
+        description="Data exam untuk item ini belum tersedia."
+      />
     </div>
   </UCard>
 </template>

@@ -72,7 +72,7 @@ async function loadOverview() {
     loading.value = false
   }
 }
-async function uploadFile() {
+async function _uploadFile() {
   if (!selectedFile.value) return
   if (selectedFile.value.type !== 'application/pdf') {
     notify('File tidak valid', 'Hanya file PDF yang dapat diunggah.', 'warning')
@@ -110,7 +110,7 @@ async function downloadAttachment(attachment: Attachment) {
     downloadingId.value = null
   }
 }
-async function deleteAttachment(attachment: Attachment) {
+async function _deleteAttachment(attachment: Attachment) {
   if (!window.confirm(`Archive attachment ${attachment.originalName}?`)) return
   deletingId.value = attachment.id
   try {
@@ -155,7 +155,7 @@ watch(() => props.examId, loadOverview, { immediate: true })
             Hasil ECG & clearance treadmill
           </h3>
           <UBadge
-            v-if="overview.ecg.externalAssignment"
+            v-if="overview?.ecg?.externalAssignment"
             :color="externalStatusColor[overview.ecg.externalAssignment.status]"
             variant="subtle"
             class="mt-2"
@@ -184,33 +184,6 @@ watch(() => props.examId, loadOverview, { immediate: true })
         :description="overview.ecg.warning"
       />
 
-      <div class="flex flex-col gap-3 rounded-xl border border-default bg-muted/20 p-4 sm:flex-row sm:items-end">
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-highlighted">
-            Upload hasil ECG
-          </p>
-          <p class="mt-1 text-xs text-muted">
-            PDF maksimal 10 MB. Upload bersifat opsional sesuai konfigurasi item.
-          </p>
-          <input
-            ref="fileInput"
-            class="mt-3 block w-full text-sm"
-            type="file"
-            accept="application/pdf"
-            @change="selectedFile = ($event.target as HTMLInputElement).files?.[0] ?? null"
-          >
-        </div>
-        <UButton
-          color="primary"
-          icon="i-lucide-upload"
-          :disabled="!selectedFile"
-          :loading="uploading"
-          @click="uploadFile"
-        >
-          Upload PDF
-        </UButton>
-      </div>
-
       <div v-if="overview.ecg.attachments.length" class="space-y-2">
         <p class="text-sm font-medium text-highlighted">
           Attachment ECG
@@ -227,14 +200,6 @@ watch(() => props.examId, loadOverview, { immediate: true })
             {{ attachment.originalName }}
           </UButton>
           <span class="text-xs text-muted">{{ fileSize(attachment.sizeBytes) }}</span>
-          <UButton
-            color="error"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            :loading="deletingId === attachment.id"
-            aria-label="Archive attachment"
-            @click="deleteAttachment(attachment)"
-          />
         </div>
       </div>
 
@@ -248,7 +213,29 @@ watch(() => props.examId, loadOverview, { immediate: true })
               Questionnaire: {{ overview.treadmill.questionnaireId || 'Belum dikonfigurasi' }}
             </p>
           </div>
-          <UBadge :label="overview.treadmill.clearanceStatus" :color="overview.treadmill.clearanceStatus === 'APPROVED' ? 'success' : overview.treadmill.clearanceStatus === 'REJECTED' ? 'error' : 'warning'" variant="subtle" />
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge :label="overview.treadmill.clearanceStatus" :color="overview.treadmill.clearanceStatus === 'APPROVED' ? 'success' : overview.treadmill.clearanceStatus === 'REJECTED' ? 'error' : 'warning'" variant="subtle" />
+            <UButton
+              v-if="canClear"
+              color="error"
+              variant="soft"
+              size="xs"
+              :loading="clearanceLoading"
+              @click="submitClearance('REJECT')"
+            >
+              Reject treadmill
+            </UButton>
+            <UButton
+              v-if="canClear"
+              color="success"
+              size="xs"
+              :loading="clearanceLoading"
+              :disabled="props.physicalExamAllNormal === false"
+              @click="submitClearance('APPROVE')"
+            >
+              Approve & buka treadmill
+            </UButton>
+          </div>
         </div>
         <p v-if="overview.treadmill.clearanceReason" class="mt-3 text-sm text-error">
           Alasan: {{ overview.treadmill.clearanceReason }}
@@ -263,24 +250,6 @@ watch(() => props.examId, loadOverview, { immediate: true })
             description="Treadmill dapat di-approve setelah seluruh hasil Physical Examination menunjukkan No Abnormality."
           />
           <UTextarea v-model="rejectReason" placeholder="Alasan reject treadmill (wajib saat reject)" :rows="2" />
-          <div class="flex flex-wrap justify-end gap-2">
-            <UButton
-              color="error"
-              variant="soft"
-              :loading="clearanceLoading"
-              @click="submitClearance('REJECT')"
-            >
-              Reject treadmill
-            </UButton>
-            <UButton
-              color="success"
-              :loading="clearanceLoading"
-              :disabled="props.physicalExamAllNormal === false"
-              @click="submitClearance('APPROVE')"
-            >
-              Approve & buka treadmill
-            </UButton>
-          </div>
           <p v-if="props.physicalExamAllNormal === false" class="text-xs text-muted">
             Approve hanya tersedia setelah seluruh hasil Physical Examination No Abnormality.
           </p>

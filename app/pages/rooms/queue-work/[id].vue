@@ -287,7 +287,13 @@ const patientDetail = ref<Patient | null>(null)
 const patientDetailLoading = ref(false)
 const patientDetailError = ref('')
 const roomExamItems = ref<RoomExamItem[]>([])
-const activeExamId = computed(() => roomExamItems.value.find(item => item.trxExamItem?.exam?.id)?.trxExamItem?.exam?.id ?? '')
+const activeExamId = computed(() => {
+  const fromItems = roomExamItems.value.find(item => item.trxExamItem?.exam?.id ?? item.trxExamItem?.examId)
+    ?.trxExamItem?.exam?.id ?? roomExamItems.value.find(item => item.trxExamItem?.examId)?.trxExamItem?.examId ?? ''
+  if (fromItems) return fromItems
+  const fromSelected = selectedItem.value?.trxExamItem?.exam?.id ?? selectedItem.value?.trxExamItem?.examId ?? ''
+  return fromSelected
+})
 const stageActionLoading = ref(false)
 const itemActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
@@ -2121,8 +2127,6 @@ async function handleSubmitItemAction() {
             </div>
           </div>
 
-          <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" :physical-exam-all-normal="allPhysicalNoAbnormality" />
-
           <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
 
           <UAlert
@@ -2247,7 +2251,7 @@ async function handleSubmitItemAction() {
                   v-else-if="isPhysicalExamItem(selectedItem)"
                   class="border-0 shadow-none"
                   :item="selectedItem"
-                  :can-start="isExamStageActive()"
+                  :can-start="isExamStageActive() && roomStageInProgress"
                   :can-done="canDoneItem(selectedItem)"
                   :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
@@ -2265,7 +2269,7 @@ async function handleSubmitItemAction() {
                 <DoctorTestWorkPanel
                   v-else-if="isDoctorTestExamItem(selectedItem)"
                   :item="selectedItem"
-                  :can-start="isExamStageActive()"
+                  :can-start="isExamStageActive() && roomStageInProgress"
                   :can-done="canDoneItem(selectedItem)"
                   :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
