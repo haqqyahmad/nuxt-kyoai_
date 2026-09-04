@@ -2,6 +2,21 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Seed Input Hasil Treadmill (TREAD-0001)
+
+- **BE `express_dash` `prisma/seedTreadmillTemplate.js`** (baru, idempotent, meniru `seedEcgTemplate.js`): mengisi item **Treadmill `TREAD-0001`** (sudah ada, GENERIC/deferred) dengan **7 inputan `selected`**:
+  - Resting EKG (Normal Sinus Rhythm / Abnormal / Others (Text))
+  - HR response to exercise (Appropriate / Others (Text))
+  - BP response to exercise (Normal / Others (Text))
+  - Symptom (No chest pain induced / Others (Text))
+  - Arrythmia (None / Others (Text))
+  - ST changes (None / Others (Text))
+  - Overall Impression (Normal / Abnormal / Others (Text))
+  - Tiap inputan menandai nilai normal (mst_nilai_normal_selected); opsi `Others (Text)` memicu textbox detail di DetailDrawer.
+- **Conclusion/Catatan**: tidak dibuat sebagai inputan — memakai field "Kesimpulan / Catatan" statis di drawer (parity dengan ECG).
+- **FE**: tidak perlu perubahan — DetailDrawer merender inputan `selected` + detail "Others" otomatis (renderer GENERIC), sehingga form Treadmill tampil seperti ECG.
+- Hasil seed: `createdInputans: 7, createdOptions: 16, createdNormalValues: 7`.
+
 ## Completed — 2026-09-04: Fix 403 Settings Workflow Approval (RBAC + permission)
 
 **Gejala:** `GET /api/settings/result-workflow/departments` → `403 Forbidden` untuk semua user, karena route butuh permission `result-workflow:read`/`result-workflow:write` yang **tidak pernah di-seed** dan `permit()` (RBAC middleware) **tidak mem-bypass superadmin** — padahal FE memodelkan superadmin = `*:*` dan banyak service BE lain sudah bypass.
