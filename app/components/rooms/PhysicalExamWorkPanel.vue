@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PhysicalExamPanel from '~/components/rooms/PhysicalExamPanel.vue'
+import TreadmillQuestionnairePanel from '~/components/rooms/TreadmillQuestionnairePanel.vue'
 
 type RoomExamItem = {
   id: string
@@ -15,6 +16,22 @@ type RoomExamItem = {
 
 type LegacyRow = { id: string, label: string, value: string, uom?: string | null, flag?: 'normal' | 'abnormal' | null }
 
+type QstOption = { id: string, label: string, value?: string | null, sortOrder?: number }
+type QstQuestion = { id: string, questionText: string, questionType?: string, isRequired?: boolean, sortOrder?: number, options?: QstOption[] }
+type QstSection = { id: string, sectionTitle?: string, sectionCode?: string | null, sortOrder?: number, questions?: QstQuestion[] }
+type TreadmillQuestionnaire = { id: string, questionnaire_code?: string | null, questionnaire_name?: string | null, sections?: QstSection[] }
+type QuestionnaireAnswer = { questionId: string, optionId?: string | null, answerText?: string | null }
+
+type EcgOverview = {
+  treadmill?: {
+    questionnaireId?: string | null
+    questionnaire?: TreadmillQuestionnaire | null
+    questionnaireAnswers?: QuestionnaireAnswer[]
+    questionnaireCompleted?: boolean
+    registrationId?: number | null
+  } | null
+}
+
 const props = withDefaults(defineProps<{
   item: RoomExamItem
   canStart: boolean
@@ -26,12 +43,40 @@ const props = withDefaults(defineProps<{
 }>(), { legacyResults: () => [] })
 
 const emit = defineEmits<{ start: [], done: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
+const api = useApi()
 const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(props.item.status))
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
 const canDoneItem = computed(() => props.canDone && props.item.status === 'IN_PROGRESS')
 const examId = computed(() => props.item.trxExamItem?.exam?.id ?? props.item.trxExamItem?.examId ?? '')
 const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
 const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
+
+const overview = ref<EcgOverview | null>(null)
+const overviewLoading = ref(false)
+const activeTab = ref<'physical' | 'treadmill'>('physical')
+
+const hasTreadmill = computed(() => Boolean(overview.value?.treadmill))
+const questionnaireCompleted = computed(() => Boolean(overview.value?.treadmill?.questionnaireCompleted))
+const revealTreadmill = computed(() => hasTreadmill.value && activeTab.value === 'treadmill')
+
+// Gating approve treadmill: Physical DONE + (tanpa treadmill ATAU questionnaire lengkap).
+const canApproveTreadmill = computed(() =>
+  props.item.status === 'DONE' && (!hasTreadmill.value || questionnaireCompleted.value)
+)
+
+async function loadOverview() {
+  if (!examId.value) return
+  overviewLoading.value = true
+  try {
+    const res = await api.get(`/mcu/exams/${examId.value}/ecg`)
+    overview.value = res.data?.data ?? res.data ?? null
+  } catch {
+    overview.value = null
+  } finally {
+    overviewLoading.value = false
+  }
+}
+watch(() => examId.value, loadOverview, { immediate: true })
 </script>
 
 <template>
@@ -125,18 +170,41 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
         title="Menunggu tahap EXAM"
         description="Pemeriksaan fisik dapat dimulai setelah stage aktif berpindah ke EXAM."
       />
+
+      <UTabs
+        v-if="hasTreadmill"
+        v-model="activeTab"
+        :items="[
+          { label: 'Physical', value: 'physical' },
+          { label: 'Treadmill Questionnaire', value: 'treadmill' }
+        ]"
+      />
+
       <PhysicalExamPanel
-        v-if="examId && examItemId"
+        v-if="examId && examItemId && (activeTab === 'physical' || !hasTreadmill)"
         :exam-id="examId"
         :exam-item-id="examItemId"
         :disabled="disabled"
         :legacy-results="legacyResults"
-        :physical-exam-all-normal="item.status === 'DONE'"
+        :physical-exam-all-normal="canApproveTreadmill"
         @saved="emit('refreshed')"
         @submitted="emit('refreshed')"
       />
+
+      <TreadmillQuestionnairePanel
+        v-if="revealTreadmill"
+        :exam-id="examId"
+        :questionnaire-id="overview?.treadmill?.questionnaireId ?? null"
+        :questionnaire="overview?.treadmill?.questionnaire ?? null"
+        :answers="overview?.treadmill?.questionnaireAnswers ?? []"
+        :registration-id="overview?.treadmill?.registrationId ?? null"
+        :completed="Boolean(overview?.treadmill?.questionnaireCompleted)"
+        :disabled="disabled || overviewLoading"
+        @submitted="loadOverview"
+      />
+
       <UAlert
-        v-else
+        v-if="!examId || !examItemId"
         color="neutral"
         variant="soft"
         icon="i-lucide-shield-alert"
