@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Tampilkan Treadmill Questionnaire di list Medical Questionnaires
+
+- **BE `express_dash` `src/services/public-registration/public-registration.service.js`** (`getQuestionnaires`): kini menyertakan questionnaire yang terhubung ke item Treadmill pada exam registration (via `trxExamItem.item.clearanceQuestionnaireId`, hanya yang `isActive`), sehingga **Treadmill Screening tampil di list Medical Questionnaires** sejak awal — walau belum dijawab (sebelumnya hanya muncul setelah diisi QstAnswer).
+- **Perilaku:** list menampilkan default MCU + questionnaire treadmill (jika paket punya treadmill) + questionnaire yang sudah dijawab.
+- **Verifikasi:** `node --check` OK; panggil service `REG-20260904-01-0001` → 2 questionnaire (`MCU`, `Treadmill Screening`).
+
 ## Completed — 2026-09-04: Relokasi panel ECG + gating tombol approve treadmill
 
 Memindahkan `EcgResultPanel` dari dalam sidebar `PhysicalExamPanel` menjadi di **bawah** panel Physical Examination, dan mengubah kemunculan tombol approve.
