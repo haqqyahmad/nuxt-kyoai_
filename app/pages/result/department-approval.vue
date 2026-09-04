@@ -24,13 +24,26 @@ type PendingItem = {
   stepCount?: number
   reviewerUserId?: number | null
   reviewerRoleId?: string | null
+  reviewerRoleIds?: number[]
   submittedBy?: number | null
   submittedAt?: string | null
+  canApprove?: boolean
+  approveDisableReason?: string | null
 }
 
 const list = ref<PendingItem[]>([])
 const loading = ref(false)
 const total = ref(0)
+
+const { data: usersData } = await useAsyncData<any[]>('dept-approval-users', async () => {
+  const res = await api.get('/users', { params: { limit: 200 } })
+  return res.data?.data?.data ?? res.data?.data ?? res.data ?? []
+}, { default: () => [] })
+
+const { data: rolesData } = await useAsyncData<any[]>('dept-approval-roles', async () => {
+  const res = await api.get('/settings/roles')
+  return res.data?.data ?? res.data ?? []
+}, { default: () => [] })
 
 async function loadList() {
   loading.value = true
@@ -71,6 +84,36 @@ function stepTitle(item: PendingItem) {
   return `Step ${item.currentStepOrder}/${item.stepCount}${item.stepLabel ? ` — ${item.stepLabel}` : ''}`
 }
 
+function reviewerRequirement(item: PendingItem): string {
+  if (item.reviewerUserId) {
+    const label = userNameById.value[String(item.reviewerUserId)] ?? String(item.reviewerUserId)
+    return `reviewer: user ${label}`
+  }
+  const roles = item.reviewerRoleIds?.length
+    ? item.reviewerRoleIds
+    : (item.reviewerRoleId != null ? [Number(item.reviewerRoleId)] : [])
+  if (roles.length) {
+    const label = roles.map((rid) => roleNameById.value[String(rid)] ?? rid).join(', ')
+    return `reviewer: role ${label}`
+  }
+  return 'reviewer: siapa pun (four-eyes)'
+}
+
+const userNameById = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const u of (usersData.value ?? [])) {
+    const name = u.name || String(u.id)
+    map[String(u.id)] = name
+    if (u.employee?.name) map[String(u.id)] = u.employee.name
+  }
+  return map
+})
+const roleNameById = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  for (const r of (rolesData.value ?? [])) map[String(r.id)] = r.name
+  return map
+})
+
 const columns: TableColumn<PendingItem>[] = [
   {
     accessorKey: 'patient',
@@ -93,7 +136,13 @@ const columns: TableColumn<PendingItem>[] = [
   {
     id: 'step',
     header: 'Langkah',
-    cell: ({ row }) => h('span', { class: 'text-sm' }, stepTitle(row.original))
+    cell: ({ row }) => {
+      const item = row.original
+      return h('div', { class: 'flex flex-col gap-0.5' }, [
+        h('span', { class: 'text-sm' }, stepTitle(item)),
+        h('span', { class: 'text-xs text-muted' }, reviewerRequirement(item))
+      ])
+    }
   },
   {
     accessorKey: 'submittedAt',
@@ -103,10 +152,21 @@ const columns: TableColumn<PendingItem>[] = [
   {
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Aksi'),
-    cell: ({ row }) => h('div', { class: 'flex justify-end gap-1' }, [
-      h(resolveComponent('UButton'), { label: 'Buka', icon: 'i-lucide-eye', size: 'xs', variant: 'outline', onClick: () => openDetail(row.original) }),
-      h(resolveComponent('UButton'), { label: 'Approve', icon: 'i-lucide-check-circle', color: 'success', size: 'xs', onClick: () => approve(row.original) })
-    ])
+    cell: ({ row }) => {
+      const item = row.original
+      return h('div', { class: 'flex justify-end gap-1' }, [
+        h(resolveComponent('UButton'), { label: 'Buka', icon: 'i-lucide-eye', size: 'xs', variant: 'outline', onClick: () => openDetail(item) }),
+        h(resolveComponent('UButton'), {
+          label: 'Approve',
+          icon: 'i-lucide-check-circle',
+          color: 'success',
+          size: 'xs',
+          disabled: item.canApprove === false,
+          title: item.canApprove === false ? (item.approveDisableReason || 'Anda tidak memiliki hak approve') : undefined,
+          onClick: () => { if (item.canApprove !== false) approve(item) }
+        })
+      ])
+    }
   }
 ]
 </script>
@@ -125,7 +185,7 @@ const columns: TableColumn<PendingItem>[] = [
       <div class="flex w-full min-w-0 flex-col gap-4 pb-6">
         <div>
           <h1 class="text-2xl font-bold">Inbox Approval Hasil</h1>
-          <p class="mt-1 text-sm text-muted">Daftar hasil per departemen yang menunggu persetujuan. Hanya dapat diapprove oleh reviewer yang berbeda dari inputter (four-eyes).</p>
+          <p class="mt-1 text-sm text-muted">Daftar hasil per departemen yang menunggu persetujuan. Hanya reviewer yang ditunjuk (user/role) atau yang berbeda dari inputter (four-eyes) yang bisa approve.</p>
         </div>
         <UCard>
           <template #header>

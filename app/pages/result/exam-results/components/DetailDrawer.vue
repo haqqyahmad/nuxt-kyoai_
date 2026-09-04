@@ -101,6 +101,13 @@ type ExamResultDetail = {
   departmentResultStatus?: string | null
   departmentCurrentStepOrder?: number | null
   departmentCurrentVersionId?: string | null
+  departmentStepLabel?: string | null
+  departmentStepCount?: number | null
+  departmentReviewerUserId?: number | null
+  departmentReviewerRoleId?: string | null
+  departmentReviewerRoleIds?: number[]
+  departmentCanApprove?: boolean
+  departmentApproveDisableReason?: string | null
   returnReason?: string | null
   revisionItems?: Array<{
     inputanId: string | null
@@ -250,12 +257,27 @@ const isExternalResultFilled = computed(() =>
   props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
 )
 
-// [F] Approve department (four-eyes): status REVIEW + actor bukan submitter.
+// [F] Approve department (reviewer step / four-eyes): status REVIEW + diizinkan backend.
+const departmentApproveBlockedReason = computed<string | null>(() => {
+  const r = props.result
+  if (r?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return null
+  if (r.departmentCanApprove === false) return r.departmentApproveDisableReason || 'Anda tidak memiliki hak approve step ini'
+  if (Number(r.exam?.resultSubmittedBy) != null && Number(r.exam?.resultSubmittedBy) === Number(currentUser.value?.id)) {
+    return 'Inputter/submitter yang sama tidak boleh approve (four-eyes).'
+  }
+  return null
+})
 const canApproveCurrentResult = computed(() => {
   if (props.result?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return false
+  if (props.result.departmentCanApprove === false) return false
+  if (props.result.departmentCanApprove === true) return Boolean(props.result?.item?.department?.id)
   const currentId = currentUser.value?.id
   if (!currentId) return false
   return Number(props.result?.exam?.resultSubmittedBy) !== Number(currentId)
+})
+const approveButtonTitle = computed(() => {
+  if (props.result?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return undefined
+  return departmentApproveBlockedReason.value || undefined
 })
 
 const approving = ref(false)
@@ -1588,9 +1610,11 @@ onBeforeUnmount(() => {
         />
 
         <UButton
-          v-if="embedded && canApproveCurrentResult"
+          v-if="embedded && result?.departmentResultStatus === 'DEPARTMENT_REVIEW'"
           color="success"
           :loading="approving"
+          :disabled="!canApproveCurrentResult"
+          :title="approveButtonTitle"
           icon="i-lucide-check-circle"
           @click="handleApproveResult"
         >
