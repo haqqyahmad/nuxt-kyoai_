@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import EcgResultPanel from '~/components/rooms/EcgResultPanel.vue'
 import type { PhysicalExamData, PhysicalSection } from '~/types/physical'
 import { createPhysicalExamData, formatPhysicalExamination } from '~/utils/physical-examination-report'
 
@@ -10,8 +9,7 @@ const props = withDefaults(defineProps<{
   examItemId: string
   disabled?: boolean
   legacyResults?: LegacyRow[]
-  physicalExamAllNormal?: boolean
-}>(), { disabled: false, legacyResults: () => [], physicalExamAllNormal: false })
+}>(), { disabled: false, legacyResults: () => [] })
 const emit = defineEmits<{ saved: [], submitted: [] }>()
 const api = useApi()
 const toast = useToast()
@@ -235,15 +233,6 @@ watch(() => [props.examId, props.examItemId], load)
               </p>
             </div>
           </UCard>
-
-          <!-- Panel ECG + clearance treadmill → tampil di bawah card Report Preview,
-               dan tombol approve/reject diaktifkan setelah physical selesai (DONE). -->
-          <EcgResultPanel
-            v-if="examId"
-            class="mt-4"
-            :exam-id="examId"
-            :physical-exam-all-normal="physicalExamAllNormal"
-          />
         </aside>
       </div>
 

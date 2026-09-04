@@ -226,15 +226,20 @@ watch(() => props.examId, loadOverview, { immediate: true })
               Reject treadmill
             </UButton>
             <UButton
-              v-if="canClear"
+              v-if="canClear && props.physicalExamAllNormal"
               color="success"
               size="xs"
               :loading="clearanceLoading"
-              :disabled="props.physicalExamAllNormal === false"
               @click="submitClearance('APPROVE')"
             >
               Approve & buka treadmill
             </UButton>
+            <UBadge
+              v-if="canClear && !props.physicalExamAllNormal"
+              label="Menunggu Physical Done"
+              color="warning"
+              variant="soft"
+            />
           </div>
         </div>
         <p v-if="overview.treadmill.clearanceReason" class="mt-3 text-sm text-error">

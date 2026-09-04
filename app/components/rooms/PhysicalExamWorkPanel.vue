@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PhysicalExamPanel from '~/components/rooms/PhysicalExamPanel.vue'
 import TreadmillQuestionnairePanel from '~/components/rooms/TreadmillQuestionnairePanel.vue'
+import EcgResultPanel from '~/components/rooms/EcgResultPanel.vue'
 
 type RoomExamItem = {
   id: string
@@ -186,7 +187,6 @@ watch(() => examId.value, loadOverview, { immediate: true })
         :exam-item-id="examItemId"
         :disabled="disabled"
         :legacy-results="legacyResults"
-        :physical-exam-all-normal="canApproveTreadmill"
         @saved="emit('refreshed')"
         @submitted="emit('refreshed')"
       />
@@ -201,6 +201,16 @@ watch(() => examId.value, loadOverview, { immediate: true })
         :completed="Boolean(overview?.treadmill?.questionnaireCompleted)"
         :disabled="disabled || overviewLoading"
         @submitted="loadOverview"
+      />
+
+      <!-- Panel ECG + clearance treadmill → tampil dari awal di bawah panel Physical.
+           Tombol APPROVE baru muncul setelah Physical DONE (dan questionnaire
+           treadmill lengkap bila ada treadmill) — dikendalikan canApproveTreadmill. -->
+      <EcgResultPanel
+        v-if="examId"
+        class="mt-4"
+        :exam-id="examId"
+        :physical-exam-all-normal="canApproveTreadmill"
       />
 
       <UAlert
