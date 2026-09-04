@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Relokasi panel ECG + gating tombol approve treadmill
+
+Memindahkan `EcgResultPanel` dari dalam sidebar `PhysicalExamPanel` menjadi di **bawah** panel Physical Examination, dan mengubah kemunculan tombol approve.
+
+- **`app/components/rooms/PhysicalExamPanel.vue`**: hapus embed `EcgResultPanel` (yang tadinya di bawah card Report Preview) + prop `physical-exam-all-normal` (tidak terpakai).
+- **`app/components/rooms/PhysicalExamWorkPanel.vue`**: render `EcgResultPanel` di bawah panel Physical, selalu tampil saat `examId` ada; lewati `:physical-exam-all-normal="canApproveTreadmill"`.
+- **`app/components/rooms/EcgResultPanel.vue`**: tombol **"Approve & buka treadmill"** kini `v-if` (hanya muncul saat `physicalExamAllNormal` = Physical DONE + questionnaire treadmill lengkap bila ada); saat belum siap diganti badge "Menunggu Physical Done"; tombol Reject tetap tampil.
+- **Hasil perilaku:** panel ECG tampil dari awal; tombol Approve baru muncul setelah Physical DONE (dan questionnaire treadmill terisi bila ada treadmill).
+
 ## Completed — 2026-09-04: Treadmill Questionnaire (screening) di panel Physical Examination
 
 Menambahkan **screening questionnaire treadmill** yang tampil sebagai sub-tab di dalam layar Physical Examination di room. Jawabannya memengaruhi kapan tombol approve treadmill bisa aktif.
