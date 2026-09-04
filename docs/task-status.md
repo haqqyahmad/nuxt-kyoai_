@@ -1,6 +1,26 @@
 # Project Task Status
 
-Last updated: 2026-08-23
+Last updated: 2026-09-04
+
+## Completed — 2026-09-04: Fix 403 Settings Workflow Approval (RBAC + permission)
+
+**Gejala:** `GET /api/settings/result-workflow/departments` → `403 Forbidden` untuk semua user, karena route butuh permission `result-workflow:read`/`result-workflow:write` yang **tidak pernah di-seed** dan `permit()` (RBAC middleware) **tidak mem-bypass superadmin** — padahal FE memodelkan superadmin = `*:*` dan banyak service BE lain sudah bypass.
+
+- **BE `express_dash` `src/middleware/rbac.middleware.js`**: `permit()` kini langsung `next()` bila role user mengandung `superadmin` (selaras FE & service lain).
+- **BE `express_dash` `prisma/seedResultWorkflowPermission.cjs`** (baru, idempotent): buat permission `result-workflow:read` + `result-workflow:write`, lalu grant ke role `superadmin` & `admin`. Sudah dijalankan.
+- **Catatan:** `getUserWithPermissions` di-cache Redis 300 detik → admin non-superadmin mungkin perlu tunggu ±5 menit atau re-login sebelum permission terlihat.
+
+## Completed — 2026-09-04: Enforcement Workflow Approval di FE + BE
+
+Halaman pengaturan alur approval sudah ada (`/settings/result-workflow` + BE `result-workflow.service.js`), namun UI approval belum meng-enforce konfigurasi step/reviewer. Kali ini menutup gap enforcement agar FE selaras dengan `canUserReviewStep` di BE.
+
+- **BE `express_dash` `src/services/exam/exam.service.js`**
+  - `listPendingDepartmentApproval`: query workflow menyertakan `roles`; tiap baris kini kembali `reviewerRoleIds` (multi-role), `canApprove` (dihitung via `canUserReviewStep` dengan user login + role), dan `approveDisableReason`.
+  - `getExamResultsGrouped` (detail untuk drawer): tambah `submittedBy` pada query dept result + enrich tiap item/group dengan `departmentStepLabel`, `departmentStepCount`, `departmentReviewerUserId`, `departmentReviewerRoleId(s)`, `departmentCanApprove`, `departmentApproveDisableReason`.
+- **FE `my-app`**
+  - `app/pages/result/department-approval.vue`: tombol **Approve di-disable** bila `canApprove === false` (+ tooltip alasan); kolom **Langkah** kini menampilkan `Step X/Y` dan reviewer yang ditunjuk (user/role/four-eyes); fetch users + roles untuk label reviewer.
+  - `app/pages/result/exam-results/components/DetailDrawer.vue`: `canApproveCurrentResult` kini memakai `departmentCanApprove` dari BE (fallback four-eyes lama); tombol **Approve tampil saat REVIEW & ter-disable + tooltip** bila bukan reviewer.
+- **Verifikasi:** `node --check` BE OK; ESLint FE file yang diubah clean; `nuxt typecheck` masih ada banyak error pre-existing di seluruh project (tidak ada error baru dari file yang diubah).
 
 ## Completed — 2026-08-23: Reschedule datang-ulang + appointment + kolom Reschedule modal waiting
 
