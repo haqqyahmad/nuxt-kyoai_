@@ -863,7 +863,7 @@ onBeforeUnmount(() => {
 const hasRescheduleItem = computed(() =>
   (reg.value?.exam?.examItems ?? []).some(ei =>
     (ei.roomExamItems ?? []).some(r =>
-      r.status === 'RESCHEDULED' && r.rescheduleVisitDate
+      r.status === 'RESCHEDULED'
     )
   )
 )
