@@ -642,7 +642,7 @@ const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
   warnings?: string[]
-  rescheduledItems?: string[]
+  rescheduledItems?: Array<{ itemName: string, samples?: Array<{ name: string }> }>
   nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
 } | null>(null)
 
@@ -863,7 +863,7 @@ onBeforeUnmount(() => {
 const hasRescheduleItem = computed(() =>
   (reg.value?.exam?.examItems ?? []).some(ei =>
     (ei.roomExamItems ?? []).some(r =>
-      r.status === 'RESCHEDULED'
+      r.status === 'RESCHEDULED' && r.rescheduleVisitDate
     )
   )
 )
@@ -1174,8 +1174,10 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             <div class="mt-1 space-y-1">
               <p>{{ checkoutEligibility.warnings.join(' ') }}</p>
               <ul v-if="checkoutEligibility.rescheduledItems?.length" class="list-disc pl-5 text-xs">
-                <li v-for="(name, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
-                  {{ name }}
+                <li v-for="(r, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
+                  {{ r.itemName }}<template v-if="r.samples?.length">
+                    <span class="ml-1">({{ r.samples.map(s => s.name).join(', ') }})</span>
+                  </template>
                 </li>
               </ul>
             </div>
