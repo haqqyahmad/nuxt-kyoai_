@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Banner Reschedule Items tetap tampil setelah checkout + Patient Return Visit ketat tanggal
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - Banner **Reschedule Items** kini dihitung dari data exam (`rescheduleBannerItems`/`hasRescheduleForBanner`), tidak lagi tergantung `checkoutEligibility` (yang dipaksa `null` saat CheckOut) → **tetap tampil walau pasien sudah checkout**.
+  - Tombol **Patient Return Visit** sekarang **strict**: hanya aktif bila `today === rescheduleVisitDate` (persis tanggal kunjungan kembali). Di luar itu tombol disabled + toast menyarankan pakai **Change Follow-up Date**.
+
 ## Completed — 2026-09-04: Lepas flag calledRoomTypeId saat item di-reschedule (exam tidak ter-hold)
 
 - **BE `express_dash` `src/repositories/roomExamItem/roomExamItem.repository.js`** (`rescheduleRoomExamItem`): tambah helper `releaseCalledRoomIfFinal`. Setelah item di-reschedule, jika room (RoomQueueItem) tidak lagi punya item yang bisa dikerjakan (semua final: DONE/SKIPPED/RESCHEDULED/REFUSED) dan `queueEntry.calledRoomTypeId` = room tsb → set `calledRoomTypeId/calledAt = null`.
