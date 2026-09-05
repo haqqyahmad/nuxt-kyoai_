@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Notif Reschedule item lab di MCU Breakdown + sample ikut resample
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`): untuk item lab, tambah deteksi `roomExamItem.status === 'RESCHEDULED'` → item yang room-nya di-reschedule tampil **"Reschedule"** (dengan "FO Attention Required") di MCU Breakdown (sebelumnya jatuh ke `WAITING_SAMPLE` karena status sample PENDING).
+- **BE `src/services/queue/queue.service.js`** (`resampleCheckin`): sample collection kini mengikuti **item di room yang di-reschedule** (dari `item.sampleTypes` ↔ `queue.sampleCollections`), bukan hanya sample berstatus `RESCHEDULED`. Sample dibuat ulang (PENDING) di entry resample → siap diambil saat patient datang ulang.
+- **Verifikasi:** reg `REG-20260905-01-0002` → sample `Darah` milik Diff Count ikut dibawa ke entry resample (PENDING).
+
 ## Completed — 2026-09-04: Banner Reschedule Items tampilkan item + tipe sample
 
 - **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): `rescheduledItems` kini `[{ itemName, samples: [{ name }] }]` — sample diambil dari `queue.sampleCollections` yang cocok dengan sample type milik item yang di-reschedule (`item.sampleTypes`). Deteksi reschedule memakai `roomExamItem.status === 'RESCHEDULED'` (bukan RoomQueueItem.status).
