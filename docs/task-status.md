@@ -2,6 +2,11 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Date Range filter hasil berfungsi server-side + bersihkan lint index.vue
+
+- **BE `express_dash` `src/services/exam/exam.service.js`**: `getExamResults` & `getExamResultsGrouped` kini memfilter `trxExamItem.createdAt` (tanggal check-in, selaras kolom "Check-in") berdasar `dateFrom`/`dateTo` (inklusif, `lte` akhir hari).
+- **FE `app/pages/result/exam-results/index.vue`**: `loadResults` mengirim `dateFrom`/`dateTo` ke backend. Sebelumnya filter tanggal hanya client-side atas halaman aktif (tidak konsisten dgn pagination). Sekaligus **bersihkan pre-existing lint errors** (`eslint --fix` 36 + 2 manual: hapus `roles` tak terpakai, `Record<string, any>` → `unknown`); ESLint 0 error, typecheck bersih.
+
 ## Completed — 2026-09-04: Banner Reschedule Items tetap tampil setelah checkout + Patient Return Visit ketat tanggal
 
 - **FE `app/pages/front-office/registration-patient/[id].vue`**
