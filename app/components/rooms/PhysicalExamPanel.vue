@@ -114,6 +114,26 @@ async function submit() {
 
 onMounted(load)
 watch(() => [props.examId, props.examItemId], load)
+
+// Saat item mulai dikerjakan (disabled true → false, item IN_PROGRESS), workStatus
+// berubah ke IN_PROGRESS. canSubmit/canEdit dari BE tadinya false (stale) — refresh
+// flag saja tanpa me-reset data yang sedang diisi.
+async function refreshFlags() {
+  if (!props.examId || !props.examItemId) return
+  try {
+    const res = await api.get(`/mcu/exams/${props.examId}/doctor-exams/${props.examItemId}`)
+    const payload = res.data?.data ?? res.data ?? {}
+    status.value = payload.status ?? 'DRAFT'
+    canEdit.value = payload.canEdit !== false
+    canSubmit.value = payload.canSubmit !== false
+    loaded.value = true
+  } catch {
+    /* ignore */
+  }
+}
+watch(() => props.disabled, (val, prev) => {
+  if (!val && prev) refreshFlags()
+})
 </script>
 
 <template>
