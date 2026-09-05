@@ -2,6 +2,13 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Fix tombol "Selesaikan Pemeriksaan" butuh hard-refresh
+
+- **Gejala:** tombol **"Selesaikan Pemeriksaan"** di Physical Examination Panel (di samping Save Draft) disabled sampai hard-refresh.
+- **Akar:** `canSubmit` diambil sekali saat panel mount dari `canSubmitDoctorExam(resultStatus, workStatus)` (yang `true` hanya saat `workStatus` IN_PROGRESS/DONE). Saat item masih PENDING, `canSubmit=false`; setelah item di-start ("Mulai Item") `workStatus` jadi IN_PROGRESS, tapi FE tidak re-fetch → tombol tetap disabled.
+- **Fix (`app/components/rooms/PhysicalExamPanel.vue`):** tambah watcher `props.disabled` (true → false = item mulai dikerjakan) → panggil `refreshFlags()` untuk me-refresh `status/canEdit/canSubmit` tanpa me-reset data yang sedang diisi.
+- **Verifikasi:** DB contoh `workStatus=IN_PROGRESS`, `resultStatus=NOT_READY` → `canSubmit` seharusnya `true`.
+
 ## Completed — 2026-09-04: Tampilkan Treadmill Questionnaire di list Medical Questionnaires
 
 - **BE `express_dash` `src/services/public-registration/public-registration.service.js`** (`getQuestionnaires`): kini menyertakan questionnaire yang terhubung ke item Treadmill pada exam registration (via `trxExamItem.item.clearanceQuestionnaireId`, hanya yang `isActive`), sehingga **Treadmill Screening tampil di list Medical Questionnaires** sejak awal — walau belum dijawab (sebelumnya hanya muncul setelah diisi QstAnswer).
