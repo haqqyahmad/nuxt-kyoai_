@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Banner Reschedule Items tampilkan item + tipe sample
+
+- **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): `rescheduledItems` kini `[{ itemName, samples: [{ name }] }]` — sample diambil dari `queue.sampleCollections` yang cocok dengan sample type milik item yang di-reschedule (`item.sampleTypes`). Deteksi reschedule memakai `roomExamItem.status === 'RESCHEDULED'` (bukan RoomQueueItem.status).
+- **FE `app/pages/front-office/registration-patient/[id].vue`:** tipe `rescheduledItems` + render banner dengan format **"Nama item (tipe sample)"**; bagian sample hanya muncul bila item punya sample. Status dihilangkan.
+- **Contoh:** `Diff Count (Darah)`.
+
 ## Completed — 2026-09-04: Fix banner Reschedule tidak muncul saat item reschedule tanpa tanggal
 
 - **Gejala:** item Diff Count berstatus **RESCHEDULED** tapi banner/aksi Reschedule tidak muncul di halaman registration-patient.
