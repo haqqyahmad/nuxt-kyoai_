@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Fix banner Reschedule tidak muncul saat item reschedule tanpa tanggal
+
+- **Gejala:** item Diff Count berstatus **RESCHEDULED** tapi banner/aksi Reschedule tidak muncul di halaman registration-patient.
+- **Akar:** `hasRescheduleItem` di `app/pages/front-office/registration-patient/[id].vue` mensyaratkan `status === 'RESCHEDULED' && rescheduleVisitDate` (butuh KEDUANYA). Jika item di-reschedule tapi `rescheduleVisitDate` masih `null`, banner tidak tampil.
+- **Fix:** longgarkan menjadi cukup `r.status === 'RESCHEDULED'`. Aman karena `handleResampleCheckin` & `rescheduleCheckoutItems` tidak bergantung pada tanggal (default `''` bila kosong).
+
 ## Completed — 2026-09-04: Fix tombol "Selesaikan Pemeriksaan" butuh hard-refresh
 
 - **Gejala:** tombol **"Selesaikan Pemeriksaan"** di Physical Examination Panel (di samping Save Draft) disabled sampai hard-refresh.
