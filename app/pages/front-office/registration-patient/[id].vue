@@ -910,12 +910,50 @@ const hasRescheduleItem = computed(() =>
     (ei.roomExamItems ?? []).some((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
   )
 )
+// Banner Reschedule Items — dihitung dari data exam (tidak bergantung checkoutEligibility,
+// supaya tetap tampil walau pasien sudah CheckOut).
+const rescheduleBannerItems = computed<Array<{ itemName: string; samples: Array<{ name: string }> }>>(() => {
+  const seen = new Set<string>()
+  const out: Array<{ itemName: string; samples: Array<{ name: string }> }> = []
+  for (const ei of reg.value?.exam?.examItems ?? []) {
+    const hasRs = (ei.roomExamItems ?? []).some((r) => r.status === 'RESCHEDULED')
+    if (!hasRs) continue
+    const itemName = ei.item?.name ?? '-'
+    if (seen.has(itemName)) continue
+    seen.add(itemName)
+    const samples = getSampleCollectionsForItem(ei.item?.id ?? '').map((sc) => ({
+      name: sc.sampleType?.name ?? sc.sampleType?.code ?? 'Sample'
+    }))
+    out.push({ itemName, samples })
+  }
+  return out
+})
+const hasRescheduleForBanner = computed(() => rescheduleBannerItems.value.length > 0)
+
+// Patient Return Visit hanya bisa saat PERSIS tanggal kunjungan kembali.
+// (selain tanggal tsb → pakai tombol Change Follow-up Date untuk menggeser jadwal.)
+const canResampleNow = computed(() => {
+  const dates = (reg.value?.exam?.examItems ?? [])
+    .flatMap((ei) => (ei.roomExamItems ?? []))
+    .filter((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+    .map((r) => r.rescheduleVisitDate.slice(0, 10))
+  if (!dates.length) return true
+  return dates.includes(todayStr())
+})
 async function handleResampleCheckin() {
   if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
     toast.add({
       title: 'Gagal',
       description: 'Data resample tidak lengkap (queue/branch).',
       color: 'error'
+    })
+    return
+  }
+  if (!canResampleNow.value) {
+    toast.add({
+      title: 'Bukan tanggal kunjungan kembali',
+      description: 'Pasien hanya dapat di-resample pada tanggal kunjungan kembali. Untuk menggeser jadwal gunakan tombol Change Follow-up Date.',
+      color: 'warning'
     })
     return
   }
@@ -1099,6 +1137,8 @@ watch(
               variant="soft"
               label="Patient Return Visit"
               :loading="resampling"
+              :disabled="!canResampleNow"
+              :title="canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'"
               @click="handleResampleCheckin"
             />
             <UButton
@@ -1227,7 +1267,7 @@ watch(
         </UAlert>
 
         <UAlert
-          v-if="checkoutEligibility?.warnings?.length"
+          v-if="hasRescheduleForBanner"
           color="warning"
           variant="soft"
           icon="i-lucide-alert-triangle"
@@ -1235,12 +1275,9 @@ watch(
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>{{ checkoutEligibility.warnings.join(' ') }}</p>
-              <ul
-                v-if="checkoutEligibility.rescheduledItems?.length"
-                class="list-disc pl-5 text-xs"
-              >
-                <li v-for="(r, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
+              <p>Some items have been rescheduled (Partial Exam). The patient can still check out. The rescheduled items will be processed on the next visit.</p>
+              <ul v-if="rescheduleBannerItems?.length" class="list-disc pl-5 text-xs">
+                <li v-for="(r, index) in rescheduleBannerItems" :key="'rs-' + index">
                   {{ r.itemName
                   }}<template v-if="r.samples?.length">
                     <span class="ml-1">( {{ r.samples.map((s) => s.name).join(', ') }} )</span>
