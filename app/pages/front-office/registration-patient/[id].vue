@@ -1726,12 +1726,16 @@ watch(
                           :label="
                             item.status === 'REFUSED'
                               ? 'Rejected'
-                              : getSampleStatusLabel(sample.status)
+                              : item.status === 'RESCHEDULED'
+                                ? 'Reschedule'
+                                : getSampleStatusLabel(sample.status)
                           "
                           :color="
                             item.status === 'REFUSED'
                               ? 'error'
-                              : getSampleStatusColor(sample.status)
+                              : item.status === 'RESCHEDULED'
+                                ? 'warning'
+                                : getSampleStatusColor(sample.status)
                           "
                           variant="soft"
                           size="xs"
