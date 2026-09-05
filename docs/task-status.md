@@ -2,6 +2,10 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Badge sample ikut "Reschedule" saat item di-reschedule
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (Status Sample di MCU Breakdown): badge sample kini menampilkan **"Reschedule"** (warna warning) ketika `item.status === 'RESCHEDULED'` — setara penanganan `REFUSED`. Sebelumnya badge ikut `getSampleStatusLabel(sample.status)` sehingga tampil "Menunggu Ambil" meski item reschedule. Konsisten antara level item & sample.
+
 ## Completed — 2026-09-04: Notif Reschedule item lab di MCU Breakdown + sample ikut resample
 
 - **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`): untuk item lab, tambah deteksi `roomExamItem.status === 'RESCHEDULED'` → item yang room-nya di-reschedule tampil **"Reschedule"** (dengan "FO Attention Required") di MCU Breakdown (sebelumnya jatuh ke `WAITING_SAMPLE` karena status sample PENDING).
