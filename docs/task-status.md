@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Lepas flag calledRoomTypeId saat item di-reschedule (exam tidak ter-hold)
+
+- **BE `express_dash` `src/repositories/roomExamItem/roomExamItem.repository.js`** (`rescheduleRoomExamItem`): tambah helper `releaseCalledRoomIfFinal`. Setelah item di-reschedule, jika room (RoomQueueItem) tidak lagi punya item yang bisa dikerjakan (semua final: DONE/SKIPPED/RESCHEDULED/REFUSED) dan `queueEntry.calledRoomTypeId` = room tsb → set `calledRoomTypeId/calledAt = null`.
+- **Efek:** pasien yang itemnya di-reschedule (partial exam) namun masih punya exam hari ini di room lain **tidak lagi ter-hold** — kembali tampil di waiting list room lain (mis. Dental, Konsultasi Dokter). Sebelumnya `calledRoomTypeId` hanya dilepas saat ROOM DONE (`queue.repository.js:1470`), sehingga item-reschedule yang room-nya bukan DONE membuat pasien tersembunyi.
+- **Contoh:** reg `REG-20260905-01-0002` — LAB hanya berisi Diff Count (RESCHEDULED) → `calledRoomTypeId` LAB dilepas → pasien muncul kembali di waiting Dental/DOK.
+
 ## Completed — 2026-09-04: Badge sample ikut "Reschedule" saat item di-reschedule
 
 - **FE `app/pages/front-office/registration-patient/[id].vue`** (Status Sample di MCU Breakdown): badge sample kini menampilkan **"Reschedule"** (warna warning) ketika `item.status === 'RESCHEDULED'` — setara penanganan `REFUSED`. Sebelumnya badge ikut `getSampleStatusLabel(sample.status)` sehingga tampil "Menunggu Ambil" meski item reschedule. Konsisten antara level item & sample.
