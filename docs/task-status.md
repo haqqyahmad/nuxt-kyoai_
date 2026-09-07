@@ -2,6 +2,10 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Banner notif additional item pemeriksaan di halaman registration-patient
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**: tambah `UAlert` (info) di atas — "Pasien memiliki additional item pemeriksaan" dengan daftar nama item tambahan. Muncul saat `isMCU && additionalItems.length`; diposisikan setelah banner Reschedule Items (sebelum banner Check-out eligibility).
+
 ## Completed — 2026-09-04: Riwayat check-in/check-out kunjungan kembali + badge "Datang lagi" benar
 
 - **BE `express_dash`**
