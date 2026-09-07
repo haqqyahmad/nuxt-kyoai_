@@ -207,8 +207,11 @@ function getExamItemStatus(ei: ExamItem) {
     // Item lab yang pasien tolak (REFUSED) → status "Menolak" walau sample PENDING.
     const roomStatuses = ei.roomExamItems?.map((item) => item.status) ?? []
     if (roomStatuses.includes('REFUSED')) return 'REFUSED'
-    if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
+    // Selesai di-entry aktif (workStatus DONE) atau sample sudah diterima lab →
+    // DONE, apalagi itu hasil dari resample (roomExamItem parent lama RESCHEDULED).
+    if (ei.workStatus === 'DONE') return 'DONE'
     if (samples.every((s) => s.status === 'RECEIVED')) return 'DONE'
+    if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some((s) => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some((s) => s.status === 'REJECTED')) return 'REJECTED'
     return 'WAITING_SAMPLE'
@@ -912,7 +915,9 @@ const hasRescheduleItem = computed(() =>
 )
 // Banner Reschedule Items — dihitung dari data exam (tidak bergantung checkoutEligibility,
 // supaya tetap tampil walau pasien sudah CheckOut).
-const rescheduleBannerItems = computed<Array<{ itemName: string; samples: Array<{ name: string }> }>>(() => {
+const rescheduleBannerItems = computed<
+  Array<{ itemName: string; samples: Array<{ name: string }> }>
+>(() => {
   const seen = new Set<string>()
   const out: Array<{ itemName: string; samples: Array<{ name: string }> }> = []
   for (const ei of reg.value?.exam?.examItems ?? []) {
@@ -934,7 +939,7 @@ const hasRescheduleForBanner = computed(() => rescheduleBannerItems.value.length
 // (selain tanggal tsb → pakai tombol Change Follow-up Date untuk menggeser jadwal.)
 const canResampleNow = computed(() => {
   const dates = (reg.value?.exam?.examItems ?? [])
-    .flatMap((ei) => (ei.roomExamItems ?? []))
+    .flatMap((ei) => ei.roomExamItems ?? [])
     .filter((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
     .map((r) => r.rescheduleVisitDate.slice(0, 10))
   if (!dates.length) return true
@@ -952,7 +957,8 @@ async function handleResampleCheckin() {
   if (!canResampleNow.value) {
     toast.add({
       title: 'Bukan tanggal kunjungan kembali',
-      description: 'Pasien hanya dapat di-resample pada tanggal kunjungan kembali. Untuk menggeser jadwal gunakan tombol Change Follow-up Date.',
+      description:
+        'Pasien hanya dapat di-resample pada tanggal kunjungan kembali. Untuk menggeser jadwal gunakan tombol Change Follow-up Date.',
       color: 'warning'
     })
     return
@@ -1138,7 +1144,9 @@ watch(
               label="Patient Return Visit"
               :loading="resampling"
               :disabled="!canResampleNow"
-              :title="canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'"
+              :title="
+                canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'
+              "
               @click="handleResampleCheckin"
             />
             <UButton
@@ -1275,7 +1283,10 @@ watch(
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>Some items have been rescheduled (Partial Exam). The patient can still check out. The rescheduled items will be processed on the next visit.</p>
+              <p>
+                Some items have been rescheduled (Partial Exam). The patient can still check out.
+                The rescheduled items will be processed on the next visit.
+              </p>
               <ul v-if="rescheduleBannerItems?.length" class="list-disc pl-5 text-xs">
                 <li v-for="(r, index) in rescheduleBannerItems" :key="'rs-' + index">
                   {{ r.itemName
