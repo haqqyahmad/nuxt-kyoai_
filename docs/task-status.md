@@ -2,6 +2,11 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Department result masuk review hanya setelah semua item selesai (Opsi 1b)
+
+- **BE `express_dash` `src/repositories/exam/exam.repository.js`** (`submitDepartmentResults`): kini mengambil semua item department (bukan hanya item yang disubmit). Jika belum semua item selesai → item ditandai tersubmit (`partial`), department **belum** masuk review. Jika semua item selesai → snapshot seluruh department + set `DEPARTMENT_REVIEW`. Guard hanya blokir `DEPARTMENT_APPROVED`/`SUBMITTED_TO_DOCTOR` (REVIEW boleh di-resubmit).
+- **Alur:** Selesaikan per item → tersubmit; item terakhir memicu review department.
+
 ## Completed — 2026-09-04: Treadmill Screening sebagai item Dokter (gaya Romberg) + EcgResultPanel dipindah
 
 - **BE `express_dash`**
