@@ -505,6 +505,8 @@ const statusHistoryDisplay = computed(() => [...statusHistory.value].reverse())
 
 function statusHistoryLabel(item: StatusHistoryItem): string {
   if (item.action === 'CREATE') return 'Registrasi Dibuat'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Check-in Kunjungan Kembali'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan Kembali Selesai'
   if (item.action === 'STATUS_CHANGE') {
     const before = item.payloadBefore?.statusRegistration
     const after = item.payloadAfter?.statusRegistration
@@ -520,6 +522,8 @@ function statusHistoryLabel(item: StatusHistoryItem): string {
 function statusHistoryDesc(item: StatusHistoryItem): string {
   if (item.notes) return item.notes
   if (item.action === 'CREATE') return 'Registrasi dibuat.'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Pasien datang kembali untuk item yang di-reschedule.'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan kembali ditutup; seluruh item selesai.'
   return 'Perubahan status registrasi.'
 }
 
@@ -953,6 +957,7 @@ const returnVisitActive = computed(() => (reg.value?.queue?.type ?? '') === 'RES
 // Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
 const canCompleteReturnVisit = computed(() => {
   if (!returnVisitActive.value) return false
+  if ((reg.value?.exam?.status ?? '') === 'completed') return false
   const items = reg.value?.exam?.examItems ?? []
   if (!items.length) return false
   return items.every((ei) => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
