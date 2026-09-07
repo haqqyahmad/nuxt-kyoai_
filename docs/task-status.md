@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Sample reception filter by queueDate (dukung resample)
+
+- **BE `express_dash` `src/repositories/queue/queue.repository.js`** (`buildSampleCollectionWhere`): dukung `queueDateFrom`/`queueDateTo` → filter `queueEntry.queueDate`.
+- **FE `app/components/rooms/SampleReceptionPanel.vue`**: filter kini mengirim `queueDateFrom`/`queueDateTo` (label "Tanggal Queue") alih-alih `examDate`.
+- **Efek:** sample kunjungan kembali (resample) kini muncul saat filter tanggal kunjungan (`queueDate`), bukan `examDate` asli.
+
 ## Completed — 2026-09-04: Banner notif additional item pemeriksaan di halaman registration-patient
 
 - **FE `app/pages/front-office/registration-patient/[id].vue`**: tambah `UAlert` (info) di atas — "Pasien memiliki additional item pemeriksaan" dengan daftar nama item tambahan. Muncul saat `isMCU && additionalItems.length`; diposisikan setelah banner Reschedule Items (sebelum banner Check-out eligibility).
