@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Riwayat check-in/check-out kunjungan kembali + badge "Datang lagi" benar
+
+- **BE `express_dash`**
+  - `src/services/queue/queue.service.js` + controller: `resampleCheckin` kini mencatat audit **`RETURN_VISIT_CHECKIN`** (check-in kunjungan kembali) dengan `actorId` — sebelumnya tidak ada.
+  - `src/services/registration/registration.service.js` (`decorateListCanCheckout`): `rescheduleVisitDate` hanya dihitung dari item **`workStatus === 'RESCHEDULED'`** → badge "Datang lagi" di list hilang setelah kunjungan kembali selesai (workStatus DONE).
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - `statusHistoryLabel/Desc`: label ramah untuk `RETURN_VISIT_CHECKIN` ("Check-in Kunjungan Kembali") & `RETURN_VISIT_COMPLETED` ("Kunjungan Kembali Selesai").
+  - `canCompleteReturnVisit` kini `false` saat `exam.status === 'completed'` → tombol "Selesaikan Kunjungan Kembali" hilang setelah selesai (seperti Check-out).
+
 ## Completed — 2026-09-04: Modal Tambah Item Pemeriksaan samakan dengan packages + filter server-side
 
 - **BE `express_dash` `src/repositories/item/item.repository.js`** (`findAll`): dukung param `excludeItemIds` (comma-separated) → `where.id = { notIn: ids }`.
