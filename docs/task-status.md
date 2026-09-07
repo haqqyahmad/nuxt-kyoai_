@@ -2,6 +2,18 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Selesaikan Kunjungan Kembali (Opsi C) + sembunyikan Patient Return Visit
+
+- **BE `express_dash`**
+  - `src/services/registration/registration.service.js`: `completeReturnVisit(id_reg)` — validasi entry RESAMPLE aktif + semua room final + semua item exam final, lalu `exam.status = completed`, `statusRegistration = CheckOut`, entry resample `DONE` + audit.
+  - Controller + route: `PATCH /registration/:id_reg/complete-return-visit`.
+  - `src/repositories/registration/registration.repositories.js`: select `registration.queue` menyertakan `type`.
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - Tipe `QueueInfo` + `type`.
+  - Computed `returnVisitActive` (queue terbaru = RESAMPLE) & `canCompleteReturnVisit` (semua item exam DONE/REFUSED/SKIPPED).
+  - Tombol **"Selesaikan Kunjungan Kembali"** (muncul saat kunjungan kembali aktif & item selesai) → panggil endpoint + refresh.
+  - Tombol **Patient Return Visit** kini **disembunyikan** bila `returnVisitActive` (kunjungan kembali sudah dibuat).
+
 ## Completed — 2026-09-04: Fix status item lab resampled (Diff Count) tetap "Reschedule"
 
 - **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`, cabang item lab): kembalikan **DONE** bila `workStatus === 'DONE'` atau semua sample `RECEIVED` — dievaluasi **sebelum** cek `roomStatuses.includes('RESCHEDULED')`.
