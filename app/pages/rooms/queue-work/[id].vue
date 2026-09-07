@@ -2,6 +2,7 @@
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
 import PhysicalExamWorkPanel from '~/components/rooms/PhysicalExamWorkPanel.vue'
 import DoctorTestWorkPanel from '~/components/rooms/DoctorTestWorkPanel.vue'
+import TreadmillScreeningWorkPanel from '~/components/rooms/TreadmillScreeningWorkPanel.vue'
 import { resolveRenderer } from '~/constants/exam-renderers'
 import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
 import { useAudit } from '~/composables/useAudit'
@@ -853,6 +854,10 @@ function isDoctorTestExamItem(item: RoomExamItem) {
   return rendererFor(item) === DoctorTestWorkPanel
 }
 
+function isTreadmillScreeningExamItem(item: RoomExamItem) {
+  return rendererFor(item) === TreadmillScreeningWorkPanel
+}
+
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
@@ -870,7 +875,7 @@ const allPhysicalNoAbnormality = computed<boolean>(() => {
 })
 
 function isCustomDoctorExamItem(item: RoomExamItem) {
-  return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item)
+  return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item) || isTreadmillScreeningExamItem(item)
 }
 
 // [FULL-WIDTH] Semua renderer custom dokter tampil full-page. Item generik,
@@ -2279,6 +2284,20 @@ async function handleSubmitItemAction() {
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
+                  @refreshed="loadPage(true)"
+                />
+
+                <TreadmillScreeningWorkPanel
+                  v-else-if="isTreadmillScreeningExamItem(selectedItem)"
+                  :item="selectedItem"
+                  :can-start="isExamStageActive() && roomStageInProgress"
+                  :can-done="canDoneItem(selectedItem)"
+                  :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
+                  :start-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  :done-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  @start="handleStartItem(selectedItem)"
+                  @done="handleDoneItem(selectedItem)"
+                  @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @refreshed="loadPage(true)"
                 />
 
