@@ -2,6 +2,11 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Additional items tampil di banner "Patient cannot be discharged yet"
+
+- **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): loop `nonFinalItems` kini mengiterasi semua item exam (paket + additional) & menandai `isAdditional`.
+- **FE `app/pages/front-office/registration-patient/[id].vue`**: di banner checkout, item dengan `isAdditional` ditampilkan dengan badge kecil **"Additional"** (ikon plus-circle).
+
 ## Completed — 2026-09-04: Sample reception filter by queueDate (dukung resample)
 
 - **BE `express_dash` `src/repositories/queue/queue.repository.js`** (`buildSampleCollectionWhere`): dukung `queueDateFrom`/`queueDateTo` → filter `queueEntry.queueDate`.
