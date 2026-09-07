@@ -623,42 +623,83 @@ const additionalSearch = ref('')
 const additionalPending = ref(false)
 const additionalResults = ref<MstItem[]>([])
 const expandedAdditional = ref<Set<string>>(new Set())
+const ALL_VALUE = 'ALL'
+const selectedDepartmentId = ref(ALL_VALUE)
+const selectedGroupId = ref(ALL_VALUE)
+
+const departments = ref<MstDepartment[]>([])
+async function fetchDepartments() {
+  try {
+    const res = await api.get('/medical/departments')
+    departments.value = res.data?.data ?? res.data ?? []
+  } catch {
+    departments.value = []
+  }
+}
+
+const departmentOptions = computed(() => [
+  { label: 'Semua Department', value: ALL_VALUE },
+  ...departments.value.map(dep => ({ label: dep.name ?? '-', value: dep.id ?? '' }))
+])
+
+const groupOptions = computed(() => {
+  const map = new Map<string, MstItemGroup>()
+  for (const item of additionalResults.value) {
+    if (item.group?.id && item.group?.name) map.set(item.group.id, item.group)
+  }
+  return [
+    { label: 'Semua Item Group', value: ALL_VALUE },
+    ...Array.from(map.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(group => ({ label: group.name, value: group.id }))
+  ]
+})
+
+const filteredAdditionalResults = computed(() =>
+  additionalResults.value.filter(item =>
+    (selectedDepartmentId.value === ALL_VALUE
+      || item.department?.id === selectedDepartmentId.value)
+    && (selectedGroupId.value === ALL_VALUE
+      || item.group?.id === selectedGroupId.value)
+  )
+)
 
 let additionalDebounce: ReturnType<typeof setTimeout>
 let additionalReqId = 0
 
-watch(additionalSearch, (val) => {
-  clearTimeout(additionalDebounce)
-  additionalResults.value = []
-
-  if (!val || val.trim().length < 1) {
-    additionalPending.value = false
-    return
-  }
-
+async function fetchAdditionalItems(search = '') {
   const currentId = ++additionalReqId
   additionalPending.value = true
 
-  additionalDebounce = setTimeout(async () => {
-    try {
-      const res = await api.get('/mcu/items', {
-        params: { search: val.trim(), limit: 20 }
-      })
-      if (currentId === additionalReqId) {
-        const paketItemIds = new Set(
-          selectedPaket.value?.paketItems.map(pi => pi.item.id) ?? []
-        )
-        const addedIds = new Set(additionalItems.value.map(i => i.id))
-        additionalResults.value = (res.data.data as MstItem[]).filter(
-          i => !paketItemIds.has(i.id) && !addedIds.has(i.id)
-        )
-      }
-    } catch {
-      if (currentId === additionalReqId) additionalResults.value = []
-    } finally {
-      if (currentId === additionalReqId) additionalPending.value = false
+  try {
+    const paketItemIds = (selectedPaket.value?.paketItems?.map(pi => pi.item.id) ?? []).filter(Boolean)
+    const addedIds = additionalItems.value.map(i => i.id).filter(Boolean)
+    const excludeItemIds = [...paketItemIds, ...addedIds]
+
+    const params: Record<string, unknown> = { search: search.trim(), limit: 100 }
+    if (excludeItemIds.length) params.excludeItemIds = excludeItemIds.join(',')
+
+    const res = await api.get('/mcu/items', { params })
+    const payload = res.data?.data
+    const items: MstItem[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+
+    if (currentId === additionalReqId) {
+      additionalResults.value = items.filter(item => item?.id)
     }
-  }, 300)
+  } catch {
+    if (currentId === additionalReqId) additionalResults.value = []
+  } finally {
+    if (currentId === additionalReqId) additionalPending.value = false
+  }
+}
+
+watch(additionalSearch, (val) => {
+  clearTimeout(additionalDebounce)
+  additionalDebounce = setTimeout(() => fetchAdditionalItems(val), 300)
 })
 
 function openAdditionalModal() {
@@ -675,7 +716,12 @@ function openAdditionalModal() {
 
   additionalSearch.value = ''
   additionalResults.value = []
+  selectedDepartmentId.value = ALL_VALUE
+  selectedGroupId.value = ALL_VALUE
   additionalModalOpen.value = true
+
+  fetchDepartments()
+  fetchAdditionalItems()
 }
 
 function addAdditionalItem(item: MstItem) {
@@ -690,6 +736,8 @@ function addAdditionalItem(item: MstItem) {
 function removeAdditionalItem(itemId: string) {
   additionalItems.value = additionalItems.value.filter(i => i.id !== itemId)
   expandedAdditional.value.delete(itemId)
+
+  fetchAdditionalItems(additionalSearch.value)
 }
 
 function toggleAdditional(itemId: string) {
@@ -714,7 +762,7 @@ const totalAdditionalInputan = computed(() =>
 const groupedAdditionalResults = computed(() => {
   const groups: Record<string, MstItem[]> = {}
 
-  for (const item of additionalResults.value) {
+  for (const item of filteredAdditionalResults.value) {
     const groupName = item.group?.name ?? 'Tanpa Group'
 
     if (!groups[groupName]) {
@@ -2566,6 +2614,29 @@ async function cancel() {
                 </button>
               </div>
 
+              <!-- FILTER -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 relative z-[1000]">
+                <USelect
+                  v-model="selectedDepartmentId"
+                  :items="departmentOptions"
+                  placeholder="Semua Department"
+                  icon="i-lucide-building-2"
+                  class="w-full"
+                  :portal="true"
+                  :content="{ side: 'bottom', sideOffset: 6 }"
+                />
+
+                <USelect
+                  v-model="selectedGroupId"
+                  :items="groupOptions"
+                  placeholder="Semua Item Group"
+                  icon="i-lucide-folder"
+                  class="w-full"
+                  :portal="true"
+                  :content="{ side: 'bottom', sideOffset: 6 }"
+                />
+              </div>
+
               <!-- SEARCH -->
               <div class="relative mt-4">
                 <UIcon
@@ -2616,16 +2687,16 @@ async function cancel() {
 
             <!-- BODY -->
             <div class="overflow-y-auto" style="max-height: min(65vh, 620px)">
-              <!-- EMPTY SEARCH -->
+              <!-- EMPTY -->
               <div
-                v-if="!additionalSearch && !additionalPending"
+                v-if="!additionalPending && !groupedAdditionalResults.length"
                 class="py-16 flex flex-col items-center justify-center text-center px-6"
               >
                 <div
                   class="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center mb-4"
                 >
                   <UIcon
-                    name="i-lucide-search"
+                    name="i-lucide-search-x"
                     class="text-neutral-500 text-3xl"
                   />
                 </div>
@@ -2633,11 +2704,11 @@ async function cancel() {
                 <p
                   class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Ketik untuk mencari item
+                  Tidak ada item pemeriksaan
                 </p>
 
-                <p class="text-xs text-neutral-500 mt-1 max-w-sm">
-                  Item yang sudah ada di paket tidak akan ditampilkan
+                <p class="text-xs text-neutral-500 mt-1">
+                  Coba kata kunci lain atau periksa master item
                 </p>
               </div>
 
@@ -2652,7 +2723,7 @@ async function cancel() {
                 />
 
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
-                  Mencari item...
+                  Memuat item pemeriksaan...
                 </p>
               </div>
 
