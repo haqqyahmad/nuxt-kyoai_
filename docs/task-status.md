@@ -2,6 +2,10 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Dental "Selesaikan Item" muncul setelah Simpan Draft
+
+- **FE `app/components/rooms/DentalExamWorkPanel.vue`**: tombol **Selesaikan Item** di panel Dental kini hanya muncul setelah **Simpan Draft** diklik (flag `draftSaved` di-set dari event `@saved`). Sebelumnya muncul kapan pun item IN_PROGRESS.
+
 ## Completed — 2026-09-04: Department result masuk review hanya setelah semua item selesai (Opsi 1b)
 
 - **BE `express_dash` `src/repositories/exam/exam.repository.js`** (`submitDepartmentResults`): kini mengambil semua item department (bukan hanya item yang disubmit). Jika belum semua item selesai → item ditandai tersubmit (`partial`), department **belum** masuk review. Jika semua item selesai → snapshot seluruh department + set `DEPARTMENT_REVIEW`. Guard hanya blokir `DEPARTMENT_APPROVED`/`SUBMITTED_TO_DOCTOR` (REVIEW boleh di-resubmit).
