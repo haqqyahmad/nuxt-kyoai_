@@ -49,6 +49,13 @@ const isFinal = computed(() =>
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
 const canDoneItem = computed(() => props.canDone && props.item.status === 'IN_PROGRESS')
 const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
+
+// "Selesaikan Item" hanya muncul setelah pengguna menyimpan draft dental.
+const draftSaved = ref(false)
+function onDentalSaved() {
+  draftSaved.value = true
+  emit('refreshed')
+}
 </script>
 
 <template>
@@ -104,7 +111,7 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
           </UButton>
 
           <UButton
-            v-if="canDoneItem"
+            v-if="canDoneItem && draftSaved"
             color="success"
             icon="i-lucide-check"
             :loading="doneLoading"
@@ -172,7 +179,7 @@ const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
         :exam-id="examId"
         :disabled="item.status !== 'IN_PROGRESS'"
         :show-submit="false"
-        @saved="emit('refreshed')"
+        @saved="onDentalSaved"
       />
 
       <UAlert
