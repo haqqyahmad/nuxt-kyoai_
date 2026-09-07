@@ -2,6 +2,17 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Treadmill Screening sebagai item Dokter (gaya Romberg) + EcgResultPanel dipindah
+
+- **BE `express_dash`**
+  - `prisma/seedTreadmillScreeningItem.js` (baru): master item **"Treadmill Screening"** (`DOK-TREADMILL-SCREENING`, dept & roomType **DOK**, renderer GENERIC). Sudah dijalankan & di-backfill ke exam `REG-20260907-01-0001`.
+  - `src/repositories/exam/exam.repository.js` (`snapshotPaketItems`): saat exam dibuat dari paket, jika paket memuat item **Treadmill** → otomatis tambah item "Treadmill Screening".
+- **FE `my-app`**
+  - `app/components/rooms/TreadmillScreeningWorkPanel.vue` (baru, meniru `DoctorTestWorkPanel`): questionnaire 6 Yes/No (`QST-TREADMILL-SCREENING`) + **EcgResultPanel** (upload ECG + approve/reject treadmill) + tombol Mulai/Selesaikan/Pasien Menolak.
+  - `app/constants/exam-renderers.ts` + `app/types/physical.ts`: renderer `TREADMILL_SCREENING` (rute via kode item).
+  - `app/pages/rooms/queue-work/[id].vue`: item Treadmill Screening dirender & masuk `isCustomDoctorExamItem`.
+  - `app/components/rooms/PhysicalExamWorkPanel.vue`: **sub-tab Treadmill Questionnaire dimatikan** & `EcgResultPanel` **dipindah** ke Treadmill Screening (Physical Exam kembali murni form).
+
 ## Completed — 2026-09-04: Additional items tampil di banner "Patient cannot be discharged yet"
 
 - **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): loop `nonFinalItems` kini mengiterasi semua item exam (paket + additional) & menandai `isAdditional`.
