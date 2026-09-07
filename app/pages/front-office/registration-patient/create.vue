@@ -688,7 +688,10 @@ async function fetchAdditionalItems(search = '') {
         : []
 
     if (currentId === additionalReqId) {
-      additionalResults.value = items.filter(item => item?.id)
+      // Item sistem (mis. Treadmill Screening) yang otomatis ditambahkan tidak
+      // boleh di-pilih manual di modal.
+      const SYSTEM_ITEM_CODES = ['DOK-TREADMILL-SCREENING']
+      additionalResults.value = items.filter(item => item?.id && !SYSTEM_ITEM_CODES.includes(item.code))
     }
   } catch {
     if (currentId === additionalReqId) additionalResults.value = []

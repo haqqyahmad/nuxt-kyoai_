@@ -293,8 +293,10 @@ async function fetchAdditionalItems(search = '') {
     if (currentId === additionalReqId) {
       const addedIds = new Set(additionalItems.value.map(i => i.id))
 
+      // Item sistem (mis. Treadmill Screening) tidak boleh di-pilih manual.
+      const SYSTEM_ITEM_CODES = ['DOK-TREADMILL-SCREENING']
       additionalResults.value = items.filter(
-        item => item?.id && !addedIds.has(item.id)
+        item => item?.id && !addedIds.has(item.id) && !SYSTEM_ITEM_CODES.includes(item.code)
       )
     }
   } catch (err) {
