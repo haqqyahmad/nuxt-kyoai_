@@ -911,7 +911,7 @@ onBeforeUnmount(() => {
 
 const hasRescheduleItem = computed(() =>
   (reg.value?.exam?.examItems ?? []).some((ei) =>
-    (ei.roomExamItems ?? []).some((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+    (ei.workStatus ?? '') === 'RESCHEDULED'
   )
 )
 // Banner Reschedule Items — dihitung dari data exam (tidak bergantung checkoutEligibility,
@@ -922,8 +922,9 @@ const rescheduleBannerItems = computed<
   const seen = new Set<string>()
   const out: Array<{ itemName: string; samples: Array<{ name: string }> }> = []
   for (const ei of reg.value?.exam?.examItems ?? []) {
-    const hasRs = (ei.roomExamItems ?? []).some((r) => r.status === 'RESCHEDULED')
-    if (!hasRs) continue
+    // Hanya item yang MASIH di-reschedule (workStatus RESCHEDULED). Item yang sudah
+    // selesai di-resample (workStatus DONE) tidak lagi tampil di banner.
+    if ((ei.workStatus ?? '') !== 'RESCHEDULED') continue
     const itemName = ei.item?.name ?? '-'
     if (seen.has(itemName)) continue
     seen.add(itemName)
