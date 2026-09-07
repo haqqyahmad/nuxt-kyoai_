@@ -1343,6 +1343,15 @@ watch(
         </UAlert>
 
         <UAlert
+          v-if="isMCU && additionalItems.length"
+          color="info"
+          variant="soft"
+          icon="i-lucide-plus-circle"
+          title="Pasien memiliki additional item pemeriksaan"
+          :description="`Terdapat ${additionalItems.length} item tambahan di luar paket: ${additionalItems.map(i => i.item.name).join(', ')}`"
+        />
+
+        <UAlert
           v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
           :color="checkoutEligibility.canCheckout ? 'success' : 'warning'"
           variant="soft"
