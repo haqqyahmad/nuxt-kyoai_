@@ -41,6 +41,7 @@ type QueueInfo = {
   id: string
   queueCode: string
   queueNumber: number
+  type?: string | null
   sampleCollections?: QueueSampleCollection[]
 }
 
@@ -941,10 +942,40 @@ const canResampleNow = computed(() => {
   const dates = (reg.value?.exam?.examItems ?? [])
     .flatMap((ei) => ei.roomExamItems ?? [])
     .filter((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
-    .map((r) => r.rescheduleVisitDate.slice(0, 10))
+    .map((r) => (r.rescheduleVisitDate ?? '').slice(0, 10))
   if (!dates.length) return true
   return dates.includes(todayStr())
 })
+
+// Kunjungan kembali (resample) aktif = queue terbaru bertipe RESAMPLE.
+const returnVisitActive = computed(() => (reg.value?.queue?.type ?? '') === 'RESAMPLE')
+// Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
+const canCompleteReturnVisit = computed(() => {
+  if (!returnVisitActive.value) return false
+  const items = reg.value?.exam?.examItems ?? []
+  if (!items.length) return false
+  return items.every((ei) => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
+})
+const completingReturnVisit = ref(false)
+async function handleCompleteReturnVisit() {
+  if (!reg.value || completingReturnVisit.value) return
+  completingReturnVisit.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id_reg}/complete-return-visit`)
+    toast.add({ title: 'Selesai', description: 'Kunjungan kembali ditutup & exam selesai.', color: 'success' })
+    await refresh()
+    await loadStatusHistory()
+    await loadCheckoutEligibility()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal menyelesaikan kunjungan kembali',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan.',
+      color: 'error'
+    })
+  } finally {
+    completingReturnVisit.value = false
+  }
+}
 async function handleResampleCheckin() {
   if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
     toast.add({
@@ -1137,16 +1168,14 @@ watch(
               Refresh
             </UButton>
             <UButton
-              v-if="hasRescheduleItem && reg?.queue?.id && reg?.branch?.branchId"
+              v-if="hasRescheduleItem && !returnVisitActive && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
               label="Patient Return Visit"
               :loading="resampling"
               :disabled="!canResampleNow"
-              :title="
-                canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'
-              "
+              :title="canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'"
               @click="handleResampleCheckin"
             />
             <UButton
@@ -1156,6 +1185,14 @@ watch(
               variant="soft"
               label="Change Follow-up Date"
               @click="openRescheduleDates"
+            />
+            <UButton
+              v-if="canCompleteReturnVisit"
+              icon="i-lucide-check-circle-2"
+              color="success"
+              label="Selesaikan Kunjungan Kembali"
+              :loading="completingReturnVisit"
+              @click="handleCompleteReturnVisit"
             />
             <UButton
               icon="i-lucide-printer"
