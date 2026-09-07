@@ -673,7 +673,7 @@ const checkoutEligibility = ref<{
   reasons: string[]
   warnings?: string[]
   rescheduledItems?: Array<{ itemName: string; samples?: Array<{ name: string }> }>
-  nonFinalItems?: Array<{ itemName?: string; reason?: string; currentRoomStatus?: string }>
+  nonFinalItems?: Array<{ itemName?: string; reason?: string; currentRoomStatus?: string; isAdditional?: boolean }>
 } | null>(null)
 
 // Item non-final yang bermasalah utk banner Note (retest sudah di banner utama).
@@ -1373,6 +1373,13 @@ watch(
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in dischargePendingItems" :key="index">
+                  <span
+                    v-if="item.isAdditional"
+                    class="mr-1 inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary"
+                  >
+                    <UIcon name="i-lucide-plus-circle" class="size-3" />
+                    Additional
+                  </span>
                   {{ item.itemName }} —
                   {{
                     item.currentRoomStatus
