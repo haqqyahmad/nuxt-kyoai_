@@ -2,6 +2,20 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Modal Tambah Item Pemeriksaan samakan dengan packages + filter server-side
+
+- **BE `express_dash` `src/repositories/item/item.repository.js`** (`findAll`): dukung param `excludeItemIds` (comma-separated) → `where.id = { notIn: ids }`.
+- **FE `app/pages/front-office/registration-patient/create.vue`**:
+  - Modal "Tambah Item Pemeriksaan" disamakan dengan `/services/packages/create` — tambah filter **Department** & **Item Group**, load semua item saat dibuka (bukan hanya saat search), debounce search, grouping hasil.
+  - `fetchAdditionalItems` mengirim `excludeItemIds` (item paket + sudah ditambahkan) → server mengecualikannya; tidak filter-klien lagi.
+  - Empty state diubah dari "Ketik untuk mencari item" → "Tidak ada item pemeriksaan".
+
+## Completed — 2026-09-04: Banner & tombol reschedule konsisten dengan status workStatus
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - `rescheduleBannerItems` & `hasRescheduleItem` kini memakai `workStatus === 'RESCHEDULED'` (bukan `roomExamItems.some(RESCHEDULED)`).
+  - **Efek:** item yang masih di-reschedule → banner & tombol Patient Return Visit / Change Follow-up Date tampil; item yang sudah selesai di-resample (`workStatus: DONE`) → semuanya hilang. Sebelumnya blok/roomExamItem parent lama membuat item yang sudah selesai tetap tampak reschedule.
+
 ## Completed — 2026-09-04: Selesaikan Kunjungan Kembali (Opsi C) + sembunyikan Patient Return Visit
 
 - **BE `express_dash`**
