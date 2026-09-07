@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-04
 
+## Completed — 2026-09-04: Fix status item lab resampled (Diff Count) tetap "Reschedule"
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`, cabang item lab): kembalikan **DONE** bila `workStatus === 'DONE'` atau semua sample `RECEIVED` — dievaluasi **sebelum** cek `roomStatuses.includes('RESCHEDULED')`.
+- **Akar:** item yang di-reschedule lalu dikerjakan ulang (resample) punya 2 roomExamItem — parent (RESCHEDULED) & resample (DONE). Sebelumnya prioritas RESCHEDULED (dari parent lama) membuat item tetap "Reschedule" walau sudah selesai (workStatus DONE, sample RECEIVED), sehingga tak pindah ke card "Selesai" & Status Sample tidak berubah.
+- **Efek:** item resampled selesai → DONE; item reschedule yang belum di-resample → tetap RESCHEDULED.
+
 ## Completed — 2026-09-04: Date Range filter hasil berfungsi server-side + bersihkan lint index.vue
 
 - **BE `express_dash` `src/services/exam/exam.service.js`**: `getExamResults` & `getExamResultsGrouped` kini memfilter `trxExamItem.createdAt` (tanggal check-in, selaras kolom "Check-in") berdasar `dateFrom`/`dateTo` (inklusif, `lte` akhir hari).
