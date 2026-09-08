@@ -27,6 +27,7 @@ type ExamInputOption = {
   id: string
   label: string
   value: string
+  sortOrder?: number
 }
 
 type ExamInput = {
@@ -115,7 +116,7 @@ type ExamResultDetail = {
     examCode?: string | null
     externalStatus?: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED' | null
     assignedExternalUserId?: number | null
-    assignedExternalUser?: { id: number, name: string } | null
+    assignedExternalUser?: { id: number; name: string } | null
     externalAssignedAt?: string | null
     externalProcessingStartedAt?: string | null
     externalProcessingDeadline?: string | null
@@ -127,13 +128,13 @@ type ExamResultDetail = {
       mimeType?: string | null
       sizeBytes?: number | null
       uploadedBy?: number | null
-      uploadedByUser?: { id: number, name: string } | null
+      uploadedByUser?: { id: number; name: string } | null
       uploadedAt?: string | null
     } | null
     workUpdatedBy?: number | null
-    workUpdatedByUser?: { id: number, name: string } | null
+    workUpdatedByUser?: { id: number; name: string } | null
     resultSubmittedBy?: number | null
-    resultSubmittedByUser?: { id: number, name: string } | null
+    resultSubmittedByUser?: { id: number; name: string } | null
     externalProcessSlaDays?: number | null
     results?: Array<{
       inputanId: string
@@ -204,31 +205,44 @@ async function fetchAllAudit() {
       : [props.result.id]
 
     const [roomLogs, externalLogs, examLogs] = await Promise.all([
-      Promise.all(examItemIds.map((id: string) =>
-        api.get(`/audit/RoomExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => [])
-      )).then(rows => rows.flat()),
-      Promise.all(examItemIds.map((id: string) =>
-        api.get(`/audit/ExternalResultAssignment/${id}`).then(r => r.data?.data ?? []).catch(() => [])
-      )).then(rows => rows.flat()),
+      Promise.all(
+        examItemIds.map((id: string) =>
+          api
+            .get(`/audit/RoomExamItem/${id}`)
+            .then((r) => r.data?.data ?? [])
+            .catch(() => [])
+        )
+      ).then((rows) => rows.flat()),
+      Promise.all(
+        examItemIds.map((id: string) =>
+          api
+            .get(`/audit/ExternalResultAssignment/${id}`)
+            .then((r) => r.data?.data ?? [])
+            .catch(() => [])
+        )
+      ).then((rows) => rows.flat()),
       examId
-        ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => [])
+        ? api
+            .get(`/audit/TrxExamResult/${examId}`)
+            .then((r) => r.data?.data ?? [])
+            .catch(() => [])
         : Promise.resolve([])
     ])
-    entries.value = [...roomLogs, ...externalLogs, ...examLogs].sort((a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    entries.value = [...roomLogs, ...externalLogs, ...examLogs].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     )
   } finally {
     auditLoading.value = false
   }
 }
 
-const groupGradingItems: Array<{ label: string, value: GradingValue }> = [
+const groupGradingItems: Array<{ label: string; value: GradingValue }> = [
   { label: 'Normal', value: 'NORMAL' },
   { label: 'Abnormal (meningkat)', value: 'ABNORMAL_INC' },
   { label: 'Abnormal (menurun)', value: 'ABNORMAL_DEC' }
 ]
 
-const groupGradingForm = ref<{ groupId: string, groupName: string, grading?: GradingValue }>({
+const groupGradingForm = ref<{ groupId: string; groupName: string; grading?: GradingValue }>({
   groupId: '',
   groupName: '',
   grading: undefined
@@ -237,17 +251,23 @@ const autoComment = ref<string | null>(null)
 const groupGradingSaving = ref(false)
 
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
-const sampleBlockedDescription = computed(() => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil')
+const sampleBlockedDescription = computed(
+  () => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil'
+)
 const canEditCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result?.exam?.externalStatus === 'PROCESSING'
+  if (isExternalDoctor.value && props.result?.isExternalResult)
+    return props.result?.exam?.externalStatus === 'PROCESSING'
   return props.result?.canEditResult ?? props.result?.status === 'pending'
 })
 const canSubmitCurrentResult = computed(() => {
-  if (isExternalDoctor.value && props.result?.isExternalResult) return props.result?.exam?.externalStatus === 'PROCESSING'
+  if (isExternalDoctor.value && props.result?.isExternalResult)
+    return props.result?.exam?.externalStatus === 'PROCESSING'
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
-const isExternalResultFilled = computed(() =>
-  props.result?.items?.some(item => item.isExternalResult) && props.result?.exam?.externalStatus === 'FILLED'
+const isExternalResultFilled = computed(
+  () =>
+    props.result?.items?.some((item) => item.isExternalResult) &&
+    props.result?.exam?.externalStatus === 'FILLED'
 )
 
 // [F] Approve department (four-eyes): status REVIEW + actor bukan submitter.
@@ -272,7 +292,7 @@ async function handleApproveResult() {
     toast.add({
       title: 'Gagal approve',
       description: getErrorMessage(error, 'Terjadi kesalahan saat menyetujui.'),
-      color: 'error',
+      color: 'error'
     })
   } finally {
     approving.value = false
@@ -304,10 +324,18 @@ async function startExternalProcessing() {
   externalStarting.value = true
   try {
     await api.post(`/mcu/exams/${props.result?.exam?.id}/external-processing/start`, { examItemId })
-    toast.add({ title: 'Berhasil', description: 'Pemeriksaan dokter luar dimulai. Batas waktu submit 3 jam.', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pemeriksaan dokter luar dimulai. Batas waktu submit 3 jam.',
+      color: 'success'
+    })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
-    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal memulai pemeriksaan dokter luar.'), color: 'error' })
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Gagal memulai pemeriksaan dokter luar.'),
+      color: 'error'
+    })
   } finally {
     externalStarting.value = false
   }
@@ -346,13 +374,18 @@ const resultStatusOptions = [
 const selectedResultStatus = ref<string>('')
 const statusSaving = ref(false)
 
-watch(() => props.result?.resultStatus, (value) => {
-  selectedResultStatus.value = value || 'NOT_READY'
-}, { immediate: true })
+watch(
+  () => props.result?.resultStatus,
+  (value) => {
+    selectedResultStatus.value = value || 'NOT_READY'
+  },
+  { immediate: true }
+)
 
 async function handleUpdateResultStatus() {
   if (!props.result?.exam?.id || statusSaving.value) return
-  if (!selectedResultStatus.value || selectedResultStatus.value === props.result.resultStatus) return
+  if (!selectedResultStatus.value || selectedResultStatus.value === props.result.resultStatus)
+    return
 
   statusSaving.value = true
   try {
@@ -407,15 +440,14 @@ const resultWorkflowLabel = computed(() => {
 })
 
 // [RETURN] Revisi dari dokter → department (pola sama seperti MR → dokter)
-const isReturnedToDepartment = computed(() =>
-  props.result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT'
+const isReturnedToDepartment = computed(
+  () => props.result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT'
 )
 const returnReason = computed(() => props.result?.returnReason ?? null)
 const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
 function returnItemLabel(inputanId: string | null) {
   if (!inputanId) return 'Item pemeriksaan'
-  const inputan = (props.result?.item?.inputans ?? [])
-    .find((inp) => inp.id === inputanId)
+  const inputan = (props.result?.item?.inputans ?? []).find((inp) => inp.id === inputanId)
   return inputan?.label || inputanId.slice(0, 8)
 }
 // [RETURN] Catatan per inputan (dari return dokter → dept)
@@ -447,7 +479,11 @@ async function loadGroupResults() {
     const list = data?.data ?? []
     if (Array.isArray(list) && list.length > 0) {
       const g = list[0]
-      groupGradingForm.value = { groupId: g.groupId, groupName: g.groupName ?? '', grading: g.grading ?? undefined }
+      groupGradingForm.value = {
+        groupId: g.groupId,
+        groupName: g.groupName ?? '',
+        grading: g.grading ?? undefined
+      }
       autoComment.value = g.autoComment ?? null
     }
   } catch {
@@ -465,7 +501,11 @@ async function saveGroupGrading() {
   try {
     const items = (props.result.exam?.results ?? [])
       .filter((r: any) => r.grading && r.grading !== 'NORMAL')
-      .map((r: any) => ({ inputanId: r.inputanId, grading: r.grading, name: inputanLabel(r.inputanId) }))
+      .map((r: any) => ({
+        inputanId: r.inputanId,
+        grading: r.grading,
+        name: inputanLabel(r.inputanId)
+      }))
     const { data } = await api.post(`/mcu/exams/${props.result?.exam?.id}/group-result`, {
       ...groupGradingForm.value,
       items
@@ -483,7 +523,7 @@ function inputanLabel(inputanId: string) {
   return props.result?.item?.inputans?.find((i: any) => i.id === inputanId)?.label ?? inputanId
 }
 
-const externalDoctors = ref<Array<{ id: number, name: string }>>([])
+const externalDoctors = ref<Array<{ id: number; name: string }>>([])
 const selectedExternalDoctor = ref<number | undefined>(undefined)
 const externalSaving = ref(false)
 const externalFile = ref<File | null>(null)
@@ -492,8 +532,14 @@ const externalAttachmentPreviewUrl = ref<string | null>(null)
 const externalAttachmentLoading = ref(false)
 const externalAttachmentError = ref<string | null>(null)
 
-const hasExternalResultContext = computed(() => Boolean(props.result?.isExternalResult || props.result?.items?.some(item => item.isExternalResult)))
-const isExternalDoctorWorkspace = computed(() => Boolean(isExternalDoctor.value && hasExternalResultContext.value))
+const hasExternalResultContext = computed(() =>
+  Boolean(
+    props.result?.isExternalResult || props.result?.items?.some((item) => item.isExternalResult)
+  )
+)
+const isExternalDoctorWorkspace = computed(() =>
+  Boolean(isExternalDoctor.value && hasExternalResultContext.value)
+)
 const isExternalInputTwoColumns = computed(() => externalInputColumns.value === 'two')
 
 async function loadExternalDoctors() {
@@ -501,7 +547,7 @@ async function loadExternalDoctors() {
     const res = await api.get('/mcu/exams/external-doctors')
     const payload = res.data?.data ?? []
     if (Array.isArray(payload)) {
-      externalDoctors.value = payload.map((externalDoctor: { id: number, name: string }) => ({
+      externalDoctors.value = payload.map((externalDoctor: { id: number; name: string }) => ({
         id: externalDoctor.id,
         name: externalDoctor.name
       }))
@@ -515,7 +561,8 @@ loadExternalDoctors()
 function getErrorMessage(error: unknown, fallback = 'Terjadi kesalahan'): string {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as any).data
-    if (data?.message) return typeof data.message === 'string' ? data.message : JSON.stringify(data.message)
+    if (data?.message)
+      return typeof data.message === 'string' ? data.message : JSON.stringify(data.message)
   }
   if (error instanceof Error) return error.message
   return fallback
@@ -551,8 +598,15 @@ function getExtResult(inputanId: string) {
   return externalResultsMap.value.get(inputanId) ?? null
 }
 
+// Urutkan opsi pilihan berdasarkan sortOrder (stabil untuk sortOrder sama).
+function sortedOpsis(inputan: ExamInput): ExamInputOption[] {
+  return [...(inputan.opsis ?? [])].sort((a, b) =>
+    (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  )
+}
+
 function getOptionLabel(inputan: ExamInput, value: string) {
-  return inputan.opsis?.find(o => o.value === value)?.label ?? value
+  return sortedOpsis(inputan).find((o) => o.value === value)?.label ?? value
 }
 
 function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
@@ -570,14 +624,20 @@ function getExternalHeaderSubtitle() {
   return parts.join(' - ') || '-'
 }
 
-function formatExternalActor(user?: { id: number, name: string } | null, fallbackId?: number | null) {
+function formatExternalActor(
+  user?: { id: number; name: string } | null,
+  fallbackId?: number | null
+) {
   if (user?.name) return user.name
   if (fallbackId != null) return `User #${fallbackId}`
   return '-'
 }
 
 function getExternalCollectorLabel() {
-  return formatExternalActor(props.result?.exam?.workUpdatedByUser, props.result?.exam?.workUpdatedBy)
+  return formatExternalActor(
+    props.result?.exam?.workUpdatedByUser,
+    props.result?.exam?.workUpdatedBy
+  )
 }
 
 function getExternalUploadLabel() {
@@ -585,7 +645,7 @@ function getExternalUploadLabel() {
   const actor = formatExternalActor(attachment?.uploadedByUser, attachment?.uploadedBy)
   const uploadedAt = formatDateTime(attachment?.uploadedAt)
   if (actor === '-' && uploadedAt === '-') return '-'
-  return [actor, uploadedAt].filter(value => value && value !== '-').join(' - ')
+  return [actor, uploadedAt].filter((value) => value && value !== '-').join(' - ')
 }
 
 function optionRequiresDetail(option: ExamInputOption) {
@@ -593,18 +653,18 @@ function optionRequiresDetail(option: ExamInputOption) {
 }
 
 function hasOtherOption(inputan: ExamInput) {
-  return (inputan.opsis || []).some(option => optionRequiresDetail(option))
+  return (inputan.opsis || []).some((option) => optionRequiresDetail(option))
 }
 
 function isOtherSelected(inputan: ExamInput) {
   const selected = getInputDraft(inputan.id).valueSelected
-  const option = (inputan.opsis || []).find(o => o.value === selected)
+  const option = (inputan.opsis || []).find((o) => o.value === selected)
   return Boolean(option && optionRequiresDetail(option)) || /\(Text\)$/i.test(selected)
 }
 
 function getExternalExamItemId() {
   if (isExternalDoctorWorkspace.value) return props.result?.id ?? null
-  const externalItem = props.result?.items?.find(item => item.isExternalResult)
+  const externalItem = props.result?.items?.find((item) => item.isExternalResult)
   return externalItem?.id ?? (props.result?.isExternalResult ? props.result.id : null)
 }
 
@@ -627,7 +687,12 @@ async function loadExternalAttachmentPreview() {
   externalAttachmentError.value = null
 
   const examItemId = getExternalExamItemId()
-  if (!isExternalDoctorWorkspace.value || !props.result?.exam?.id || !examItemId || !props.result.exam?.attachmentUrl) {
+  if (
+    !isExternalDoctorWorkspace.value ||
+    !props.result?.exam?.id ||
+    !examItemId ||
+    !props.result.exam?.attachmentUrl
+  ) {
     return
   }
 
@@ -637,9 +702,14 @@ async function loadExternalAttachmentPreview() {
       `/mcu/exams/${props.result?.exam?.id}/external-attachment/${examItemId}/download`,
       { responseType: 'blob' }
     )
-    externalAttachmentPreviewUrl.value = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+    externalAttachmentPreviewUrl.value = URL.createObjectURL(
+      new Blob([response.data], { type: 'application/pdf' })
+    )
   } catch (error: unknown) {
-    externalAttachmentError.value = getErrorMessage(error, 'PDF hasil dokter luar tidak dapat dimuat.')
+    externalAttachmentError.value = getErrorMessage(
+      error,
+      'PDF hasil dokter luar tidak dapat dimuat.'
+    )
   } finally {
     externalAttachmentLoading.value = false
   }
@@ -655,7 +725,11 @@ async function assignExternalDoctor() {
     toast.add({ title: 'Berhasil', description: 'Dokter luar ditugaskan.', color: 'success' })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
-    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal menugaskan dokter luar.'), color: 'error' })
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Gagal menugaskan dokter luar.'),
+      color: 'error'
+    })
   } finally {
     externalSaving.value = false
   }
@@ -678,11 +752,19 @@ async function cancelExternalDoctor() {
       examItemId: getExternalExamItemId(),
       reason: cancelExternalReason.value || null
     })
-    toast.add({ title: 'Berhasil', description: 'Penugasan dokter luar dibatalkan.', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Penugasan dokter luar dibatalkan.',
+      color: 'success'
+    })
     cancelExternalOpen.value = false
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
-    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal membatalkan penugasan.'), color: 'error' })
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Gagal membatalkan penugasan.'),
+      color: 'error'
+    })
   } finally {
     cancelExternalSubmitting.value = false
   }
@@ -701,10 +783,18 @@ async function uploadExternalResult() {
     await api.post(`/mcu/exams/${props.result?.exam?.id}/external-attachment`, form, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    toast.add({ title: 'Berhasil', description: 'PDF hasil dokter luar berhasil diunggah.', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'PDF hasil dokter luar berhasil diunggah.',
+      color: 'success'
+    })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
-    toast.add({ title: 'Gagal', description: getErrorMessage(error, 'Gagal mengunggah PDF hasil dokter luar.'), color: 'error' })
+    toast.add({
+      title: 'Gagal',
+      description: getErrorMessage(error, 'Gagal mengunggah PDF hasil dokter luar.'),
+      color: 'error'
+    })
   } finally {
     externalSaving.value = false
   }
@@ -739,9 +829,7 @@ const resultDrafts = ref<Record<string, ResultDraft>>({})
 
 function formatPatientName(patient?: Patient | null) {
   if (!patient) return '-'
-  return [patient.firstName, patient.middleName, patient.lastName]
-    .filter(Boolean)
-    .join(' ')
+  return [patient.firstName, patient.middleName, patient.lastName].filter(Boolean).join(' ')
 }
 
 function formatDateTime(dateString?: string | null) {
@@ -813,22 +901,22 @@ function isRangeMatchPatient(
   return true
 }
 
-function filterPatientMatchedRanges<T extends { sex?: string | null, ageMin?: number | null }>(ranges: T[]) {
+function filterPatientMatchedRanges<T extends { sex?: string | null; ageMin?: number | null }>(
+  ranges: T[]
+) {
   if (!ranges.length) return []
 
   const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
   const patientGenderKey = getPatientGenderKey(props.result?.patient?.gender)
 
-  const matched = ranges.filter(range =>
-    isRangeMatchPatient(range, patientGenderKey, patientAge)
-  )
+  const matched = ranges.filter((range) => isRangeMatchPatient(range, patientGenderKey, patientAge))
 
   if (!matched.length) {
     return []
   }
 
-  const bestAgeMin = Math.max(...matched.map(range => range.ageMin ?? -1))
-  return matched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
+  const bestAgeMin = Math.max(...matched.map((range) => range.ageMin ?? -1))
+  return matched.filter((range) => (range.ageMin ?? -1) === bestAgeMin)
 }
 
 function getPatientMatchedNormalRanges(inputan: ExamInput) {
@@ -848,19 +936,18 @@ function getVisibleNormalRanges(inputan: ExamInput) {
   const matched = getPatientMatchedDisplayNormalRanges(inputan)
   if (matched.length) return matched
 
-  const ranges = inputan.inputType === 'selected'
-    ? inputan.nilaiNormalSel || []
-    : inputan.nilaiNormalNum || []
+  const ranges =
+    inputan.inputType === 'selected' ? inputan.nilaiNormalSel || [] : inputan.nilaiNormalNum || []
   if (!ranges.length) return []
 
   const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
   if (patientAge == null) return ranges.slice(0, 3)
 
-  const ageMatched = ranges.filter(range => range.ageMin == null || patientAge >= range.ageMin)
+  const ageMatched = ranges.filter((range) => range.ageMin == null || patientAge >= range.ageMin)
   if (!ageMatched.length) return ranges.slice(0, 3)
 
-  const bestAgeMin = Math.max(...ageMatched.map(range => range.ageMin ?? -1))
-  return ageMatched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
+  const bestAgeMin = Math.max(...ageMatched.map((range) => range.ageMin ?? -1))
+  return ageMatched.filter((range) => (range.ageMin ?? -1) === bestAgeMin)
 }
 
 // Visibilitas field berdasarkan jenis kelamin pasien (item radiologi/USG).
@@ -896,16 +983,16 @@ function getDraftText(value: unknown) {
 }
 
 function getStoredInputResult(inputanId: string) {
-  return props.result?.exam?.results?.find(result => result.inputanId === inputanId)
+  return props.result?.exam?.results?.find((result) => result.inputanId === inputanId)
 }
 
 function hasInputDraftValue(inputanId: string) {
   const draft = resultDrafts.value[inputanId] || {}
   return Boolean(
-    getDraftText(draft.valueNumber)
-    || getDraftText(draft.valueCalculated)
-    || getDraftText(draft.valueString)
-    || getDraftText(draft.valueSelected)
+    getDraftText(draft.valueNumber) ||
+    getDraftText(draft.valueCalculated) ||
+    getDraftText(draft.valueString) ||
+    getDraftText(draft.valueSelected)
   )
 }
 
@@ -958,8 +1045,9 @@ function isResultOutsideNormalRange(inputan: ExamInput) {
 
   if (inputan.inputType === 'selected') {
     if (!resultValue.raw) return false
-    return !getPatientMatchedSelectedNormalRanges(inputan)
-      .some(range => range.opsi?.value === resultValue.raw)
+    return !getPatientMatchedSelectedNormalRanges(inputan).some(
+      (range) => range.opsi?.value === resultValue.raw
+    )
   }
 
   const range = ranges[0]
@@ -976,7 +1064,8 @@ function isResultOutsideNormalRange(inputan: ExamInput) {
 }
 
 function getResultInputClass(inputan: ExamInput) {
-  const base = 'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70'
+  const base =
+    'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70'
   const outside = isResultOutsideNormalRange(inputan)
 
   if (!outside) {
@@ -1014,9 +1103,10 @@ function getResultNormalityState(inputan: ExamInput) {
     }
   }
 
-  const hasValue = inputan.inputType === 'selected'
-    ? Boolean(resultValue.raw)
-    : resultValue.numeric != null && !Number.isNaN(resultValue.numeric)
+  const hasValue =
+    inputan.inputType === 'selected'
+      ? Boolean(resultValue.raw)
+      : resultValue.numeric != null && !Number.isNaN(resultValue.numeric)
 
   if (!hasValue) {
     return {
@@ -1041,11 +1131,14 @@ function getResultNormalityState(inputan: ExamInput) {
   }
 }
 
-function formatNormalRange(range: {
-  minValue?: number | null
-  maxValue?: number | null
-  opsi?: ExamInputOption | null
-}, unit?: string | null) {
+function formatNormalRange(
+  range: {
+    minValue?: number | null
+    maxValue?: number | null
+    opsi?: ExamInputOption | null
+  },
+  unit?: string | null
+) {
   if (range.opsi) {
     return range.opsi.label || range.opsi.value
   }
@@ -1056,10 +1149,7 @@ function formatNormalRange(range: {
   return `${low} - ${high}${unit ? ` ${unit}` : ''}`
 }
 
-function formatRangeCriteria(range: {
-  sex?: string | null
-  ageMin?: number | null
-}) {
+function formatRangeCriteria(range: { sex?: string | null; ageMin?: number | null }) {
   const parts: string[] = []
 
   if (range.sex) {
@@ -1094,7 +1184,12 @@ function getStatusLabel(status?: string) {
 }
 
 function getStatusColor(status?: string) {
-  if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
+  if (
+    status === 'completed' ||
+    status === 'DEPARTMENT_APPROVED' ||
+    status === 'SUBMITTED_TO_DOCTOR'
+  )
+    return 'success'
   if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'error'
   return 'neutral'
@@ -1130,7 +1225,10 @@ function parseDraftNumber(value?: string) {
 }
 
 function normalizeFormulaKey(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
 }
 
 function toFormulaIdentifier(value: string) {
@@ -1152,7 +1250,7 @@ function getInputNumericValue(inputan: ExamInput) {
     if (draftValue != null) return draftValue
   }
 
-  const existing = props.result?.exam?.results?.find(result => result.inputanId === inputan.id)
+  const existing = props.result?.exam?.results?.find((result) => result.inputanId === inputan.id)
   if (existing?.valueNumber != null) return existing.valueNumber
   if (existing?.valueCalculated != null) return existing.valueCalculated
 
@@ -1238,17 +1336,9 @@ function evaluateCalculatedFormula(inputan: ExamInput) {
       const factor = 10 ** precision
       return Math.round(value * factor) / factor
     }
-    const result = Number(fn(
-      round,
-      Math.abs,
-      Math.min,
-      Math.max,
-      Math.pow,
-      Math.sqrt,
-      Math.ceil,
-      Math.floor,
-      ...values
-    ))
+    const result = Number(
+      fn(round, Math.abs, Math.min, Math.max, Math.pow, Math.sqrt, Math.ceil, Math.floor, ...values)
+    )
 
     if (!Number.isFinite(result)) return null
     return Math.round(result * 10000) / 10000
@@ -1258,8 +1348,9 @@ function evaluateCalculatedFormula(inputan: ExamInput) {
 }
 
 function recomputeCalculatedDrafts(clearIncomplete = false) {
-  const calculatedInputs = (props.result?.item?.inputans || [])
-    .filter(inputan => inputan.inputType === 'calculated')
+  const calculatedInputs = (props.result?.item?.inputans || []).filter(
+    (inputan) => inputan.inputType === 'calculated'
+  )
 
   for (let pass = 0; pass < calculatedInputs.length; pass += 1) {
     let changed = false
@@ -1291,7 +1382,7 @@ function seedDraftsFromExistingResults() {
   if (!props.result?.exam?.results) return
 
   const resultMap = new Map(
-    (props.result?.exam?.results || []).map(result => [result.inputanId, result])
+    (props.result?.exam?.results || []).map((result) => [result.inputanId, result])
   )
 
   for (const inputan of props.result.item?.inputans || []) {
@@ -1309,6 +1400,19 @@ function seedDraftsFromExistingResults() {
     }
     if (existing?.valueCalculated != null && draft.valueCalculated === undefined) {
       draft.valueCalculated = String(existing.valueCalculated)
+    }
+
+    // [Autoselect] Pilihan belum terisi → default opsi pertama (tetap editable).
+    if (draft.valueSelected === undefined && inputan.inputType === 'selected') {
+      const firstOption = sortedOpsis(inputan)[0]
+      if (firstOption) draft.valueSelected = firstOption.value
+    }
+
+    // [Lain - lain] Field teks "( Lain - lain )" yang belum terisi → default "-".
+    if (draft.valueString === undefined
+      && inputan.inputType === 'string'
+      && /\blain[- ]+lain\b/i.test(inputan.label)) {
+      draft.valueString = '-'
     }
   }
 
@@ -1334,7 +1438,8 @@ function buildResultsPayload() {
 
     if (inputan.inputType === 'selected') {
       const valueSelected = getDraftText(draft.valueSelected)
-      const valueString = valueSelected && isOtherSelected(inputan) ? getDraftText(draft.valueString) : ''
+      const valueString =
+        valueSelected && isOtherSelected(inputan) ? getDraftText(draft.valueString) : ''
       if (valueSelected) {
         payload.push({ ...base, valueSelected, ...(valueString ? { valueString } : {}) })
       }
@@ -1570,11 +1675,21 @@ onBeforeUnmount(() => {
               Hasil Dental
             </UButton>
           </div>
-          <h1 class="mt-2 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl">
-            {{ isExternalDoctorWorkspace ? formatPatientName(result?.patient) : result?.item?.name || '-' }}
+          <h1
+            class="mt-2 truncate text-xl font-semibold tracking-tight text-highlighted sm:text-2xl"
+          >
+            {{
+              isExternalDoctorWorkspace
+                ? formatPatientName(result?.patient)
+                : result?.item?.name || '-'
+            }}
           </h1>
           <p class="mt-1 text-sm text-muted">
-            {{ isExternalDoctorWorkspace ? getExternalHeaderSubtitle() : `${formatPatientName(result?.patient)} - ${getDepartmentLabel(result?.item?.department)}` }}
+            {{
+              isExternalDoctorWorkspace
+                ? getExternalHeaderSubtitle()
+                : `${formatPatientName(result?.patient)} - ${getDepartmentLabel(result?.item?.department)}`
+            }}
           </p>
         </div>
 
@@ -1598,7 +1713,12 @@ onBeforeUnmount(() => {
         </UButton>
 
         <div
-          v-if="embedded && (result?.status === 'pending' || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')"
+          v-if="
+            embedded &&
+            (result?.status === 'pending' ||
+              result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') &&
+            (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
+          "
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
           <UButton
@@ -1614,7 +1734,12 @@ onBeforeUnmount(() => {
           <UButton
             color="primary"
             :loading="submitting"
-            :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample || (hasExternalResultContext && externalProcessingOverdue)"
+            :disabled="
+              saving ||
+              !canSubmitCurrentResult ||
+              isResultBlockedBySample ||
+              (hasExternalResultContext && externalProcessingOverdue)
+            "
             icon="i-lucide-send"
             @click="handleSubmitResult"
           >
@@ -1673,121 +1798,170 @@ onBeforeUnmount(() => {
                 />
                 <UBadge
                   :label="`Status: ${resultWorkflowLabel || result.resultStatus || '-'}`"
-                  :color="getStatusColor(result.resultStatus === 'SUBMITTED' ? 'completed' : result.resultStatus === 'RETURNED' ? 'error' : 'pending')"
+                  :color="
+                    getStatusColor(
+                      result.resultStatus === 'SUBMITTED'
+                        ? 'completed'
+                        : result.resultStatus === 'RETURNED'
+                          ? 'error'
+                          : 'pending'
+                    )
+                  "
                   variant="soft"
                   size="sm"
                 />
-                <UBadge :label="result?.exam?.externalStatus || 'ASSIGNED'" :color="externalStatusColor[result?.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'" variant="subtle" />
+                <UBadge
+                  :label="result?.exam?.externalStatus || 'ASSIGNED'"
+                  :color="
+                    externalStatusColor[result?.exam?.externalStatus || 'ASSIGNED'] ?? 'neutral'
+                  "
+                  variant="subtle"
+                />
               </div>
             </div>
           </template>
 
           <div v-show="externalContextOpen">
-          <!-- Batas waktu pengerjaan dokter luar: 3 jam setelah mulai diproses -->
-          <div
-            v-if="result?.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
-            class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
-            :class="externalProcessingOverdue ? 'border-error/40 bg-error/5' : 'border-primary/20 bg-primary/5'"
-          >
-            <UIcon
-              :name="externalProcessingOverdue ? 'i-lucide-alert-triangle' : 'i-lucide-clock'"
-              class="size-5 shrink-0"
-              :class="externalProcessingOverdue ? 'text-error' : 'text-primary'"
-            />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold" :class="externalProcessingOverdue ? 'text-error' : 'text-highlighted'">
-                {{ externalProcessingOverdue ? 'Batas waktu submit sudah lewat' : 'Pemeriksaan sedang diproses dokter luar' }}
-              </p>
-              <p class="text-xs text-muted">
-                Mulai {{ formatDateTime(result.exam?.externalProcessingStartedAt) }} ·
-                Deadline {{ formatDateTime(result.exam?.externalProcessingDeadline) }} ·
-                <span class="font-semibold" :class="externalProcessingOverdue ? 'text-error' : 'text-primary'">
-                  {{ externalProcessingRemainingLabel }}
-                </span>
-              </p>
-            </div>
-            <UBadge
-              label="Batas 3 jam"
-              :color="externalProcessingOverdue ? 'error' : 'primary'"
-              variant="solid"
-              size="sm"
-            />
-          </div>
-          <div
-            v-else-if="result?.exam?.externalStatus === 'ASSIGNED'"
-            class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-default/70 bg-muted/30 px-4 py-3"
-          >
-            <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-highlighted">
-                Pemeriksaan belum diproses
-              </p>
-              <p class="text-xs text-muted">
-                Mulai pemeriksaan untuk mengaktifkan form hasil. Batas waktu submit 3 jam setelah mulai.
-              </p>
-            </div>
-            <UButton
-              size="sm"
-              color="primary"
-              :loading="externalStarting"
-              icon="i-lucide-play"
-              @click="startExternalProcessing"
+            <!-- Batas waktu pengerjaan dokter luar: 3 jam setelah mulai diproses -->
+            <div
+              v-if="result?.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
+              class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
+              :class="
+                externalProcessingOverdue
+                  ? 'border-error/40 bg-error/5'
+                  : 'border-primary/20 bg-primary/5'
+              "
             >
-              Mulai Proses
-            </UButton>
+              <UIcon
+                :name="externalProcessingOverdue ? 'i-lucide-alert-triangle' : 'i-lucide-clock'"
+                class="size-5 shrink-0"
+                :class="externalProcessingOverdue ? 'text-error' : 'text-primary'"
+              />
+              <div class="min-w-0 flex-1">
+                <p
+                  class="text-sm font-semibold"
+                  :class="externalProcessingOverdue ? 'text-error' : 'text-highlighted'"
+                >
+                  {{
+                    externalProcessingOverdue
+                      ? 'Batas waktu submit sudah lewat'
+                      : 'Pemeriksaan sedang diproses dokter luar'
+                  }}
+                </p>
+                <p class="text-xs text-muted">
+                  Mulai {{ formatDateTime(result.exam?.externalProcessingStartedAt) }} · Deadline
+                  {{ formatDateTime(result.exam?.externalProcessingDeadline) }} ·
+                  <span
+                    class="font-semibold"
+                    :class="externalProcessingOverdue ? 'text-error' : 'text-primary'"
+                  >
+                    {{ externalProcessingRemainingLabel }}
+                  </span>
+                </p>
+              </div>
+              <UBadge
+                label="Batas 3 jam"
+                :color="externalProcessingOverdue ? 'error' : 'primary'"
+                variant="solid"
+                size="sm"
+              />
+            </div>
+            <div
+              v-else-if="result?.exam?.externalStatus === 'ASSIGNED'"
+              class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-default/70 bg-muted/30 px-4 py-3"
+            >
+              <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-highlighted">Pemeriksaan belum diproses</p>
+                <p class="text-xs text-muted">
+                  Mulai pemeriksaan untuk mengaktifkan form hasil. Batas waktu submit 3 jam setelah
+                  mulai.
+                </p>
+              </div>
+              <UButton
+                size="sm"
+                color="primary"
+                :loading="externalStarting"
+                icon="i-lucide-play"
+                @click="startExternalProcessing"
+              >
+                Mulai Proses
+              </UButton>
+            </div>
+            <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">No. RM / Antrian</dt>
+                <dd class="mt-1 break-words font-mono font-semibold text-highlighted">
+                  {{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}
+                </dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">Item Pemeriksaan</dt>
+                <dd class="mt-1 break-words font-semibold text-highlighted">
+                  {{ result.item?.name || '-' }}
+                  <span class="font-mono text-muted">{{ result.item?.code || '' }}</span>
+                </dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
+                <dd class="mt-1 break-words font-semibold text-highlighted">
+                  {{
+                    formatExternalActor(
+                      result?.exam?.assignedExternalUser,
+                      result?.exam?.assignedExternalUserId
+                    )
+                  }}
+                </dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">Petugas Pengambil</dt>
+                <dd class="mt-1 break-words font-semibold text-highlighted">
+                  {{ getExternalCollectorLabel() }}
+                </dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">Upload File</dt>
+                <dd class="mt-1 break-words font-semibold text-highlighted">
+                  {{ getExternalUploadLabel() }}
+                </dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
+                <dd class="mt-1 break-words font-semibold text-highlighted">
+                  {{
+                    formatExternalActor(
+                      result?.exam?.assignedExternalUser,
+                      result?.exam?.assignedExternalUserId
+                    )
+                  }}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                No. RM / Antrian
-              </dt><dd class="mt-1 break-words font-mono font-semibold text-highlighted">
-                {{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                Item Pemeriksaan
-              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ result.item?.name || '-' }} <span class="font-mono text-muted">{{ result.item?.code || '' }}</span>
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                Dokter Luar
-              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                Petugas Pengambil
-              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ getExternalCollectorLabel() }}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                Upload File
-              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ getExternalUploadLabel() }}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs uppercase tracking-wide text-muted">
-                Dokter Luar
-              </dt><dd class="mt-1 break-words font-semibold text-highlighted">
-                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
-              </dd>
-            </div>
-          </dl>
-          </div> <!-- v-show externalContextOpen -->
+          <!-- v-show externalContextOpen -->
         </UCard>
 
-        <div class="grid min-h-0 flex-1 gap-4" :class="isExternalInputTwoColumns ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]' : 'xl:grid-cols-[minmax(760px,1.55fr)_minmax(360px,.75fr)]'">
-          <UCard class="flex min-h-0 flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }">
-            <div class="mx-4 mt-4 mb-4 flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-t-lg bg-muted/30">
-              <div v-if="externalAttachmentLoading" class="flex h-full items-center justify-center text-sm text-muted">
-                <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat PDF...
+        <div
+          class="grid min-h-0 flex-1 gap-4"
+          :class="
+            isExternalInputTwoColumns
+              ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]'
+              : 'xl:grid-cols-[minmax(760px,1.55fr)_minmax(360px,.75fr)]'
+          "
+        >
+          <UCard
+            class="flex min-h-0 flex-col overflow-hidden border border-default/80 shadow-sm"
+            :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }"
+          >
+            <div
+              class="mx-4 mt-4 mb-4 flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-t-lg bg-muted/30"
+            >
+              <div
+                v-if="externalAttachmentLoading"
+                class="flex h-full items-center justify-center text-sm text-muted"
+              >
+                <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat
+                PDF...
               </div>
               <iframe
                 v-else-if="externalAttachmentPreviewUrl"
@@ -1800,32 +1974,49 @@ onBeforeUnmount(() => {
                   color="warning"
                   variant="soft"
                   title="PDF belum tersedia"
-                  :description="externalAttachmentError || 'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'"
+                  :description="
+                    externalAttachmentError ||
+                    'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'
+                  "
                   class="max-w-md"
                 />
               </div>
             </div>
-            <div class="mx-4 mb-8 flex min-h-16 items-center justify-between gap-3 rounded-b-lg border border-t-0 border-default/80 bg-default px-4 py-4 text-xs text-muted">
-              <span class="min-w-0 truncate">{{ result.exam?.externalAttachment?.originalName || 'Dokumen PDF pemeriksaan' }}</span>
+            <div
+              class="mx-4 mb-8 flex min-h-16 items-center justify-between gap-3 rounded-b-lg border border-t-0 border-default/80 bg-default px-4 py-4 text-xs text-muted"
+            >
+              <span class="min-w-0 truncate">{{
+                result.exam?.externalAttachment?.originalName || 'Dokumen PDF pemeriksaan'
+              }}</span>
               <span class="shrink-0 font-semibold text-highlighted">PDF Preview</span>
             </div>
           </UCard>
 
-          <UCard class="flex min-h-0 max-h-full flex-col overflow-hidden border border-default/80 shadow-sm" :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }">
+          <UCard
+            class="flex min-h-0 max-h-full flex-col overflow-hidden border border-default/80 shadow-sm"
+            :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }"
+          >
             <template #header>
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
                   <h4 class="text-base font-semibold text-highlighted">
                     Input Hasil {{ result.item?.name || 'Pemeriksaan' }}
-                  </h4><p class="mt-1 text-xs text-muted">
+                  </h4>
+                  <p class="mt-1 text-xs text-muted">
                     Isi parameter berdasarkan PDF di sebelah kiri.
                   </p>
                 </div>
-                <div class="inline-flex overflow-hidden rounded-lg border border-default bg-default">
+                <div
+                  class="inline-flex overflow-hidden rounded-lg border border-default bg-default"
+                >
                   <button
                     type="button"
                     class="px-3 py-2 text-xs font-semibold"
-                    :class="externalInputColumns === 'one' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'"
+                    :class="
+                      externalInputColumns === 'one'
+                        ? 'bg-primary text-inverted'
+                        : 'text-muted hover:bg-muted/50'
+                    "
                     @click="externalInputColumns = 'one'"
                   >
                     Input 1 Kolom
@@ -1833,7 +2024,11 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="border-l border-default px-3 py-2 text-xs font-semibold"
-                    :class="externalInputColumns === 'two' ? 'bg-primary text-inverted' : 'text-muted hover:bg-muted/50'"
+                    :class="
+                      externalInputColumns === 'two'
+                        ? 'bg-primary text-inverted'
+                        : 'text-muted hover:bg-muted/50'
+                    "
                     @click="externalInputColumns = 'two'"
                   >
                     Input 2 Kolom
@@ -1841,12 +2036,26 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </template>
-            <div class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300">
-              Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh nurse.
+            <div
+              class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300"
+            >
+              Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh
+              nurse.
             </div>
-            <div v-if="result.item?.inputans?.length" class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28" :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'">
-              <div v-for="inputan in visibleInputans" :key="inputan.id" class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3">
-                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }} <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
+            <div
+              v-if="result.item?.inputans?.length"
+              class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28"
+              :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'"
+            >
+              <div
+                v-for="inputan in visibleInputans"
+                :key="inputan.id"
+                class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
+              >
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+                  >{{ inputan.label }}
+                  <span v-if="!inputan.allowBlank" class="text-error">*</span></label
+                >
                 <input
                   v-if="inputan.inputType === 'number'"
                   v-model="getInputDraft(inputan.id).valueNumber"
@@ -1855,7 +2064,7 @@ onBeforeUnmount(() => {
                   :class="getResultInputClass(inputan)"
                   placeholder="Masukkan hasil"
                   @input="recomputeCalculatedDrafts(true)"
-                >
+                />
                 <input
                   v-else-if="inputan.inputType === 'string'"
                   v-model="getInputDraft(inputan.id).valueString"
@@ -1863,23 +2072,28 @@ onBeforeUnmount(() => {
                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                   class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Masukkan hasil"
-                >
+                />
                 <template v-else-if="inputan.inputType === 'selected'">
-                  <select v-model="getInputDraft(inputan.id).valueSelected" :disabled="!canEditCurrentResult || isResultBlockedBySample" class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70">
-                    <option value="">
-                      Pilih hasil
-                    </option><option v-for="opsi in inputan.opsis" :key="opsi.id" :value="opsi.value">
+                  <select
+                    v-model="getInputDraft(inputan.id).valueSelected"
+                    :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                    class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <option selected value="" disabled>Pilih hasil</option>
+                    <option v-for="opsi in sortedOpsis(inputan)" :key="opsi.id" :value="opsi.value">
                       {{ opsi.label }}
                     </option>
                   </select>
                   <div v-if="hasOtherOption(inputan) && isOtherSelected(inputan)" class="mt-2">
-                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Detail {{ inputan.label }}</label><input
+                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+                      >Detail {{ inputan.label }}</label
+                    ><input
                       v-model="getInputDraft(inputan.id).valueString"
                       type="text"
                       :disabled="!canEditCurrentResult || isResultBlockedBySample"
                       class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
                       placeholder="Tuliskan detail jika memilih Others"
-                    >
+                    />
                   </div>
                 </template>
                 <input
@@ -1889,13 +2103,26 @@ onBeforeUnmount(() => {
                   disabled
                   :class="getResultInputClass(inputan)"
                   placeholder="Dihitung otomatis"
-                >
+                />
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span v-if="getVisibleNormalRanges(inputan).length">Normal: {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom) }}</span><span v-else>Normal: belum tersedia</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
+                  <span v-if="getVisibleNormalRanges(inputan).length"
+                    >Normal:
+                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom) }}</span
+                  ><span v-else>Normal: belum tersedia</span
+                  ><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
               </div>
-              <div class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3" :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''">
-                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Kesimpulan / Catatan</label><UTextarea :rows="4" placeholder="Tambahkan interpretasi atau catatan dokter..." class="w-full" />
+              <div
+                class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
+                :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"
+              >
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+                  >Kesimpulan / Catatan</label
+                ><UTextarea
+                  :rows="4"
+                  placeholder="Tambahkan interpretasi atau catatan dokter..."
+                  class="w-full"
+                />
               </div>
             </div>
             <div v-else class="flex min-h-72 items-center justify-center p-6">
@@ -1948,8 +2175,8 @@ onBeforeUnmount(() => {
                       icon="i-lucide-save"
                       @click="handleSaveResult"
                     >
-                      Simpan Draft
-                    </UButton><UButton
+                      Simpan Draft </UButton
+                    ><UButton
                       color="primary"
                       :loading="submitting"
                       :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
@@ -1977,7 +2204,12 @@ onBeforeUnmount(() => {
                     <UButton
                       color="primary"
                       :loading="submitting"
-                      :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample || externalProcessingOverdue"
+                      :disabled="
+                        saving ||
+                        !canSubmitCurrentResult ||
+                        isResultBlockedBySample ||
+                        externalProcessingOverdue
+                      "
                       icon="i-lucide-send"
                       @click="handleSubmitResult"
                     >
@@ -1995,17 +2227,21 @@ onBeforeUnmount(() => {
         class="flex min-h-0 flex-col bg-gradient-to-b from-default via-default to-muted/10"
         :class="embedded ? 'min-h-full overflow-visible' : 'h-full overflow-hidden'"
       >
-        <div v-if="isResultBlockedBySample" class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+        <div
+          v-if="isResultBlockedBySample"
+          class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+        >
           <div class="flex items-start gap-2">
             <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0" />
             <div class="min-w-0">
-              <p class="text-sm font-semibold">
-                Result dikunci karena sample
-              </p>
+              <p class="text-sm font-semibold">Result dikunci karena sample</p>
               <p class="text-xs">
                 {{ sampleBlockedDescription }}
               </p>
-              <div v-if="result?.sampleImpacts?.length" class="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <div
+                v-if="result?.sampleImpacts?.length"
+                class="mt-2 flex flex-wrap gap-2 text-[11px]"
+              >
                 <UBadge
                   v-for="impact in result.sampleImpacts"
                   :key="impact.collectionId"
@@ -2019,29 +2255,58 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Peringatan untuk petugas: status dokter luar -->
-        <div v-if="hasExternalResultContext && !isExternalDoctor && result?.exam?.externalStatus" class="border-b px-4 py-3" :class="{
-          'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200': result?.exam?.externalStatus === 'ASSIGNED',
-          'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200': result?.exam?.externalStatus === 'PROCESSING',
-          'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200': result?.exam?.externalStatus === 'FILLED',
-          'border-default bg-muted/30': result?.exam?.externalStatus === 'CANCELLED',
-        }">
+        <div
+          v-if="hasExternalResultContext && !isExternalDoctor && result?.exam?.externalStatus"
+          class="border-b px-4 py-3"
+          :class="{
+            'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200':
+              result?.exam?.externalStatus === 'ASSIGNED',
+            'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200':
+              result?.exam?.externalStatus === 'PROCESSING',
+            'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200':
+              result?.exam?.externalStatus === 'FILLED',
+            'border-default bg-muted/30': result?.exam?.externalStatus === 'CANCELLED'
+          }"
+        >
           <div class="flex items-start gap-2">
-            <UIcon :name="result?.exam?.externalStatus === 'PROCESSING' ? 'i-lucide-clock' : result?.exam?.externalStatus === 'ASSIGNED' ? 'i-lucide-alert-triangle' : 'i-lucide-check-circle'" class="mt-0.5 size-4 shrink-0" />
+            <UIcon
+              :name="
+                result?.exam?.externalStatus === 'PROCESSING'
+                  ? 'i-lucide-clock'
+                  : result?.exam?.externalStatus === 'ASSIGNED'
+                    ? 'i-lucide-alert-triangle'
+                    : 'i-lucide-check-circle'
+              "
+              class="mt-0.5 size-4 shrink-0"
+            />
             <div class="min-w-0">
               <p v-if="result?.exam?.externalStatus === 'ASSIGNED'" class="text-sm font-semibold">
                 Dokter luar belum memulai pemeriksaan
               </p>
-              <p v-else-if="result?.exam?.externalStatus === 'PROCESSING'" class="text-sm font-semibold">
+              <p
+                v-else-if="result?.exam?.externalStatus === 'PROCESSING'"
+                class="text-sm font-semibold"
+              >
                 Dokter luar sedang mengerjakan pemeriksaan
-                <span v-if="externalProcessingOverdue" class="text-error"> — batas waktu sudah lewat (3 jam)</span>
+                <span v-if="externalProcessingOverdue" class="text-error">
+                  — batas waktu sudah lewat (3 jam)</span
+                >
                 <span v-else> — {{ externalProcessingRemainingLabel }}</span>
               </p>
-              <p v-else-if="result?.exam?.externalStatus === 'FILLED'" class="text-sm font-semibold">
+              <p
+                v-else-if="result?.exam?.externalStatus === 'FILLED'"
+                class="text-sm font-semibold"
+              >
                 Dokter luar sudah mengisi hasil
               </p>
               <p v-else class="text-sm font-semibold">Penugasan dibatalkan</p>
               <p class="text-xs opacity-80">
-                {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
+                {{
+                  formatExternalActor(
+                    result?.exam?.assignedExternalUser,
+                    result?.exam?.assignedExternalUserId
+                  )
+                }}
                 <template v-if="result?.exam?.externalStatus === 'PROCESSING'">
                   · Mulai {{ formatDateTime(result?.exam?.externalProcessingStartedAt) }}
                 </template>
@@ -2056,17 +2321,16 @@ onBeforeUnmount(() => {
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">
-                Nomor Antrean
-              </p>
+              <p class="text-xs uppercase tracking-wide text-muted">Nomor Antrean</p>
               <p class="mt-2 text-lg font-semibold text-highlighted">
                 {{ result.queueCode }}
               </p>
             </div>
-            <div v-if="!hasExternalResultContext" class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">
-                Status Proses
-              </p>
+            <div
+              v-if="!hasExternalResultContext"
+              class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm"
+            >
+              <p class="text-xs uppercase tracking-wide text-muted">Status Proses</p>
               <div class="mt-2">
                 <USelect
                   v-model="selectedResultStatus"
@@ -2088,9 +2352,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">
-                Tipe Hasil
-              </p>
+              <p class="text-xs uppercase tracking-wide text-muted">Tipe Hasil</p>
               <div class="mt-2">
                 <UBadge
                   :label="getTypeLabel(result.resultTiming)"
@@ -2100,9 +2362,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">
-                Waktu Check-in
-              </p>
+              <p class="text-xs uppercase tracking-wide text-muted">Waktu Check-in</p>
               <p class="mt-2 text-sm font-semibold text-highlighted">
                 {{ formatDateTime(result.checkinAt) }}
               </p>
@@ -2114,7 +2374,9 @@ onBeforeUnmount(() => {
           class="min-h-0 flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-5 sm:pb-32"
           :class="embedded ? 'overflow-visible' : 'overflow-y-auto'"
         >
-          <div class="mx-auto grid w-full max-w-[1500px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div
+            class="mx-auto grid w-full max-w-[1500px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]"
+          >
             <div class="space-y-5 lg:sticky lg:top-24 lg:self-start">
               <UCard class="border border-default/80 bg-default/80 shadow-sm">
                 <template #header>
@@ -2128,35 +2390,33 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Nama Pasien
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Nama Pasien</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatPatientName(result.patient) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Nomor Rekam Medis
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Nomor Rekam Medis</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.PatientId || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Tanggal Lahir
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Tanggal Lahir</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDate(result.patient?.dob) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Jenis Kelamin
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Jenis Kelamin</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
-                      {{ result.patient?.gender === 'MALE' ? 'Male' : result.patient?.gender === 'FEMALE' ? 'Female' : '-' }}
+                      {{
+                        result.patient?.gender === 'MALE'
+                          ? 'Male'
+                          : result.patient?.gender === 'FEMALE'
+                            ? 'Female'
+                            : '-'
+                      }}
                     </dd>
                   </div>
                   <div>
@@ -2182,33 +2442,25 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Pemeriksaan
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Pemeriksaan</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.item?.name || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Department
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Department</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getDepartmentLabel(result.item?.department) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      ID Antrean
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">ID Antrean</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.queueEntryId }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Jenis Pemeriksaan
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Jenis Pemeriksaan</dt>
                     <dd class="mt-1">
                       <UBadge :color="getExamTypeColor(result.exam?.examType)" variant="subtle">
                         {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Rawat Jalan' : 'MCU' }}
@@ -2216,28 +2468,47 @@ onBeforeUnmount(() => {
                     </dd>
                   </div>
                   <div v-if="result.exam?.examCode">
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Exam Code (Edisi)
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Exam Code (Edisi)</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted font-mono">
                       {{ result?.exam?.examCode }}
                     </dd>
                   </div>
                   <div v-if="hasExternalResultContext">
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Dokter Luar
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
                     <dd class="mt-1 space-y-2">
-                      <UBadge v-if="result?.exam?.externalStatus" :color="externalStatusColor[result?.exam?.externalStatus] ?? 'neutral'" variant="subtle">
+                      <UBadge
+                        v-if="result?.exam?.externalStatus"
+                        :color="externalStatusColor[result?.exam?.externalStatus] ?? 'neutral'"
+                        variant="subtle"
+                      >
                         {{ result?.exam?.externalStatus }}
                       </UBadge>
                       <span v-else class="text-sm text-muted">-</span>
 
-                      <div v-if="result?.exam?.externalStatus === 'ASSIGNED' || result?.exam?.externalStatus === 'PROCESSING' || result?.exam?.externalStatus === 'FILLED'" class="text-sm font-medium text-highlighted">
-                        {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }}
+                      <div
+                        v-if="
+                          result?.exam?.externalStatus === 'ASSIGNED' ||
+                          result?.exam?.externalStatus === 'PROCESSING' ||
+                          result?.exam?.externalStatus === 'FILLED'
+                        "
+                        class="text-sm font-medium text-highlighted"
+                      >
+                        {{
+                          formatExternalActor(
+                            result?.exam?.assignedExternalUser,
+                            result?.exam?.assignedExternalUserId
+                          )
+                        }}
                       </div>
 
-                      <div v-if="!isExternalDoctor && (!result?.exam?.externalStatus || result?.exam?.externalStatus === 'CANCELLED')" class="flex items-center gap-2">
+                      <div
+                        v-if="
+                          !isExternalDoctor &&
+                          (!result?.exam?.externalStatus ||
+                            result?.exam?.externalStatus === 'CANCELLED')
+                        "
+                        class="flex items-center gap-2"
+                      >
                         <USelectMenu
                           v-model="selectedExternalDoctor"
                           :items="externalDoctors"
@@ -2258,7 +2529,14 @@ onBeforeUnmount(() => {
                         </UButton>
                       </div>
 
-                      <div v-if="!isExternalDoctor && (result?.exam?.externalStatus === 'ASSIGNED' || result?.exam?.externalStatus === 'PROCESSING')" class="flex items-center gap-2">
+                      <div
+                        v-if="
+                          !isExternalDoctor &&
+                          (result?.exam?.externalStatus === 'ASSIGNED' ||
+                            result?.exam?.externalStatus === 'PROCESSING')
+                        "
+                        class="flex items-center gap-2"
+                      >
                         <UButton
                           v-if="result?.exam?.externalStatus === 'ASSIGNED'"
                           size="xs"
@@ -2287,7 +2565,8 @@ onBeforeUnmount(() => {
                       </div>
 
                       <p v-if="isExternalDoctor" class="text-xs text-muted">
-                        PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di bawah.
+                        PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di
+                        bawah.
                       </p>
                       <UButton
                         v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
@@ -2303,9 +2582,7 @@ onBeforeUnmount(() => {
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">
-                      Waktu Selesai
-                    </dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Waktu Selesai</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDateTime(result.completedAt) }}
                     </dd>
@@ -2323,7 +2600,10 @@ onBeforeUnmount(() => {
                 :queue-code="result.queueCode"
               />
 
-              <UCard v-if="!isExternalResultFilled" class="order-1 border border-default/80 bg-default/80 shadow-sm">
+              <UCard
+                v-if="!isExternalResultFilled"
+                class="order-1 border border-default/80 bg-default/80 shadow-sm"
+              >
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
@@ -2338,21 +2618,32 @@ onBeforeUnmount(() => {
                   </div>
                 </template>
 
-                <div v-if="result.item?.inputans?.length" class="overflow-hidden rounded-2xl border border-default/70">
+                <div
+                  v-if="result.item?.inputans?.length"
+                  class="overflow-hidden rounded-2xl border border-default/70"
+                >
                   <div class="overflow-x-auto">
                     <table class="min-w-[720px] w-full table-fixed divide-y divide-default/70">
                       <thead class="bg-muted/40">
                         <tr>
-                          <th class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                          <th
+                            class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                          >
                             Parameter
                           </th>
-                          <th class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                          <th
+                            class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                          >
                             Nilai Normal
                           </th>
-                          <th class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                          <th
+                            class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                          >
                             Hasil
                           </th>
-                          <th class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                          <th
+                            class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                          >
                             Status
                           </th>
                         </tr>
@@ -2404,7 +2695,9 @@ onBeforeUnmount(() => {
                                 :key="range.id"
                                 class="leading-tight"
                               >
-                                <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                <p
+                                  class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                                >
                                   {{ formatNormalRange(range, inputan.uom) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
@@ -2427,7 +2720,7 @@ onBeforeUnmount(() => {
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Masukkan hasil"
                                 @input="recomputeCalculatedDrafts(true)"
-                              >
+                              />
 
                               <input
                                 v-else-if="inputan.inputType === 'string'"
@@ -2436,7 +2729,7 @@ onBeforeUnmount(() => {
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                                 placeholder="Masukkan hasil"
-                              >
+                              />
 
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
@@ -2444,11 +2737,9 @@ onBeforeUnmount(() => {
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
-                                <option value="">
-                                  Pilih hasil
-                                </option>
+                                <option value="">Pilih hasil</option>
                                 <option
-                                  v-for="opsi in inputan.opsis"
+                                  v-for="opsi in sortedOpsis(inputan)"
                                   :key="opsi.id"
                                   :value="opsi.value"
                                 >
@@ -2457,10 +2748,16 @@ onBeforeUnmount(() => {
                               </select>
 
                               <div
-                                v-if="inputan.inputType === 'selected' && hasOtherOption(inputan) && isOtherSelected(inputan)"
+                                v-if="
+                                  inputan.inputType === 'selected' &&
+                                  hasOtherOption(inputan) &&
+                                  isOtherSelected(inputan)
+                                "
                                 class="mt-2"
                               >
-                                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">
+                                <label
+                                  class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+                                >
                                   Detail {{ inputan.label }}
                                 </label>
                                 <input
@@ -2469,7 +2766,7 @@ onBeforeUnmount(() => {
                                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                   class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
                                   placeholder="Tuliskan detail"
-                                >
+                                />
                               </div>
 
                               <input
@@ -2479,7 +2776,7 @@ onBeforeUnmount(() => {
                                 disabled
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Dihitung otomatis"
-                              >
+                              />
                               <p
                                 v-if="inputan.formula?.formula"
                                 class="mt-1 truncate text-[11px] text-muted"
@@ -2509,48 +2806,80 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
 
-                <div v-else class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted">
+                <div
+                  v-else
+                  class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted"
+                >
                   Belum ada parameter input untuk pemeriksaan ini.
                 </div>
               </UCard>
 
               <!-- Hasil Dokter Luar - tampilkan jika externalStatus === 'FILLED' dan bukan external doctor workspace -->
-              <UCard v-if="isExternalResultFilled" class="order-1 border border-emerald-200/50 bg-emerald-50/30 dark:border-emerald-900/20 dark:bg-emerald-950/20 shadow-sm">
+              <UCard
+                v-if="isExternalResultFilled"
+                class="order-1 border border-emerald-200/50 bg-emerald-50/30 dark:border-emerald-900/20 dark:bg-emerald-950/20 shadow-sm"
+              >
                 <template #header>
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <h4 class="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                      <h4
+                        class="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                      >
                         Hasil Dokter Luar (Sudah Submit)
                       </h4>
                       <p class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                        Detail hasil yang diisi dokter luar: {{ formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId) }} - {{ formatDateTime(result?.exam?.externalFilledAt) }}
+                        Detail hasil yang diisi dokter luar:
+                        {{
+                          formatExternalActor(
+                            result?.exam?.assignedExternalUser,
+                            result?.exam?.assignedExternalUserId
+                          )
+                        }}
+                        - {{ formatDateTime(result?.exam?.externalFilledAt) }}
                       </p>
                     </div>
-                    <UIcon name="i-lucide-user-check" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <UIcon
+                      name="i-lucide-user-check"
+                      class="size-4 text-emerald-600 dark:text-emerald-400"
+                    />
                   </div>
                 </template>
 
-                <div class="overflow-hidden rounded-2xl border border-emerald-200/50 dark:border-emerald-800/30">
+                <div
+                  class="overflow-hidden rounded-2xl border border-emerald-200/50 dark:border-emerald-800/30"
+                >
                   <div class="overflow-x-auto">
-                    <table class="min-w-[720px] w-full table-fixed divide-y divide-emerald-200/50 dark:divide-emerald-800/30">
+                    <table
+                      class="min-w-[720px] w-full table-fixed divide-y divide-emerald-200/50 dark:divide-emerald-800/30"
+                    >
                       <thead class="bg-emerald-50/50 dark:bg-emerald-950/30">
                         <tr>
-                          <th class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          <th
+                            class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                          >
                             Parameter
                           </th>
-                          <th class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          <th
+                            class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                          >
                             Nilai Normal
                           </th>
-                          <th class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          <th
+                            class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                          >
                             Hasil Dokter Luar
                           </th>
-                          <th class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          <th
+                            class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
+                          >
                             Grading
                           </th>
                         </tr>
                       </thead>
 
-                      <tbody class="divide-y divide-emerald-200/50 dark:divide-emerald-800/30 bg-white/80 dark:bg-emerald-950/20">
+                      <tbody
+                        class="divide-y divide-emerald-200/50 dark:divide-emerald-800/30 bg-white/80 dark:bg-emerald-950/20"
+                      >
                         <tr
                           v-for="inputan in visibleInputans"
                           :key="inputan.id"
@@ -2582,7 +2911,9 @@ onBeforeUnmount(() => {
                                 :key="range.id"
                                 class="leading-tight"
                               >
-                                <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                <p
+                                  class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                                >
                                   {{ formatNormalRange(range, inputan.uom) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
@@ -2600,12 +2931,16 @@ onBeforeUnmount(() => {
                               <div v-if="getExtResult(inputan.id)" class="space-y-1">
                                 <template v-if="getExtResult(inputan.id)!.valueNumber != null">
                                   <p class="text-sm font-semibold text-highlighted">
-                                    {{ getExtResult(inputan.id)!.valueNumber }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
+                                    {{ getExtResult(inputan.id)!.valueNumber
+                                    }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
                                   </p>
                                 </template>
-                                <template v-else-if="getExtResult(inputan.id)!.valueCalculated != null">
+                                <template
+                                  v-else-if="getExtResult(inputan.id)!.valueCalculated != null"
+                                >
                                   <p class="text-sm font-semibold text-highlighted">
-                                    {{ getExtResult(inputan.id)!.valueCalculated }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
+                                    {{ getExtResult(inputan.id)!.valueCalculated
+                                    }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
                                   </p>
                                 </template>
                                 <template v-else-if="getExtResult(inputan.id)!.valueString != null">
@@ -2613,23 +2948,26 @@ onBeforeUnmount(() => {
                                     {{ getExtResult(inputan.id)!.valueString }}
                                   </p>
                                 </template>
-                                <template v-else-if="getExtResult(inputan.id)!.valueSelected != null">
+                                <template
+                                  v-else-if="getExtResult(inputan.id)!.valueSelected != null"
+                                >
                                   <p class="text-sm font-semibold text-highlighted">
-                                    {{ getOptionLabel(inputan, getExtResult(inputan.id)!.valueSelected) }}
+                                    {{
+                                      getOptionLabel(
+                                        inputan,
+                                        getExtResult(inputan.id)!.valueSelected
+                                      )
+                                    }}
                                   </p>
                                 </template>
                                 <template v-else>
-                                  <p class="text-sm text-muted">
-                                    -
-                                  </p>
+                                  <p class="text-sm text-muted">-</p>
                                 </template>
                                 <p class="text-[11px] text-muted">
                                   ID: {{ getExtResult(inputan.id)!.inputanId }}
                                 </p>
                               </div>
-                              <p v-else class="text-sm text-muted">
-                                Belum diisi
-                              </p>
+                              <p v-else class="text-sm text-muted">Belum diisi</p>
                             </div>
                           </td>
 
@@ -2641,7 +2979,10 @@ onBeforeUnmount(() => {
                                 variant="soft"
                                 size="sm"
                               />
-                              <p v-if="getExtResult(inputan.id)!.flag === 'abnormal'" class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                              <p
+                                v-if="getExtResult(inputan.id)!.flag === 'abnormal'"
+                                class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
+                              >
                                 Di luar nilai normal
                               </p>
                             </div>
@@ -2662,7 +3003,8 @@ onBeforeUnmount(() => {
                         Group Grading & Auto Comment
                       </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Grading item dihitung otomatis. Grading group diisi manual, lalu sistem membuat auto doctor comment.
+                        Grading item dihitung otomatis. Grading group diisi manual, lalu sistem
+                        membuat auto doctor comment.
                       </p>
                     </div>
                     <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
@@ -2672,10 +3014,18 @@ onBeforeUnmount(() => {
                 <div class="space-y-4">
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <UFormField label="Group ID">
-                      <UInput v-model="groupGradingForm.groupId" placeholder="e.g. HEMATOLOGY" class="w-full" />
+                      <UInput
+                        v-model="groupGradingForm.groupId"
+                        placeholder="e.g. HEMATOLOGY"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Group Name">
-                      <UInput v-model="groupGradingForm.groupName" placeholder="e.g. Hematology" class="w-full" />
+                      <UInput
+                        v-model="groupGradingForm.groupName"
+                        placeholder="e.g. Hematology"
+                        class="w-full"
+                      />
                     </UFormField>
                   </div>
 
@@ -2689,9 +3039,7 @@ onBeforeUnmount(() => {
                   </UFormField>
 
                   <div>
-                    <p class="mb-1 text-xs font-medium text-muted">
-                      Auto Doctor Comment
-                    </p>
+                    <p class="mb-1 text-xs font-medium text-muted">Auto Doctor Comment</p>
                     <UTextarea
                       :model-value="autoComment ?? ''"
                       readonly
@@ -2719,12 +3067,7 @@ onBeforeUnmount(() => {
 
     <template #footer>
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <UButton
-          v-if="!embedded"
-          color="neutral"
-          variant="soft"
-          @click="emit('close')"
-        >
+        <UButton v-if="!embedded" color="neutral" variant="soft" @click="emit('close')">
           Kembali
         </UButton>
         <template v-if="canEditCurrentResult || canSubmitCurrentResult">
@@ -2746,12 +3089,7 @@ onBeforeUnmount(() => {
             Submit Hasil
           </UButton>
         </template>
-        <UButton
-          v-else-if="!embedded"
-          color="neutral"
-          variant="soft"
-          disabled
-        >
+        <UButton v-else-if="!embedded" color="neutral" variant="soft" disabled>
           Hasil Terkunci
         </UButton>
       </div>
