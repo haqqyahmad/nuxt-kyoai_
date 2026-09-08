@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-08
 
+## Completed — 2026-09-08: MR flow bertahap persis BMAD (MR_REVIEW & READY_TO_RELEASE)
+
+- **BE `src/services/medical-report/medical-report.service.js`**:
+  - `verifyMedicalReport`: bertahap `DOCTOR_APPROVED → MR_REVIEW` (klik pertama = "Mulai Review"), lalu `MR_REVIEW → MR_VERIFIED` (klik kedua = "Verifikasi").
+  - `releaseMedicalReport`: bertahap `MR_VERIFIED → READY_TO_RELEASE` ("Siap Rilis"), lalu `READY_TO_RELEASE → RELEASED` ("Rilis"); exam hanya di-set `completed` saat report benar2 `RELEASED`.
+- **FE `app/pages/result/mr-review/[id].vue`**: label tombol dinamis (Mulai Review/Verifikasi, Siap Rilis/Rilis).
+- **FE `app/pages/result/mr-review/index.vue`**: tambah opsi status `MR_REVIEW` (Sedang Review MR) + `totalWaiting` menghitung `DOCTOR_APPROVED` & `MR_REVIEW`.
+- Rantai MR kini: `DOCTOR_APPROVED → MR_REVIEW → MR_VERIFIED → READY_TO_RELEASE → RELEASED` (BMAD §11.2).
+
 ## Completed — 2026-09-08: Aktifkan SUBMITTED_TO_DOCTOR & DOCTOR_REVIEW + hapus department-approval
 
 - **BE `src/services/exam/exam.service.js`**:
