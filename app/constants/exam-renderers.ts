@@ -4,6 +4,7 @@ import GenericExamPanel from '~/components/rooms/GenericExamPanel.vue'
 import PhysicalExamWorkPanel from '~/components/rooms/PhysicalExamWorkPanel.vue'
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
 import DoctorTestWorkPanel from '~/components/rooms/DoctorTestWorkPanel.vue'
+import TreadmillScreeningWorkPanel from '~/components/rooms/TreadmillScreeningWorkPanel.vue'
 
 export const RENDERER_OPTIONS: Array<{ label: string, value: RendererKey }> = [
   { label: 'Generic', value: 'GENERIC' },
@@ -20,6 +21,7 @@ export const EXAM_RENDERERS: Record<RendererKey, Component> = {
   GENERIC: GenericExamPanel,
   PHYSICAL_EXAMINATION: PhysicalExamWorkPanel,
   DENTAL_EXAMINATION: DentalExamWorkPanel,
+  TREADMILL_SCREENING: TreadmillScreeningWorkPanel,
   VISUAL_FIELD_TEST: DoctorTestWorkPanel,
   ROMBERG_TEST: DoctorTestWorkPanel,
   TINNEL_TEST: DoctorTestWorkPanel,
@@ -29,6 +31,8 @@ export const EXAM_RENDERERS: Record<RendererKey, Component> = {
 
 type RendererItem = { rendererKey?: string | null, code?: string | null, department?: { code?: string | null } | null }
 export function resolveRenderer(item: RendererItem, snapshot?: { rendererKey?: string | null } | null): Component {
+  // [TREADMILL SCREENING] Rute via kode item (rendererKey master = GENERIC).
+  if (item.code?.toUpperCase() === 'DOK-TREADMILL-SCREENING') return EXAM_RENDERERS.TREADMILL_SCREENING
   const key = snapshot?.rendererKey ?? item.rendererKey
   if (key) {
     if (key in EXAM_RENDERERS) return EXAM_RENDERERS[key as RendererKey]

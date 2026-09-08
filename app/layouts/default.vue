@@ -396,12 +396,6 @@ const links = computed<NavigationMenuItem[][]>(() => [
           active: route.path.startsWith('/result/mr-review')
         },
         {
-          label: 'Persetujuan Hasil',
-          icon: 'i-lucide-inbox',
-          to: '/result/department-approval',
-          active: route.path.startsWith('/result/department-approval')
-        },
-        {
           label: 'Status Examination',
           icon: 'i-lucide-activity',
           to: '/result/exam-status',

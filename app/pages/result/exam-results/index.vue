@@ -88,7 +88,7 @@ const api = useApi()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const { roles, isExternalDoctor, allowedResultDepartments, isSuperAdmin } = await useCurrentUser()
+const { isExternalDoctor, allowedResultDepartments, isSuperAdmin } = await useCurrentUser()
 const { roomTypes, pending: roomTypesPending } = await useRoomTypes()
 
 // State
@@ -115,7 +115,7 @@ const departmentsLoading = ref(false)
 
 const departmentItems = computed(() => [
   { label: 'All Departments', value: 'all' },
-  ...departments.value.map((d) => ({ label: d.name, value: d.id })),
+  ...departments.value.map(d => ({ label: d.name, value: d.id }))
 ])
 
 const roomTypeItems = computed(() => [
@@ -158,7 +158,7 @@ function formatDateTime(dateString?: string | null) {
   if (!dateString) return '-'
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
-    timeStyle: 'short',
+    timeStyle: 'short'
   }).format(new Date(dateString))
 }
 
@@ -314,10 +314,10 @@ const filteredResults = computed(() => {
       const queueCode = result.queueCode?.toLowerCase() || ''
       const itemName = result.item?.name?.toLowerCase() || ''
 
-      if (!patientName.includes(query) &&
-          !patientId.includes(query) &&
-          !queueCode.includes(query) &&
-          !itemName.includes(query)) {
+      if (!patientName.includes(query)
+        && !patientId.includes(query)
+        && !queueCode.includes(query)
+        && !itemName.includes(query)) {
         return false
       }
     }
@@ -344,7 +344,7 @@ async function loadDepartments() {
     toast.add({
       title: 'Failed to load departments',
       description: getErrorMessage(error, 'Could not load departments'),
-      color: 'error',
+      color: 'error'
     })
   } finally {
     departmentsLoading.value = false
@@ -363,10 +363,10 @@ function onPageSizeChange(value: string | null) {
 async function loadResults() {
   loading.value = true
   try {
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       page: page.value,
       limit: limit.value,
-      groupBy: isExternalDoctor.value ? 'item' : 'exam',
+      groupBy: isExternalDoctor.value ? 'item' : 'exam'
     }
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {
@@ -385,6 +385,14 @@ async function loadResults() {
 
     if (resultTypeFilter.value !== 'all') {
       params.resultTiming = resultTypeFilter.value
+    }
+
+    if (dateFromFilter.value) {
+      params.dateFrom = dateFromFilter.value
+    }
+
+    if (dateToFilter.value) {
+      params.dateTo = dateToFilter.value
     }
 
     if (initialExamId.value) {
@@ -413,7 +421,7 @@ async function loadResults() {
     toast.add({
       title: 'Failed to load results',
       description: getErrorMessage(error, 'Could not load exam results'),
-      color: 'error',
+      color: 'error'
     })
   } finally {
     loading.value = false
@@ -544,7 +552,9 @@ onMounted(async () => {
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex items-center justify-between gap-3">
-              <h3 class="text-base font-semibold">Filters</h3>
+              <h3 class="text-base font-semibold">
+                Filters
+              </h3>
               <UButton
                 v-if="departmentFilter !== 'all' || roomTypeFilter !== 'all' || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
                 size="xs"
@@ -576,7 +586,6 @@ onMounted(async () => {
               />
             </UFormField>
 
-
             <!-- Room Type Filter -->
             <UFormField v-if="!isExternalDoctor" label="Room Type">
               <USelect
@@ -594,7 +603,7 @@ onMounted(async () => {
                 :items="[
                   { label: 'All Statuses', value: 'all' },
                   { label: 'Pending', value: 'pending' },
-                  { label: 'Completed', value: 'completed' },
+                  { label: 'Completed', value: 'completed' }
                 ]"
               />
             </UFormField>
@@ -606,7 +615,7 @@ onMounted(async () => {
                 :items="[
                   { label: 'All Types', value: 'all' },
                   { label: 'Inline', value: 'inline' },
-                  { label: 'Deferred', value: 'deferred' },
+                  { label: 'Deferred', value: 'deferred' }
                 ]"
               />
             </UFormField>
@@ -650,7 +659,9 @@ onMounted(async () => {
 
           <div v-else-if="!filteredResults.length" class="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 p-8 text-center">
             <UIcon name="i-lucide-inbox" class="mb-3 size-10 text-muted" />
-            <h3 class="text-base font-semibold text-highlighted">No results found</h3>
+            <h3 class="text-base font-semibold text-highlighted">
+              No results found
+            </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
               {{ isExternalDoctor ? 'Belum ada pemeriksaan yang ditugaskan kepada Anda.' : 'No exam results match your filter criteria. Try adjusting your filters.' }}
             </p>
@@ -760,7 +771,7 @@ onMounted(async () => {
           <div class="flex flex-wrap items-center gap-3">
             <USelect
               :model-value="String(limit)"
-              :items="[{label:'10 / page',value:'10'},{label:'20 / page',value:'20'},{label:'50 / page',value:'50'}]"
+              :items="[{ label: '10 / page', value: '10' }, { label: '20 / page', value: '20' }, { label: '50 / page', value: '50' }]"
               class="w-36"
               size="sm"
               @update:model-value="onPageSizeChange"
@@ -793,5 +804,4 @@ onMounted(async () => {
       </div>
     </template>
   </UDashboardPanel>
-
 </template>

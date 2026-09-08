@@ -53,8 +53,8 @@ const releasingModalLock = ref(false)
 
 const statusFilter = ref('ALL')
 const today = new Date().toISOString().slice(0, 10)
-const examDateFrom = ref(today)
-const examDateTo = ref(today)
+const queueDateFrom = ref(today)
+const queueDateTo = ref(today)
 const searchInput = ref('')
 const search = ref('')
 const currentPage = ref(1)
@@ -102,8 +102,8 @@ async function loadSamples() {
       _: Date.now()
     }
     if (statusFilter.value !== 'ALL') params.status = statusFilter.value
-    if (examDateFrom.value) params.examDateFrom = examDateFrom.value
-    if (examDateTo.value) params.examDateTo = examDateTo.value
+    if (queueDateFrom.value) params.queueDateFrom = queueDateFrom.value
+    if (queueDateTo.value) params.queueDateTo = queueDateTo.value
     if (search.value) params.search = search.value
 
     const response = await api.get('/medical/exams/queue/samples/receive', { params })
@@ -254,7 +254,7 @@ watch(isReceiveModalOpen, (open) => {
   if (!open && modalLockAcquired.value) void releaseModalLock()
 })
 
-watch([statusFilter, examDateFrom, examDateTo], () => {
+watch([statusFilter, queueDateFrom, queueDateTo], () => {
   if (currentPage.value !== 1) currentPage.value = 1
   else void loadSamples()
 })
@@ -327,19 +327,19 @@ onBeforeUnmount(() => {
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Tanggal Exam Dari">
+      <UFormField label="Tanggal Queue Dari">
         <UInput
-          v-model="examDateFrom"
+          v-model="queueDateFrom"
           type="date"
-          :max="examDateTo || undefined"
+          :max="queueDateTo || undefined"
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Tanggal Exam Sampai">
+      <UFormField label="Tanggal Queue Sampai">
         <UInput
-          v-model="examDateTo"
+          v-model="queueDateTo"
           type="date"
-          :min="examDateFrom || undefined"
+          :min="queueDateFrom || undefined"
           class="w-full"
         />
       </UFormField>

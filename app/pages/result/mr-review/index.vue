@@ -27,6 +27,7 @@ const pageSize = ref(20)
 const statusOptions = [
   { label: 'Semua Status', value: 'all' },
   { label: 'Menunggu MR', value: 'DOCTOR_APPROVED' },
+  { label: 'Sedang Review MR', value: 'MR_REVIEW' },
   { label: 'Dikembalikan ke Dokter', value: 'MR_RETURNED_TO_DOCTOR' },
   { label: 'Terverifikasi MR', value: 'MR_VERIFIED' },
   { label: 'Released', value: 'RELEASED' }
@@ -48,7 +49,7 @@ const filteredList = computed(() => {
   })
 })
 
-const totalWaiting = computed(() => list.value.filter(i => i.status === 'DOCTOR_APPROVED').length)
+const totalWaiting = computed(() => list.value.filter(i => i.status === 'DOCTOR_APPROVED' || i.status === 'MR_REVIEW').length)
 const totalVerified = computed(() => list.value.filter(i => i.status === 'MR_VERIFIED' || i.status === 'READY_TO_RELEASE').length)
 const totalReleased = computed(() => list.value.filter(i => i.status === 'RELEASED').length)
 

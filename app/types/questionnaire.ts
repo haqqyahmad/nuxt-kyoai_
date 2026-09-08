@@ -16,7 +16,7 @@ export interface QuestionOption {
 
 export interface ConditionalLogicType {
   parentQuestionId: string
-  showIfOptionId: string
+  showIfOptionIds: string[]
 }
 
 export interface Question {
@@ -36,5 +36,6 @@ export interface Section {
   id: string
   sectionTitle: string
   description?: string
+  visibleFor?: string[]
   questions: Question[]
 }

@@ -62,7 +62,8 @@ watch(
   () => props.question.conditional?.parentQuestionId,
   () => {
     if (props.question.conditional) {
-      props.question.conditional.showIfOptionId = ''
+      // Reset to empty array instead of string
+      props.question.conditional.showIfOptionIds = []
     }
   }
 )
@@ -104,12 +105,13 @@ watch(
       />
 
       <USelect
-        v-model="question.conditional!.showIfOptionId"
+        v-model="question.conditional!.showIfOptionIds"
         :items="optionItems"
         value-key="value"
         option-attribute="label"
-        placeholder="Select option"
+        placeholder="Select option(s)"
         :disabled="!selectedParent"
+        multiple
       />
     </div>
 

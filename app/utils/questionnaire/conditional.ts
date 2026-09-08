@@ -5,16 +5,22 @@ import type {
 
 export function shouldShowQuestion(
   question: Question,
-  answers: Record<string, any>
+  answers: Record<string, unknown>
 ) {
   if (!question.conditional) {
     return true
   }
 
-  return (
-    answers[
-      question.conditional.parentQuestionId
-    ]
-    === question.conditional.showIfOptionId
-  )
+  const showIfOptionIds = question.conditional.showIfOptionIds || []
+  if (showIfOptionIds.length === 0) {
+    return true
+  }
+
+  const answer = answers[question.conditional.parentQuestionId]
+
+  if (Array.isArray(answer)) {
+    return answer.some((val: string) => showIfOptionIds.includes(val))
+  }
+
+  return showIfOptionIds.includes(answer)
 }

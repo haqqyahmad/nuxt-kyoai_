@@ -221,7 +221,11 @@ async function load() {
       groupBy: 'exam',
       scope: 'false'
     }
-    if (statusFilter.value !== 'all') params.status = statusFilter.value
+    // Gate worklist dokter berdasarkan status MedicalReport (bukan status exam),
+    // karena exam berstatus DOCTOR_REVIEW umumnya sudah 'completed'.
+    if (statusFilter.value === 'pending') params.medicalReportStatus = 'DOCTOR_REVIEW'
+    else if (statusFilter.value === 'needs_revision') params.medicalReportStatus = 'MR_RETURNED_TO_DOCTOR'
+    else if (statusFilter.value === 'completed') params.medicalReportStatus = 'DOCTOR_APPROVED'
     if (examDateFrom.value) params.examDateFrom = examDateFrom.value
     if (examDateTo.value) params.examDateTo = examDateTo.value
 

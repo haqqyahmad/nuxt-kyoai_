@@ -22,8 +22,8 @@ type ExamItem = {
     id: string
     code: string
     name: string
-    department?: { id: string, name: string } | null
-    group?: { id: string, name: string } | null
+    department?: { id: string; name: string } | null
+    group?: { id: string; name: string } | null
   }
 }
 
@@ -33,7 +33,7 @@ type QueueSampleCollection = {
   collectedAt?: string | null
   receivedAt?: string | null
   rejectReason?: string | null
-  sampleType?: { id: string, code?: string | null, name?: string | null } | null
+  sampleType?: { id: string; code?: string | null; name?: string | null } | null
   items?: Array<{ itemId: string }>
 }
 
@@ -41,6 +41,7 @@ type QueueInfo = {
   id: string
   queueCode: string
   queueNumber: number
+  type?: string | null
   sampleCollections?: QueueSampleCollection[]
 }
 
@@ -71,15 +72,15 @@ type Registration = {
     email?: string
     dob?: string
   } | null
-  branch: { branchId: string, nameBranch: string } | null
-  company: { id: number, codeCostumer: string, customerName: string } | null
+  branch: { branchId: string; nameBranch: string } | null
+  company: { id: number; codeCostumer: string; customerName: string } | null
   exam: {
     id: string
     status: string
     mealStatus?: string
     mealStartedAt?: string | null
     mealCompletedAt?: string | null
-    paket: { id: string, name: string } | null
+    paket: { id: string; name: string } | null
     examItems: ExamItem[]
     results: unknown[]
   } | null
@@ -120,7 +121,7 @@ type CheckinPreview = {
   examVerification: {
     examId: string | null
     examStatus: string | null
-    paket: { id: string, name: string } | null
+    paket: { id: string; name: string } | null
     totalItems: number
     paketItems: ExamItem[]
     additionalItems: ExamItem[]
@@ -135,9 +136,8 @@ type CheckinPreview = {
   }
 }
 
-const { data: reg, refresh } = await useAsyncData(
-  `registration-${route.params.id}`,
-  () => api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
+const { data: reg, refresh } = await useAsyncData(`registration-${route.params.id}`, () =>
+  api.get(`/registration/number/${route.params.id}`).then((r) => r.data.data as Registration)
 )
 
 const SERVICE_LABEL: Record<string, string> = {
@@ -170,8 +170,11 @@ const PRIORITY_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' 
 function formatDateTime(d?: string) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -180,7 +183,9 @@ function formatDob(d?: string) {
   const date = parseLocalDate(d)
   if (!date) return d
   return date.toLocaleDateString('id-ID', {
-    day: '2-digit', month: 'long', year: 'numeric'
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
   })
 }
 
@@ -201,15 +206,19 @@ function getExamItemStatus(ei: ExamItem) {
   const samples = getSampleCollectionsForItem(ei.item.id)
   if (samples.length > 0) {
     // Item lab yang pasien tolak (REFUSED) → status "Menolak" walau sample PENDING.
-    const roomStatuses = ei.roomExamItems?.map(item => item.status) ?? []
+    const roomStatuses = ei.roomExamItems?.map((item) => item.status) ?? []
     if (roomStatuses.includes('REFUSED')) return 'REFUSED'
-    if (samples.every(s => s.status === 'RECEIVED')) return 'DONE'
-    if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
-    if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
+    // Selesai di-entry aktif (workStatus DONE) atau sample sudah diterima lab →
+    // DONE, apalagi itu hasil dari resample (roomExamItem parent lama RESCHEDULED).
+    if (ei.workStatus === 'DONE') return 'DONE'
+    if (samples.every((s) => s.status === 'RECEIVED')) return 'DONE'
+    if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
+    if (samples.some((s) => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
+    if (samples.some((s) => s.status === 'REJECTED')) return 'REJECTED'
     return 'WAITING_SAMPLE'
   }
 
-  const statuses = ei.roomExamItems?.map(item => item.status) ?? []
+  const statuses = ei.roomExamItems?.map((item) => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
   if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
   if (statuses.includes('CALLED')) return 'CALLED'
@@ -256,8 +265,8 @@ function shortTime(value: string | undefined | null): string {
 }
 
 function getRescheduleVisitDate(examItemId: string): string {
-  const ei = (reg.value?.exam?.examItems ?? []).find(e => e.id === examItemId)
-  const re = ei?.roomExamItems?.find(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+  const ei = (reg.value?.exam?.examItems ?? []).find((e) => e.id === examItemId)
+  const re = ei?.roomExamItems?.find((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
   return re?.rescheduleVisitDate?.slice(0, 10) ?? ''
 }
 
@@ -287,7 +296,7 @@ function getExamItemStatusIcon(status: string) {
 function getExamItemUpdatedAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
   const times = items
-    .map(item => item.updatedAt)
+    .map((item) => item.updatedAt)
     .filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((latest, value) => (value > latest ? value : latest))
@@ -295,25 +304,21 @@ function getExamItemUpdatedAt(ei: ExamItem) {
 
 function getExamItemStartAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
-  const times = items
-    .map(item => item.startAt)
-    .filter((value): value is string => Boolean(value))
+  const times = items.map((item) => item.startAt).filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((earliest, value) => (value < earliest ? value : earliest))
 }
 
 function getExamItemDoneAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
-  const times = items
-    .map(item => item.doneAt)
-    .filter((value): value is string => Boolean(value))
+  const times = items.map((item) => item.doneAt).filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((latest, value) => (value > latest ? value : latest))
 }
 
 function getSampleCollectionsForItem(itemId: string) {
-  return (reg.value?.queue?.sampleCollections ?? []).filter(collection =>
-    collection.items?.some(item => item.itemId === itemId)
+  return (reg.value?.queue?.sampleCollections ?? []).filter((collection) =>
+    collection.items?.some((item) => item.itemId === itemId)
   )
 }
 
@@ -335,12 +340,24 @@ function getSampleStatusLabel(status: string) {
 
 const mcuCategories = computed(() => {
   const items = reg.value?.exam?.examItems ?? []
-  const paketItems = items.filter(ei => ei.source === 'paket')
-  const grouped = new Map<string, {
-    label: string
-    icon: string
-    items: { id: string, name: string, status: string, done: boolean, sampleCollections: QueueSampleCollection[], updatedAt: string | null, startAt: string | null, doneAt: string | null }[]
-  }>()
+  const paketItems = items.filter((ei) => ei.source === 'paket')
+  const grouped = new Map<
+    string,
+    {
+      label: string
+      icon: string
+      items: {
+        id: string
+        name: string
+        status: string
+        done: boolean
+        sampleCollections: QueueSampleCollection[]
+        updatedAt: string | null
+        startAt: string | null
+        doneAt: string | null
+      }[]
+    }
+  >()
   const deptIcon: Record<string, string> = {
     Laboratorium: 'i-lucide-flask-conical',
     Radiologi: 'i-lucide-scan',
@@ -375,12 +392,13 @@ const mcuCategories = computed(() => {
   }
 
   return [...grouped.values()].map((category) => {
-    const completedItems = category.items.filter(item => item.done)
-    const pendingItems = category.items.filter(item => !item.done)
+    const completedItems = category.items.filter((item) => item.done)
+    const pendingItems = category.items.filter((item) => !item.done)
     const completed = completedItems.length
     const total = category.items.length
     const updatedAt = category.items.reduce<string | null>(
-      (latest, item) => (item.updatedAt && (!latest || item.updatedAt > latest) ? item.updatedAt : latest),
+      (latest, item) =>
+        item.updatedAt && (!latest || item.updatedAt > latest) ? item.updatedAt : latest,
       null
     )
     return {
@@ -394,18 +412,18 @@ const mcuCategories = computed(() => {
       status:
         total > 0 && completed === total
           ? 'DONE'
-          : category.items.some(item => item.status === 'RETEXT')
+          : category.items.some((item) => item.status === 'RETEXT')
             ? 'RETEXT'
-            : category.items.some(item => item.status === 'RESCHEDULED')
+            : category.items.some((item) => item.status === 'RESCHEDULED')
               ? 'RESCHEDULED'
-              : category.items.some(item => ['REFUSED', 'REJECTED'].includes(item.status))
+              : category.items.some((item) => ['REFUSED', 'REJECTED'].includes(item.status))
                 ? 'REFUSED'
                 : 'PENDING'
     }
   })
 })
 const additionalItems = computed(() =>
-  (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
+  (reg.value?.exam?.examItems ?? []).filter((ei) => ei.source === 'additional')
 )
 
 type PatientQuestionnaire = {
@@ -483,12 +501,12 @@ async function loadStatusHistory() {
   }
 }
 
-const statusHistoryDisplay = computed(() =>
-  [...statusHistory.value].reverse()
-)
+const statusHistoryDisplay = computed(() => [...statusHistory.value].reverse())
 
 function statusHistoryLabel(item: StatusHistoryItem): string {
   if (item.action === 'CREATE') return 'Registrasi Dibuat'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Check-in Kunjungan Kembali'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan Kembali Selesai'
   if (item.action === 'STATUS_CHANGE') {
     const before = item.payloadBefore?.statusRegistration
     const after = item.payloadAfter?.statusRegistration
@@ -504,14 +522,18 @@ function statusHistoryLabel(item: StatusHistoryItem): string {
 function statusHistoryDesc(item: StatusHistoryItem): string {
   if (item.notes) return item.notes
   if (item.action === 'CREATE') return 'Registrasi dibuat.'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Pasien datang kembali untuk item yang di-reschedule.'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan kembali ditutup; seluruh item selesai.'
   return 'Perubahan status registrasi.'
 }
 
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
-const isCheckedIn = computed(() => ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? ''))
+const isCheckedIn = computed(() =>
+  ['Checkin', 'CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? '')
+)
 const isMCU = computed(() => reg.value?.serviceType === 'MCU')
-const canUndoCheckin = computed(() =>
-  checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
+const canUndoCheckin = computed(
+  () => checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
 )
 
 const examType = computed(() => reg.value?.examType ?? (isMCU.value ? 'MCU' : 'RAWAT_JALAN'))
@@ -547,7 +569,9 @@ async function loadCheckinPreview() {
     checkinPreview.value = res.data.data as CheckinPreview
   } catch (err: unknown) {
     checkinPreview.value = null
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal memuat preview check-in'
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal memuat preview check-in'
     toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
   } finally {
     checkinPreviewLoading.value = false
@@ -589,7 +613,9 @@ async function confirmCheckin() {
       color: 'success'
     })
   } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal melakukan check-in'
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal melakukan check-in'
     toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
   } finally {
     checkinLoading.value = false
@@ -597,7 +623,9 @@ async function confirmCheckin() {
 }
 
 const checkinPaketItems = computed(() => checkinPreview.value?.examVerification.paketItems ?? [])
-const checkinAdditionalItems = computed(() => checkinPreview.value?.examVerification.additionalItems ?? [])
+const checkinAdditionalItems = computed(
+  () => checkinPreview.value?.examVerification.additionalItems ?? []
+)
 
 const uncheckLoading = ref(false)
 async function undoCheckin() {
@@ -614,7 +642,9 @@ async function undoCheckin() {
       color: 'success'
     })
   } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal membatalkan check-in'
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal membatalkan check-in'
     toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
   } finally {
     uncheckLoading.value = false
@@ -642,18 +672,18 @@ const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
   warnings?: string[]
-  rescheduledItems?: string[]
-  nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string }>
+  rescheduledItems?: Array<{ itemName: string; samples?: Array<{ name: string }> }>
+  nonFinalItems?: Array<{ itemName?: string; reason?: string; currentRoomStatus?: string; isAdditional?: boolean }>
 } | null>(null)
 
 // Item non-final yang bermasalah utk banner Note (retest sudah di banner utama).
 const noteIssueItems = computed(() => {
-  const fromCheckout = (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
+  const fromCheckout = (checkoutEligibility.value?.nonFinalItems ?? []).filter((item) =>
     ['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 
   // Get all rejected OR refused sample collections from queue
-  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter(s => 
+  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter((s) =>
     ['REJECTED', 'REFUSED'].includes(s.status)
   )
 
@@ -665,22 +695,24 @@ const noteIssueItems = computed(() => {
     }
   }
 
-  const fromExamItems = (reg.value?.exam?.examItems ?? []).filter(item => {
+  const fromExamItems = (reg.value?.exam?.examItems ?? []).filter((item) => {
     const hasBadSampleId = badItemIds.has(item.item.id)
     const samples = getSampleCollectionsForItem(item.item.id)
-    const hasBadSampleStatus = samples.some(s => ['REJECTED', 'REFUSED'].includes(s.status))
-    const roomStatuses = item.roomExamItems?.map(r => r.status) ?? []
-    return roomStatuses.includes('REFUSED') ||
+    const hasBadSampleStatus = samples.some((s) => ['REJECTED', 'REFUSED'].includes(s.status))
+    const roomStatuses = item.roomExamItems?.map((r) => r.status) ?? []
+    return (
+      roomStatuses.includes('REFUSED') ||
       roomStatuses.includes('REJECTED') ||
       item.workStatus === 'REFUSED' ||
       item.workStatus === 'REJECTED' ||
       hasBadSampleId ||
       hasBadSampleStatus
+    )
   })
   // Merge & dedupe by itemName
   const merged = [...fromCheckout]
   for (const item of fromExamItems) {
-    if (!merged.some(m => m.itemName === item.item.name)) {
+    if (!merged.some((m) => m.itemName === item.item.name)) {
       merged.push({ itemName: item.item.name, currentRoomStatus: item.workStatus ?? 'REJECTED' })
     }
   }
@@ -689,8 +721,8 @@ const noteIssueItems = computed(() => {
 
 // Item belum selesai utk banner "Patient cannot be discharged yet" — tanpa utk yg rejected (sudah di Rejected Items).
 const dischargePendingItems = computed(() =>
-  (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
-    !['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
+  (checkoutEligibility.value?.nonFinalItems ?? []).filter(
+    (item) => !['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 )
 
@@ -721,6 +753,72 @@ async function handleRefreshPage() {
   }
 }
 
+// Portal URL untuk link kuesioner pasien (wa.me share / copy link).
+const runtimeConfig = useRuntimeConfig()
+const questionnairePortalUrl = computed(() => {
+  const base = (runtimeConfig.public as Record<string, unknown>).portalUrl as string | undefined
+  return `${(base || 'http://localhost:5173').replace(/\/$/, '')}/questionnaire`
+})
+
+function normalizeWaPhone(phone: string | null | undefined): string {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.replace(/^0/, '62')
+}
+
+function questionnaireLink(questionnaireId?: string): string {
+  const params = new URLSearchParams()
+  if (reg.value?.company?.id) params.set('companyId', String(reg.value.company.id))
+  if (reg.value?.branch?.branchId) params.set('branchId', reg.value.branch.branchId)
+  if (questionnaireId) params.set('questionnaireId', questionnaireId)
+  // Registrasi final punya id numerik; jawaban ter-backfill ke registrationId.
+  params.set('registrationId', String(reg.value?.id ?? ''))
+  // Gender pasien (untuk filter section "Khusus Wanita" di portal).
+  if (reg.value?.patient?.gender) params.set('gender', reg.value.patient.gender)
+  return `${questionnairePortalUrl.value}?${params.toString()}`
+}
+
+function waShareLink(questionnaireId?: string): string {
+  const phone = normalizeWaPhone(reg.value?.patient?.phone)
+  if (!phone) return ''
+  const questUrl = questionnaireLink(questionnaireId)
+  const message = `Assalamualaikum, silakan isi kuesioner medis Anda di: ${questUrl}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
+
+function shareQuestionnaireViaWa(questionnaireId?: string) {
+  const link = waShareLink(questionnaireId)
+  if (!link) {
+    toast.add({
+      title: 'Gagal',
+      description: 'Nomor HP pasien tidak tersedia',
+      color: 'error'
+    })
+    return
+  }
+  window.open(link, '_blank', 'noopener,noreferrer')
+}
+
+function copyQuestionnaireLink(questionnaireId?: string) {
+  const link = questionnaireLink(questionnaireId)
+  navigator.clipboard
+    .writeText(link)
+    .then(() => {
+      toast.add({
+        title: 'Berhasil',
+        description: 'Link kuesioner disalin',
+        color: 'success'
+      })
+    })
+    .catch(() => {
+      toast.add({
+        title: 'Gagal',
+        description: 'Gagal menyalin link',
+        color: 'error'
+      })
+    })
+}
+
 const resampling = ref(false)
 const mealTimerNow = ref(Date.now())
 const mealTimerDuration = ref<number | null>(null)
@@ -728,8 +826,15 @@ let mealTimerInterval: ReturnType<typeof setInterval> | null = null
 
 // Ambil durasi meal utk countdown; polling saat IN_PROGRESS biar timer & status update.
 const examObj = computed(() => reg.value?.exam as Record<string, unknown> | null)
-const examMealStatus = computed(() => reg.value?.exam?.mealStatus ?? (examObj.value?.status as string | undefined | null) ?? null)
-const examMealStartedAt = computed(() => reg.value?.exam?.mealStartedAt ?? (examObj.value?.startedAt as string | undefined | null) ?? null)
+const examMealStatus = computed(
+  () => reg.value?.exam?.mealStatus ?? (examObj.value?.status as string | undefined | null) ?? null
+)
+const examMealStartedAt = computed(
+  () =>
+    reg.value?.exam?.mealStartedAt ??
+    (examObj.value?.startedAt as string | undefined | null) ??
+    null
+)
 
 async function fetchMealDuration() {
   const examId = reg.value?.exam?.id
@@ -737,7 +842,10 @@ async function fetchMealDuration() {
   try {
     const res = await api.get(`/medical/exams/${examId}/meal`)
     const data = res.data?.data as Record<string, unknown> | null
-    mealTimerDuration.value = (data?.mealDurationMinutes as number | undefined | null) ?? (data?.durationMinutes as number | undefined | null) ?? null
+    mealTimerDuration.value =
+      (data?.mealDurationMinutes as number | undefined | null) ??
+      (data?.durationMinutes as number | undefined | null) ??
+      null
   } catch {
     mealTimerDuration.value = null
   }
@@ -747,7 +855,8 @@ const examMealRemainingText = computed(() => {
   const status = examMealStatus.value
   if (status !== 'IN_PROGRESS') return ''
   const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
-  const durationMin = mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
+  const durationMin =
+    mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
   const durationMs = durationMin * 60 * 1000
   if (!started || !durationMs) return ''
   const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
@@ -759,38 +868,45 @@ const examMealRemainingText = computed(() => {
 
 let mealPollingInterval: ReturnType<typeof setInterval> | null = null
 
-watch(examMealStatus, (s) => {
-  if (mealTimerInterval) {
-    clearInterval(mealTimerInterval)
-    mealTimerInterval = null
-  }
-  if (mealPollingInterval) {
-    clearInterval(mealPollingInterval)
-    mealPollingInterval = null
-  }
-  if (s === 'IN_PROGRESS') {
-    mealTimerNow.value = Date.now()
-    mealTimerInterval = setInterval(() => {
+watch(
+  examMealStatus,
+  (s) => {
+    if (mealTimerInterval) {
+      clearInterval(mealTimerInterval)
+      mealTimerInterval = null
+    }
+    if (mealPollingInterval) {
+      clearInterval(mealPollingInterval)
+      mealPollingInterval = null
+    }
+    if (s === 'IN_PROGRESS') {
       mealTimerNow.value = Date.now()
-      
-      const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
-      const durationMin = mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
-      const durationMs = durationMin * 60 * 1000
-      if (started && durationMs) {
-        const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
-        if (remaining === 0) {
-          void refresh()
-          void fetchMealDuration()
+      mealTimerInterval = setInterval(() => {
+        mealTimerNow.value = Date.now()
+
+        const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
+        const durationMin =
+          mealTimerDuration.value ??
+          (examObj.value?.durationMinutes as number | undefined | null) ??
+          0
+        const durationMs = durationMin * 60 * 1000
+        if (started && durationMs) {
+          const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
+          if (remaining === 0) {
+            void refresh()
+            void fetchMealDuration()
+          }
         }
-      }
-    }, 1000)
-    // Polling otomatis tiap 10-15 detik untuk memperbarui status meal dan timing dari backend
-    mealPollingInterval = setInterval(() => {
-      void refresh()
-      void fetchMealDuration()
-    }, 12000)
-  }
-}, { immediate: true })
+      }, 1000)
+      // Polling otomatis tiap 10-15 detik untuk memperbarui status meal dan timing dari backend
+      mealPollingInterval = setInterval(() => {
+        void refresh()
+        void fetchMealDuration()
+      }, 12000)
+    }
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
   if (mealTimerInterval) clearInterval(mealTimerInterval)
@@ -798,15 +914,90 @@ onBeforeUnmount(() => {
 })
 
 const hasRescheduleItem = computed(() =>
-  (reg.value?.exam?.examItems ?? []).some(ei =>
-    (ei.roomExamItems ?? []).some(r =>
-      r.status === 'RESCHEDULED' && r.rescheduleVisitDate
-    )
+  (reg.value?.exam?.examItems ?? []).some((ei) =>
+    (ei.workStatus ?? '') === 'RESCHEDULED'
   )
 )
+// Banner Reschedule Items — dihitung dari data exam (tidak bergantung checkoutEligibility,
+// supaya tetap tampil walau pasien sudah CheckOut).
+const rescheduleBannerItems = computed<
+  Array<{ itemName: string; samples: Array<{ name: string }> }>
+>(() => {
+  const seen = new Set<string>()
+  const out: Array<{ itemName: string; samples: Array<{ name: string }> }> = []
+  for (const ei of reg.value?.exam?.examItems ?? []) {
+    // Hanya item yang MASIH di-reschedule (workStatus RESCHEDULED). Item yang sudah
+    // selesai di-resample (workStatus DONE) tidak lagi tampil di banner.
+    if ((ei.workStatus ?? '') !== 'RESCHEDULED') continue
+    const itemName = ei.item?.name ?? '-'
+    if (seen.has(itemName)) continue
+    seen.add(itemName)
+    const samples = getSampleCollectionsForItem(ei.item?.id ?? '').map((sc) => ({
+      name: sc.sampleType?.name ?? sc.sampleType?.code ?? 'Sample'
+    }))
+    out.push({ itemName, samples })
+  }
+  return out
+})
+const hasRescheduleForBanner = computed(() => rescheduleBannerItems.value.length > 0)
+
+// Patient Return Visit hanya bisa saat PERSIS tanggal kunjungan kembali.
+// (selain tanggal tsb → pakai tombol Change Follow-up Date untuk menggeser jadwal.)
+const canResampleNow = computed(() => {
+  const dates = (reg.value?.exam?.examItems ?? [])
+    .flatMap((ei) => ei.roomExamItems ?? [])
+    .filter((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+    .map((r) => (r.rescheduleVisitDate ?? '').slice(0, 10))
+  if (!dates.length) return true
+  return dates.includes(todayStr())
+})
+
+// Kunjungan kembali (resample) aktif = queue terbaru bertipe RESAMPLE.
+const returnVisitActive = computed(() => (reg.value?.queue?.type ?? '') === 'RESAMPLE')
+// Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
+const canCompleteReturnVisit = computed(() => {
+  if (!returnVisitActive.value) return false
+  if ((reg.value?.exam?.status ?? '') === 'completed') return false
+  const items = reg.value?.exam?.examItems ?? []
+  if (!items.length) return false
+  return items.every((ei) => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
+})
+const completingReturnVisit = ref(false)
+async function handleCompleteReturnVisit() {
+  if (!reg.value || completingReturnVisit.value) return
+  completingReturnVisit.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id_reg}/complete-return-visit`)
+    toast.add({ title: 'Selesai', description: 'Kunjungan kembali ditutup & exam selesai.', color: 'success' })
+    await refresh()
+    await loadStatusHistory()
+    await loadCheckoutEligibility()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal menyelesaikan kunjungan kembali',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan.',
+      color: 'error'
+    })
+  } finally {
+    completingReturnVisit.value = false
+  }
+}
 async function handleResampleCheckin() {
   if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
-    toast.add({ title: 'Gagal', description: 'Data resample tidak lengkap (queue/branch).', color: 'error' })
+    toast.add({
+      title: 'Gagal',
+      description: 'Data resample tidak lengkap (queue/branch).',
+      color: 'error'
+    })
+    return
+  }
+  if (!canResampleNow.value) {
+    toast.add({
+      title: 'Bukan tanggal kunjungan kembali',
+      description:
+        'Pasien hanya dapat di-resample pada tanggal kunjungan kembali. Untuk menggeser jadwal gunakan tombol Change Follow-up Date.',
+      color: 'warning'
+    })
     return
   }
   resampling.value = true
@@ -816,24 +1007,30 @@ async function handleResampleCheckin() {
       registrationId: reg.value.id,
       branchId: reg.value.branch.branchId,
       queueDate: today,
-      parentQueueEntryId: reg.value.queue.id,
+      parentQueueEntryId: reg.value.queue.id
     })
-    toast.add({ title: 'Berhasil', description: 'Pasien dijadwalkan ulang (resample) — dapat diproses lagi.', color: 'success' })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Pasien dijadwalkan ulang (resample) — dapat diproses lagi.',
+      color: 'success'
+    })
     await refresh()
     await loadStatusHistory()
     await loadCheckoutEligibility()
   } catch (err: unknown) {
     toast.add({
       title: 'Gagal resample',
-      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan.',
-      color: 'error',
+      description:
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Terjadi kesalahan.',
+      color: 'error'
     })
   } finally {
     resampling.value = false
   }
 }
 
-type RescheduleDraftItem = { roomExamItemId: string, itemName: string, visitDate: string }
+type RescheduleDraftItem = { roomExamItemId: string; itemName: string; visitDate: string }
 
 const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
   if (!reg.value?.exam?.examItems) return []
@@ -844,7 +1041,7 @@ const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
         out.push({
           roomExamItemId: re.id,
           itemName: ei.item?.name ?? '-',
-          visitDate: re.rescheduleVisitDate?.slice(0, 10) ?? '',
+          visitDate: re.rescheduleVisitDate?.slice(0, 10) ?? ''
         })
       }
     }
@@ -859,7 +1056,7 @@ const rescheduleMode = ref<'checkout' | 'dates'>('checkout')
 
 // Petugas ubah tanggal datang ulang pasien yang gagal datang (tanpa checkout).
 function openRescheduleDates() {
-  rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
+  rescheduleDraft.value = rescheduleCheckoutItems.value.map((i) => ({ ...i }))
   rescheduleMode.value = 'dates'
   showRescheduleModal.value = true
 }
@@ -869,7 +1066,10 @@ async function saveRescheduleDatesOnly() {
   savingReschedule.value = true
   try {
     await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
-      items: rescheduleDraft.value.map(i => ({ roomExamItemId: i.roomExamItemId, visitDate: i.visitDate || null })),
+      items: rescheduleDraft.value.map((i) => ({
+        roomExamItemId: i.roomExamItemId,
+        visitDate: i.visitDate || null
+      }))
     })
     toast.add({
       title: 'Berhasil',
@@ -878,8 +1078,9 @@ async function saveRescheduleDatesOnly() {
     })
     await refresh()
   } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      ?? 'Gagal memperbarui tanggal datang ulang.'
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal memperbarui tanggal datang ulang.'
     toast.add({ title: 'Gagal', description: msg, color: 'error' })
   } finally {
     savingReschedule.value = false
@@ -891,7 +1092,7 @@ async function confirmCheckout() {
   if (!reg.value || checkoutLoading.value) return
   // Jika ada item reschedule → tanya tanggal datang ulang dulu.
   if (rescheduleCheckoutItems.value.length) {
-    rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
+    rescheduleDraft.value = rescheduleCheckoutItems.value.map((i) => ({ ...i }))
     rescheduleMode.value = 'checkout'
     showRescheduleModal.value = true
     return
@@ -906,7 +1107,10 @@ async function doCheckout() {
   try {
     if (rescheduleDraft.value.length) {
       await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
-        items: rescheduleDraft.value.map(i => ({ roomExamItemId: i.roomExamItemId, visitDate: i.visitDate || null })),
+        items: rescheduleDraft.value.map((i) => ({
+          roomExamItemId: i.roomExamItemId,
+          visitDate: i.visitDate || null
+        }))
       })
     }
     await api.patch(`/registration/${reg.value.id_reg}/checkout`)
@@ -919,8 +1123,9 @@ async function doCheckout() {
     await loadStatusHistory()
     await loadCheckoutEligibility()
   } catch (err: unknown) {
-    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      ?? 'Gagal check-out pasien.'
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal check-out pasien.'
     toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
   } finally {
     checkoutLoading.value = false
@@ -936,9 +1141,12 @@ onMounted(() => {
   void fetchMealDuration()
 })
 
-watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
-  void loadCheckoutEligibility()
-})
+watch(
+  () => [reg.value?.statusRegistration, isCheckedIn.value],
+  () => {
+    void loadCheckoutEligibility()
+  }
+)
 </script>
 
 <template>
@@ -952,9 +1160,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             variant="ghost"
             to="/front-office/registration-patient"
           />
-          <h1 class="text-lg font-semibold ml-2">
-            Detail Registrasi
-          </h1>
+          <h1 class="text-lg font-semibold ml-2">Detail Registrasi</h1>
         </template>
         <template #right>
           <div class="flex items-center gap-2">
@@ -968,12 +1174,14 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               Refresh
             </UButton>
             <UButton
-              v-if="hasRescheduleItem && reg?.queue?.id && reg?.branch?.branchId"
+              v-if="hasRescheduleItem && !returnVisitActive && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
               label="Patient Return Visit"
               :loading="resampling"
+              :disabled="!canResampleNow"
+              :title="canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'"
               @click="handleResampleCheckin"
             />
             <UButton
@@ -983,6 +1191,14 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               variant="soft"
               label="Change Follow-up Date"
               @click="openRescheduleDates"
+            />
+            <UButton
+              v-if="canCompleteReturnVisit"
+              icon="i-lucide-check-circle-2"
+              color="success"
+              label="Selesaikan Kunjungan Kembali"
+              :loading="completingReturnVisit"
+              @click="handleCompleteReturnVisit"
             />
             <UButton
               icon="i-lucide-printer"
@@ -1017,7 +1233,12 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               @click="cancelRegistration"
             />
             <UButton
-              v-if="!isCancelled && isCheckedIn && reg?.statusRegistration !== 'CheckOut' && canUndoCheckin"
+              v-if="
+                !isCancelled &&
+                isCheckedIn &&
+                reg?.statusRegistration !== 'CheckOut' &&
+                canUndoCheckin
+              "
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
@@ -1045,14 +1266,12 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
       <div v-else class="w-full max-w-7xl mx-auto py-6 px-4 space-y-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p class="text-xs text-muted mb-1">
-              Kembali ke Daftar Registrasi
-            </p>
-            <h1 class="text-2xl font-bold text-default">
-              Registration Detail
-            </h1>
+            <p class="text-xs text-muted mb-1">Kembali ke Daftar Registrasi</p>
+            <h1 class="text-2xl font-bold text-default">Registration Detail</h1>
             <div class="flex items-center gap-3 mt-2">
-              <code class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg">
+              <code
+                class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg"
+              >
                 {{ reg.id_reg }}
               </code>
               <UBadge
@@ -1069,9 +1288,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
           >
             <div class="flex items-center gap-2">
               <div>
-                <p class="text-xs text-muted">
-                  Queue Number
-                </p>
+                <p class="text-xs text-muted">Queue Number</p>
                 <p class="text-3xl font-bold text-primary">
                   {{ activeQueue.queueCode }}
                 </p>
@@ -1101,7 +1318,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <UAlert
-          v-if="checkoutEligibility?.warnings?.length"
+          v-if="hasRescheduleForBanner"
           color="warning"
           variant="soft"
           icon="i-lucide-alert-triangle"
@@ -1109,10 +1326,16 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>{{ checkoutEligibility.warnings.join(' ') }}</p>
-              <ul v-if="checkoutEligibility.rescheduledItems?.length" class="list-disc pl-5 text-xs">
-                <li v-for="(name, index) in checkoutEligibility.rescheduledItems" :key="'rs-' + index">
-                  {{ name }}
+              <p>
+                Some items have been rescheduled (Partial Exam). The patient can still check out.
+                The rescheduled items will be processed on the next visit.
+              </p>
+              <ul v-if="rescheduleBannerItems?.length" class="list-disc pl-5 text-xs">
+                <li v-for="(r, index) in rescheduleBannerItems" :key="'rs-' + index">
+                  {{ r.itemName
+                  }}<template v-if="r.samples?.length">
+                    <span class="ml-1">( {{ r.samples.map((s) => s.name).join(', ') }} )</span>
+                  </template>
                 </li>
               </ul>
             </div>
@@ -1120,23 +1343,49 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <UAlert
+          v-if="isMCU && additionalItems.length"
+          color="info"
+          variant="soft"
+          icon="i-lucide-plus-circle"
+          title="Pasien memiliki additional item pemeriksaan"
+          :description="`Terdapat ${additionalItems.length} item tambahan di luar paket: ${additionalItems.map(i => i.item.name).join(', ')}`"
+        />
+
+        <UAlert
           v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
           :color="checkoutEligibility.canCheckout ? 'success' : 'warning'"
           variant="soft"
           :icon="checkoutEligibility.canCheckout ? 'i-lucide-log-out' : 'i-lucide-alert-circle'"
-          :title="checkoutEligibility.canCheckout
-            ? 'All examinations complete — patient can be discharged'
-            : 'Patient cannot be discharged yet'"
-          :description="checkoutEligibility.canCheckout
-            ? 'Click the Check Out button to mark the patient finished and ready to leave.'
-            : checkoutEligibility.reasons?.join('; ') || 'There are still unfinished examination items.'"
+          :title="
+            checkoutEligibility.canCheckout
+              ? 'All examinations complete — patient can be discharged'
+              : 'Patient cannot be discharged yet'
+          "
+          :description="
+            checkoutEligibility.canCheckout
+              ? 'Click the Check Out button to mark the patient finished and ready to leave.'
+              : checkoutEligibility.reasons?.join('; ') ||
+                'There are still unfinished examination items.'
+          "
         >
           <template v-if="dischargePendingItems.length" #description>
             <div class="mt-1 space-y-1">
               <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
               <ul class="list-disc pl-5 text-xs">
                 <li v-for="(item, index) in dischargePendingItems" :key="index">
-                  {{ item.itemName }} — {{ item.currentRoomStatus ? getExamItemStatusLabelEn(item.currentRoomStatus) : (item.reason || 'not finished') }}
+                  <span
+                    v-if="item.isAdditional"
+                    class="mr-1 inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary"
+                  >
+                    <UIcon name="i-lucide-plus-circle" class="size-3" />
+                    Additional
+                  </span>
+                  {{ item.itemName }} —
+                  {{
+                    item.currentRoomStatus
+                      ? getExamItemStatusLabelEn(item.currentRoomStatus)
+                      : item.reason || 'not finished'
+                  }}
                 </li>
               </ul>
             </div>
@@ -1144,90 +1393,80 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
         </UAlert>
 
         <div class="grid grid-cols-12 gap-5">
-          <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+          <div
+            class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+          >
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-user-circle" class="text-primary" />
                 Patient Information
               </h3>
-              <span v-if="reg.patient" class="text-xs text-muted">ID: {{ reg.patient.patientCode }}</span>
+              <span v-if="reg.patient" class="text-xs text-muted"
+                >ID: {{ reg.patient.patientCode }}</span
+              >
             </div>
             <div v-if="reg.patient" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Full Name
-                  </p>
+                  <p class="text-xs text-muted mb-1">Full Name</p>
                   <p class="font-semibold text-base">
                     {{ reg.patient.patientName }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Gender
-                  </p>
+                  <p class="text-xs text-muted mb-1">Gender</p>
                   <p class="font-semibold">
                     {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Tanggal Lahir
-                  </p>
+                  <p class="text-xs text-muted mb-1">Tanggal Lahir</p>
                   <p class="font-semibold">
                     {{ formatDob(reg.patient.dob) }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Contact Status
-                  </p>
-                  <p class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
+                  <p class="text-xs text-muted mb-1">Contact Status</p>
+                  <p
+                    class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400"
+                  >
                     <UIcon name="i-lucide-check-circle-2" class="text-base" /> Verified
                   </p>
                 </div>
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Nomor HP
-                  </p>
+                  <p class="text-xs text-muted mb-1">Nomor HP</p>
                   <p class="font-medium">
                     {{ reg.patient.phone ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Email
-                  </p>
+                  <p class="text-xs text-muted mb-1">Email</p>
                   <p class="font-medium truncate">
                     {{ reg.patient.email ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID Type
-                  </p>
+                  <p class="text-xs text-muted mb-1">ID Type</p>
                   <p class="font-medium">
                     {{ reg.patient.idType }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID Number
-                  </p>
+                  <p class="text-xs text-muted mb-1">ID Number</p>
                   <p class="font-mono text-xs font-medium">
                     {{ reg.patient.idNumber }}
                   </p>
                 </div>
               </div>
             </div>
-            <div v-else class="p-6 text-center text-sm text-muted">
-              Data pasien tidak ditemukan
-            </div>
+            <div v-else class="p-6 text-center text-sm text-muted">Data pasien tidak ditemukan</div>
           </div>
 
-          <div class="col-span-12 lg:col-span-4 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+          <div
+            class="col-span-12 lg:col-span-4 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+          >
             <div class="px-5 py-4 border-b border-default">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-clipboard-list" class="text-primary" />
@@ -1241,7 +1480,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service Type</span>
-                <span class="text-sm font-semibold text-primary">{{ SERVICE_LABEL[reg.serviceType] ?? reg.serviceType }}</span>
+                <span class="text-sm font-semibold text-primary">{{
+                  SERVICE_LABEL[reg.serviceType] ?? reg.serviceType
+                }}</span>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Exam Type</span>
@@ -1251,7 +1492,10 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>
-                <code class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono">{{ reg.serviceNumber }}</code>
+                <code
+                  class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono"
+                  >{{ reg.serviceNumber }}</code
+                >
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Branch</span>
@@ -1288,34 +1532,50 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                 </h3>
               </div>
               <div class="p-4 space-y-3">
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-elevated border border-default">
-                  <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div
+                  class="flex items-center gap-3 p-3 rounded-xl bg-elevated border border-default"
+                >
+                  <div
+                    class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"
+                  >
                     <UIcon
-                      :name="reg.paymentType === 'Insurance' ? 'i-lucide-shield-check'
-                        : reg.paymentType === 'BillToCompany' ? 'i-lucide-building-2'
-                          : 'i-lucide-wallet'"
+                      :name="
+                        reg.paymentType === 'Insurance'
+                          ? 'i-lucide-shield-check'
+                          : reg.paymentType === 'BillToCompany'
+                            ? 'i-lucide-building-2'
+                            : 'i-lucide-wallet'
+                      "
                       class="text-primary"
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted">
-                      Payment Type
-                    </p>
+                    <p class="text-xs text-muted">Payment Type</p>
                     <p class="font-bold text-sm">
-                      {{ reg.paymentType === 'Personal' ? 'Personal'
-                        : reg.paymentType === 'Insurance' ? 'Insurance'
-                          : 'Bill to Company' }}
+                      {{
+                        reg.paymentType === 'Personal'
+                          ? 'Personal'
+                          : reg.paymentType === 'Insurance'
+                            ? 'Insurance'
+                            : 'Bill to Company'
+                      }}
                     </p>
                   </div>
                 </div>
                 <div class="flex items-center justify-between px-1">
                   <span class="text-sm text-muted">Priority Level</span>
-                  <UBadge :label="reg.priorityRegist" :color="PRIORITY_COLOR[reg.priorityRegist] ?? 'neutral'" variant="subtle" />
+                  <UBadge
+                    :label="reg.priorityRegist"
+                    :color="PRIORITY_COLOR[reg.priorityRegist] ?? 'neutral'"
+                    variant="subtle"
+                  />
                 </div>
               </div>
             </div>
 
-            <div class="flex-grow rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+            <div
+              class="flex-grow rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+            >
               <div class="px-5 py-4 border-b border-default">
                 <h3 class="font-semibold flex items-center gap-2">
                   <UIcon name="i-lucide-history" class="text-primary" />
@@ -1331,8 +1591,15 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                 </div>
                 <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
-                  <div v-for="(item, i) in statusHistoryDisplay" :key="item.id || i" class="relative flex gap-3 pl-6">
-                    <div class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0" :class="i === 0 ? 'bg-primary' : 'bg-muted'" />
+                  <div
+                    v-for="(item, i) in statusHistoryDisplay"
+                    :key="item.id || i"
+                    class="relative flex gap-3 pl-6"
+                  >
+                    <div
+                      class="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-background flex-shrink-0"
+                      :class="i === 0 ? 'bg-primary' : 'bg-muted'"
+                    />
                     <div>
                       <p class="text-sm font-semibold">
                         {{ statusHistoryLabel(item) }}
@@ -1343,9 +1610,13 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                       <p class="text-xs text-muted italic mt-0.5">
                         {{ statusHistoryDesc(item) }}
                       </p>
-                      <p v-if="item.actorName" class="text-xs text-muted mt-0.5 flex items-center gap-1">
+                      <p
+                        v-if="item.actorName"
+                        class="text-xs text-muted mt-0.5 flex items-center gap-1"
+                      >
                         <UIcon name="i-lucide-user" class="text-xs" />
-                        {{ item.actorName }}<template v-if="item.actorRole"> · {{ item.actorRole }}</template>
+                        {{ item.actorName
+                        }}<template v-if="item.actorRole"> · {{ item.actorRole }} </template>
                       </p>
                     </div>
                   </div>
@@ -1354,7 +1625,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             </div>
           </div>
 
-          <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+          <div
+            class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+          >
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-clipboard-check" class="text-primary" />
@@ -1381,24 +1654,36 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                     <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
                       Questionnaire Name
                     </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
+                    <th
+                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
+                    >
                       Completion Date
                     </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center">
+                    <th
+                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
+                    >
                       Status
                     </th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right">
+                    <th
+                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right"
+                    >
                       Action
                     </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
-                  <tr v-for="q in questionnaires" :key="q.questionnaire_id" class="hover:bg-elevated transition-colors">
+                  <tr
+                    v-for="q in questionnaires"
+                    :key="q.questionnaire_id"
+                    class="hover:bg-elevated transition-colors"
+                  >
                     <td class="px-5 py-3">
                       <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
                     </td>
                     <td class="px-5 py-3 text-center">
-                      <span v-if="q.completionDate" class="text-sm text-muted">{{ formatDateTime(q.completionDate) }}</span>
+                      <span v-if="q.completionDate" class="text-sm text-muted">{{
+                        formatDateTime(q.completionDate)
+                      }}</span>
                       <span v-else class="text-sm text-muted italic">Not completed</span>
                     </td>
                     <td class="px-5 py-3 text-center">
@@ -1411,6 +1696,23 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
+                        <UButton
+                          icon="i-lucide-message-circle"
+                          color="success"
+                          variant="ghost"
+                          size="xs"
+                          title="Kirim via WhatsApp"
+                          :disabled="!reg?.patient?.phone"
+                          @click="shareQuestionnaireViaWa(q.questionnaire_id)"
+                        />
+                        <UButton
+                          icon="i-lucide-link"
+                          color="neutral"
+                          variant="ghost"
+                          size="xs"
+                          title="Copy Link"
+                          @click="copyQuestionnaireLink(q.questionnaire_id)"
+                        />
                         <UButton
                           icon="i-lucide-eye"
                           color="primary"
@@ -1434,8 +1736,13 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             </div>
           </div>
 
-          <div v-if="isMCU" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
-            <div class="px-5 py-4 border-b border-default flex flex-wrap items-center justify-between gap-3">
+          <div
+            v-if="isMCU"
+            class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+          >
+            <div
+              class="px-5 py-4 border-b border-default flex flex-wrap items-center justify-between gap-3"
+            >
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-activity" class="text-primary" />
                 MCU Breakdown
@@ -1457,14 +1764,14 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                       <h4 class="text-sm font-semibold text-highlighted">
                         {{ cat.label }}
                       </h4>
-              <UBadge
-                :label="getExamItemStatusLabel(cat.status)"
-                :color="getExamItemStatusColor(cat.status)"
-                variant="soft"
-                size="xs"
-                :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
-              />
-{{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
+                      <UBadge
+                        :label="getExamItemStatusLabel(cat.status)"
+                        :color="getExamItemStatusColor(cat.status)"
+                        variant="soft"
+                        size="xs"
+                        :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
+                      />
+                      {{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
                     </div>
                     <p class="mt-1 text-xs text-muted">
                       {{ cat.completed }} selesai dari {{ cat.total }} item
@@ -1474,26 +1781,28 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                   <div class="w-full lg:max-w-xs">
                     <div class="mb-1 flex items-center justify-between text-xs text-muted">
                       <span>Progress</span>
-                      <span class="font-medium text-highlighted">{{ cat.completed }}/{{ cat.total }}</span>
+                      <span class="font-medium text-highlighted"
+                        >{{ cat.completed }}/{{ cat.total }}</span
+                      >
                     </div>
                     <div class="h-2 overflow-hidden rounded-full bg-elevated">
                       <div
                         class="h-full rounded-full bg-primary"
-                        :style="{ width: `${cat.total ? Math.round((cat.completed / cat.total) * 100) : 0}%` }"
+                        :style="{
+                          width: `${cat.total ? Math.round((cat.completed / cat.total) * 100) : 0}%`
+                        }"
                       />
                     </div>
                   </div>
                 </div>
 
                 <div
-                  v-if="cat.items.some(item => item.sampleCollections.length)"
+                  v-if="cat.items.some((item) => item.sampleCollections.length)"
                   class="mt-4 rounded-lg border border-info/30 bg-info/5 p-3"
                 >
                   <div class="mb-3 flex items-center gap-2">
                     <UIcon name="i-lucide-test-tube-diagonal" class="text-info" />
-                    <p class="text-xs font-semibold uppercase text-muted">
-                      Status Sample
-                    </p>
+                    <p class="text-xs font-semibold uppercase text-muted">Status Sample</p>
                   </div>
                   <div class="space-y-3">
                     <template v-for="item in cat.items" :key="`sample-${item.id}`">
@@ -1504,7 +1813,8 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                       >
                         <div class="min-w-0">
                           <p class="text-sm font-semibold text-highlighted">
-                            {{ item.name }} · {{ sample.sampleType?.name || sample.sampleType?.code || 'Sample' }}
+                            {{ item.name }} ·
+                            {{ sample.sampleType?.name || sample.sampleType?.code || 'Sample' }}
                           </p>
                           <p v-if="sample.rejectReason" class="mt-0.5 text-xs text-error">
                             {{ sample.rejectReason }}
@@ -1520,8 +1830,20 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                         </div>
                         <UBadge
                           class="sm:col-start-1"
-                          :label="item.status === 'REFUSED' ? 'Rejected' : getSampleStatusLabel(sample.status)"
-                          :color="item.status === 'REFUSED' ? 'error' : getSampleStatusColor(sample.status)"
+                          :label="
+                            item.status === 'REFUSED'
+                              ? 'Rejected'
+                              : item.status === 'RESCHEDULED'
+                                ? 'Reschedule'
+                                : getSampleStatusLabel(sample.status)
+                          "
+                          :color="
+                            item.status === 'REFUSED'
+                              ? 'error'
+                              : item.status === 'RESCHEDULED'
+                                ? 'warning'
+                                : getSampleStatusColor(sample.status)
+                          "
                           variant="soft"
                           size="xs"
                         />
@@ -1533,51 +1855,79 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                 <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div class="rounded-lg border border-default bg-elevated/40 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
-                      <p class="text-xs font-semibold uppercase text-muted">
-                        Belum selesai
-                      </p>
-                      <UBadge :label="`${cat.pendingItems.length} item`" color="neutral" variant="subtle" size="xs" />
+                      <p class="text-xs font-semibold uppercase text-muted">Belum selesai</p>
+                      <UBadge
+                        :label="`${cat.pendingItems.length} item`"
+                        color="neutral"
+                        variant="subtle"
+                        size="xs"
+                      />
                     </div>
                     <div v-if="cat.pendingItems.length" class="flex flex-wrap gap-2">
                       <div
                         v-for="item in cat.pendingItems"
                         :key="item.id"
                         class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border px-3 py-2"
-                        :class="getExamItemStatusColor(item.status) === 'error'
-                          ? 'border-error/40 bg-error/10'
-                          : getExamItemStatusColor(item.status) === 'warning'
-                            ? 'border-warning/40 bg-warning/10'
-                            : 'border-default bg-elevated/60'"
+                        :class="
+                          getExamItemStatusColor(item.status) === 'error'
+                            ? 'border-error/40 bg-error/10'
+                            : getExamItemStatusColor(item.status) === 'warning'
+                              ? 'border-warning/40 bg-warning/10'
+                              : 'border-default bg-elevated/60'
+                        "
                       >
-                        <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
-                          <UIcon :name="getExamItemStatusIcon(item.status)" class="size-4 shrink-0" />
+                        <span
+                          class="flex items-center gap-1.5 text-sm font-semibold text-highlighted"
+                        >
+                          <UIcon
+                            :name="getExamItemStatusIcon(item.status)"
+                            class="size-4 shrink-0"
+                          />
                           {{ item.name }}
                         </span>
-                        <span v-if="['RESCHEDULED', 'REFUSED', 'RETEXT', 'REJECTED'].includes(item.status)" class="flex items-center gap-1.5 text-[11px] font-semibold"
-                          :class="getExamItemStatusColor(item.status) === 'error' ? 'text-error' : 'text-warning'">
-                          <UIcon :name="getExamItemStatusIcon(item.status)" class="size-3.5 shrink-0" />
-                          {{ getExamItemStatusLabel(item.status) }} — FO Attention Required.{{ item.status === 'RESCHEDULED' && getRescheduleVisitDate(item.id) ? ` (${getRescheduleVisitDate(item.id)})` : '' }}
+                        <span
+                          v-if="
+                            ['RESCHEDULED', 'REFUSED', 'RETEXT', 'REJECTED'].includes(item.status)
+                          "
+                          class="flex items-center gap-1.5 text-[11px] font-semibold"
+                          :class="
+                            getExamItemStatusColor(item.status) === 'error'
+                              ? 'text-error'
+                              : 'text-warning'
+                          "
+                        >
+                          <UIcon
+                            :name="getExamItemStatusIcon(item.status)"
+                            class="size-3.5 shrink-0"
+                          />
+                          {{ getExamItemStatusLabel(item.status) }} — FO Attention Required.{{
+                            item.status === 'RESCHEDULED' && getRescheduleVisitDate(item.id)
+                              ? ` (${getRescheduleVisitDate(item.id)})`
+                              : ''
+                          }}
                         </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
                           <UIcon name="i-lucide-play" class="size-3" />
                           Mulai {{ formatDateTime(item.startAt || undefined) }}
                           <span class="mx-1 text-muted">·</span>
                           <UIcon name="i-lucide-check" class="size-3" />
-                          Selesai {{ item.done ? formatDateTime(item.doneAt || undefined) : 'Belum' }}
+                          Selesai
+                          {{ item.done ? formatDateTime(item.doneAt || undefined) : 'Belum' }}
                         </span>
                       </div>
                     </div>
-                    <p v-else class="text-sm text-muted">
-                      Tidak ada item pending.
-                    </p>
+                    <p v-else class="text-sm text-muted">Tidak ada item pending.</p>
                   </div>
 
                   <div class="rounded-lg border border-default bg-background p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
-                      <p class="text-xs font-semibold uppercase text-muted">
-                        Selesai
-                      </p>
-                      <UBadge :label="`${cat.completedItems.length} item`" color="success" variant="subtle" size="xs" />
+                      <p class="text-xs font-semibold uppercase text-muted">Selesai</p>
+                      <UBadge
+                        :label="`${cat.completedItems.length} item`"
+                        color="success"
+                        variant="subtle"
+                        size="xs"
+                      />
                     </div>
                     <div v-if="cat.completedItems.length" class="flex flex-wrap gap-2">
                       <div
@@ -1585,8 +1935,13 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                         :key="item.id"
                         class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border border-success/30 bg-success/10 px-3 py-2"
                       >
-                        <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
-                          <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0 text-success" />
+                        <span
+                          class="flex items-center gap-1.5 text-sm font-semibold text-highlighted"
+                        >
+                          <UIcon
+                            name="i-lucide-check-circle-2"
+                            class="size-4 shrink-0 text-success"
+                          />
                           {{ item.name }}
                         </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
@@ -1598,16 +1953,17 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                         </span>
                       </div>
                     </div>
-                    <p v-else class="text-sm text-muted">
-                      Belum ada item selesai.
-                    </p>
+                    <p v-else class="text-sm text-muted">Belum ada item selesai.</p>
                   </div>
                 </div>
               </section>
             </div>
           </div>
 
-          <div v-if="isMCU && additionalItems.length" class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
+          <div
+            v-if="isMCU && additionalItems.length"
+            class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
+          >
             <div class="px-5 py-4 border-b border-default flex items-center justify-between">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-plus-circle" class="text-primary" />
@@ -1622,7 +1978,11 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             </div>
             <div class="p-5">
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div v-for="ei in additionalItems" :key="ei.id" class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3">
+                <div
+                  v-for="ei in additionalItems"
+                  :key="ei.id"
+                  class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3"
+                >
                   <div>
                     <p class="text-sm font-semibold">
                       {{ ei.item.name }}
@@ -1642,7 +2002,6 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -1654,7 +2013,9 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
 
           <div v-else class="space-y-4">
             <div class="flex items-center gap-3 p-4 rounded-xl bg-elevated border border-default">
-              <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div
+                class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"
+              >
                 <UIcon name="i-lucide-user-circle" class="text-primary text-2xl" />
               </div>
               <div>
@@ -1662,38 +2023,39 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                   {{ checkinPreview?.patient?.patientName ?? reg?.patient?.patientName ?? '-' }}
                 </p>
                 <p class="text-xs text-muted mt-0.5">
-                  {{ checkinPreview?.patient?.idType ?? reg?.patient?.idType }}: {{ checkinPreview?.patient?.idNumber ?? reg?.patient?.idNumber }}
+                  {{ checkinPreview?.patient?.idType ?? reg?.patient?.idType }}:
+                  {{ checkinPreview?.patient?.idNumber ?? reg?.patient?.idNumber }}
                 </p>
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">
-                  No. Registrasi
-                </p>
-                <code class="text-sm font-bold text-primary">{{ checkinPreview?.registration.id_reg ?? reg?.id_reg }}</code>
+                <p class="text-xs text-muted mb-1">No. Registrasi</p>
+                <code class="text-sm font-bold text-primary">{{
+                  checkinPreview?.registration.id_reg ?? reg?.id_reg
+                }}</code>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">
-                  Layanan
-                </p>
+                <p class="text-xs text-muted mb-1">Layanan</p>
                 <p class="text-sm font-semibold">
-                  {{ SERVICE_LABEL[checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''] ?? checkinPreview?.registration.serviceType ?? reg?.serviceType }}
+                  {{
+                    SERVICE_LABEL[
+                      checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''
+                    ] ??
+                    checkinPreview?.registration.serviceType ??
+                    reg?.serviceType
+                  }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">
-                  Tanggal Periksa
-                </p>
+                <p class="text-xs text-muted mb-1">Tanggal Periksa</p>
                 <p class="text-sm font-semibold">
                   {{ checkinPreview?.registration.examDate ?? reg?.examDate }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">
-                  Branch
-                </p>
+                <p class="text-xs text-muted mb-1">Branch</p>
                 <p class="text-sm font-semibold">
                   {{ checkinPreview?.branch?.nameBranch ?? reg?.branch?.nameBranch ?? '-' }}
                 </p>
@@ -1703,14 +2065,18 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
             <div class="rounded-xl border border-default bg-elevated/60 p-4">
               <div class="flex items-center justify-between gap-3">
                 <div>
-                  <p class="text-xs text-muted">
-                    Paket MCU
-                  </p>
+                  <p class="text-xs text-muted">Paket MCU</p>
                   <p class="text-sm font-semibold">
-                    {{ checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-' }}
+                    {{
+                      checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-'
+                    }}
                   </p>
                 </div>
-                <UBadge :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`" color="neutral" variant="subtle" />
+                <UBadge
+                  :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`"
+                  color="neutral"
+                  variant="subtle"
+                />
               </div>
 
               <div class="mt-4 space-y-3">
@@ -1719,21 +2085,24 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                     Item Paket
                   </p>
                   <div v-if="checkinPaketItems.length" class="space-y-2">
-                    <div v-for="item in checkinPaketItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
+                    <div
+                      v-for="item in checkinPaketItems"
+                      :key="item.id"
+                      class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2"
+                    >
                       <div>
                         <p class="text-sm font-medium">
                           {{ item.item.name }}
                         </p>
                         <p class="text-xs text-muted">
-                          {{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}
+                          {{ item.item.department?.name ?? '-' }} |
+                          {{ item.item.group?.name ?? '-' }}
                         </p>
                       </div>
                       <span class="text-[11px] font-medium text-muted">{{ item.source }}</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">
-                    Belum ada item paket.
-                  </p>
+                  <p v-else class="text-sm text-muted">Belum ada item paket.</p>
                 </div>
 
                 <div>
@@ -1741,33 +2110,47 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                     Item Additional
                   </p>
                   <div v-if="checkinAdditionalItems.length" class="space-y-2">
-                    <div v-for="item in checkinAdditionalItems" :key="item.id" class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2">
+                    <div
+                      v-for="item in checkinAdditionalItems"
+                      :key="item.id"
+                      class="flex items-start justify-between gap-3 rounded-lg border border-default bg-background px-3 py-2"
+                    >
                       <div>
                         <p class="text-sm font-medium">
                           {{ item.item.name }}
                         </p>
                         <p class="text-xs text-muted">
-                          {{ item.item.department?.name ?? '-' }} | {{ item.item.group?.name ?? '-' }}
+                          {{ item.item.department?.name ?? '-' }} |
+                          {{ item.item.group?.name ?? '-' }}
                         </p>
                       </div>
                       <span class="text-[11px] font-medium text-primary">additional</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">
-                    Tidak ada item tambahan.
-                  </p>
+                  <p v-else class="text-sm text-muted">Tidak ada item tambahan.</p>
                 </div>
               </div>
             </div>
 
             <div
               class="rounded-xl border p-4"
-              :class="checkinPreview?.checkinEligibility.canCheckin ? 'border-green-200 bg-green-50/80' : 'border-amber-200 bg-amber-50/80'"
+              :class="
+                checkinPreview?.checkinEligibility.canCheckin
+                  ? 'border-green-200 bg-green-50/80'
+                  : 'border-amber-200 bg-amber-50/80'
+              "
             >
               <p class="text-sm font-semibold">
-                {{ checkinPreview?.checkinEligibility.canCheckin ? 'Data siap di-check-in ke queue umum' : 'Data belum siap di-check-in' }}
+                {{
+                  checkinPreview?.checkinEligibility.canCheckin
+                    ? 'Data siap di-check-in ke queue umum'
+                    : 'Data belum siap di-check-in'
+                }}
               </p>
-              <ul v-if="checkinPreview && checkinPreview.checkinEligibility.reasons.length" class="mt-2 space-y-1 text-sm text-muted">
+              <ul
+                v-if="checkinPreview && checkinPreview.checkinEligibility.reasons.length"
+                class="mt-2 space-y-1 text-sm text-muted"
+              >
                 <li v-for="reason in checkinPreview.checkinEligibility.reasons" :key="reason">
                   - {{ reason }}
                 </li>
@@ -1806,15 +2189,14 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <UIcon name="i-lucide-check-circle-2" class="text-green-500 text-4xl" />
             </div>
             <div>
-              <p class="text-sm text-muted mb-2">
-                Nomor Antrian
-              </p>
+              <p class="text-sm text-muted mb-2">Nomor Antrian</p>
               <p class="text-5xl font-black text-primary tracking-tight">
                 {{ reg?.queue?.queueCode }}
               </p>
             </div>
             <p class="text-sm text-muted max-w-xs">
-              Pasien telah masuk ruang tunggu. Petugas masing-masing ruangan akan memanggil sesuai urutan.
+              Pasien telah masuk ruang tunggu. Petugas masing-masing ruangan akan memanggil sesuai
+              urutan.
             </p>
           </div>
         </template>
@@ -1838,9 +2220,7 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
               <UIcon name="i-lucide-calendar-x" class="text-warning text-3xl" />
             </div>
             <div class="space-y-1">
-              <p class="text-sm text-muted">
-                Exam pasien dijadwalkan pada tanggal
-              </p>
+              <p class="text-sm text-muted">Exam pasien dijadwalkan pada tanggal</p>
               <p class="text-2xl font-bold tracking-tight text-highlighted">
                 {{ reg?.examDate?.slice(0, 10) }}
               </p>
@@ -1870,19 +2250,12 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
                 </p>
               </div>
             </div>
-            <p v-else class="text-sm text-muted text-center py-4">
-              Tidak ada jawaban.
-            </p>
+            <p v-else class="text-sm text-muted text-center py-4">Tidak ada jawaban.</p>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              label="Close"
-              @click="modalOpen = false"
-            />
+            <UButton color="neutral" variant="ghost" label="Close" @click="modalOpen = false" />
           </div>
         </template>
       </UModal>
@@ -1890,16 +2263,29 @@ watch(() => [reg.value?.statusRegistration, isCheckedIn.value], () => {
       <UModal v-model:open="showRescheduleModal" title="Reschedule Visit Date">
         <template #body>
           <div class="space-y-4">
-            <p class="text-sm text-muted">Pilih tanggal datang ulang pasien untuk item yang di-reschedule:</p>
-            <div v-for="(item, idx) in rescheduleDraft" :key="item.roomExamItemId" class="flex flex-col gap-2 rounded-lg border border-default p-3">
-              <p class="text-sm font-semibold text-highlighted">{{ item.itemName }}</p>
+            <p class="text-sm text-muted">
+              Pilih tanggal datang ulang pasien untuk item yang di-reschedule:
+            </p>
+            <div
+              v-for="(item, idx) in rescheduleDraft"
+              :key="item.roomExamItemId"
+              class="flex flex-col gap-2 rounded-lg border border-default p-3"
+            >
+              <p class="text-sm font-semibold text-highlighted">
+                {{ item.itemName }}
+              </p>
               <UInput v-model="item.visitDate" type="date" class="w-full" />
             </div>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton label="Batal" variant="outline" :disabled="savingReschedule" @click="showRescheduleModal = false" />
+            <UButton
+              label="Batal"
+              variant="outline"
+              :disabled="savingReschedule"
+              @click="showRescheduleModal = false"
+            />
             <UButton
               v-if="rescheduleMode === 'dates'"
               label="Simpan Tanggal"

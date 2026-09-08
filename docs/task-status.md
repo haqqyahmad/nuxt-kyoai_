@@ -1,6 +1,211 @@
 # Project Task Status
 
-Last updated: 2026-08-23
+Last updated: 2026-09-08
+
+## Completed — 2026-09-08: MR flow bertahap persis BMAD (MR_REVIEW & READY_TO_RELEASE)
+
+- **BE `src/services/medical-report/medical-report.service.js`**:
+  - `verifyMedicalReport`: bertahap `DOCTOR_APPROVED → MR_REVIEW` (klik pertama = "Mulai Review"), lalu `MR_REVIEW → MR_VERIFIED` (klik kedua = "Verifikasi").
+  - `releaseMedicalReport`: bertahap `MR_VERIFIED → READY_TO_RELEASE` ("Siap Rilis"), lalu `READY_TO_RELEASE → RELEASED` ("Rilis"); exam hanya di-set `completed` saat report benar2 `RELEASED`.
+- **FE `app/pages/result/mr-review/[id].vue`**: label tombol dinamis (Mulai Review/Verifikasi, Siap Rilis/Rilis).
+- **FE `app/pages/result/mr-review/index.vue`**: tambah opsi status `MR_REVIEW` (Sedang Review MR) + `totalWaiting` menghitung `DOCTOR_APPROVED` & `MR_REVIEW`.
+- Rantai MR kini: `DOCTOR_APPROVED → MR_REVIEW → MR_VERIFIED → READY_TO_RELEASE → RELEASED` (BMAD §11.2).
+
+## Completed — 2026-09-08: Aktifkan SUBMITTED_TO_DOCTOR & DOCTOR_REVIEW + hapus department-approval
+
+- **BE `src/services/exam/exam.service.js`**:
+  - `approveDepartmentResult`: setelah **SEMUA** department result approved → semua dept result di-set `SUBMITTED_TO_DOCTOR` + `MedicalReport` dibuat berstatus `DOCTOR_REVIEW`.
+  - `submitDoctorResult`: menerima report `DOCTOR_REVIEW` (submit pertama) atau `MR_RETURNED_TO_DOCTOR` (resubmit) → `DOCTOR_APPROVED`. Penutupan revision item hanya pada resubmit.
+  - `getExamResultsGrouped`: ekspos `medicalReportStatus` per exam + filter opsional `?medicalReportStatus=`.
+- **FE `app/pages/result/doctor-result/index.vue`**: worklist dokter di-gate `medicalReportStatus` (pending=`DOCTOR_REVIEW`, needs_revision=`MR_RETURNED_TO_DOCTOR`, completed=`DOCTOR_APPROVED`).
+- **FE**: halaman + menu `department-approval` dihapus (`app/pages/result/department-approval.vue`, entri di `constants/menu.ts` & `layouts/default.vue`) — approve department tetap tersedia di detail hasil (`exam-results` DetailDrawer) via `POST /department-result/approve`.
+- **BE `docs/bmad/12-mcu-flow.md`**: diselaraskan ke single-step department approval + status `SUBMITTED_TO_DOCTOR`/`DOCTOR_REVIEW` aktif.
+
+## Completed — 2026-09-04: Dental "Selesaikan Item" muncul setelah Simpan Draft
+
+- **FE `app/components/rooms/DentalExamWorkPanel.vue`**: tombol **Selesaikan Item** di panel Dental kini hanya muncul setelah **Simpan Draft** diklik (flag `draftSaved` di-set dari event `@saved`). Sebelumnya muncul kapan pun item IN_PROGRESS.
+
+## Completed — 2026-09-04: Department result masuk review hanya setelah semua item selesai (Opsi 1b)
+
+- **BE `express_dash` `src/repositories/exam/exam.repository.js`** (`submitDepartmentResults`): kini mengambil semua item department (bukan hanya item yang disubmit). Jika belum semua item selesai → item ditandai tersubmit (`partial`), department **belum** masuk review. Jika semua item selesai → snapshot seluruh department + set `DEPARTMENT_REVIEW`. Guard hanya blokir `DEPARTMENT_APPROVED`/`SUBMITTED_TO_DOCTOR` (REVIEW boleh di-resubmit).
+- **Alur:** Selesaikan per item → tersubmit; item terakhir memicu review department.
+
+## Completed — 2026-09-04: Treadmill Screening sebagai item Dokter (gaya Romberg) + EcgResultPanel dipindah
+
+- **BE `express_dash`**
+  - `prisma/seedTreadmillScreeningItem.js` (baru): master item **"Treadmill Screening"** (`DOK-TREADMILL-SCREENING`, dept & roomType **DOK**, renderer GENERIC). Sudah dijalankan & di-backfill ke exam `REG-20260907-01-0001`.
+  - `src/repositories/exam/exam.repository.js` (`snapshotPaketItems`): saat exam dibuat dari paket, jika paket memuat item **Treadmill** → otomatis tambah item "Treadmill Screening".
+- **FE `my-app`**
+  - `app/components/rooms/TreadmillScreeningWorkPanel.vue` (baru, meniru `DoctorTestWorkPanel`): questionnaire 6 Yes/No (`QST-TREADMILL-SCREENING`) + **EcgResultPanel** (upload ECG + approve/reject treadmill) + tombol Mulai/Selesaikan/Pasien Menolak.
+  - `app/constants/exam-renderers.ts` + `app/types/physical.ts`: renderer `TREADMILL_SCREENING` (rute via kode item).
+  - `app/pages/rooms/queue-work/[id].vue`: item Treadmill Screening dirender & masuk `isCustomDoctorExamItem`.
+  - `app/components/rooms/PhysicalExamWorkPanel.vue`: **sub-tab Treadmill Questionnaire dimatikan** & `EcgResultPanel` **dipindah** ke Treadmill Screening (Physical Exam kembali murni form).
+
+## Completed — 2026-09-04: Additional items tampil di banner "Patient cannot be discharged yet"
+
+- **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): loop `nonFinalItems` kini mengiterasi semua item exam (paket + additional) & menandai `isAdditional`.
+- **FE `app/pages/front-office/registration-patient/[id].vue`**: di banner checkout, item dengan `isAdditional` ditampilkan dengan badge kecil **"Additional"** (ikon plus-circle).
+
+## Completed — 2026-09-04: Sample reception filter by queueDate (dukung resample)
+
+- **BE `express_dash` `src/repositories/queue/queue.repository.js`** (`buildSampleCollectionWhere`): dukung `queueDateFrom`/`queueDateTo` → filter `queueEntry.queueDate`.
+- **FE `app/components/rooms/SampleReceptionPanel.vue`**: filter kini mengirim `queueDateFrom`/`queueDateTo` (label "Tanggal Queue") alih-alih `examDate`.
+- **Efek:** sample kunjungan kembali (resample) kini muncul saat filter tanggal kunjungan (`queueDate`), bukan `examDate` asli.
+
+## Completed — 2026-09-04: Banner notif additional item pemeriksaan di halaman registration-patient
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**: tambah `UAlert` (info) di atas — "Pasien memiliki additional item pemeriksaan" dengan daftar nama item tambahan. Muncul saat `isMCU && additionalItems.length`; diposisikan setelah banner Reschedule Items (sebelum banner Check-out eligibility).
+
+## Completed — 2026-09-04: Riwayat check-in/check-out kunjungan kembali + badge "Datang lagi" benar
+
+- **BE `express_dash`**
+  - `src/services/queue/queue.service.js` + controller: `resampleCheckin` kini mencatat audit **`RETURN_VISIT_CHECKIN`** (check-in kunjungan kembali) dengan `actorId` — sebelumnya tidak ada.
+  - `src/services/registration/registration.service.js` (`decorateListCanCheckout`): `rescheduleVisitDate` hanya dihitung dari item **`workStatus === 'RESCHEDULED'`** → badge "Datang lagi" di list hilang setelah kunjungan kembali selesai (workStatus DONE).
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - `statusHistoryLabel/Desc`: label ramah untuk `RETURN_VISIT_CHECKIN` ("Check-in Kunjungan Kembali") & `RETURN_VISIT_COMPLETED` ("Kunjungan Kembali Selesai").
+  - `canCompleteReturnVisit` kini `false` saat `exam.status === 'completed'` → tombol "Selesaikan Kunjungan Kembali" hilang setelah selesai (seperti Check-out).
+
+## Completed — 2026-09-04: Modal Tambah Item Pemeriksaan samakan dengan packages + filter server-side
+
+- **BE `express_dash` `src/repositories/item/item.repository.js`** (`findAll`): dukung param `excludeItemIds` (comma-separated) → `where.id = { notIn: ids }`.
+- **FE `app/pages/front-office/registration-patient/create.vue`**:
+  - Modal "Tambah Item Pemeriksaan" disamakan dengan `/services/packages/create` — tambah filter **Department** & **Item Group**, load semua item saat dibuka (bukan hanya saat search), debounce search, grouping hasil.
+  - `fetchAdditionalItems` mengirim `excludeItemIds` (item paket + sudah ditambahkan) → server mengecualikannya; tidak filter-klien lagi.
+  - Empty state diubah dari "Ketik untuk mencari item" → "Tidak ada item pemeriksaan".
+
+## Completed — 2026-09-04: Banner & tombol reschedule konsisten dengan status workStatus
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - `rescheduleBannerItems` & `hasRescheduleItem` kini memakai `workStatus === 'RESCHEDULED'` (bukan `roomExamItems.some(RESCHEDULED)`).
+  - **Efek:** item yang masih di-reschedule → banner & tombol Patient Return Visit / Change Follow-up Date tampil; item yang sudah selesai di-resample (`workStatus: DONE`) → semuanya hilang. Sebelumnya blok/roomExamItem parent lama membuat item yang sudah selesai tetap tampak reschedule.
+
+## Completed — 2026-09-04: Selesaikan Kunjungan Kembali (Opsi C) + sembunyikan Patient Return Visit
+
+- **BE `express_dash`**
+  - `src/services/registration/registration.service.js`: `completeReturnVisit(id_reg)` — validasi entry RESAMPLE aktif + semua room final + semua item exam final, lalu `exam.status = completed`, `statusRegistration = CheckOut`, entry resample `DONE` + audit.
+  - Controller + route: `PATCH /registration/:id_reg/complete-return-visit`.
+  - `src/repositories/registration/registration.repositories.js`: select `registration.queue` menyertakan `type`.
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - Tipe `QueueInfo` + `type`.
+  - Computed `returnVisitActive` (queue terbaru = RESAMPLE) & `canCompleteReturnVisit` (semua item exam DONE/REFUSED/SKIPPED).
+  - Tombol **"Selesaikan Kunjungan Kembali"** (muncul saat kunjungan kembali aktif & item selesai) → panggil endpoint + refresh.
+  - Tombol **Patient Return Visit** kini **disembunyikan** bila `returnVisitActive` (kunjungan kembali sudah dibuat).
+
+## Completed — 2026-09-04: Fix status item lab resampled (Diff Count) tetap "Reschedule"
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`, cabang item lab): kembalikan **DONE** bila `workStatus === 'DONE'` atau semua sample `RECEIVED` — dievaluasi **sebelum** cek `roomStatuses.includes('RESCHEDULED')`.
+- **Akar:** item yang di-reschedule lalu dikerjakan ulang (resample) punya 2 roomExamItem — parent (RESCHEDULED) & resample (DONE). Sebelumnya prioritas RESCHEDULED (dari parent lama) membuat item tetap "Reschedule" walau sudah selesai (workStatus DONE, sample RECEIVED), sehingga tak pindah ke card "Selesai" & Status Sample tidak berubah.
+- **Efek:** item resampled selesai → DONE; item reschedule yang belum di-resample → tetap RESCHEDULED.
+
+## Completed — 2026-09-04: Date Range filter hasil berfungsi server-side + bersihkan lint index.vue
+
+- **BE `express_dash` `src/services/exam/exam.service.js`**: `getExamResults` & `getExamResultsGrouped` kini memfilter `trxExamItem.createdAt` (tanggal check-in, selaras kolom "Check-in") berdasar `dateFrom`/`dateTo` (inklusif, `lte` akhir hari).
+- **FE `app/pages/result/exam-results/index.vue`**: `loadResults` mengirim `dateFrom`/`dateTo` ke backend. Sebelumnya filter tanggal hanya client-side atas halaman aktif (tidak konsisten dgn pagination). Sekaligus **bersihkan pre-existing lint errors** (`eslint --fix` 36 + 2 manual: hapus `roles` tak terpakai, `Record<string, any>` → `unknown`); ESLint 0 error, typecheck bersih.
+
+## Completed — 2026-09-04: Banner Reschedule Items tetap tampil setelah checkout + Patient Return Visit ketat tanggal
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`**
+  - Banner **Reschedule Items** kini dihitung dari data exam (`rescheduleBannerItems`/`hasRescheduleForBanner`), tidak lagi tergantung `checkoutEligibility` (yang dipaksa `null` saat CheckOut) → **tetap tampil walau pasien sudah checkout**.
+  - Tombol **Patient Return Visit** sekarang **strict**: hanya aktif bila `today === rescheduleVisitDate` (persis tanggal kunjungan kembali). Di luar itu tombol disabled + toast menyarankan pakai **Change Follow-up Date**.
+
+## Completed — 2026-09-04: Lepas flag calledRoomTypeId saat item di-reschedule (exam tidak ter-hold)
+
+- **BE `express_dash` `src/repositories/roomExamItem/roomExamItem.repository.js`** (`rescheduleRoomExamItem`): tambah helper `releaseCalledRoomIfFinal`. Setelah item di-reschedule, jika room (RoomQueueItem) tidak lagi punya item yang bisa dikerjakan (semua final: DONE/SKIPPED/RESCHEDULED/REFUSED) dan `queueEntry.calledRoomTypeId` = room tsb → set `calledRoomTypeId/calledAt = null`.
+- **Efek:** pasien yang itemnya di-reschedule (partial exam) namun masih punya exam hari ini di room lain **tidak lagi ter-hold** — kembali tampil di waiting list room lain (mis. Dental, Konsultasi Dokter). Sebelumnya `calledRoomTypeId` hanya dilepas saat ROOM DONE (`queue.repository.js:1470`), sehingga item-reschedule yang room-nya bukan DONE membuat pasien tersembunyi.
+- **Contoh:** reg `REG-20260905-01-0002` — LAB hanya berisi Diff Count (RESCHEDULED) → `calledRoomTypeId` LAB dilepas → pasien muncul kembali di waiting Dental/DOK.
+
+## Completed — 2026-09-04: Badge sample ikut "Reschedule" saat item di-reschedule
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (Status Sample di MCU Breakdown): badge sample kini menampilkan **"Reschedule"** (warna warning) ketika `item.status === 'RESCHEDULED'` — setara penanganan `REFUSED`. Sebelumnya badge ikut `getSampleStatusLabel(sample.status)` sehingga tampil "Menunggu Ambil" meski item reschedule. Konsisten antara level item & sample.
+
+## Completed — 2026-09-04: Notif Reschedule item lab di MCU Breakdown + sample ikut resample
+
+- **FE `app/pages/front-office/registration-patient/[id].vue`** (`getExamItemStatus`): untuk item lab, tambah deteksi `roomExamItem.status === 'RESCHEDULED'` → item yang room-nya di-reschedule tampil **"Reschedule"** (dengan "FO Attention Required") di MCU Breakdown (sebelumnya jatuh ke `WAITING_SAMPLE` karena status sample PENDING).
+- **BE `src/services/queue/queue.service.js`** (`resampleCheckin`): sample collection kini mengikuti **item di room yang di-reschedule** (dari `item.sampleTypes` ↔ `queue.sampleCollections`), bukan hanya sample berstatus `RESCHEDULED`. Sample dibuat ulang (PENDING) di entry resample → siap diambil saat patient datang ulang.
+- **Verifikasi:** reg `REG-20260905-01-0002` → sample `Darah` milik Diff Count ikut dibawa ke entry resample (PENDING).
+
+## Completed — 2026-09-04: Banner Reschedule Items tampilkan item + tipe sample
+
+- **BE `express_dash` `src/services/registration/registration.service.js`** (`getCheckoutEligibility`): `rescheduledItems` kini `[{ itemName, samples: [{ name }] }]` — sample diambil dari `queue.sampleCollections` yang cocok dengan sample type milik item yang di-reschedule (`item.sampleTypes`). Deteksi reschedule memakai `roomExamItem.status === 'RESCHEDULED'` (bukan RoomQueueItem.status).
+- **FE `app/pages/front-office/registration-patient/[id].vue`:** tipe `rescheduledItems` + render banner dengan format **"Nama item (tipe sample)"**; bagian sample hanya muncul bila item punya sample. Status dihilangkan.
+- **Contoh:** `Diff Count (Darah)`.
+
+## Completed — 2026-09-04: Fix banner Reschedule tidak muncul saat item reschedule tanpa tanggal
+
+- **Gejala:** item Diff Count berstatus **RESCHEDULED** tapi banner/aksi Reschedule tidak muncul di halaman registration-patient.
+- **Akar:** `hasRescheduleItem` di `app/pages/front-office/registration-patient/[id].vue` mensyaratkan `status === 'RESCHEDULED' && rescheduleVisitDate` (butuh KEDUANYA). Jika item di-reschedule tapi `rescheduleVisitDate` masih `null`, banner tidak tampil.
+- **Fix:** longgarkan menjadi cukup `r.status === 'RESCHEDULED'`. Aman karena `handleResampleCheckin` & `rescheduleCheckoutItems` tidak bergantung pada tanggal (default `''` bila kosong).
+
+## Completed — 2026-09-04: Fix tombol "Selesaikan Pemeriksaan" butuh hard-refresh
+
+- **Gejala:** tombol **"Selesaikan Pemeriksaan"** di Physical Examination Panel (di samping Save Draft) disabled sampai hard-refresh.
+- **Akar:** `canSubmit` diambil sekali saat panel mount dari `canSubmitDoctorExam(resultStatus, workStatus)` (yang `true` hanya saat `workStatus` IN_PROGRESS/DONE). Saat item masih PENDING, `canSubmit=false`; setelah item di-start ("Mulai Item") `workStatus` jadi IN_PROGRESS, tapi FE tidak re-fetch → tombol tetap disabled.
+- **Fix (`app/components/rooms/PhysicalExamPanel.vue`):** tambah watcher `props.disabled` (true → false = item mulai dikerjakan) → panggil `refreshFlags()` untuk me-refresh `status/canEdit/canSubmit` tanpa me-reset data yang sedang diisi.
+- **Verifikasi:** DB contoh `workStatus=IN_PROGRESS`, `resultStatus=NOT_READY` → `canSubmit` seharusnya `true`.
+
+## Completed — 2026-09-04: Tampilkan Treadmill Questionnaire di list Medical Questionnaires
+
+- **BE `express_dash` `src/services/public-registration/public-registration.service.js`** (`getQuestionnaires`): kini menyertakan questionnaire yang terhubung ke item Treadmill pada exam registration (via `trxExamItem.item.clearanceQuestionnaireId`, hanya yang `isActive`), sehingga **Treadmill Screening tampil di list Medical Questionnaires** sejak awal — walau belum dijawab (sebelumnya hanya muncul setelah diisi QstAnswer).
+- **Perilaku:** list menampilkan default MCU + questionnaire treadmill (jika paket punya treadmill) + questionnaire yang sudah dijawab.
+- **Verifikasi:** `node --check` OK; panggil service `REG-20260904-01-0001` → 2 questionnaire (`MCU`, `Treadmill Screening`).
+
+## Completed — 2026-09-04: Relokasi panel ECG + gating tombol approve treadmill
+
+Memindahkan `EcgResultPanel` dari dalam sidebar `PhysicalExamPanel` menjadi di **bawah** panel Physical Examination, dan mengubah kemunculan tombol approve.
+
+- **`app/components/rooms/PhysicalExamPanel.vue`**: hapus embed `EcgResultPanel` (yang tadinya di bawah card Report Preview) + prop `physical-exam-all-normal` (tidak terpakai).
+- **`app/components/rooms/PhysicalExamWorkPanel.vue`**: render `EcgResultPanel` di bawah panel Physical, selalu tampil saat `examId` ada; lewati `:physical-exam-all-normal="canApproveTreadmill"`.
+- **`app/components/rooms/EcgResultPanel.vue`**: tombol **"Approve & buka treadmill"** kini `v-if` (hanya muncul saat `physicalExamAllNormal` = Physical DONE + questionnaire treadmill lengkap bila ada); saat belum siap diganti badge "Menunggu Physical Done"; tombol Reject tetap tampil.
+- **Hasil perilaku:** panel ECG tampil dari awal; tombol Approve baru muncul setelah Physical DONE (dan questionnaire treadmill terisi bila ada treadmill).
+
+## Completed — 2026-09-04: Treadmill Questionnaire (screening) di panel Physical Examination
+
+Menambahkan **screening questionnaire treadmill** yang tampil sebagai sub-tab di dalam layar Physical Examination di room. Jawabannya memengaruhi kapan tombol approve treadmill bisa aktif.
+
+- **BE `express_dash`**
+  - `prisma/seedTreadmillQuestionnaire.js` (baru, idempotent): buat questionnaire `QST-TREADMILL-SCREENING` (1 section, 6 pertanyaan `radio` Yes/No) + set `clearanceQuestionnaireId` item `TREAD-0001`.
+  - `src/services/exam/ecg.service.js`: `getOverview` kini menyertakan `treadmill.questionnaire` (sections/questions/options), `questionnaireAnswers`, `questionnaireCompleted`, `registrationId`. Tambah `submitTreadmillQuestionnaire` (reuse `submitAnswers` dari questionnaire.service).
+  - `src/controller/exam/ecg.controller.js` + `src/routers/mcu/mcu.route.js`: endpoint `POST /mcu/exams/:id/ecg/treadmill-questionnaire` (permit `exam:update`).
+- **FE `my-app`**
+  - `app/components/rooms/TreadmillQuestionnairePanel.vue` (baru): form 6 radio Yes/No, prefill dari jawaban existing, badge lengkap, submit, wajib jawab semua.
+  - `app/components/rooms/PhysicalExamWorkPanel.vue`: sub-tab **Physical** & **Treadmill Questionnaire** muncul bila exam punya item Treadmill (`hasTreadmill` dari `/mcu/exams/:id/ecg`); gating approve = `Physical DONE && (tanpa treadmill ATAU questionnaireCompleted)`.
+- **Keterangan arsitektur:** item Treadmill berada di room terpisah (RoomQueueItem sendiri), namun sub-tab muncul di panel Physical karena membaca ada/tidaknya item Treadmill di exam (bukan room). Jawaban disimpan ke `QstAnswer` (registrationId).
+- **Verifikasi:** `getOverview` mengembalikan 6 pertanyaan + `questionnaireCompleted:false`; submit 6 → `count:6`, `completed:true`; `node --check` BE OK; ESLint & typecheck FE (file yang diubah) bersih.
+
+## Completed — 2026-09-04: Seed Input Hasil Treadmill (TREAD-0001)
+
+- **BE `express_dash` `prisma/seedTreadmillTemplate.js`** (baru, idempotent, meniru `seedEcgTemplate.js`): mengisi item **Treadmill `TREAD-0001`** (sudah ada, GENERIC/deferred) dengan **7 inputan `selected`**:
+  - Resting EKG (Normal Sinus Rhythm / Abnormal / Others (Text))
+  - HR response to exercise (Appropriate / Others (Text))
+  - BP response to exercise (Normal / Others (Text))
+  - Symptom (No chest pain induced / Others (Text))
+  - Arrythmia (None / Others (Text))
+  - ST changes (None / Others (Text))
+  - Overall Impression (Normal / Abnormal / Others (Text))
+  - Tiap inputan menandai nilai normal (mst_nilai_normal_selected); opsi `Others (Text)` memicu textbox detail di DetailDrawer.
+- **Conclusion/Catatan**: tidak dibuat sebagai inputan — memakai field "Kesimpulan / Catatan" statis di drawer (parity dengan ECG).
+- **FE**: tidak perlu perubahan — DetailDrawer merender inputan `selected` + detail "Others" otomatis (renderer GENERIC), sehingga form Treadmill tampil seperti ECG.
+- Hasil seed: `createdInputans: 7, createdOptions: 16, createdNormalValues: 7`.
+
+## Completed — 2026-09-04: Fix 403 Settings Workflow Approval (RBAC + permission)
+
+**Gejala:** `GET /api/settings/result-workflow/departments` → `403 Forbidden` untuk semua user, karena route butuh permission `result-workflow:read`/`result-workflow:write` yang **tidak pernah di-seed** dan `permit()` (RBAC middleware) **tidak mem-bypass superadmin** — padahal FE memodelkan superadmin = `*:*` dan banyak service BE lain sudah bypass.
+
+- **BE `express_dash` `src/middleware/rbac.middleware.js`**: `permit()` kini langsung `next()` bila role user mengandung `superadmin` (selaras FE & service lain).
+- **BE `express_dash` `prisma/seedResultWorkflowPermission.cjs`** (baru, idempotent): buat permission `result-workflow:read` + `result-workflow:write`, lalu grant ke role `superadmin` & `admin`. Sudah dijalankan.
+- **Catatan:** `getUserWithPermissions` di-cache Redis 300 detik → admin non-superadmin mungkin perlu tunggu ±5 menit atau re-login sebelum permission terlihat.
+
+## Completed — 2026-09-04: Enforcement Workflow Approval di FE + BE
+
+Halaman pengaturan alur approval sudah ada (`/settings/result-workflow` + BE `result-workflow.service.js`), namun UI approval belum meng-enforce konfigurasi step/reviewer. Kali ini menutup gap enforcement agar FE selaras dengan `canUserReviewStep` di BE.
+
+- **BE `express_dash` `src/services/exam/exam.service.js`**
+  - `listPendingDepartmentApproval`: query workflow menyertakan `roles`; tiap baris kini kembali `reviewerRoleIds` (multi-role), `canApprove` (dihitung via `canUserReviewStep` dengan user login + role), dan `approveDisableReason`.
+  - `getExamResultsGrouped` (detail untuk drawer): tambah `submittedBy` pada query dept result + enrich tiap item/group dengan `departmentStepLabel`, `departmentStepCount`, `departmentReviewerUserId`, `departmentReviewerRoleId(s)`, `departmentCanApprove`, `departmentApproveDisableReason`.
+- **FE `my-app`**
+  - `app/pages/result/department-approval.vue`: tombol **Approve di-disable** bila `canApprove === false` (+ tooltip alasan); kolom **Langkah** kini menampilkan `Step X/Y` dan reviewer yang ditunjuk (user/role/four-eyes); fetch users + roles untuk label reviewer.
+  - `app/pages/result/exam-results/components/DetailDrawer.vue`: `canApproveCurrentResult` kini memakai `departmentCanApprove` dari BE (fallback four-eyes lama); tombol **Approve tampil saat REVIEW & ter-disable + tooltip** bila bukan reviewer.
+- **Verifikasi:** `node --check` BE OK; ESLint FE file yang diubah clean; `nuxt typecheck` masih ada banyak error pre-existing di seluruh project (tidak ada error baru dari file yang diubah).
 
 ## Completed — 2026-08-23: Reschedule datang-ulang + appointment + kolom Reschedule modal waiting
 

@@ -2,6 +2,7 @@
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
 import PhysicalExamWorkPanel from '~/components/rooms/PhysicalExamWorkPanel.vue'
 import DoctorTestWorkPanel from '~/components/rooms/DoctorTestWorkPanel.vue'
+import TreadmillScreeningWorkPanel from '~/components/rooms/TreadmillScreeningWorkPanel.vue'
 import { resolveRenderer } from '~/constants/exam-renderers'
 import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
 import { useAudit } from '~/composables/useAudit'
@@ -287,7 +288,13 @@ const patientDetail = ref<Patient | null>(null)
 const patientDetailLoading = ref(false)
 const patientDetailError = ref('')
 const roomExamItems = ref<RoomExamItem[]>([])
-const activeExamId = computed(() => roomExamItems.value.find(item => item.trxExamItem?.exam?.id)?.trxExamItem?.exam?.id ?? '')
+const activeExamId = computed(() => {
+  const fromItems = roomExamItems.value.find(item => item.trxExamItem?.exam?.id ?? item.trxExamItem?.examId)
+    ?.trxExamItem?.exam?.id ?? roomExamItems.value.find(item => item.trxExamItem?.examId)?.trxExamItem?.examId ?? ''
+  if (fromItems) return fromItems
+  const fromSelected = selectedItem.value?.trxExamItem?.exam?.id ?? selectedItem.value?.trxExamItem?.examId ?? ''
+  return fromSelected
+})
 const stageActionLoading = ref(false)
 const itemActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
@@ -847,11 +854,28 @@ function isDoctorTestExamItem(item: RoomExamItem) {
   return rendererFor(item) === DoctorTestWorkPanel
 }
 
+function isTreadmillScreeningExamItem(item: RoomExamItem) {
+  return rendererFor(item) === TreadmillScreeningWorkPanel
+}
+
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
+// [TREADMILL CLEARANCE] Semua hasil Physical Examination "No abnormality"?
+// Syarat agar tombol approve & buka treadmill aktif.
+const allPhysicalNoAbnormality = computed<boolean>(() => {
+  const physicalItems = roomExamItems.value.filter(isPhysicalExamItem)
+  if (!physicalItems.length) return false
+  return physicalItems.every(item => {
+    // Item harus sudah disubmit/selesai
+    if (!isExamResultSubmitted(item) && item.status !== 'DONE') return false
+    // Semua baris hasil harus normal (tidak ada flag abnormal/out-of-range)
+    return getPhysicalLegacyRows(item).every(row => !row.flag || row.flag === 'normal')
+  })
+})
+
 function isCustomDoctorExamItem(item: RoomExamItem) {
-  return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item)
+  return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item) || isTreadmillScreeningExamItem(item)
 }
 
 // [FULL-WIDTH] Semua renderer custom dokter tampil full-page. Item generik,
@@ -2108,8 +2132,6 @@ async function handleSubmitItemAction() {
             </div>
           </div>
 
-          <EcgResultPanel v-if="activeExamId" :exam-id="activeExamId" />
-
           <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
 
           <UAlert
@@ -2234,7 +2256,7 @@ async function handleSubmitItemAction() {
                   v-else-if="isPhysicalExamItem(selectedItem)"
                   class="border-0 shadow-none"
                   :item="selectedItem"
-                  :can-start="isExamStageActive()"
+                  :can-start="isExamStageActive() && roomStageInProgress"
                   :can-done="canDoneItem(selectedItem)"
                   :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
@@ -2252,7 +2274,7 @@ async function handleSubmitItemAction() {
                 <DoctorTestWorkPanel
                   v-else-if="isDoctorTestExamItem(selectedItem)"
                   :item="selectedItem"
-                  :can-start="isExamStageActive()"
+                  :can-start="isExamStageActive() && roomStageInProgress"
                   :can-done="canDoneItem(selectedItem)"
                   :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
                   :start-loading="Boolean(itemActionLoading[selectedItem.id])"
@@ -2262,6 +2284,20 @@ async function handleSubmitItemAction() {
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
+                  @refreshed="loadPage(true)"
+                />
+
+                <TreadmillScreeningWorkPanel
+                  v-else-if="isTreadmillScreeningExamItem(selectedItem)"
+                  :item="selectedItem"
+                  :can-start="isExamStageActive() && roomStageInProgress"
+                  :can-done="canDoneItem(selectedItem)"
+                  :can-manage-actions="canManageItemActions && roomStageInProgress && selectedItem.status === 'IN_PROGRESS'"
+                  :start-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  :done-loading="Boolean(itemActionLoading[selectedItem.id])"
+                  @start="handleStartItem(selectedItem)"
+                  @done="handleDoneItem(selectedItem)"
+                  @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @refreshed="loadPage(true)"
                 />
 

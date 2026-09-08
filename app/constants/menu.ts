@@ -150,11 +150,6 @@ export function buildMenuTree(): MenuItem[] {
           to: '/result/mr-review'
         },
         {
-          label: 'Persetujuan Hasil (Inbox)',
-          icon: 'i-lucide-inbox',
-          to: '/result/department-approval'
-        },
-        {
           label: 'Status Examination',
           icon: 'i-lucide-activity',
           to: '/result/exam-status'

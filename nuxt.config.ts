@@ -18,7 +18,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: import.meta.env.NUXT_PUBLIC_API_BASE,
-      apiKey: import.meta.env.NUXT_PUBLIC_API_KEY
+      apiKey: import.meta.env.NUXT_PUBLIC_API_KEY,
+      portalUrl: import.meta.env.NUXT_PUBLIC_PORTAL_URL
     }
   },
 
