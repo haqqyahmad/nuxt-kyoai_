@@ -1,6 +1,16 @@
 # Project Task Status
 
-Last updated: 2026-09-04
+Last updated: 2026-09-08
+
+## Completed — 2026-09-08: Aktifkan SUBMITTED_TO_DOCTOR & DOCTOR_REVIEW + hapus department-approval
+
+- **BE `src/services/exam/exam.service.js`**:
+  - `approveDepartmentResult`: setelah **SEMUA** department result approved → semua dept result di-set `SUBMITTED_TO_DOCTOR` + `MedicalReport` dibuat berstatus `DOCTOR_REVIEW`.
+  - `submitDoctorResult`: menerima report `DOCTOR_REVIEW` (submit pertama) atau `MR_RETURNED_TO_DOCTOR` (resubmit) → `DOCTOR_APPROVED`. Penutupan revision item hanya pada resubmit.
+  - `getExamResultsGrouped`: ekspos `medicalReportStatus` per exam + filter opsional `?medicalReportStatus=`.
+- **FE `app/pages/result/doctor-result/index.vue`**: worklist dokter di-gate `medicalReportStatus` (pending=`DOCTOR_REVIEW`, needs_revision=`MR_RETURNED_TO_DOCTOR`, completed=`DOCTOR_APPROVED`).
+- **FE**: halaman + menu `department-approval` dihapus (`app/pages/result/department-approval.vue`, entri di `constants/menu.ts` & `layouts/default.vue`) — approve department tetap tersedia di detail hasil (`exam-results` DetailDrawer) via `POST /department-result/approve`.
+- **BE `docs/bmad/12-mcu-flow.md`**: diselaraskan ke single-step department approval + status `SUBMITTED_TO_DOCTOR`/`DOCTOR_REVIEW` aktif.
 
 ## Completed — 2026-09-04: Dental "Selesaikan Item" muncul setelah Simpan Draft
 
