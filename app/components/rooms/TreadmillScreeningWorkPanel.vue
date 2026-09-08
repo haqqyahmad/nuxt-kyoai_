@@ -60,23 +60,7 @@ watch(() => examId.value, loadOverview, { immediate: true })
 
 <template>
   <div class="space-y-4">
-    <TreadmillQuestionnairePanel
-      :exam-id="examId"
-      :questionnaire-id="overview?.treadmill?.questionnaireId ?? null"
-      :questionnaire="(overview?.treadmill?.questionnaire as any) ?? null"
-      :answers="overview?.treadmill?.questionnaireAnswers ?? []"
-      :registration-id="overview?.treadmill?.registrationId ?? null"
-      :completed="Boolean(overview?.treadmill?.questionnaireCompleted)"
-      :disabled="disabled || overviewLoading"
-      @submitted="loadOverview"
-    />
-
-    <EcgResultPanel
-      :exam-id="examId"
-      :physical-exam-all-normal="Boolean(overview?.treadmill?.questionnaireCompleted)"
-    />
-
-    <div class="flex flex-wrap justify-end gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2">
       <UButton
         v-if="canStartItem"
         color="primary"
@@ -97,5 +81,21 @@ watch(() => examId.value, loadOverview, { immediate: true })
         Pasien Menolak
       </UButton>
     </div>
+
+    <TreadmillQuestionnairePanel
+      :exam-id="examId"
+      :questionnaire-id="overview?.treadmill?.questionnaireId ?? null"
+      :questionnaire="(overview?.treadmill?.questionnaire as any) ?? null"
+      :answers="overview?.treadmill?.questionnaireAnswers ?? []"
+      :registration-id="overview?.treadmill?.registrationId ?? null"
+      :completed="Boolean(overview?.treadmill?.questionnaireCompleted)"
+      :disabled="disabled || overviewLoading"
+      @submitted="loadOverview"
+    />
+
+    <EcgResultPanel
+      :exam-id="examId"
+      :physical-exam-all-normal="Boolean(overview?.treadmill?.questionnaireCompleted)"
+    />
   </div>
 </template>
