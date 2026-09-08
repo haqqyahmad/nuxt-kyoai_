@@ -184,9 +184,9 @@ onMounted(loadAll)
             <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ detail.examStatus }}</span>
           </div>
           <div class="flex gap-2">
-            <UButton v-if="canVerify" label="Verify" icon="i-lucide-check-circle" color="success" :loading="submitting" @click="handleVerify" />
+            <UButton v-if="canVerify" :label="detail.status === 'DOCTOR_APPROVED' ? 'Mulai Review' : 'Verifikasi'" icon="i-lucide-check-circle" color="success" :loading="submitting" @click="handleVerify" />
             <UButton v-if="canReturn" label="Return ke Dokter" icon="i-lucide-rotate-ccw" color="warning" variant="outline" :loading="submitting" @click="openReturnModal" />
-            <UButton v-if="canRelease" label="Release" icon="i-lucide-send" color="primary" :loading="submitting" @click="handleRelease" />
+            <UButton v-if="canRelease" :label="detail.status === 'MR_VERIFIED' ? 'Siap Rilis' : 'Rilis'" icon="i-lucide-send" color="primary" :loading="submitting" @click="handleRelease" />
           </div>
         </div>
 
