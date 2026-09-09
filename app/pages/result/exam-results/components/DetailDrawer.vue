@@ -30,10 +30,13 @@ type ExamInputOption = {
   sortOrder?: number
 }
 
+type NumberFormat = 'integer' | 'fixed1' | 'fixed3' | 'auto'
+
 type ExamInput = {
   id: string
   label: string
   inputType: 'number' | 'string' | 'selected' | 'calculated'
+  numberFormat?: NumberFormat | null
   uom?: string | null
   allowBlank?: boolean
   opsis?: ExamInputOption[]
@@ -1153,32 +1156,51 @@ function getResultNormalityState(inputan: ExamInput) {
   }
 }
 
+function formatNumberValue(value: number | null | undefined, format: NumberFormat): string {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  const num = Number(value)
+  if (format === 'integer') return String(Math.round(num))
+  if (format === 'fixed1') return num.toFixed(1)
+  if (format === 'fixed3') return num.toFixed(3)
+  // auto: maksimal 2 desimal, nol belakang dibuang
+  return String(parseFloat(num.toFixed(2)))
+}
+
+function formatNumberDisplay(value: number | null | undefined, format?: NumberFormat | null): string {
+  const f: NumberFormat = format ?? 'auto'
+  return formatNumberValue(value, f).replace('.', ',')
+}
+
 function formatNormalRange(
   range: {
     minValue?: number | null
     maxValue?: number | null
     opsi?: ExamInputOption | null
   },
-  unit?: string | null
+  unit?: string | null,
+  format?: NumberFormat
 ) {
   if (range.opsi) {
     return range.opsi.label || range.opsi.value
   }
 
-  const low = range.minValue ?? 'min'
-  const high = range.maxValue ?? 'max'
+  const hasMin = range.minValue != null
+  const hasMax = range.maxValue != null
+  const low = !hasMin ? 'min' : (format ? formatNumberDisplay(range.minValue, format) : String(range.minValue))
+  const high = !hasMax ? 'max' : (format ? formatNumberDisplay(range.maxValue, format) : String(range.maxValue))
 
   return `${low} - ${high}${unit ? ` ${unit}` : ''}`
 }
 
-function formatRangeCriteria(range: { sex?: string | null; ageMin?: number | null }) {
+function formatRangeCriteria(range: { sex?: string | null; ageMin?: number | null }, format?: NumberFormat) {
   const parts: string[] = []
 
   if (range.sex) {
     parts.push(`Sex: ${range.sex}`)
   }
   if (range.ageMin != null) {
-    parts.push(`Age >= ${range.ageMin}`)
+    const age = format ? formatNumberDisplay(range.ageMin, format) : String(range.ageMin)
+    parts.push(`Age >= ${age}`)
   }
 
   return parts.length ? parts.join(' | ') : 'No criteria'
@@ -2080,15 +2102,16 @@ onBeforeUnmount(() => {
                   >{{ inputan.label }}
                   <span v-if="!inputan.allowBlank" class="text-error">*</span></label
                 >
-                <input
-                  v-if="inputan.inputType === 'number'"
-                  v-model="getInputDraft(inputan.id).valueNumber"
-                  type="number"
-                  :disabled="!canEditCurrentResult || isResultBlockedBySample"
-                  :class="getResultInputClass(inputan)"
-                  placeholder="Masukkan hasil"
-                  @input="recomputeCalculatedDrafts(true)"
-                />
+<input
+  v-if="inputan.inputType === 'number'"
+  v-model="getInputDraft(inputan.id).valueNumber"
+  type="number"
+  :disabled="!canEditCurrentResult || isResultBlockedBySample"
+  :class="getResultInputClass(inputan)"
+  placeholder="Masukkan hasil"
+  @input="recomputeCalculatedDrafts(true)"
+/>
+<span v-if="getInputDraft(inputan.id).valueNumber !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueNumber), inputan.numberFormat) }}</span>
                 <input
                   v-else-if="inputan.inputType === 'string'"
                   v-model="getInputDraft(inputan.id).valueString"
@@ -2120,18 +2143,19 @@ onBeforeUnmount(() => {
                     />
                   </div>
                 </template>
-                <input
-                  v-else-if="inputan.inputType === 'calculated'"
-                  v-model="getInputDraft(inputan.id).valueCalculated"
-                  type="number"
-                  disabled
-                  :class="getResultInputClass(inputan)"
-                  placeholder="Dihitung otomatis"
-                />
+<input
+  v-else-if="inputan.inputType === 'calculated'"
+  v-model="getInputDraft(inputan.id).valueCalculated"
+  type="number"
+  disabled
+  :class="getResultInputClass(inputan)"
+  placeholder="Dihitung otomatis"
+/>
+<span v-if="getInputDraft(inputan.id).valueCalculated !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueCalculated), inputan.numberFormat) }}</span>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span v-if="getVisibleNormalRanges(inputan).length"
                     >Normal:
-                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom) }}</span
+                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat) }}</span
                   ><span v-else>Normal: belum tersedia</span
                   ><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
@@ -2722,10 +2746,10 @@ onBeforeUnmount(() => {
                                 <p
                                   class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
                                 >
-                                  {{ formatNormalRange(range, inputan.uom) }}
+                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
-                                  {{ formatRangeCriteria(range) }}
+                                  {{ formatRangeCriteria(range, inputan.numberFormat) }}
                                 </p>
                               </div>
                             </div>
@@ -2938,10 +2962,10 @@ onBeforeUnmount(() => {
                                 <p
                                   class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
                                 >
-                                  {{ formatNormalRange(range, inputan.uom) }}
+                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
-                                  {{ formatRangeCriteria(range) }}
+                                  {{ formatRangeCriteria(range, inputan.numberFormat) }}
                                 </p>
                               </div>
                             </div>
@@ -2955,7 +2979,7 @@ onBeforeUnmount(() => {
                               <div v-if="getExtResult(inputan.id)" class="space-y-1">
                                 <template v-if="getExtResult(inputan.id)!.valueNumber != null">
                                   <p class="text-sm font-semibold text-highlighted">
-                                    {{ getExtResult(inputan.id)!.valueNumber
+                                    {{ formatNumberDisplay(getExtResult(inputan.id)!.valueNumber, inputan.numberFormat)
                                     }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
                                   </p>
                                 </template>
@@ -2963,7 +2987,7 @@ onBeforeUnmount(() => {
                                   v-else-if="getExtResult(inputan.id)!.valueCalculated != null"
                                 >
                                   <p class="text-sm font-semibold text-highlighted">
-                                    {{ getExtResult(inputan.id)!.valueCalculated
+                                    {{ formatNumberDisplay(getExtResult(inputan.id)!.valueCalculated, inputan.numberFormat)
                                     }}{{ inputan.uom ? ` ${inputan.uom}` : '' }}
                                   </p>
                                 </template>

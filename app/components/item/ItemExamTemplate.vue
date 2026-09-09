@@ -12,6 +12,7 @@ const lastSavedSnapshot = ref('')
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type InputType = 'number' | 'calculated' | 'selected' | 'string'
+type NumberFormat = 'integer' | 'fixed1' | 'fixed3' | 'auto'
 type NilaiNormalNum = {
   id?: string
   sex: 'MALE' | 'FEMALE' | null
@@ -40,6 +41,7 @@ type Inputan = {
   id?: string
   label: string
   inputType: InputType
+  numberFormat: NumberFormat
   uom: string | null
   sortOrder: number
   allowBlank: boolean
@@ -49,6 +51,13 @@ type Inputan = {
   nilaiNormalSel: NilaiNormalSel[]
   _key: number
 }
+
+const NUMBER_FORMAT_OPTIONS: Array<{ label: string; value: NumberFormat }> = [
+  { label: 'Auto (maks 2 desimal, buang nol)', value: 'auto' },
+  { label: 'Integer (tanpa desimal)', value: 'integer' },
+  { label: 'Fixed 1 desimal', value: 'fixed1' },
+  { label: 'Fixed 3 desimal', value: 'fixed3' }
+]
 
 const INPUT_TYPE_OPTIONS: Array<{ label: string; value: InputType }> = [
   { label: 'Angka (number)', value: 'number' },
@@ -107,6 +116,7 @@ function mapInputanFromApi(inp: any): Inputan {
     id: inp.id,
     label: inp.label,
     inputType: inp.inputType,
+    numberFormat: inp.numberFormat ?? 'auto',
     uom: inp.uom ?? '',
     sortOrder: inp.sortOrder,
     allowBlank: inp.allowBlank,
@@ -204,6 +214,7 @@ function addInputan() {
   const newInp: Inputan = {
     label:             '',
     inputType:         'number',
+    numberFormat:      'auto',
     uom:               '',
     sortOrder:         inputans.value.length + 1,
     allowBlank:        false,
@@ -359,6 +370,7 @@ function createSnapshot() {
       id:        inp.id,
       label:     inp.label,
       inputType: inp.inputType,
+      numberFormat: inp.numberFormat,
       uom:       inp.uom || null,
       sortOrder: inp.sortOrder,
       allowBlank: inp.allowBlank,
@@ -450,13 +462,38 @@ function getAgeBadgeLabel(
   return `Usia ${ageMin}+`
 }
 
+function formatNumberValue(value: number | null | undefined, format: NumberFormat): string {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  const num = Number(value)
+  if (format === 'integer') return String(Math.round(num))
+  if (format === 'fixed1') return num.toFixed(1)
+  if (format === 'fixed3') return num.toFixed(3)
+  // auto: maksimal 2 desimal, nol belakang dibuang
+  return String(parseFloat(num.toFixed(2)))
+}
+
+function formatNumberDisplay(value: number | null | undefined, format: NumberFormat): string {
+  return formatNumberValue(value, format).replace('.', ',')
+}
+
+function numberFormatExample(format: NumberFormat): string {
+  const sample: Record<NumberFormat, number> = {
+    auto: 23.6,
+    integer: 544,
+    fixed1: 16.3,
+    fixed3: 0.125
+  }
+  return formatNumberDisplay(sample[format], format)
+}
+
 function formatRangeValue(minValue?: number | null, maxValue?: number | null) {
+  const fmt = selectedInputan.value?.numberFormat ?? 'auto'
   const hasMin = minValue !== null && minValue !== undefined
   const hasMax = maxValue !== null && maxValue !== undefined
 
-  if (hasMin && hasMax) return `${minValue} - ${maxValue}`
-  if (hasMin) return `>= ${minValue}`
-  if (hasMax) return `<= ${maxValue}`
+  if (hasMin && hasMax) return `${formatNumberValue(minValue, fmt)} - ${formatNumberValue(maxValue, fmt)}`
+  if (hasMin) return `>= ${formatNumberValue(minValue, fmt)}`
+  if (hasMax) return `<= ${formatNumberValue(maxValue, fmt)}`
   return '-'
 }
 
@@ -580,6 +617,17 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                 <div class="flex h-8 items-center">
                   <USwitch v-model="selectedInputan.allowBlank" label="Allow Blank" />
                 </div>
+              </UFormField>
+              <UFormField
+                v-if="['number','calculated'].includes(selectedInputan.inputType)"
+                label="Format Angka"
+                :help="`Contoh: ${numberFormatExample(selectedInputan.numberFormat)}`"
+              >
+                <USelect
+                  v-model="selectedInputan.numberFormat"
+                  :items="NUMBER_FORMAT_OPTIONS"
+                  size="sm" class="w-full"
+                />
               </UFormField>
             </div>
             <!-- Formula -->
