@@ -1322,18 +1322,16 @@ async function cancel() {
                       </UFormField>
                       <UFormField label="No. HP" class="min-w-0">
                         <UInput
-                          :model-value="selectedPatient.phone ?? '-'"
+                          v-model="contactForm.phone"
                           size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
+                          class="w-full min-w-0"
                         />
                       </UFormField>
                       <UFormField label="Email" class="min-w-0">
                         <UInput
-                          :model-value="selectedPatient.email ?? '-'"
+                          v-model="contactForm.email"
                           size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
+                          class="w-full min-w-0"
                         />
                       </UFormField>
                     </div>
@@ -1351,14 +1349,6 @@ async function cancel() {
                     </p>
                   </div>
                   <div class="p-3 space-y-2">
-                    <div class="grid grid-cols-2 gap-2">
-                      <UFormField label="No. HP" class="min-w-0">
-                        <UInput v-model="contactForm.phone" size="sm" class="w-full min-w-0" />
-                      </UFormField>
-                      <UFormField label="Email" class="min-w-0">
-                        <UInput v-model="contactForm.email" size="sm" class="w-full min-w-0" />
-                      </UFormField>
-                    </div>
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="Address Type" class="min-w-0">
                         <USelect
