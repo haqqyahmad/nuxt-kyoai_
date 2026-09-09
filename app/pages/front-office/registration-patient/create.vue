@@ -293,6 +293,61 @@ function applyTempContact(temp: { phone?: string, email?: string, addressTemp?: 
 
 // [Perubahan] bandingkan data temp (contactForm) dgn pasien existing (selectedPatient)
 const nrm = (v?: string | null) => (v ? String(v).trim().toLowerCase() : '')
+function normDateStr(v?: string | null) {
+  if (!v) return ''
+  const s = String(v).trim()
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  return s.slice(0, 10)
+}
+// Konversi ke/ dari YYYY-MM-DD utk <input type=date> & payload BE (DD/MM/YYYY)
+function toYMD(v?: string | null) {
+  return normDateStr(v)
+}
+function toDMY(v?: string | null) {
+  const ymd = toYMD(v)
+  if (ymd.length !== 10) return ymd
+  const [y, m, d] = ymd.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// [Perubahan] Data personal pasien existing dari portal (bisa dikoreksi FO)
+const personalForm = ref({
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  gender: 'MALE' as string,
+  dob: '',
+  idType: 'KTP',
+  idNumber: '',
+})
+function applyTempPersonal(temp: { firstName?: string, middleName?: string, lastName?: string, gender?: string, dob?: string, idType?: string, idValue?: string }) {
+  personalForm.value = {
+    firstName: temp.firstName || '',
+    middleName: temp.middleName || '',
+    lastName: temp.lastName || '',
+    gender: temp.gender === 'female' ? 'FEMALE' : 'MALE',
+    dob: toYMD(temp.dob),
+    idType: temp.idType || 'KTP',
+    idNumber: temp.idValue || '',
+  }
+}
+const personalChanged = computed(() => {
+  const p = selectedPatient.value
+  if (!p) return { firstName: false, middleName: false, lastName: false, gender: false, dob: false, idType: false, idNumber: false }
+  return {
+    firstName: nrm(personalForm.value.firstName) !== nrm(p.firstName),
+    middleName: nrm(personalForm.value.middleName) !== nrm(p.middleName),
+    lastName: nrm(personalForm.value.lastName) !== nrm(p.lastName),
+    gender: nrm(personalForm.value.gender) !== nrm(p.gender),
+    dob: normDateStr(personalForm.value.dob) !== normDateStr(p.dob),
+    idType: nrm(personalForm.value.idType) !== nrm(p.idType),
+    idNumber: nrm(personalForm.value.idNumber) !== nrm(p.idNumber),
+  }
+})
+
 const contactChanged = computed(() => ({
   phone: !!selectedPatient.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
   email: !!selectedPatient.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email),
@@ -530,6 +585,7 @@ async function loadTempPrefill(temp: TempRegistration) {
       regForm.value.companyId = temp.companyId
       regForm.value.position = companyTemp?.position ?? regForm.value.position
       applyTempContact(temp)
+      applyTempPersonal(temp)
     } catch {
       tempLoadError.value = 'Gagal memuat data pasien'
     }
@@ -898,7 +954,15 @@ async function submit() {
         district: contactForm.value.district || undefined,
         addressCity: contactForm.value.city || undefined,
         addressProvince: contactForm.value.province || undefined,
-        addressCountry: contactForm.value.country || undefined
+        addressCountry: contactForm.value.country || undefined,
+        // [PERSONAL] Override data personal pasien existing bila dikoreksi FO
+        firstName: personalForm.value.firstName || undefined,
+        middleName: personalForm.value.middleName || undefined,
+        lastName: personalForm.value.lastName || undefined,
+        gender: (personalForm.value.gender || '').toLowerCase() || undefined,
+        dob: toDMY(personalForm.value.dob) || undefined,
+        idType: personalForm.value.idType,
+        idValue: personalForm.value.idNumber || undefined
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
@@ -1284,70 +1348,68 @@ async function cancel() {
                   <div class="p-3 space-y-2">
                     <div class="grid grid-cols-3 gap-2">
                       <UFormField label="First Name" class="min-w-0">
-                        <UInput
-                          :model-value="selectedPatient.firstName"
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="personalForm.firstName" size="sm" :disabled="!personalChanged.firstName" class="w-full min-w-0" />
+                          <UBadge v-if="personalChanged.firstName" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Middle Name" class="min-w-0">
-                        <UInput
-                          :model-value="selectedPatient.middleName ?? '-'"
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="personalForm.middleName" size="sm" :disabled="!personalChanged.middleName" class="w-full min-w-0" />
+                          <UBadge v-if="personalChanged.middleName" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Last Name" class="min-w-0">
-                        <UInput
-                          :model-value="selectedPatient.lastName"
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="personalForm.lastName" size="sm" :disabled="!personalChanged.lastName" class="w-full min-w-0" />
+                          <UBadge v-if="personalChanged.lastName" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="Gender" class="min-w-0">
-                        <UInput
-                          :model-value="
-                            selectedPatient.gender === 'MALE'
-                              ? 'Laki-laki'
-                              : 'Perempuan'
-                          "
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <USelect
+                            v-model="personalForm.gender"
+                            size="sm"
+                            :disabled="!personalChanged.gender"
+                            class="w-full min-w-0"
+                            :items="[
+                              { label: 'Laki-laki', value: 'MALE' },
+                              { label: 'Perempuan', value: 'FEMALE' }
+                            ]"
+                          />
+                          <UBadge v-if="personalChanged.gender" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Tgl Lahir" class="min-w-0">
-                        <UInput
-                          :model-value="
-                            selectedPatient.dob
-                              ? selectedPatient.dob.slice(0, 10)
-                              : '-'
-                          "
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="personalForm.dob" size="sm" type="date" :disabled="!personalChanged.dob" class="w-full min-w-0" />
+                          <UBadge v-if="personalChanged.dob" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Tipe ID" class="min-w-0">
-                        <UInput
-                          :model-value="selectedPatient.idType"
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <USelect
+                            v-model="personalForm.idType"
+                            size="sm"
+                            :disabled="!personalChanged.idType"
+                            class="w-full min-w-0"
+                            :items="[
+                              { label: 'KTP', value: 'KTP' },
+                              { label: 'Passport', value: 'PASSPORT' },
+                              { label: 'SIM', value: 'SIM' },
+                              { label: 'KITAS', value: 'KITAS' }
+                            ]"
+                          />
+                          <UBadge v-if="personalChanged.idType" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Nomor ID" class="min-w-0">
-                        <UInput
-                          :model-value="selectedPatient.idNumber"
-                          size="sm"
-                          disabled
-                          class="w-full opacity-90 min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="personalForm.idNumber" size="sm" :disabled="!personalChanged.idNumber" class="w-full min-w-0" />
+                          <UBadge v-if="personalChanged.idNumber" label="Change" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="No. HP" class="min-w-0">
                         <div class="flex items-center gap-1">
