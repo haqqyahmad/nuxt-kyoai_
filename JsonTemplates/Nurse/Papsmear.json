@@ -1,0 +1,84 @@
+{
+  "docs": [
+    {
+      "name": "Papsmear",
+      "owner": "Administrator",
+      "creation": "2024-12-19 20:59:47.771559",
+      "modified": "2025-01-06 17:11:24.374208",
+      "modified_by": "Administrator",
+      "docstatus": 0,
+      "idx": 9,
+      "template_name": "Papsmear",
+      "item_code": "GYNC-00001",
+      "item_name": "Papsmear",
+      "result_in_exam": 1,
+      "rate": 0,
+      "is_single_result": 0,
+      "doctype": "Nurse Examination Template",
+      "consumables": [],
+      "normal_items": [],
+      "items": [
+        {
+          "name": "bdaam62jk3",
+          "owner": "Administrator",
+          "creation": "2024-12-19 20:59:47.771559",
+          "modified": "2025-01-06 17:11:24.374208",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 1,
+          "result_text": "Vagina",
+          "result_select": "Normal\r\nAbnormal",
+          "normal_value": "Normal",
+          "parent": "Papsmear",
+          "parentfield": "items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Selective Item"
+        }
+      ],
+      "calculated_exam": []
+    }
+  ],
+  "docinfo": {
+    "user_info": {},
+    "comments": [],
+    "shared": [],
+    "assignment_logs": [],
+    "attachment_logs": [],
+    "info_logs": [],
+    "like_logs": [],
+    "workflow_logs": [],
+    "doctype": "Nurse Examination Template",
+    "name": "Papsmear",
+    "attachments": [],
+    "communications": [],
+    "automated_messages": [],
+    "versions": [],
+    "assignments": [],
+    "permissions": {
+      "select": 1,
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 0,
+      "cancel": 1,
+      "amend": 1,
+      "print": 1,
+      "email": 1,
+      "report": 1,
+      "import": 1,
+      "export": 1,
+      "share": 1
+    },
+    "views": [],
+    "energy_point_logs": [],
+    "additional_timeline_content": [],
+    "milestones": [],
+    "is_document_followed": null,
+    "tags": "",
+    "document_email": null
+  },
+  "_link_titles": {
+    "Item::GYNC-00001": "Papsmear"
+  }
+}

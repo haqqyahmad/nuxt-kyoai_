@@ -1,0 +1,98 @@
+{
+  "docs": [
+    {
+      "name": "USG Prostate",
+      "owner": "Administrator",
+      "creation": "2024-08-25 20:41:28.313098",
+      "modified": "2024-08-25 20:41:28.313098",
+      "modified_by": "Administrator",
+      "docstatus": 0,
+      "idx": 5,
+      "template_name": "USG Prostate",
+      "item_code": "USGE-00002",
+      "item_name": "USG Prostate",
+      "rate": 0,
+      "is_single_result": 0,
+      "doctype": "Radiology Result Template",
+      "consumables": [],
+      "items": [
+        {
+          "name": "03ajiuankt",
+          "owner": "Administrator",
+          "creation": "2024-08-25 20:41:28.313098",
+          "modified": "2024-08-25 20:41:28.313098",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 1,
+          "result_text": "Prostat ( Lain - Lain )",
+          "result_select": "Text",
+          "normal_value": "Normal",
+          "sex": "Male",
+          "parent": "USG Prostate",
+          "parentfield": "items",
+          "parenttype": "Radiology Result Template",
+          "doctype": "Radiology Result Template Item"
+        },
+        {
+          "name": "03ajjjmc4j",
+          "owner": "Administrator",
+          "creation": "2024-08-25 20:41:28.313098",
+          "modified": "2024-08-25 20:41:28.313098",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 2,
+          "result_text": "Kesimpulan",
+          "result_select": "Normal\r\nAbnormal",
+          "normal_value": "Normal",
+          "parent": "USG Prostate",
+          "parentfield": "items",
+          "parenttype": "Radiology Result Template",
+          "doctype": "Radiology Result Template Item"
+        }
+      ]
+    }
+  ],
+  "docinfo": {
+    "user_info": {},
+    "comments": [],
+    "shared": [],
+    "assignment_logs": [],
+    "attachment_logs": [],
+    "info_logs": [],
+    "like_logs": [],
+    "workflow_logs": [],
+    "doctype": "Radiology Result Template",
+    "name": "USG Prostate",
+    "attachments": [],
+    "communications": [],
+    "automated_messages": [],
+    "versions": [],
+    "assignments": [],
+    "permissions": {
+      "select": 1,
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 0,
+      "cancel": 1,
+      "amend": 1,
+      "print": 1,
+      "email": 1,
+      "report": 1,
+      "import": 1,
+      "export": 1,
+      "share": 1
+    },
+    "views": [],
+    "energy_point_logs": [],
+    "additional_timeline_content": [],
+    "milestones": [],
+    "is_document_followed": null,
+    "tags": "",
+    "document_email": null
+  },
+  "_link_titles": {
+    "Item::USGE-00002": "USG Prostate"
+  }
+}

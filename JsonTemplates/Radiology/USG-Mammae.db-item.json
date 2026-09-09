@@ -1,0 +1,451 @@
+{
+  "code": "USGE-00004",
+  "name": "USG Mammae",
+  "departmentId": "42a1b06c-2f63-4b7c-9be5-eaef082de6a0",
+  "groupId": "group-radiologi",
+  "roomTypeId": "49253472-f762-4fac-80f7-3029d9381674",
+  "resultTiming": "inline",
+  "rendererKey": "GENERIC",
+  "externalResult": false,
+  "isActive": true,
+  "inputans": [
+    {
+      "label": "Mammae Kanan (Kutis dan Subkutis)",
+      "sortOrder": 1,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Kutis dan Subkutis)",
+        "result_select": "Baik\r\nTidak Baik",
+        "normal_value": "Baik"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Baik",
+          "value": "Baik"
+        },
+        {
+          "label": "Tidak Baik",
+          "value": "Tidak Baik"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Baik",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Papil)",
+      "sortOrder": 2,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Papil)",
+        "result_select": "Normal\r\nRetraksi",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Retraksi",
+          "value": "Retraksi"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Kista)",
+      "sortOrder": 3,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Kista)",
+        "result_select": "Tidak Ada\r\nAda",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Lesi)",
+      "sortOrder": 4,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Lesi)",
+        "result_select": "Tidak Ada\r\nAda",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Microklasifikasi)",
+      "sortOrder": 5,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Microklasifikasi)",
+        "result_select": "Tidak Ada\r\nAda\r\nAbnormal",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        },
+        {
+          "label": "Abnormal",
+          "value": "Abnormal"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Duktus Laktiferus)",
+      "sortOrder": 6,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Duktus Laktiferus)",
+        "result_select": "Normal\r\nDilatasi",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Dilatasi",
+          "value": "Dilatasi"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Limfadenopati Axilla)",
+      "sortOrder": 7,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Limfadenopati Axilla)",
+        "result_select": "Normal\r\nAbnormal",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Abnormal",
+          "value": "Abnormal"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kanan (Lain-Lain",
+      "sortOrder": 8,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kanan (Lain-Lain",
+        "result_select": "Text",
+        "normal_value": "Normal"
+      },
+      "inputType": "string",
+      "opsis": []
+    },
+    {
+      "label": "Mammae Kiri (Kutis dan Subkutis)",
+      "sortOrder": 9,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Kutis dan Subkutis)",
+        "result_select": "Baik\r\nTidak Baik",
+        "normal_value": "Baik"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Baik",
+          "value": "Baik"
+        },
+        {
+          "label": "Tidak Baik",
+          "value": "Tidak Baik"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Baik",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Papil)",
+      "sortOrder": 10,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Papil)",
+        "result_select": "Normal\r\nRetraksi",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Retraksi",
+          "value": "Retraksi"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Kista)",
+      "sortOrder": 11,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Kista)",
+        "result_select": "Tidak Ada\r\nAda",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Lesi)",
+      "sortOrder": 12,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Lesi)",
+        "result_select": "Tidak Ada\r\nAda",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Microklasifikasi)",
+      "sortOrder": 13,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Microklasifikasi)",
+        "result_select": "Tidak Ada\r\nAda\r\nAbnormal",
+        "normal_value": "Tidak Ada"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Tidak Ada",
+          "value": "Tidak Ada"
+        },
+        {
+          "label": "Ada",
+          "value": "Ada"
+        },
+        {
+          "label": "Abnormal",
+          "value": "Abnormal"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Tidak Ada",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Duktus Laktiferus)",
+      "sortOrder": 14,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Duktus Laktiferus)",
+        "result_select": "Normal\r\nDilatasi",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Dilatasi",
+          "value": "Dilatasi"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Limfadenopati Axilla)",
+      "sortOrder": 15,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Limfadenopati Axilla)",
+        "result_select": "Normal\r\nAbnormal",
+        "normal_value": "Normal"
+      },
+      "inputType": "selected",
+      "opsis": [
+        {
+          "label": "Normal",
+          "value": "Normal"
+        },
+        {
+          "label": "Abnormal",
+          "value": "Abnormal"
+        }
+      ],
+      "nilaiNormalSelected": [
+        {
+          "opsiValue": "Normal",
+          "sex": null,
+          "ageMin": 0,
+          "examCode": null
+        }
+      ]
+    },
+    {
+      "label": "Mammae Kiri (Lain-Lain",
+      "sortOrder": 16,
+      "allowBlank": false,
+      "source": {
+        "result_text": "Mammae Kiri (Lain-Lain",
+        "result_select": "Text",
+        "normal_value": "Normal"
+      },
+      "inputType": "string",
+      "opsis": []
+    }
+  ]
+}

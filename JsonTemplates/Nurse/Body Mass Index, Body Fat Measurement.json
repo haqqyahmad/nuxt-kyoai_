@@ -1,0 +1,187 @@
+{
+  "docs": [
+    {
+      "name": "Body Mass Index, Body Fat Measurement",
+      "owner": "Administrator",
+      "creation": "2024-08-01 14:09:51.031264",
+      "modified": "2025-04-27 20:34:26.315633",
+      "modified_by": "Administrator",
+      "docstatus": 0,
+      "idx": 361,
+      "template_name": "Body Mass Index, Body Fat Measurement",
+      "item_code": "BASC-00002",
+      "item_name": "Body Mass Index, Body Fat Measurement",
+      "result_in_exam": 1,
+      "rate": 0,
+      "is_single_result": 0,
+      "doctype": "Nurse Examination Template",
+      "consumables": [],
+      "normal_items": [
+        {
+          "name": "03rm8n8k0q",
+          "owner": "Administrator",
+          "creation": "2024-08-01 14:09:51.031264",
+          "modified": "2025-04-27 20:34:26.315633",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 1,
+          "heading_text": "Height",
+          "lab_test_uom": "cm",
+          "age": 0,
+          "min_value": 0,
+          "max_value": 0,
+          "gradable": 0,
+          "parent": "Body Mass Index, Body Fat Measurement",
+          "parentfield": "normal_items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Item"
+        },
+        {
+          "name": "03rm7p94ur",
+          "owner": "Administrator",
+          "creation": "2024-08-01 14:09:51.031264",
+          "modified": "2025-04-27 20:34:26.315633",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 2,
+          "heading_text": "Weight",
+          "lab_test_uom": "kg",
+          "age": 0,
+          "min_value": 0,
+          "max_value": 0,
+          "gradable": 0,
+          "parent": "Body Mass Index, Body Fat Measurement",
+          "parentfield": "normal_items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Item"
+        },
+        {
+          "name": "03rm2090b8",
+          "owner": "Administrator",
+          "creation": "2024-08-01 14:09:51.031264",
+          "modified": "2025-04-27 20:34:26.315633",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 3,
+          "heading_text": "% FAT",
+          "lab_test_uom": "%",
+          "age": 0,
+          "min_value": 0,
+          "max_value": 0,
+          "gradable": 0,
+          "parent": "Body Mass Index, Body Fat Measurement",
+          "parentfield": "normal_items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Item"
+        },
+        {
+          "name": "03rmsqj5qv",
+          "owner": "Administrator",
+          "creation": "2024-08-01 14:09:51.031264",
+          "modified": "2025-04-27 20:34:26.315633",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 4,
+          "heading_text": "BMR",
+          "lab_test_uom": "kcal",
+          "age": 0,
+          "min_value": 0,
+          "max_value": 0,
+          "gradable": 0,
+          "parent": "Body Mass Index, Body Fat Measurement",
+          "parentfield": "normal_items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Item"
+        },
+        {
+          "name": "03rm6kedf7",
+          "owner": "Administrator",
+          "creation": "2024-08-01 14:09:51.031264",
+          "modified": "2025-04-27 20:34:26.315633",
+          "modified_by": "Administrator",
+          "docstatus": 0,
+          "idx": 5,
+          "heading_text": "VFA",
+          "age": 0,
+          "min_value": 0,
+          "max_value": 0,
+          "gradable": 0,
+          "parent": "Body Mass Index, Body Fat Measurement",
+          "parentfield": "normal_items",
+          "parenttype": "Nurse Examination Template",
+          "doctype": "Nurse Examination Template Item"
+        }
+      ],
+      "items": [],
+      "calculated_exam": [],
+      "_liked_by": "[]"
+    }
+  ],
+  "docinfo": {
+    "user_info": {
+      "Administrator": {
+        "fullname": "Administrator",
+        "image": null,
+        "name": "Administrator",
+        "email": "admin@example.com",
+        "time_zone": "Asia/Jakarta"
+      }
+    },
+    "comments": [],
+    "shared": [],
+    "assignment_logs": [],
+    "attachment_logs": [],
+    "info_logs": [
+      {
+        "name": "skpvrm7i4r",
+        "creation": "2025-04-27 20:32:12.127873",
+        "content": "renamed from <strong>Body Mass Index , Body fat measurement</strong> to <strong>Body Mass Index, Body Fat Measurement</strong>",
+        "owner": "Administrator",
+        "comment_type": "Edit",
+        "published": 0
+      }
+    ],
+    "like_logs": [],
+    "workflow_logs": [],
+    "doctype": "Nurse Examination Template",
+    "name": "Body Mass Index, Body Fat Measurement",
+    "attachments": [],
+    "communications": [],
+    "automated_messages": [],
+    "versions": [
+      {
+        "name": "tuntsou1q9",
+        "owner": "Administrator",
+        "creation": "2025-04-27 20:34:26.339598",
+        "data": "{\"added\":[],\"changed\":[[\"item_name\",\"Body Mass Index , Body fat measurement\",\"Body Mass Index, Body Fat Measurement\"]],\"data_import\":null,\"removed\":[],\"row_changed\":[],\"updater_reference\":null}"
+      }
+    ],
+    "assignments": [],
+    "permissions": {
+      "select": 1,
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 0,
+      "cancel": 1,
+      "amend": 1,
+      "print": 1,
+      "email": 1,
+      "report": 1,
+      "import": 1,
+      "export": 1,
+      "share": 1
+    },
+    "views": [],
+    "energy_point_logs": [],
+    "additional_timeline_content": [],
+    "milestones": [],
+    "is_document_followed": null,
+    "tags": "",
+    "document_email": null
+  },
+  "_link_titles": {
+    "Item::BASC-00002": "Body Mass Index , Body fat measurement"
+  }
+}

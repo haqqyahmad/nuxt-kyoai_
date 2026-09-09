@@ -1,0 +1,67 @@
+{
+  "docs": [
+    {
+      "name": "Thin prep",
+      "owner": "Administrator",
+      "creation": "2024-12-19 21:00:03.106950",
+      "modified": "2024-12-19 21:00:03.106950",
+      "modified_by": "Administrator",
+      "docstatus": 0,
+      "idx": 3,
+      "template_name": "Thin prep",
+      "item_code": "GYNC-00002",
+      "item_name": "Thin prep",
+      "result_in_exam": 1,
+      "rate": 0,
+      "is_single_result": 0,
+      "doctype": "Nurse Examination Template",
+      "consumables": [],
+      "normal_items": [],
+      "items": [],
+      "calculated_exam": []
+    }
+  ],
+  "docinfo": {
+    "user_info": {},
+    "comments": [],
+    "shared": [],
+    "assignment_logs": [],
+    "attachment_logs": [],
+    "info_logs": [],
+    "like_logs": [],
+    "workflow_logs": [],
+    "doctype": "Nurse Examination Template",
+    "name": "Thin prep",
+    "attachments": [],
+    "communications": [],
+    "automated_messages": [],
+    "versions": [],
+    "assignments": [],
+    "permissions": {
+      "select": 1,
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 0,
+      "cancel": 1,
+      "amend": 1,
+      "print": 1,
+      "email": 1,
+      "report": 1,
+      "import": 1,
+      "export": 1,
+      "share": 1
+    },
+    "views": [],
+    "energy_point_logs": [],
+    "additional_timeline_content": [],
+    "milestones": [],
+    "is_document_followed": null,
+    "tags": "",
+    "document_email": null
+  },
+  "_link_titles": {
+    "Item::GYNC-00002": "Thin prep"
+  }
+}
