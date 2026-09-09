@@ -39,6 +39,15 @@ type Patient = {
   phone?: string
   email?: string
   dob?: string
+  addresses?: {
+    type?: string
+    detail?: string
+    note?: string
+    district?: string
+    city?: string
+    province?: string
+    country?: string
+  }[] | null
   histories?: {
     id: string
     companyName?: string
@@ -281,6 +290,26 @@ function applyTempContact(temp: { phone?: string, email?: string, addressTemp?: 
     country: addr?.country || 'Indonesia',
   }
 }
+
+// [Perubahan] bandingkan data temp (contactForm) dgn pasien existing (selectedPatient)
+const nrm = (v?: string | null) => (v ? String(v).trim().toLowerCase() : '')
+const contactChanged = computed(() => ({
+  phone: !!selectedPatient.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
+  email: !!selectedPatient.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email),
+}))
+const addrChanged = computed(() => {
+  const p = selectedPatient.value
+  const a = p?.addresses?.[0]
+  if (!p) return { addressType: false, detail: false, district: false, city: false, province: false, country: false }
+  return {
+    addressType: nrm(contactForm.value.addressType) !== nrm(a?.type),
+    detail: nrm(contactForm.value.detail) !== nrm(a?.detail),
+    district: nrm(contactForm.value.district) !== nrm(a?.district),
+    city: nrm(contactForm.value.city) !== nrm(a?.city),
+    province: nrm(contactForm.value.province) !== nrm(a?.province),
+    country: nrm(contactForm.value.country) !== nrm(a?.country),
+  }
+})
 
 const canSaveNewPatient = computed(
   () =>
@@ -1321,18 +1350,16 @@ async function cancel() {
                         />
                       </UFormField>
                       <UFormField label="No. HP" class="min-w-0">
-                        <UInput
-                          v-model="contactForm.phone"
-                          size="sm"
-                          class="w-full min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.phone" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="contactChanged.phone" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Email" class="min-w-0">
-                        <UInput
-                          v-model="contactForm.email"
-                          size="sm"
-                          class="w-full min-w-0"
-                        />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.email" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="contactChanged.email" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                     </div>
                   </div>
@@ -1351,18 +1378,25 @@ async function cancel() {
                   <div class="p-3 space-y-2">
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="Address Type" class="min-w-0">
-                        <USelect
-                          v-model="contactForm.addressType"
-                          size="sm"
-                          :items="[
-                            { label: 'Home', value: 'HOME' },
-                            { label: 'Work', value: 'WORK' },
-                            { label: 'Other', value: 'OTHER' }
-                          ]"
-                        />
+                        <div class="flex items-center gap-1">
+                          <USelect
+                            v-model="contactForm.addressType"
+                            size="sm"
+                            class="w-full min-w-0"
+                            :items="[
+                              { label: 'Home', value: 'HOME' },
+                              { label: 'Work', value: 'WORK' },
+                              { label: 'Other', value: 'OTHER' }
+                            ]"
+                          />
+                          <UBadge v-if="addrChanged.addressType" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Address Line 1" class="min-w-0">
-                        <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="addrChanged.detail" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                     </div>
                     <UFormField label="Address Line 2 (Optional)" class="min-w-0">
@@ -1370,16 +1404,28 @@ async function cancel() {
                     </UFormField>
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="District" class="min-w-0">
-                        <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="addrChanged.district" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="City" class="min-w-0">
-                        <UInput v-model="contactForm.city" size="sm" class="w-full min-w-0" />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.city" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="addrChanged.city" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Province" class="min-w-0">
-                        <UInput v-model="contactForm.province" size="sm" class="w-full min-w-0" />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.province" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="addrChanged.province" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                       <UFormField label="Country" class="min-w-0">
-                        <UInput v-model="contactForm.country" size="sm" class="w-full min-w-0" />
+                        <div class="flex items-center gap-1">
+                          <UInput v-model="contactForm.country" size="sm" class="w-full min-w-0" />
+                          <UBadge v-if="addrChanged.country" label="berubah" color="warning" size="xs" class="shrink-0" />
+                        </div>
                       </UFormField>
                     </div>
                   </div>
