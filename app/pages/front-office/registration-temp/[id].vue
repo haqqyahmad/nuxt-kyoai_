@@ -475,14 +475,22 @@ function fmtDate(d?: string) {
 
 function parseLocalDate(d: string): Date | null {
   if (!d) return null
-  const iso = new Date(d)
-  if (!Number.isNaN(iso.getTime())) return iso
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d.trim())
+  const s = d.trim()
+  // DD/MM/YYYY (format portal) — HARUS dicek dulu, jangan biarkan JS new Date
+  // salah membaca 10/03/1993 sebagai MM/DD/YYYY (October 3).
+  let m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s)
   if (m) {
-    const [_, y, mo, day] = m
-    const parsed = new Date(Number(y), Number(mo) - 1, Number(day))
+    const parsed = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]))
     if (!Number.isNaN(parsed.getTime())) return parsed
   }
+  // YYYY-MM-DD
+  m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
+  if (m) {
+    const parsed = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+  const iso = new Date(d)
+  if (!Number.isNaN(iso.getTime())) return iso
   return null
 }
 
