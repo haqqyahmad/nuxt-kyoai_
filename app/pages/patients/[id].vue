@@ -386,19 +386,27 @@ const deleteAddress = async (addressId: string) => {
     <div v-else class="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
       <!-- Header dengan foto di kiri -->
       <div
-        class="flex flex-col md:flex-row items-start gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 md:p-6 rounded-xl border border-accented bg-elevated"
+        class="relative overflow-hidden rounded-2xl border border-accented bg-gradient-to-br from-elevated to-background shadow-sm"
       >
+        <div class="absolute inset-0 pointer-events-none opacity-[0.04] bg-[radial-gradient(ellipse_at_top_left,rgba(0,131,129,0.9),transparent_55%)]" />
+        <div
+          class="relative flex flex-col md:flex-row items-start gap-4 sm:gap-6 p-5 sm:p-6 md:p-8"
+        >
         <!-- Foto Profil -->
         <div class="relative flex-shrink-0 mx-auto md:mx-0">
-          <img
-            :src="getPhotoUrl()"
-            :alt="fullName"
-            class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full object-cover border-2 border-primary shadow-md"
-            :class="{
-              'cursor-pointer hover:opacity-80 transition-opacity': isEditing,
-            }"
-            @click="handlePhotoClick"
-          />
+          <div
+            class="rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg"
+          >
+            <img
+              :src="getPhotoUrl()"
+              :alt="fullName"
+              class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
+              :class="{
+                'cursor-pointer hover:opacity-90 transition-opacity': isEditing,
+              }"
+              @click="handlePhotoClick"
+            />
+          </div>
           <input
             v-if="isEditing"
             ref="fileInputRef"
@@ -463,14 +471,21 @@ const deleteAddress = async (addressId: string) => {
               </div>
               <!-- Nama - View mode -->
               <div v-else>
-                <h2
-                  class="text-lg sm:text-xl lg:text-2xl font-semibold break-words"
-                >
-                  {{ fullName }}
-                </h2>
-                <p class="text-xs sm:text-sm text-muted mt-0.5 break-all">
-                  {{ patient.PatientId }}
-                </p>
+                <div class="flex items-center gap-2">
+                  <h2
+                    class="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight break-words"
+                  >
+                    {{ fullName }}
+                  </h2>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span
+                    class="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2.5 py-1"
+                  >
+                    <UIcon name="i-lucide-id-card" class="size-3.5" />
+                    {{ patient.PatientId }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -499,11 +514,10 @@ const deleteAddress = async (addressId: string) => {
             class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-2 sm:gap-y-3 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-accented"
           >
             <!-- Tanggal Lahir -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-calendar"
-                class="text-muted flex-shrink-0 text-sm"
-              />
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-calendar" class="size-4" />
+              </span>
               <span class="text-muted flex-shrink-0">Tanggal Lahir:</span>
               <span v-if="!isEditing" class="truncate">{{
                 formatDate(patient.dob)
@@ -518,11 +532,10 @@ const deleteAddress = async (addressId: string) => {
             </div>
 
             <!-- No HP -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-phone"
-                class="text-muted flex-shrink-0 text-sm"
-              />
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-phone" class="size-4" />
+              </span>
               <span class="text-muted flex-shrink-0">No. HP:</span>
               <span v-if="!isEditing" class="truncate">{{
                 patient.phone ?? "-"
@@ -536,11 +549,10 @@ const deleteAddress = async (addressId: string) => {
             </div>
 
             <!-- Email -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-mail"
-                class="text-muted flex-shrink-0 text-sm"
-              />
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-mail" class="size-4" />
+              </span>
               <span class="text-muted flex-shrink-0">Email:</span>
               <span v-if="!isEditing" class="truncate">{{
                 patient.email ?? "-"
@@ -558,11 +570,10 @@ const deleteAddress = async (addressId: string) => {
             <!-- <div
               class="flex flex-col xs:flex-row items-start xs:items-center gap-2 text-xs sm:text-sm min-w-0 col-span-1 sm:col-span-2"
             > -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-id-card"
-                class="text-muted flex-shrink-0 text-sm"
-              />
+            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-id-card" class="size-4" />
+              </span>
               <span class="text-muted whitespace-nowrap">Identitas:</span>
               <!-- </div> -->
 
@@ -605,11 +616,11 @@ const deleteAddress = async (addressId: string) => {
           </h3>
         </div>
         <div
-          class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 bg-accented"
+          class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-accented p-3"
         >
           <!-- Usia -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Usia</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Usia</p>
             <p v-if="!isEditing" class="text-sm">
               {{
                 patient.dob
@@ -622,7 +633,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Status -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Status</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Status</p>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{
@@ -647,7 +658,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Golongan Darah -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Golongan Darah</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Golongan Darah</p>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{ patient.bloodGroup ?? "-" }}
@@ -669,7 +680,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Jenis Kelamin -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Jenis Kelamin</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Jenis Kelamin</p>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{ genderLabel(patient.gender) }}
@@ -689,7 +700,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Policy Number -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Policy Number</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Policy Number</p>
             <div v-if="!isEditing">
               <p class="text-sm">{{ patient.policyNumber ?? "-" }}</p>
             </div>
@@ -704,7 +715,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Policy Exp. Date -->
           <div class="bg-background p-4">
-            <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Policy Exp. Date</p>
             <div v-if="!isEditing">
               <p class="text-sm">{{ patient.policyExpDate ?? "-" }}</p>
             </div>
