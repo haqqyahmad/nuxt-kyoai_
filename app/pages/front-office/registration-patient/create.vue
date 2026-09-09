@@ -1345,7 +1345,7 @@ async function cancel() {
                 >
                   <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex items-center gap-2">
                     <p class="text-sm font-semibold">
-                      Contact Info
+                      Address
                     </p>
                   </div>
                   <div class="p-3 space-y-2">
@@ -1365,6 +1365,9 @@ async function cancel() {
                         <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
                       </UFormField>
                     </div>
+                    <UFormField label="Address Line 2 (Optional)" class="min-w-0">
+                      <UInput v-model="contactForm.note" size="sm" class="w-full min-w-0" />
+                    </UFormField>
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="District" class="min-w-0">
                         <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
@@ -1379,9 +1382,6 @@ async function cancel() {
                         <UInput v-model="contactForm.country" size="sm" class="w-full min-w-0" />
                       </UFormField>
                     </div>
-                    <UFormField label="Address Line 2 (Optional)" class="min-w-0">
-                      <UInput v-model="contactForm.note" size="sm" class="w-full min-w-0" />
-                    </UFormField>
                   </div>
                 </div>
 
