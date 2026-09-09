@@ -173,8 +173,9 @@ const columns: TableColumn<Customer>[] = [
     },
     cell: ({ row }) => {
       const c = row.original
+      const displayName = c.customerName.replace(/^PT\.?\s*/i, '')
       return h('div', [
-        h('p', { class: 'font-medium' }, c.customerName),
+        h('p', { class: 'font-medium' }, displayName),
         h(
           'p',
           { class: `text-xs ${customerTypeColor[c.CustomerType] ?? 'text-muted'}` },
