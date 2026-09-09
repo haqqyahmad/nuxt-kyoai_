@@ -383,14 +383,14 @@ const deleteAddress = async (addressId: string) => {
       />
     </div>
 
-    <div v-else class="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <div v-else class="w-full max-w-7xl mx-auto p-4 sm:p-5 space-y-4">
       <!-- Header dengan foto di kiri -->
       <div
         class="relative overflow-hidden rounded-2xl border border-accented bg-gradient-to-br from-elevated to-background shadow-sm"
       >
         <div class="absolute inset-0 pointer-events-none opacity-[0.04] bg-[radial-gradient(ellipse_at_top_left,rgba(0,131,129,0.9),transparent_55%)]" />
         <div
-          class="relative flex flex-col md:flex-row items-start gap-4 sm:gap-6 p-5 sm:p-6 md:p-8"
+          class="relative flex flex-col md:flex-row items-start gap-4 sm:gap-5 p-4 sm:p-5"
         >
         <!-- Foto Profil -->
         <div class="relative flex-shrink-0 mx-auto md:mx-0">
@@ -511,7 +511,7 @@ const deleteAddress = async (addressId: string) => {
 
           <!-- Informasi Singkat di bawah nama -->
           <div
-            class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-2 sm:gap-y-3 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-accented"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-accented"
           >
             <!-- Tanggal Lahir -->
             <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
@@ -617,10 +617,10 @@ const deleteAddress = async (addressId: string) => {
           </h3>
         </div>
         <div
-          class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-accented p-3"
+          class="grid grid-cols-1 md:grid-cols-2 gap-2 bg-accented p-2"
         >
           <!-- Usia -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-cake" class="size-3.5" />
@@ -638,7 +638,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Status -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-heart" class="size-3.5" />
@@ -668,7 +668,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Golongan Darah -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-droplets" class="size-3.5" />
@@ -695,7 +695,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Jenis Kelamin -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-user" class="size-3.5" />
@@ -720,7 +720,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Policy Number -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-shield-check" class="size-3.5" />
@@ -740,7 +740,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Policy Exp. Date -->
-          <div class="bg-background p-4 flex flex-col gap-1">
+          <div class="bg-background p-3 flex flex-col gap-1">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-shield" class="size-3.5" />
