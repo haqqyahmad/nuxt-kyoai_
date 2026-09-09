@@ -355,7 +355,7 @@ const contactChanged = computed(() => ({
 const addrChanged = computed(() => {
   const p = selectedPatient.value
   const a = p?.addresses?.[0]
-  if (!p) return { addressType: false, detail: false, district: false, city: false, province: false, country: false }
+  if (!p) return { addressType: false, detail: false, district: false, city: false, province: false, country: false, note: false }
   return {
     addressType: nrm(contactForm.value.addressType) !== nrm(a?.type),
     detail: nrm(contactForm.value.detail) !== nrm(a?.detail),
@@ -363,6 +363,7 @@ const addrChanged = computed(() => {
     city: nrm(contactForm.value.city) !== nrm(a?.city),
     province: nrm(contactForm.value.province) !== nrm(a?.province),
     country: nrm(contactForm.value.country) !== nrm(a?.country),
+    note: nrm(contactForm.value.note) !== nrm(a?.note),
   }
 })
 
@@ -1463,7 +1464,10 @@ async function cancel() {
                       </UFormField>
                     </div>
                     <UFormField label="Address Line 2 (Optional)" class="min-w-0">
-                      <UInput v-model="contactForm.note" size="sm" class="w-full min-w-0" />
+                      <div class="flex items-center gap-1">
+                        <UInput v-model="contactForm.note" size="sm" :disabled="!addrChanged.note" class="w-full min-w-0" />
+                        <UBadge v-if="addrChanged.note" label="Change" color="warning" size="xs" class="shrink-0" />
+                      </div>
                     </UFormField>
                     <div class="grid grid-cols-2 gap-2">
                       <UFormField label="District" class="min-w-0">
