@@ -37,6 +37,8 @@ type Patient = {
   maritalStatus?: string;
   phone?: string;
   bloodGroup?: string;
+  policyNumber?: string | null;
+  policyExpDate?: string | null;
   createdAt: string;
   addresses: Address[];
   histories: CompanyHistory[];
@@ -58,6 +60,8 @@ const editForm = ref<Partial<Patient>>({
   maritalStatus: "",
   idType: "",
   bloodGroup: "",
+  policyNumber: "",
+  policyExpDate: "",
 });
 
 const fullName = computed(() => {
@@ -536,6 +540,43 @@ const deleteAddress = async (addressId: string) => {
                 v-else
                 v-model="editForm.email"
                 type="email"
+                size="sm"
+                class="flex-1 min-w-0"
+              />
+            </div>
+
+            <!-- Policy Number -->
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-shield-check"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Policy Number:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.policyNumber ?? "-"
+              }}</span>
+              <UInput
+                v-else
+                v-model="editForm.policyNumber"
+                size="sm"
+                class="flex-1 min-w-0"
+              />
+            </div>
+
+            <!-- Policy Exp. Date -->
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-shield"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Policy Exp. Date:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.policyExpDate ?? "-"
+              }}</span>
+              <UInput
+                v-else
+                v-model="editForm.policyExpDate"
+                type="date"
                 size="sm"
                 class="flex-1 min-w-0"
               />
