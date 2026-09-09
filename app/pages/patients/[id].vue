@@ -606,6 +606,7 @@ const deleteAddress = async (addressId: string) => {
           </div>
         </div>
       </div>
+      </div>
 
       <!-- Data Diri -->
       <div class="rounded-xl border border-accented overflow-hidden">
