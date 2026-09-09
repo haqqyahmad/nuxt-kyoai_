@@ -31,6 +31,8 @@ type TempRegistration = {
   createdAt: string
   updatedAt?: string
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
+  policyNumber?: string | null
+  policyExpDate?: string | null
 }
 
 const { data: reg, refresh } = await useAsyncData(
@@ -909,6 +911,16 @@ function printModalAnswers() {
                     {{ reg.idValue }}
                   </p>
                 </div>
+                <template v-if="reg.policyNumber || reg.policyExpDate">
+                  <div>
+                    <p class="text-xs text-muted mb-1">Policy Number</p>
+                    <p class="font-medium">{{ reg.policyNumber ?? '-' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+                    <p class="font-medium">{{ reg.policyExpDate ?? '-' }}</p>
+                  </div>
+                </template>
               </div>
             </div>
             <div v-else class="p-6 text-center text-sm text-muted">

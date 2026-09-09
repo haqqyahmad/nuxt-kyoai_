@@ -250,7 +250,9 @@ const newPatient = ref({
   idNumber: '',
   phone: '',
   email: '',
-  dob: ''
+  dob: '',
+  policyNumber: '',
+  policyExpDate: ''
 })
 
 // [CONTACT INFO] Pasien existing (dari portal) — dapat diedit FO, lalu di-override saat approve
@@ -534,6 +536,8 @@ type TempRegistration = {
   dob?: string
   maritalStatus?: string
   companyTemp?: string | null
+  policyNumber?: string | null
+  policyExpDate?: string | null
 }
 
 const tempLoading = ref(false)
@@ -602,6 +606,8 @@ async function loadTempPrefill(temp: TempRegistration) {
     newPatient.value.phone = temp.phone || ''
     newPatient.value.email = temp.email || ''
     newPatient.value.dob = tempDobToInput(temp.dob)
+    newPatient.value.policyNumber = temp.policyNumber || ''
+    newPatient.value.policyExpDate = temp.policyExpDate || ''
   }
 }
 
@@ -963,7 +969,10 @@ async function submit() {
         gender: (personalForm.value.gender || '').toLowerCase() || undefined,
         dob: toDMY(personalForm.value.dob) || undefined,
         idType: personalForm.value.idType,
-        idValue: personalForm.value.idNumber || undefined
+        idValue: personalForm.value.idNumber || undefined,
+        // [POLICY] Override data polis asuransi (dari form pasien baru)
+        policyNumber: newPatient.value.policyNumber || undefined,
+        policyExpDate: newPatient.value.policyExpDate || undefined
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
@@ -1603,6 +1612,22 @@ async function cancel() {
                         type="email"
                         size="sm"
                         placeholder="email@..."
+                        class="w-full"
+                      />
+                    </UFormField>
+                    <UFormField label="Policy Number">
+                      <UInput
+                        v-model="newPatient.policyNumber"
+                        size="sm"
+                        placeholder="Policy no."
+                        class="w-full"
+                      />
+                    </UFormField>
+                    <UFormField label="Policy Exp. Date">
+                      <UInput
+                        v-model="newPatient.policyExpDate"
+                        type="date"
+                        size="sm"
                         class="w-full"
                       />
                     </UFormField>
