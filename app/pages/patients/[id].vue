@@ -545,43 +545,6 @@ const deleteAddress = async (addressId: string) => {
               />
             </div>
 
-            <!-- Policy Number -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-shield-check"
-                class="text-muted flex-shrink-0 text-sm"
-              />
-              <span class="text-muted flex-shrink-0">Policy Number:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.policyNumber ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.policyNumber"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
-
-            <!-- Policy Exp. Date -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-shield"
-                class="text-muted flex-shrink-0 text-sm"
-              />
-              <span class="text-muted flex-shrink-0">Policy Exp. Date:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.policyExpDate ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.policyExpDate"
-                type="date"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
-
             <!-- Identitas -->
             <!-- <div
               class="flex flex-col xs:flex-row items-start xs:items-center gap-2 text-xs sm:text-sm min-w-0 col-span-1 sm:col-span-2"
@@ -618,6 +581,43 @@ const deleteAddress = async (addressId: string) => {
                 <span class="text-muted">{{ patient.idType }}:</span>
                 <span class="font-mono break-all">{{ patient.idNumber }}</span>
               </div>
+            </div>
+
+            <!-- Policy Number -->
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-shield-check"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Policy Number:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.policyNumber ?? "-"
+              }}</span>
+              <UInput
+                v-else
+                v-model="editForm.policyNumber"
+                size="sm"
+                class="flex-1 min-w-0"
+              />
+            </div>
+
+            <!-- Policy Exp. Date -->
+            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <UIcon
+                name="i-lucide-shield"
+                class="text-muted flex-shrink-0 text-sm"
+              />
+              <span class="text-muted flex-shrink-0">Policy Exp. Date:</span>
+              <span v-if="!isEditing" class="truncate">{{
+                patient.policyExpDate ?? "-"
+              }}</span>
+              <UInput
+                v-else
+                v-model="editForm.policyExpDate"
+                type="date"
+                size="sm"
+                class="flex-1 min-w-0"
+              />
             </div>
           </div>
         </div>
