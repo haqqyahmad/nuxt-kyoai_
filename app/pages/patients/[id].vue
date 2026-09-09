@@ -583,42 +583,6 @@ const deleteAddress = async (addressId: string) => {
               </div>
             </div>
 
-            <!-- Policy Number -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-shield-check"
-                class="text-muted flex-shrink-0 text-sm"
-              />
-              <span class="text-muted flex-shrink-0">Policy Number:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.policyNumber ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.policyNumber"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
-
-            <!-- Policy Exp. Date -->
-            <div class="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-              <UIcon
-                name="i-lucide-shield"
-                class="text-muted flex-shrink-0 text-sm"
-              />
-              <span class="text-muted flex-shrink-0">Policy Exp. Date:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.policyExpDate ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.policyExpDate"
-                type="date"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -710,6 +674,37 @@ const deleteAddress = async (addressId: string) => {
                   { label: 'Perempuan', value: 'FEMALE' },
                 ]"
                 class="w-32"
+              />
+            </div>
+          </div>
+
+          <!-- Policy Number -->
+          <div class="bg-background p-4">
+            <p class="text-xs text-muted mb-1">Policy Number</p>
+            <div v-if="!isEditing">
+              <p class="text-sm">{{ patient.policyNumber ?? "-" }}</p>
+            </div>
+            <div v-else>
+              <UInput
+                v-model="editForm.policyNumber"
+                size="sm"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Policy Exp. Date -->
+          <div class="bg-background p-4">
+            <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+            <div v-if="!isEditing">
+              <p class="text-sm">{{ patient.policyExpDate ?? "-" }}</p>
+            </div>
+            <div v-else>
+              <UInput
+                v-model="editForm.policyExpDate"
+                type="date"
+                size="sm"
+                class="w-full"
               />
             </div>
           </div>
