@@ -1352,13 +1352,13 @@ async function cancel() {
                       <UFormField label="No. HP" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.phone" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="contactChanged.phone" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="contactChanged.phone" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                       <UFormField label="Email" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.email" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="contactChanged.email" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="contactChanged.email" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                     </div>
@@ -1389,13 +1389,13 @@ async function cancel() {
                               { label: 'Other', value: 'OTHER' }
                             ]"
                           />
-                          <UBadge v-if="addrChanged.addressType" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.addressType" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                       <UFormField label="Address Line 1" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="addrChanged.detail" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.detail" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                     </div>
@@ -1406,25 +1406,25 @@ async function cancel() {
                       <UFormField label="District" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="addrChanged.district" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.district" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                       <UFormField label="City" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.city" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="addrChanged.city" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.city" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                       <UFormField label="Province" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.province" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="addrChanged.province" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.province" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                       <UFormField label="Country" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput v-model="contactForm.country" size="sm" class="w-full min-w-0" />
-                          <UBadge v-if="addrChanged.country" label="berubah" color="warning" size="xs" class="shrink-0" />
+                          <UBadge v-if="addrChanged.country" label="Change" color="warning" size="xs" class="shrink-0" />
                         </div>
                       </UFormField>
                     </div>
