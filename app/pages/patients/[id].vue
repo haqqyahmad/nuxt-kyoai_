@@ -402,6 +402,7 @@ const deleteAddress = async (addressId: string) => {
           <div
             v-if="isEditing"
             class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+            @click="handlePhotoClick"
           >
             <UIcon
               name="i-lucide-camera"
