@@ -161,6 +161,16 @@ const confirmOverwrite = ref(false)
 const existingPatient = ref<Patient | null>(null)
 
 const norm = (v?: string | null) => (v ? String(v).trim().toLowerCase() : '')
+// Normalisasi tanggal (ISO YYYY-MM-DD / DD/MM/YYYY) → YYYY-MM-DD utk perbandingan
+function normDateStr(v?: string | null) {
+  if (!v) return ''
+  const s = String(v).trim()
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  return s.slice(0, 10)
+}
 function patientFullName(p?: Patient | null) {
   return [p?.firstName, p?.middleName, p?.lastName].filter(v => v?.trim()).join(' ').trim()
 }
@@ -169,7 +179,7 @@ const isChanged = computed(() => {
   return {
     name: !p ? false : norm(fullName.value) !== norm(patientFullName(p)),
     gender: !p ? false : norm(reg.value?.gender) !== norm(p.gender),
-    dob: !p ? false : norm(reg.value?.dob) !== norm(p.dob),
+    dob: !p ? false : normDateStr(reg.value?.dob) !== normDateStr(p.dob),
     phone: !p ? false : norm(reg.value?.phone) !== norm(p.phone),
     email: !p ? false : norm(reg.value?.email) !== norm(p.email),
     idNumber: !p ? false : norm(reg.value?.idValue) !== norm(p.idNumber)
