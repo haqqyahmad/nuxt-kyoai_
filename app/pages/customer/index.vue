@@ -173,7 +173,7 @@ const columns: TableColumn<Customer>[] = [
     },
     cell: ({ row }) => {
       const c = row.original
-      const displayName = c.customerName.replace(/^PT\.?\s*/i, '')
+      const displayName = c.customerName.replace(/^(?:PT|CV)\.?\s*/i, '')
       return h('div', [
         h('p', { class: 'font-medium' }, displayName),
         h(
