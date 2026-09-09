@@ -144,6 +144,11 @@ type Patient = {
   middleName?: string
   lastName?: string
   gender?: string
+  phone?: string
+  email?: string
+  dob?: string
+  idType?: string
+  idNumber?: string
 }
 
 const patientSearchQuery = ref('')
@@ -151,6 +156,26 @@ const patientResults = ref<Patient[]>([])
 const patientSearchLoading = ref(false)
 const selectedPatient = ref<Patient | null>(null)
 const confirmOverwrite = ref(false)
+
+// [Repeat Patient] data pasien existing yg dibandingkan dgn data temp portal
+const existingPatient = ref<Patient | null>(null)
+
+const norm = (v?: string | null) => (v ? String(v).trim().toLowerCase() : '')
+function patientFullName(p?: Patient | null) {
+  return [p?.firstName, p?.middleName, p?.lastName].filter(v => v?.trim()).join(' ').trim()
+}
+const isChanged = computed(() => {
+  const p = existingPatient.value
+  return {
+    name: !p ? false : norm(fullName.value) !== norm(patientFullName(p)),
+    gender: !p ? false : norm(reg.value?.gender) !== norm(p.gender),
+    dob: !p ? false : norm(reg.value?.dob) !== norm(p.dob),
+    phone: !p ? false : norm(reg.value?.phone) !== norm(p.phone),
+    email: !p ? false : norm(reg.value?.email) !== norm(p.email),
+    idNumber: !p ? false : norm(reg.value?.idValue) !== norm(p.idNumber),
+  }
+})
+const changedCount = computed(() => Object.values(isChanged.value).filter(Boolean).length)
 
 // [F-ringan] Auto-suggest kandidat duplikat saat FO memilih "Pasien Baru"
 const duplicateSuggestions = ref<Patient[]>([])
@@ -557,9 +582,18 @@ function statusHistoryDesc(item: StatusHistoryItem): string {
   return 'Perubahan status registrasi.'
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadQuestionnaires()
   loadStatusHistory()
+  // [Repeat Patient] Muat pasien existing utk penanda perubahan data
+  if (reg.value?.patientExists === true && reg.value?.patientId) {
+    try {
+      const res = await api.get(`/patient/${reg.value.patientId}`)
+      existingPatient.value = res.data.data ?? null
+    } catch {
+      existingPatient.value = null
+    }
+  }
 })
 
 function printQuestionnaires() {
@@ -740,27 +774,47 @@ function printModalAnswers() {
               </h3>
               <span v-if="reg.patientId" class="text-xs text-muted">ID: {{ reg.patientId }}</span>
             </div>
+            {#if reg.patientExists === true && changedCount > 0}
+              <div class="px-5 pt-3">
+                <div class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                  <UIcon name="i-lucide-alert-triangle" class="mt-0.5 text-warning shrink-0" />
+                  <div>
+                    <p class="font-semibold text-warning">Ada {{ changedCount }} data yang berbeda dari data pasien existing</p>
+                    <p class="text-muted">Periksa perbedaan sebelum approve; data portal akan menimpa.</p>
+                  </div>
+                </div>
+              </div>
+            {/if}
             <div v-if="reg.firstName" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     Full Name
+                    {#if reg.patientExists === true && isChanged.name}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-semibold text-base">
                     {{ fullName }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     Gender
+                    {#if reg.patientExists === true && isChanged.gender}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-semibold">
                     {{ reg.gender === 'male' ? 'Male' : 'Female' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     Tanggal Lahir
+                    {#if reg.patientExists === true && isChanged.dob}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-semibold">
                     {{ fmtDate(reg.dob) }}
@@ -777,16 +831,22 @@ function printModalAnswers() {
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     Nomor HP
+                    {#if reg.patientExists === true && isChanged.phone}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-medium">
                     {{ reg.phone ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     Email
+                    {#if reg.patientExists === true && isChanged.email}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-medium truncate">
                     {{ reg.email ?? '-' }}
@@ -801,8 +861,11 @@ function printModalAnswers() {
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
                     ID Number
+                    {#if reg.patientExists === true && isChanged.idNumber}
+                      <UBadge label="berubah" color="warning" size="xs" />
+                    {/if}
                   </p>
                   <p class="font-medium">
                     {{ reg.idValue }}
