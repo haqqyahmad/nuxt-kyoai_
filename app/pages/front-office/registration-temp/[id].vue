@@ -812,7 +812,7 @@ function printModalAnswers() {
                     Full Name
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.name"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
@@ -826,7 +826,7 @@ function printModalAnswers() {
                     Gender
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.gender"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
@@ -840,7 +840,7 @@ function printModalAnswers() {
                     Tanggal Lahir
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.dob"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
@@ -864,7 +864,7 @@ function printModalAnswers() {
                     Nomor HP
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.phone"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
@@ -878,7 +878,7 @@ function printModalAnswers() {
                     Email
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.email"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
@@ -900,7 +900,7 @@ function printModalAnswers() {
                     ID Number
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.idNumber"
-                      label="berubah"
+                      label="Change"
                       color="warning"
                       size="xs"
                     />
