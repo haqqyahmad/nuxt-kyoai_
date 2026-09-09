@@ -203,13 +203,21 @@ const saveChanges = async () => {
   }
 };
 
+const resolveMediaUrl = (url?: string | null) => {
+  if (!url) return "";
+  if (/^https?:\/\//.test(url) || url.startsWith("data:")) return url;
+  let base = useRuntimeConfig().public.apiBase || "";
+  base = base.replace(/\/+$/, "").replace(/\/api$/, "");
+  return base ? `${base}${url}` : url;
+};
+
 const getPhotoUrl = () => {
   if (isEditing.value && photoPreview.value) {
     return photoPreview.value;
   }
   if (!patient.value) return defaultPhotoUrl;
   return (
-    patient.value.photoUrl ||
+    resolveMediaUrl(patient.value.photoUrl) ||
     `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
   );
 };
