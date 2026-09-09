@@ -244,6 +244,44 @@ const newPatient = ref({
   dob: ''
 })
 
+// [CONTACT INFO] Pasien existing (dari portal) — dapat diedit FO, lalu di-override saat approve
+const contactForm = ref({
+  phone: '',
+  email: '',
+  addressType: 'HOME',
+  detail: '',
+  note: '',
+  district: '',
+  city: '',
+  province: '',
+  country: 'Indonesia'
+})
+
+function parseAddrTemp(str?: string | null): Record<string, string> | null {
+  if (!str) return null
+  try {
+    const o = JSON.parse(str)
+    return o && typeof o === 'object' ? o : null
+  } catch {
+    return null
+  }
+}
+
+function applyTempContact(temp: { phone?: string, email?: string, addressTemp?: string | null }) {
+  const addr = parseAddrTemp(temp.addressTemp)
+  contactForm.value = {
+    phone: temp.phone || '',
+    email: temp.email || '',
+    addressType: addr?.addressType || 'HOME',
+    detail: addr?.detail || '',
+    note: addr?.note || '',
+    district: addr?.district || '',
+    city: addr?.city || '',
+    province: addr?.province || '',
+    country: addr?.country || 'Indonesia',
+  }
+}
+
 const canSaveNewPatient = computed(
   () =>
     !!selectedBranch.value
@@ -462,6 +500,7 @@ async function loadTempPrefill(temp: TempRegistration) {
       // kosong. Kembalikan nilai dari temp (portal) agar tidak hilang.
       regForm.value.companyId = temp.companyId
       regForm.value.position = companyTemp?.position ?? regForm.value.position
+      applyTempContact(temp)
     } catch {
       tempLoadError.value = 'Gagal memuat data pasien'
     }
@@ -820,7 +859,17 @@ async function submit() {
         // [A+] Kirim keputusan FO ke backend
         patientType: patientTypeFromQuery.value === 'new' ? 'new' : 'existing',
         companyId: String(regForm.value.companyId || ''),
-        position: regForm.value.position || undefined
+        position: regForm.value.position || undefined,
+        // [CONTACT] Override contact/alamat dari card Contact Info (pasien existing)
+        phone: contactForm.value.phone || undefined,
+        email: contactForm.value.email || undefined,
+        addressType: contactForm.value.addressType,
+        detail: contactForm.value.detail || undefined,
+        note: contactForm.value.note || undefined,
+        district: contactForm.value.district || undefined,
+        addressCity: contactForm.value.city || undefined,
+        addressProvince: contactForm.value.province || undefined,
+        addressCountry: contactForm.value.country || undefined
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
@@ -1288,6 +1337,58 @@ async function cancel() {
                         />
                       </UFormField>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Card Contact Info (pasien existing dari portal) -->
+                <div
+                  v-if="selectedPatient && fromTemp"
+                  class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
+                >
+                  <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex items-center gap-2">
+                    <p class="text-sm font-semibold">
+                      Contact Info
+                    </p>
+                  </div>
+                  <div class="p-3 space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                      <UFormField label="No. HP" class="min-w-0">
+                        <UInput v-model="contactForm.phone" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                      <UFormField label="Email" class="min-w-0">
+                        <UInput v-model="contactForm.email" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <UFormField label="Address Type" class="min-w-0">
+                        <USelect
+                          v-model="contactForm.addressType"
+                          size="sm"
+                          :items="[
+                            { label: 'Home', value: 'HOME' },
+                            { label: 'Work', value: 'WORK' },
+                            { label: 'Other', value: 'OTHER' }
+                          ]"
+                        />
+                      </UFormField>
+                      <UFormField label="Address Line 1" class="min-w-0">
+                        <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                      <UFormField label="District" class="min-w-0">
+                        <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                      <UFormField label="City" class="min-w-0">
+                        <UInput v-model="contactForm.city" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                      <UFormField label="Province" class="min-w-0">
+                        <UInput v-model="contactForm.province" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                    </div>
+                    <UFormField label="Address Line 2 (Optional)" class="min-w-0">
+                      <UInput v-model="contactForm.note" size="sm" class="w-full min-w-0" />
+                    </UFormField>
                   </div>
                 </div>
 
