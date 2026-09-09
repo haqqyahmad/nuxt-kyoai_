@@ -63,6 +63,10 @@ watch(currentPage, (page) => {
 /* ─────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────── */
+function shortCustomerName(name: string) {
+  return String(name ?? '').replace(/^(?:PT|CV)\.?\s*/i, '').trim()
+}
+
 type Customer = {
   id: number
   codeCostumer: string
@@ -159,7 +163,8 @@ const columns: TableColumn<Customer>[] = [
   },
 
   {
-    accessorKey: 'customerName',
+    id: 'customerName',
+    accessorFn: (row: Customer) => shortCustomerName(row.customerName),
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
       return h(UButton, {
