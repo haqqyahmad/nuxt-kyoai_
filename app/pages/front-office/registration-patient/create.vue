@@ -1375,7 +1375,7 @@ async function cancel() {
                         <UInput v-model="contactForm.detail" size="sm" class="w-full min-w-0" />
                       </UFormField>
                     </div>
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-2 gap-2">
                       <UFormField label="District" class="min-w-0">
                         <UInput v-model="contactForm.district" size="sm" class="w-full min-w-0" />
                       </UFormField>
@@ -1384,6 +1384,9 @@ async function cancel() {
                       </UFormField>
                       <UFormField label="Province" class="min-w-0">
                         <UInput v-model="contactForm.province" size="sm" class="w-full min-w-0" />
+                      </UFormField>
+                      <UFormField label="Country" class="min-w-0">
+                        <UInput v-model="contactForm.country" size="sm" class="w-full min-w-0" />
                       </UFormField>
                     </div>
                     <UFormField label="Address Line 2 (Optional)" class="min-w-0">
