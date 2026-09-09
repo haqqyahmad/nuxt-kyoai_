@@ -620,8 +620,13 @@ const deleteAddress = async (addressId: string) => {
           class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-accented p-3"
         >
           <!-- Usia -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Usia</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-cake" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Usia</p>
+            </div>
             <p v-if="!isEditing" class="text-sm">
               {{
                 patient.dob
@@ -633,8 +638,13 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Status -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Status</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-heart" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Status</p>
+            </div>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{
@@ -658,8 +668,13 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Golongan Darah -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Golongan Darah</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-droplets" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Golongan Darah</p>
+            </div>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{ patient.bloodGroup ?? "-" }}
@@ -680,8 +695,13 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Jenis Kelamin -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Jenis Kelamin</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-user" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Jenis Kelamin</p>
+            </div>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{ genderLabel(patient.gender) }}
@@ -700,8 +720,13 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Policy Number -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Policy Number</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-shield-check" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Policy Number</p>
+            </div>
             <div v-if="!isEditing">
               <p class="text-sm">{{ patient.policyNumber ?? "-" }}</p>
             </div>
@@ -715,8 +740,13 @@ const deleteAddress = async (addressId: string) => {
           </div>
 
           <!-- Policy Exp. Date -->
-          <div class="bg-background p-4">
-            <p class="text-[11px] uppercase tracking-wide text-muted mb-1.5 font-medium">Policy Exp. Date</p>
+          <div class="bg-background p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-shield" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Policy Exp. Date</p>
+            </div>
             <div v-if="!isEditing">
               <p class="text-sm">{{ patient.policyExpDate ?? "-" }}</p>
             </div>
