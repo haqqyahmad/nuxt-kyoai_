@@ -24,6 +24,7 @@ type Contact = {
 };
 
 type Customer = {
+  codeCostumer?: string;
   customerName: string;
   CustomerType?: string;
   addresses: Address[];
@@ -92,7 +93,18 @@ const customerTypeColor: Record<string, "info" | "success" | "neutral"> = {
   PT: "info",
   CV: "success",
   PERSONAL: "neutral",
+  Personal: "neutral",
 };
+
+function stripLegalPrefix(name: string) {
+  return String(name ?? '').replace(/^(?:PT|CV)\.?\s*/i, '');
+}
+
+function shortOf(name: string) {
+  return stripLegalPrefix(name).trim() || name;
+}
+
+const shortName = computed(() => (customer.value ? shortOf(customer.value.customerName) : ''));
 
 /* =========================
    CONTACT
@@ -293,7 +305,7 @@ const deleteAddress = async (id: string) => {
   >
     <!-- NAVBAR -->
     <UDashboardNavbar
-      :title="customer?.customerName ?? 'Detail Customer'"
+      :title="customer ? shortName : 'Detail Customer'"
       class="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-accented"
     >
       <template #leading>
@@ -330,14 +342,14 @@ const deleteAddress = async (id: string) => {
       <!-- ===== HEADER CARD ===== -->
       <div class="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 p-4 sm:p-6 rounded-xl border border-accented bg-elevated">
         <div class="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-200 font-medium text-2xl flex-shrink-0 mx-auto sm:mx-0">
-          {{ getInitials(customer.customerName) }}
+          {{ getInitials(shortName) }}
         </div>
 
         <div class="flex-1 min-w-0 w-full">
           <!-- View mode -->
           <div v-if="!isEditing">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-xl font-semibold break-words">{{ customer.customerName }}</h2>
+              <h2 class="text-xl font-semibold break-words">{{ shortName }}</h2>
               <UBadge
                 v-if="customer.CustomerType"
                 :label="customer.CustomerType"
@@ -345,7 +357,9 @@ const deleteAddress = async (id: string) => {
                 variant="subtle"
               />
             </div>
-            <p class="text-xs text-muted mt-1">ID: {{ route.params.id }}</p>
+            <p class="text-xs text-muted mt-1">
+              {{ customer.codeCostumer ? `Kode: ${customer.codeCostumer}` : `ID: ${route.params.id}` }}
+            </p>
           </div>
 
           <!-- Edit mode -->
@@ -362,7 +376,7 @@ const deleteAddress = async (id: string) => {
                   :items="[
                     { label: 'PT', value: 'PT' },
                     { label: 'CV', value: 'CV' },
-                    { label: 'PERSONAL', value: 'PERSONAL' },
+                    { label: 'Personal', value: 'Personal' },
                   ]"
                   size="sm"
                   class="w-full"
@@ -601,7 +615,7 @@ const deleteAddress = async (id: string) => {
             class="w-full"
           />
         <UFormField label="Kontak Utama">
-          <UToggle
+          <USwitch
             :model-value="!!editingContact.isPrimary"
             @update:model-value="(val) => editingContact && (editingContact.isPrimary = val ? 1 : 0)"
           />
