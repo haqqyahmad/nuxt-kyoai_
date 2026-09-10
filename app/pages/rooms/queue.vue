@@ -243,7 +243,7 @@ function syncMealProgression(rows: WaitingRow[]) {
         now.value = Date.now()
         tickCount += 1
 
-        // Cek apakah ada meal yang sudah habis (remaining === 0) atau setiap 15 detik
+        // Check if any meal has run out (remaining === 0) or every 15 seconds
         let hitZero = false
         for (const r of rows) {
           const status = r.meal?.status ?? (r.meal as Record<string, unknown> | null)?.mealStatus
@@ -294,7 +294,7 @@ function mealShortTime(value: string | undefined | null): string {
   if (!value) return ''
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 const completeMealTarget = ref<WaitingRow | null>(null)
@@ -311,11 +311,11 @@ async function completeMealFromList() {
   if (!examId) return
   try {
     await api.post(`/medical/exams/${examId}/meal/complete`)
-    toast.add({ title: 'Berhasil', description: 'Meal selesai', color: 'success' })
+    toast.add({ title: 'Success', description: 'Meal completed', color: 'success' })
     void refreshWaiting()
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    toast.add({ title: 'Gagal', description: msg || 'Gagal menyelesaikan meal', color: 'error' })
+    toast.add({ title: 'Failed', description: msg || 'Failed to complete meal', color: 'error' })
   } finally {
     completeMealTarget.value = null
     completeMealConfirmOpen.value = false
@@ -409,13 +409,13 @@ const historyStatusFilter = toRef(queueFilterState, 'historyStatus')
 const examDateFromFilter = toRef(queueFilterState, 'examDateFrom')
 const examDateToFilter = toRef(queueFilterState, 'examDateTo')
 const historyStatusOptions = [
-  { label: 'Selesai', value: 'DONE' },
-  { label: 'Sedang diproses', value: 'IN_PROGRESS' },
-  { label: 'Skip', value: 'SKIPPED' },
-  { label: 'Reschedule', value: 'RESCHEDULED' },
-  { label: 'Pasien Menolak', value: 'REFUSED' },
-  { label: 'Dipanggil', value: 'CALLED' },
-  { label: 'Semua', value: 'ALL' }
+  { label: 'Done', value: 'DONE' },
+  { label: 'In Progress', value: 'IN_PROGRESS' },
+  { label: 'Skipped', value: 'SKIPPED' },
+  { label: 'Rescheduled', value: 'RESCHEDULED' },
+  { label: 'Refused', value: 'REFUSED' },
+  { label: 'Called', value: 'CALLED' },
+  { label: 'All', value: 'ALL' }
 ]
 
 type ActiveRoomSession = {
@@ -520,7 +520,7 @@ const effectiveWaitingRoomTypeId = computed(() =>
   isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
 )
 
-// Histori by department — tidak butuh room assignment.
+// History by department — no room assignment needed.
 const departmentOptions = ref<Array<{ id: string, name: string }>>([])
 const departmentOptionsPending = ref(false)
 async function loadDepartmentOptions() {
@@ -554,8 +554,8 @@ const {
   async () => {
     if (!effectiveHistoryDepartmentId.value) return []
 
-    // Kirim ALL secara eksplisit agar backend dapat membedakannya dari
-    // status kosong yang berarti filter default antrean WAITING/PARTIAL.
+    // Send ALL explicitly so backend can distinguish it from
+    // an empty status which means the default WAITING/PARTIAL queue.
     const status = historyStatusFilter.value
 
     const res = await api.get(`/medical/exams/queue/department/${effectiveHistoryDepartmentId.value}`, {
@@ -598,7 +598,7 @@ const {
       page: 1,
       _: Date.now()
     }
-    // Filter berdasar tanggal antrian (queueDate) — pasien tampil sesuai hari masuk antrian
+    // Filter by queue date (queueDate) — patients appear based on the day they entered the queue
     // (termasuk resample/datang kembali), bukan examDate registration.
     if (waitingExamDateFrom.value) params.queueDateFrom = waitingExamDateFrom.value
     if (waitingExamDateTo.value) params.queueDateTo = waitingExamDateTo.value
@@ -760,10 +760,73 @@ const waitingRows = computed<WaitingRow[]>(() =>
   })
 )
 
+const {
+  data: waitingStatsData,
+  refresh: refreshWaitingStats
+} = await useAsyncData<number>(
+  'room-queue-waiting-stats',
+  async () => {
+    if (!effectiveHistoryDepartmentId.value) return 0
+
+    const res = await api.get(`/medical/exams/queue/department/${effectiveHistoryDepartmentId.value}`, {
+      params: {
+        examDateFrom: examDateFromFilter.value || undefined,
+        examDateTo: examDateToFilter.value || undefined,
+        status: 'WAITING',
+        limit: 1,
+        page: 1,
+        _: Date.now()
+      }
+    })
+
+    const nested = res.data?.data ?? res.data
+    const list = Array.isArray(nested) ? nested : nested?.data ?? []
+    const meta = nested && typeof nested === 'object' && !Array.isArray(nested) ? nested.meta : res.data?.meta ?? null
+    return Number(meta?.total ?? list.length)
+  },
+  {
+    default: () => 0,
+    watch: [effectiveHistoryDepartmentId, examDateFromFilter, examDateToFilter],
+    server: false
+  }
+)
+
+const {
+  data: lockedStatsData,
+  refresh: refreshLockedStats
+} = await useAsyncData<number>(
+  'room-queue-locked-stats',
+  async () => {
+    if (!effectiveHistoryDepartmentId.value) return 0
+
+    const res = await api.get(`/medical/exams/queue/department/${effectiveHistoryDepartmentId.value}`, {
+      params: {
+        examDateFrom: examDateFromFilter.value || undefined,
+        examDateTo: examDateToFilter.value || undefined,
+        status: 'LOCKED',
+        limit: 1,
+        page: 1,
+        _: Date.now()
+      }
+    })
+
+    const nested = res.data?.data ?? res.data
+    const list = Array.isArray(nested) ? nested : nested?.data ?? []
+    const meta = nested && typeof nested === 'object' && !Array.isArray(nested) ? nested.meta : res.data?.meta ?? null
+    return Number(meta?.total ?? list.length)
+  },
+  {
+    default: () => 0,
+    watch: [effectiveHistoryDepartmentId, examDateFromFilter, examDateToFilter],
+    server: false
+  }
+)
+
 const historyStats = computed(() => ({
   completed: historyRows.value.length,
-  waiting: waitingRows.value.length,
-  access: isSuperAdmin.value ? 'Super Admin' : (roomTypeId.value ? 'Assignment Room' : 'Butuh Assignment')
+  waiting: waitingStatsData.value ?? 0,
+  locked: lockedStatsData.value ?? 0,
+  access: isSuperAdmin.value ? 'Super Admin' : (roomTypeId.value ? 'Assignment Room' : 'Need Assignment')
 }))
 
 watch(
@@ -777,7 +840,7 @@ watch(
   { deep: true }
 )
 
-// Hentikan polling saat modal tutup — interval tak boleh jalan di background.
+// Stop polling when the modal closes — the interval must not run in the background.
 watch(
   () => isWaitingModalOpen.value,
   (open) => {
@@ -803,7 +866,7 @@ function formatQueueDate(dateString?: string | null) {
   const date = new Date(dateString)
   if (Number.isNaN(date.getTime())) return '-'
 
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date)
@@ -813,7 +876,7 @@ function formatSessionTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleString('id-ID', {
+  return date.toLocaleString('en-GB', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   })
 }
@@ -825,7 +888,7 @@ function formatExamDate(dateString?: string | null) {
   const [year, month, day] = datePart.split('-').map(Number)
   if (!year || !month || !day) return '-'
 
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium'
   }).format(new Date(year, month - 1, day))
 }
@@ -841,7 +904,7 @@ function formatPatientName(patient?: PatientName | null) {
 function formatPatientMeta(gender?: string | null, dob?: string | null, phone?: string | null) {
   const genderLabel = gender === 'MALE' ? 'L' : gender === 'FEMALE' ? 'P' : null
   const age = dob ? getPatientAgeAtDate(dob, today) : null
-  const profile = [genderLabel, age != null ? `${age} th` : null].filter(Boolean).join(' · ')
+  const profile = [genderLabel, age != null ? `${age} y` : null].filter(Boolean).join(' · ')
   return [profile, phone].filter(Boolean).join(' · ')
 }
 
@@ -859,16 +922,16 @@ function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null)
 }
 
 function getItemStatusLabel(status: string) {
-  if (status === 'WAITING') return 'Menunggu dipanggil'
-  if (status === 'CALLED') return 'Pasien diambil'
-  if (status === 'IN_PROGRESS') return 'Sedang diproses'
-  if (status === 'DONE') return 'Selesai'
-  if (status === 'SKIPPED') return 'Skip'
-  if (status === 'RESCHEDULED') return 'Reschedule'
-  if (status === 'REFUSED') return 'Pasien Menolak'
-  if (status === 'RETEXT') return 'Perlu Tes Ulang'
-  if (status === 'LOCKED') return 'Terkunci'
-  return 'Menunggu'
+  if (status === 'WAITING') return 'Waiting'
+  if (status === 'CALLED') return 'Called'
+  if (status === 'IN_PROGRESS') return 'In Progress'
+  if (status === 'DONE') return 'Done'
+  if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'RESCHEDULED') return 'Rescheduled'
+  if (status === 'REFUSED') return 'Refused'
+  if (status === 'RETEXT') return 'Retest'
+  if (status === 'LOCKED') return 'Locked'
+  return 'Waiting'
 }
 
 function formatStageColumn(stageItems: RoomQueueItem['stageItems']) {
@@ -882,9 +945,9 @@ function formatStageColumn(stageItems: RoomQueueItem['stageItems']) {
       const code = stage.stage?.code
       let label = getItemStatusLabel(stage.status)
       if (isLabFlow && code === 'RECEIVE' && stage.status === 'WAITING') {
-        label = 'Menunggu Diterima Lab'
+        label = 'Waiting for Lab Receipt'
       } else if (isLabFlow && code === 'EXAM' && stage.status === 'WAITING') {
-        label = 'Menunggu diproses Lab'
+        label = 'Waiting for Lab Processing'
       }
       return `Stage ${stage.stageOrder}: ${label}`
     })
@@ -927,69 +990,69 @@ function buildStatusBadge(
   const hasRejected = sampleStatuses.some(s => s === 'REJECTED' || s === 'RESCHEDULED')
   const allReceived = sampleStatuses.length > 0 && sampleStatuses.every(s => s === 'RECEIVED')
 
-  // Stage aktif pertama (belum selesai), utk lab flow berarti COLLECT → RECEIVE → EXAM.
+  // First active stage (not finished), for lab flow means COLLECT → RECEIVE → EXAM.
   const active = stages.find(s =>
     !['LOCKED', 'DONE', 'SKIPPED', 'RESCHEDULED'].includes(s.status)
     && ['COLLECT', 'RECEIVE', 'EXAM'].includes(s.stage?.code ?? '')
   )
   const stageCode = active?.stage?.code
 
-  // Selalu tonjolkan kalau ada sample bermasalah (harus diambil ulang / datang ulang).
+  // Always highlight if there is a problematic sample (needs recollection / revisit).
   if (hasRejected && !hasCollected && !hasReceived) {
-    return build('Sample perlu diambil ulang', 'error')
+    return build('Sample needs recollection', 'error')
   }
 
   switch (stageCode) {
     case 'COLLECT':
-      if (hasPending) return build('Menunggu Ambil Sample', 'warning')
-      if (hasCollected) return build('Diambil, menunggu terima Lab', 'info')
-      return build('Menunggu Ambil Sample', 'warning')
+      if (hasPending) return build('Waiting for Sample Collection', 'warning')
+      if (hasCollected) return build('Collected, waiting for Lab receipt', 'info')
+      return build('Waiting for Sample Collection', 'warning')
     case 'RECEIVE':
-      if (allReceived) return build('Sample Diterima Lab', 'success')
-      return build('Menunggu Diterima Lab', 'info')
+      if (allReceived) return build('Sample Received by Lab', 'success')
+      return build('Waiting for Lab Receipt', 'info')
     case 'EXAM':
-      return build('Menunggu diproses Lab', 'warning')
+      return build('Waiting for Lab Processing', 'warning')
     default:
       return build(getItemStatusLabel(status), getQueueBadgeColor(status))
   }
 }
 
-// Status proses pasien di ROOM (bukan status sample).
-// Prioritas: aksi item (tolak/reschedule/retest) → selesai → in-progress item → in-room → called → waiting.
+// Patient process status in ROOM (not sample status).
+// Priority: item action (reject/reschedule/retest) → done → in-progress item → in-room → called → waiting.
 function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
   const build = (label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral') => ({ label, color })
 
   const examStatuses = (item.examItems ?? []).map(e => e.status)
 
-  // Aksi per item pasien.
-  if (examStatuses.includes('RESCHEDULED')) return build('Reschedule', 'warning')
-  if (examStatuses.includes('REFUSED')) return build('Pasien Menolak', 'error')
+  // Actions per patient item.
+  if (examStatuses.includes('RESCHEDULED')) return build('Rescheduled', 'warning')
+  if (examStatuses.includes('REFUSED')) return build('Refused', 'error')
   if (examStatuses.includes('RETEXT')) return build('Retest', 'error')
   if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
 
-  // Selesai: semua stage DONE.
+  // Done: all stages DONE.
   const stages = item.stageItems ?? []
   if (stages.length > 0 && stages.every(s => ['DONE', 'SKIPPED'].includes(s.status))) {
     return build('Completed', 'success')
   }
   if (item.status === 'DONE') return build('Completed', 'success')
 
-  // Mulai Item (exam item dikerjakan).
+  // Start Item (exam item in progress).
   if (examStatuses.includes('IN_PROGRESS')) return build('In Progress', 'warning')
 
-  // Mulai Pemeriksaan (stage room dijalankan).
+  // Start Examination (room stage running).
   if (stages.some(s => s.status === 'IN_PROGRESS')) return build('In Room', 'info')
 
-  // Dipanggil.
+  // Called.
   if (stages.some(s => s.status === 'CALLED')) return build('Called', 'info')
 
-  // Belum dipanggil.
+  // Not called yet.
   if (item.status === 'WAITING' || stages.some(s => s.status === 'WAITING')) return build('Waiting', 'neutral')
 
   return build(getItemStatusLabel(item.status), getQueueBadgeColor(item.status))
 }
 
-// Nama room type utk kolom Room (dari roomTypeOptions per id).
+// Room type name for the Room column (from roomTypeOptions by id).
 function roomTypeNameById(id?: string | null): string {
   if (!id) return '-'
   const found = roomTypeOptions.value.find(o => String(o.value) === id)
@@ -997,11 +1060,11 @@ function roomTypeNameById(id?: string | null): string {
 }
 
 function getSampleStatusLabel(status: string) {
-  if (status === 'RECEIVED') return 'Diterima Lab'
-  if (status === 'COLLECTED') return 'Sudah Diambil'
-  if (status === 'REJECTED') return 'Ditolak'
-  if (status === 'RESCHEDULED') return 'Reschedule'
-  return 'Menunggu Ambil'
+  if (status === 'RECEIVED') return 'Received by Lab'
+  if (status === 'COLLECTED') return 'Collected'
+  if (status === 'REJECTED') return 'Rejected'
+  if (status === 'RESCHEDULED') return 'Rescheduled'
+  return 'Waiting for Collection'
 }
 
 async function openProcessedDocument(row: QueueHistoryRow) {
@@ -1025,8 +1088,8 @@ async function openProcessedDocument(row: QueueHistoryRow) {
 
     if (!examItemId) {
       toast.add({
-        title: 'Detail dokumen tidak tersedia',
-        description: 'Tidak ada item pemeriksaan yang bisa dibuka hasilnya.',
+        title: 'Document detail not available',
+        description: 'No examination items available to open results.',
         color: 'warning'
       })
       return
@@ -1043,8 +1106,8 @@ async function openProcessedDocument(row: QueueHistoryRow) {
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } })?.response
     toast.add({
-      title: 'Gagal membuka detail dokumen',
-      description: response?.data?.message || 'Terjadi kesalahan saat memuat detail dokumen hasil.',
+      title: 'Failed to open document detail',
+      description: response?.data?.message || 'An error occurred while loading result document detail.',
       color: 'error'
     })
   }
@@ -1069,8 +1132,8 @@ async function openSampleDetail(row: QueueHistoryRow) {
     sampleDetailData.value = (payload?.data ?? payload ?? []) as SampleCollectionDetail[]
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memuat detail sample',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memuat detail pengambilan sample.'),
+      title: 'Failed to load sample detail',
+      description: getErrorMessage(error, 'An error occurred while loading sample collection detail.'),
       color: 'error'
     })
   } finally {
@@ -1091,7 +1154,7 @@ function getHistoryRowActions(row: QueueHistoryRow) {
       onSelect: () => openQueueWork(row.id)
     },
     {
-      label: 'Lihat Detail Dokumen',
+      label: 'View Document Detail',
       icon: 'i-lucide-file-text',
       onSelect: () => openProcessedDocument(row)
     }
@@ -1099,7 +1162,7 @@ function getHistoryRowActions(row: QueueHistoryRow) {
 
   if (row.hasSample) {
     actions.unshift({
-      label: 'Lihat Detail Pengambilan Sample',
+      label: 'View Sample Collection Detail',
       icon: 'i-lucide-test-tube-diagonal',
       onSelect: () => openSampleDetail(row)
     })
@@ -1107,7 +1170,7 @@ function getHistoryRowActions(row: QueueHistoryRow) {
 
   if (row.status === 'WAITING' || row.status === 'LOCKED') {
     actions.push({
-      label: 'Remove dari Antrian Room',
+      label: 'Remove from Room Queue',
       icon: 'i-lucide-user-x',
       onSelect: () => handleRemoveRoomQueueItem(row)
     })
@@ -1117,20 +1180,20 @@ function getHistoryRowActions(row: QueueHistoryRow) {
 }
 
 async function handleRemoveRoomQueueItem(row: QueueHistoryRow) {
-  if (!confirm(`Hapus pasien ${row.patientName} dari antrian room ini? Tindakan hanya bisa dilakukan bila belum ada item yang diproses.`)) return
+  if (!confirm(`Remove patient ${row.patientName} from this room queue? This action can only be done if no items have been processed.`)) return
 
   try {
     await api.delete(`/medical/exams/queue/room-item/${row.id}`)
     await refreshHistory()
     toast.add({
-      title: 'Berhasil',
-      description: `Pasien ${row.patientName} dihapus dari antrian room.`,
+      title: 'Success',
+      description: `Patient ${row.patientName} removed from room queue.`,
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menghapus dari antrian room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menghapus pasien dari antrian room.'),
+      title: 'Failed to remove from room queue',
+      description: getErrorMessage(error, 'An error occurred while removing patient from room queue.'),
       color: 'error'
     })
   }
@@ -1148,8 +1211,8 @@ async function handleWaitingRowCall(row: WaitingRow) {
 
   if (!activeRoomSession.value) {
     toast.add({
-      title: 'Sesi room belum aktif',
-      description: 'Masuk ke room dulu sebelum mengambil pasien dari waiting list.',
+      title: 'Room session not active',
+      description: 'Enter the room first before picking patients from the waiting list.',
       color: 'warning'
     })
     return
@@ -1161,8 +1224,8 @@ async function handleWaitingRowCall(row: WaitingRow) {
     && activeRoomSession.value.roomTypeId !== effectiveWaitingRoomTypeId.value
   ) {
     toast.add({
-      title: 'Room tidak sesuai',
-      description: 'Room aktif harus sesuai dengan room type yang sedang dibuka.',
+      title: 'Mismatched room',
+      description: 'Active room must match the room type being opened.',
       color: 'warning'
     })
     return
@@ -1183,30 +1246,30 @@ async function handleWaitingRowCall(row: WaitingRow) {
     })
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Pasien berhasil diambil dari waiting list.',
+      title: 'Success',
+      description: 'Patient successfully picked from waiting list.',
       color: 'success'
     })
   } catch (error: unknown) {
     const status = (error as { response?: { status?: number } })?.response?.status
-    const message = getErrorMessage(error, 'Terjadi kesalahan saat mengambil pasien dari waiting list.')
+    const message = getErrorMessage(error, 'An error occurred while picking patient from waiting list.')
 
     if (status === 409) {
       toast.add({
-        title: 'Sudah diambil ruangan lain',
-        description: 'Pasien ini sudah dipanggil oleh ruangan lain. Silakan refresh antrian.',
+        title: 'Already picked by another room',
+        description: 'This patient has already been called by another room. Please refresh queue.',
         color: 'warning'
       })
       await refreshWaiting()
     } else if (status === 403) {
       toast.add({
-        title: 'Tidak berwenang',
-        description: 'Ruangan ini tidak menangani stage yang dipanggil.',
+        title: 'Unauthorized',
+        description: 'This room does not handle the called stage.',
         color: 'error'
       })
     } else {
       toast.add({
-        title: 'Gagal mengambil pasien',
+        title: 'Failed to pick patient',
         description: message,
         color: 'error'
       })
@@ -1223,14 +1286,14 @@ function getRoomSessionLabel() {
   if (activeRoomSession.value?.roomType?.name) {
     return activeRoomSession.value.roomType.name
   }
-  return 'Sesi room tidak aktif'
+  return 'Room session inactive'
 }
 
 function openEnterRoomModal() {
   if (!assignment.value?.roomId) {
     toast.add({
-      title: 'Belum ada assignment room',
-      description: 'Tidak ada room assignment yang bisa dipakai untuk masuk room.',
+      title: 'No room assignment',
+      description: 'No room assignment available to enter room.',
       color: 'warning'
     })
     return
@@ -1249,14 +1312,14 @@ async function handleEnterRoom() {
     isEnterRoomModalOpen.value = false
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Berhasil masuk ke room aktif.',
+      title: 'Success',
+      description: 'Successfully entered active room.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal masuk room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk ke room aktif.'),
+      title: 'Failed to enter room',
+      description: getErrorMessage(error, 'An error occurred while entering active room.'),
       color: 'error'
     })
   } finally {
@@ -1267,8 +1330,8 @@ async function handleEnterRoom() {
 function openExitRoomModal() {
   if (!activeRoomSession.value) {
     toast.add({
-      title: 'Sesi room belum aktif',
-      description: 'Tidak ada room aktif yang bisa dikeluarkan.',
+      title: 'Room session inactive',
+      description: 'No active room session to exit.',
       color: 'warning'
     })
     return
@@ -1287,14 +1350,14 @@ async function handleExitRoom() {
     isExitRoomModalOpen.value = false
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Berhasil keluar dari room aktif.',
+      title: 'Success',
+      description: 'Successfully exited active room.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal keluar room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar dari room aktif.'),
+      title: 'Failed to exit room',
+      description: getErrorMessage(error, 'An error occurred while exiting active room.'),
       color: 'error'
     })
   } finally {
@@ -1304,7 +1367,7 @@ async function handleExitRoom() {
 
 async function openChangeRoomModal() {
   if (isSuperAdmin.value) {
-    // Superadmin: tampilkan semua room aktif.
+    // Superadmin: show all active rooms.
     try {
       const res = await api.get('/medical/rooms/rooms', { params: { isActive: true } })
       const list = res.data?.data ?? res.data ?? []
@@ -1317,8 +1380,8 @@ async function openChangeRoomModal() {
   }
   if (!changeRoomOptions.value.length) {
     toast.add({
-      title: 'Tidak ada room tersedia',
-      description: 'Tidak ada room yang bisa dipilih.',
+      title: 'No rooms available',
+      description: 'No room can be selected.',
       color: 'warning'
     })
     return
@@ -1334,21 +1397,21 @@ async function handleChangeRoom(roomId: string) {
     if (activeRoomSession.value) {
       await exitRoomSession()
     }
-    // Pindahkan assignment aktif (superadmin dgn tanpa assignment → auto-create).
+    // Move active assignment (superadmin without assignment → auto-create).
     await api.post('/room-assignments/me/change-room', { roomId })
     await enterRoomSession({ roomId })
-    // Superadmin: ikutkan filter modal waiting ke room type sesi baru.
+    // Superadmin: apply waiting modal filter to the new session's room type.
     if (isSuperAdmin.value && activeRoomSession.value?.roomTypeId) {
       selectedWaitingRoomTypeId.value = activeRoomSession.value.roomTypeId
     }
     await refreshAll()
     await refreshRoomSession()
     isChangeRoomModalOpen.value = false
-    toast.add({ title: 'Berhasil', description: 'Room aktif diganti.', color: 'success' })
+    toast.add({ title: 'Success', description: 'Active room changed.', color: 'success' })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal ganti room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengganti room aktif.'),
+      title: 'Failed to change room',
+      description: getErrorMessage(error, 'An error occurred while changing active room.'),
       color: 'error'
     })
   } finally {
@@ -1362,6 +1425,8 @@ async function refreshAll() {
     refreshAssignment(),
     refreshHistory(),
     refreshWaiting(),
+    refreshWaitingStats(),
+    refreshLockedStats(),
     refreshActiveSessions()
   ])
 }
@@ -1370,22 +1435,22 @@ const endingSessionId = ref<string | null>(null)
 
 async function handleEndSession(sessionId: string, staffName: string) {
   if (endingSessionId.value) return
-  if (!confirm(`Akhiri sesi room ${staffName}? Sesi akan diakhiri paksa dan room terbebas dari petugas ini.`)) return
+  if (!confirm(`End room session for ${staffName}? The session will be forced to end and the room freed.`)) return
 
   endingSessionId.value = sessionId
   try {
     await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
     toast.add({
-      title: 'Berhasil',
-      description: `Sesi room ${staffName} berhasil diakhiri.`,
+      title: 'Success',
+      description: `Room session for ${staffName} successfully ended.`,
       color: 'success'
     })
     await refreshActiveSessions()
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } })?.response
     toast.add({
-      title: 'Gagal mengakhiri sesi',
-      description: response?.data?.message || 'Terjadi kesalahan saat mengakhiri sesi room.',
+      title: 'Failed to end session',
+      description: response?.data?.message || 'An error occurred while ending room session.',
       color: 'error'
     })
   } finally {
@@ -1396,8 +1461,8 @@ async function handleEndSession(sessionId: string, staffName: string) {
 async function openWaitingPatientsModal() {
   if (!isSuperAdmin.value && !roomTypeId.value) {
     toast.add({
-      title: 'Perlu assignment room',
-      description: 'Untuk melihat daftar pasien waiting, user harus punya assignment room aktif.',
+      title: 'Room assignment required',
+      description: 'To view the waiting patient list, the user must have an active room assignment.',
       color: 'warning'
     })
   }
@@ -1437,6 +1502,19 @@ watch(
   { immediate: true }
 )
 
+// Superadmin: ensure the waiting room type is selected so the Waiting card is
+// filled since the page opens (without waiting for the waiting modal to open).
+watch(
+  [isSuperAdmin, roomTypeOptions],
+  ([superAdmin, options]) => {
+    if (!superAdmin) return
+    if (selectedWaitingRoomTypeId.value) return
+    const first = options[0]
+    if (first) selectedWaitingRoomTypeId.value = first.value
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   refreshAssignment()
   refreshRoomSession()
@@ -1448,7 +1526,7 @@ watch(
   () => refreshRoomSession()
 )
 
-// Auto-exit session bila room aktif tak sesuai assignment hari ini (termasuk superadmin).
+// Auto-exit session if active room doesn't match today's assignment (including superadmin).
 watch(
   [activeRoomSession, assignment],
   async () => {
@@ -1473,7 +1551,7 @@ watch(
     <template #header>
       <UDashboardNavbar
         title="Room Queue"
-        subtitle="Histori queue selesai dan daftar pasien waiting"
+        subtitle="Completed queue history and waiting patient list"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -1484,7 +1562,7 @@ watch(
             class="hidden sm:inline-flex"
             :color="activeRoomSession ? 'success' : 'neutral'"
             variant="subtle"
-            :label="roomSessionPending ? 'Mengecek sesi room...' : getRoomSessionLabel()"
+            :label="roomSessionPending ? 'Checking room session...' : getRoomSessionLabel()"
           />
 
           <UButton
@@ -1503,7 +1581,7 @@ watch(
             variant="soft"
             @click="openWaitingPatientsModal"
           >
-            <span class="hidden lg:inline">Lihat Pasien Menunggu</span>
+            <span class="hidden lg:inline">View Waiting Patients</span>
           </UButton>
 
           <UButton
@@ -1525,7 +1603,7 @@ watch(
           <UBadge
             :color="activeRoomSession ? 'success' : 'neutral'"
             variant="subtle"
-            :label="roomSessionPending ? 'Mengecek sesi room...' : getRoomSessionLabel()"
+            :label="roomSessionPending ? 'Checking room session...' : getRoomSessionLabel()"
           />
         </div>
 
@@ -1534,8 +1612,8 @@ watch(
           color="info"
           variant="soft"
           icon="i-lucide-info"
-          title="Assignment aktif, tetapi belum masuk room"
-          :description="`Anda sudah di-assign ke ${assignment.room?.name || assignment.roomType?.name || 'ruangan'}. Klik 'Masuk Room' di kanan atas untuk memulai sesi, lalu tombol 'Ambil Pasien' akan aktif.`"
+          title="Active assignment, but not in room yet"
+          :description="`You are assigned to ${assignment.room?.name || assignment.roomType?.name || 'room'}. Click 'Enter Room' at the top right to start session, then 'Pick Patient' button will be active.`"
         />
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
@@ -1543,10 +1621,10 @@ watch(
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 class="text-base font-bold text-highlighted">
-                  Room Terisi Saat Ini
+                  Currently Occupied Rooms
                 </h3>
                 <p class="text-xs leading-relaxed text-muted">
-                  Daftar room yang sedang ada petugas aktif di dalamnya.
+                  List of rooms with active staff inside.
                 </p>
               </div>
               <UButton
@@ -1570,10 +1648,10 @@ watch(
           <div v-else-if="activeRoomSessions.length === 0" class="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center">
             <UIcon name="i-lucide-door-open" class="mb-2 size-8 text-muted" />
             <p class="text-sm font-medium text-highlighted">
-              Tidak ada room yang terisi
+              No rooms currently occupied
             </p>
             <p class="mt-1 text-xs text-muted">
-              Belum ada petugas yang masuk room hari ini.
+              No staff have entered a room today.
             </p>
           </div>
 
@@ -1621,7 +1699,7 @@ watch(
                     color="error"
                     variant="ghost"
                     :loading="endingSessionId === staff.sessionId"
-                    title="Akhiri sesi paksa"
+                    title="Force end session"
                     @click="handleEndSession(staff.sessionId, staff.name)"
                   />
                 </div>
@@ -1634,14 +1712,14 @@ watch(
           <div class="space-y-5">
             <div>
               <p class="text-xs font-medium uppercase tracking-wider text-muted">
-                Assignment room hari ini
+                Today's room assignment
               </p>
               <h2 class="mt-1 text-xl font-bold text-highlighted sm:text-2xl">
-                {{ assignment?.roomType?.name || 'Belum ada assignment room' }}
+                {{ assignment?.roomType?.name || 'No room assignment yet' }}
               </h2>
               <p class="mt-0.5 text-xs font-medium text-muted sm:text-sm">
                 {{ assignment?.room?.code ? `${assignment.room.code} - ` : '' }}
-                {{ assignment?.room?.name || 'Histori tetap bisa dilihat tanpa masuk room.' }}
+                {{ assignment?.room?.name || 'History can still be viewed without entering room.' }}
               </p>
 
               <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -1660,14 +1738,14 @@ watch(
               </div>
 
               <p class="mt-3 text-xs text-muted">
-                {{ assignment?.notes || 'Histori queue hanya menampilkan data yang sudah selesai diproses.' }}
+                {{ assignment?.notes || 'Queue history only displays processed data.' }}
               </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3 sm:gap-4">
+            <div class="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
               <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
                 <span class="text-xs font-medium text-muted">
-                  Selesai
+                  Completed
                 </span>
                 <div class="mt-2 text-2xl font-extrabold text-highlighted sm:text-3xl">
                   {{ historyStats.completed }}
@@ -1685,7 +1763,16 @@ watch(
 
               <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
                 <span class="text-xs font-medium text-muted">
-                  Akses
+                  Locked
+                </span>
+                <div class="mt-2 text-2xl font-extrabold text-highlighted sm:text-3xl">
+                  {{ historyStats.locked }}
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-default bg-muted/30 p-4 transition hover:border-default/80">
+                <span class="text-xs font-medium text-muted">
+                  Access
                 </span>
                 <div class="mt-3 text-base font-bold text-highlighted sm:text-lg">
                   {{ historyStats.access }}
@@ -1698,8 +1785,8 @@ watch(
         <UAlert
           v-if="!assignmentPending && !assignment && !isSuperAdmin"
           color="warning"
-          title="Belum ada assignment aktif"
-          description="Histori queue tetap bisa dibuka. Untuk melihat daftar pasien waiting, user harus punya assignment room."
+          title="No active assignment yet"
+          description="Queue history can still be opened. To view waiting patient list, user must have a room assignment."
         />
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
@@ -1707,10 +1794,10 @@ watch(
             <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div class="max-w-md space-y-1">
                 <h3 class="text-base font-bold text-highlighted">
-                  Histori Queue
+                  Queue History
                 </h3>
                 <p class="text-xs leading-relaxed text-muted">
-                  Histori queue per department — tampil tanpa perlu room assignment. Menampilkan pasien yang sudah diambil dari ruang tunggu.
+                  Department queue history — displayed without requiring room assignment. Shows patients picked from waiting room.
                 </p>
               </div>
 
@@ -1719,7 +1806,7 @@ watch(
                   v-model="selectedHistoryDepartmentId"
                   :items="departmentOptions"
                   :loading="departmentOptionsPending"
-                  placeholder="Pilih department"
+                  placeholder="Select department"
                   value-key="id"
                   label-key="name"
                   class="w-full sm:w-56"
@@ -1734,7 +1821,7 @@ watch(
                     class="min-w-0 flex-1 sm:w-36 sm:flex-initial"
                     aria-label="Exam date from"
                   />
-                  <span class="shrink-0 text-xs text-muted">s/d</span>
+                  <span class="shrink-0 text-xs text-muted">to</span>
                   <UInput
                     v-model="examDateToFilter"
                     type="date"
@@ -1753,7 +1840,7 @@ watch(
                 <UBadge
                   variant="soft"
                   color="neutral"
-                  :label="`${historyTotal} record`"
+                  :label="`${historyTotal} records`"
                 />
               </div>
             </div>
@@ -1771,12 +1858,12 @@ watch(
               class="mb-3 size-10 text-muted"
             />
             <h3 class="text-base font-semibold text-highlighted">
-              {{ !selectedHistoryDepartmentId ? 'Pilih department dulu' : 'Tidak ada histori queue' }}
+              {{ !selectedHistoryDepartmentId ? 'Select department first' : 'No queue history' }}
             </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
               {{ !selectedHistoryDepartmentId
-                ? 'Pilih department di atas untuk memuat histori queue.'
-                : 'Data muncul setelah pasien diambil dari ruang tunggu dan diproses.' }}
+                ? 'Select a department above to load queue history.'
+                : 'Data appears after patients are picked from the waiting room and processed.' }}
             </p>
           </div>
 
@@ -1788,7 +1875,7 @@ watch(
                     Regist No.
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Pasien
+                    Patient
                   </th>
                   <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Queue
@@ -1809,7 +1896,7 @@ watch(
                     Status
                   </th>
                   <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                    Aksi
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -1894,7 +1981,7 @@ watch(
 
           <div v-if="historyRows.length" class="flex items-center justify-between border-t border-default px-4 py-3">
             <div class="flex items-center gap-2">
-              <span class="text-xs text-muted">Baris per halaman</span>
+              <span class="text-xs text-muted">Rows per page</span>
               <USelect
                 v-model="historyPageSize"
                 :items="[
@@ -1919,10 +2006,10 @@ watch(
         <template #header>
           <div class="min-w-0 flex-1">
             <h3 class="text-lg font-semibold text-highlighted">
-              Pasien di Ruang Tunggu
+              Patients in Waiting Room
             </h3>
             <p class="mt-0.5 text-sm text-muted">
-              Daftar pasien yang masih berstatus waiting. Ini hanya bisa dibuka jika ada assignment room, kecuali super admin.
+              List of patients still waiting. This can only be opened with a room assignment, except for super admin.
             </p>
           </div>
           <UButton
@@ -1947,7 +2034,7 @@ watch(
                   v-model="selectedWaitingRoomTypeId"
                   :items="roomTypeOptions"
                   :loading="roomTypesPending"
-                  placeholder="Pilih room type"
+                  placeholder="Select room type"
                 />
               </UFormField>
               <UFormField label="Status">
@@ -1957,14 +2044,14 @@ watch(
                     { label: 'Waiting', value: 'WAITING' },
                     { label: 'Called', value: 'CALLED' },
                     { label: 'In Progress', value: 'IN_PROGRESS' },
-                    { label: 'Semua', value: 'ALL' }
+                    { label: 'All', value: 'ALL' }
                   ]"
                 />
               </UFormField>
-              <UFormField label="Exam Date Dari">
+              <UFormField label="Exam Date From">
                 <UInput v-model="waitingExamDateFrom" type="date" />
               </UFormField>
-              <UFormField label="Exam Date Sampai">
+              <UFormField label="Exam Date To">
                 <UInput v-model="waitingExamDateTo" type="date" />
               </UFormField>
             </div>
@@ -1972,22 +2059,22 @@ watch(
             <UAlert
               v-if="!roomTypeId && !isSuperAdmin"
               color="warning"
-              title="Perlu assignment room"
-              description="User biasa harus punya assignment room untuk melihat daftar pasien waiting."
+              title="Room assignment required"
+              description="Regular users must have a room assignment to view the waiting patient list."
             />
 
             <UAlert
               v-else-if="isSuperAdmin && !effectiveWaitingRoomTypeId"
               color="info"
-              title="Room type belum dipilih"
-              description="Super admin perlu memilih room type untuk memuat daftar pasien waiting."
+              title="Room type not selected"
+              description="Super admin must select a room type to load the waiting patient list."
             />
 
             <UAlert
               v-if="effectiveWaitingRoomTypeId && !activeRoomSession"
               color="warning"
-              title="Sesi room belum aktif"
-              description="Untuk mengambil pasien dari waiting list, user harus masuk ke room terlebih dahulu."
+              title="Room session not active"
+              description="To pick patients from the waiting list, the user must enter the room first."
             />
 
             <div v-if="waitingPending" class="space-y-3">
@@ -2004,7 +2091,7 @@ watch(
                       Queue
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                      Pasien
+                      Patient
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                       Exam Date
@@ -2019,7 +2106,7 @@ watch(
                       Meal Time
                     </th>
                     <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                      Aksi
+                      Action
                     </th>
                   </tr>
                 </thead>
@@ -2073,18 +2160,18 @@ watch(
                     <td class="border-b border-default px-4 py-4">
                       <template v-if="row.meal?.startedAt">
                         <p class="text-xs text-muted">
-                          Mulai {{ mealShortTime(row.meal.startedAt) }}
+                          Start {{ mealShortTime(row.meal.startedAt) }}
                         </p>
                         <p v-if="row.meal?.status === 'COMPLETED' && row.meal.completedAt" class="text-xs text-muted">
-                          Selesai {{ mealShortTime(row.meal.completedAt) }}
+                          Done {{ mealShortTime(row.meal.completedAt) }}
                         </p>
                         <p v-else class="text-xs text-muted">
-                          Berlangsung
+                          Ongoing
                         </p>
                       </template>
                       <template v-else-if="row.meal?.status === 'COMPLETED'">
                         <p class="text-xs text-muted">
-                          Selesai
+                          Done
                         </p>
                       </template>
                       <UBadge
@@ -2115,7 +2202,7 @@ watch(
                           :disabled="Boolean(!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId))"
                           @click="handleWaitingRowCall(row)"
                         >
-                          Ambil Pasien
+                          Pick Patient
                         </UButton>
                         <UBadge
                           v-else-if="row.meal?.status === 'IN_PROGRESS'"
@@ -2152,23 +2239,23 @@ watch(
                 class="mb-3 size-10 text-muted"
               />
               <h3 class="text-base font-semibold text-highlighted">
-                Tidak ada pasien waiting
+                No waiting patients
               </h3>
               <p class="mt-1 max-w-lg text-sm text-muted">
-                Daftar ini hanya menampilkan pasien yang masih menunggu di room aktif.
+                This list only shows patients still waiting in the active room.
               </p>
             </div>
           </div>
         </template>
       </UModal>
 
-      <UModal v-model:open="isEnterRoomModalOpen" title="Masuk Room">
+      <UModal v-model:open="isEnterRoomModalOpen" title="Enter Room">
         <template #body>
           <div class="space-y-4">
             <UAlert
               color="info"
-              title="Masuk ke room assignment?"
-              :description="`Room assignment saat ini: ${assignment?.room?.code ? `${assignment.room.code} - ` : ''}${assignment?.room?.name || assignment?.roomType?.name || '-'}.`"
+              title="Enter room assignment?"
+              :description="`Current room assignment: ${assignment?.room?.code ? `${assignment.room.code} - ` : ''}${assignment?.room?.name || assignment?.roomType?.name || '-'}.`"
             />
           </div>
         </template>
@@ -2181,26 +2268,26 @@ watch(
               :disabled="roomEnterActionLoading"
               @click="isEnterRoomModalOpen = false"
             >
-              Batal
+              Cancel
             </UButton>
             <UButton
               color="primary"
               :loading="roomEnterActionLoading"
               @click="handleEnterRoom"
             >
-              Masuk Room
+              Enter Room
             </UButton>
           </div>
         </template>
       </UModal>
 
-      <UModal v-model:open="isExitRoomModalOpen" title="Keluar Room">
+      <UModal v-model:open="isExitRoomModalOpen" title="Exit Room">
         <template #body>
           <div class="space-y-4">
             <UAlert
               color="warning"
-              title="Keluar dari sesi room aktif?"
-              :description="`Sesi aktif saat ini: ${getRoomSessionLabel()}. Setelah keluar, kamu bisa pindah ke room lain.`"
+              title="Exit active room session?"
+              :description="`Current active session: ${getRoomSessionLabel()}. After exiting, you can move to another room.`"
             />
           </div>
         </template>
@@ -2213,14 +2300,14 @@ watch(
               :disabled="roomExitActionLoading"
               @click="isExitRoomModalOpen = false"
             >
-              Batal
+              Cancel
             </UButton>
             <UButton
               color="warning"
               :loading="roomExitActionLoading"
               @click="handleExitRoom"
             >
-              Keluar Room
+              Exit Room
             </UButton>
           </div>
         </template>
@@ -2230,10 +2317,10 @@ watch(
         <template #body>
           <div class="space-y-2">
             <p class="text-sm text-muted">
-              Pilih room aktif yang baru.
+              Select a new active room.
             </p>
             <div v-if="changeRoomOptions.length === 0" class="py-6 text-center text-sm text-muted">
-              Tidak ada room tersedia.
+              No rooms available.
             </div>
             <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
@@ -2259,7 +2346,7 @@ watch(
                   v-if="room.id === activeRoomSession?.roomId"
                   color="primary"
                   variant="soft"
-                  label="Aktif"
+                  label="Active"
                 />
               </button>
             </div>
@@ -2273,7 +2360,7 @@ watch(
               :disabled="changeRoomLoading"
               @click="isChangeRoomModalOpen = false"
             >
-              Tutup
+              Close
             </UButton>
           </div>
         </template>
@@ -2281,7 +2368,7 @@ watch(
 
       <UModal
         v-model:open="sampleDetailOpen"
-        title="Detail Pengambilan Sample"
+        title="Sample Collection Detail"
         :ui="{ content: 'sm:max-w-3xl' }"
       >
         <template #body>
@@ -2293,12 +2380,12 @@ watch(
               name="i-lucide-loader-circle"
               class="animate-spin size-6"
             />
-            <span class="ml-2">Memuat detail pengambilan sample…</span>
+            <span class="ml-2">Loading sample collection detail…</span>
           </div>
 
           <template v-else-if="sampleDetailData.length">
             <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Pasien: <span class="font-semibold text-gray-900 dark:text-gray-50">{{ sampleDetailPatientName }}</span>
+              Patient: <span class="font-semibold text-gray-900 dark:text-gray-50">{{ sampleDetailPatientName }}</span>
             </p>
 
             <div
@@ -2318,7 +2405,7 @@ watch(
               <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Jenis Sample
+                    Sample Type
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ collection.sampleType?.name || '-' }}
@@ -2334,7 +2421,7 @@ watch(
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Jumlah Tabung
+                    Tube Count
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ collection.tubeCount ?? 1 }}
@@ -2342,7 +2429,7 @@ watch(
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Waktu Pengambilan
+                    Collection Time
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ formatQueueDate(collection.collectedAt) }}
@@ -2350,15 +2437,15 @@ watch(
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Petugas Pengambil (COLLECT)
+                    Collector (COLLECT)
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
-                    {{ collection.collectedByUser?.name || (collection.collectedAt ? 'Tidak diketahui' : '-') }}
+                    {{ collection.collectedByUser?.name || (collection.collectedAt ? 'Unknown' : '-') }}
                   </dd>
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Waktu Diterima Lab (RECEIVE)
+                    Received by Lab (RECEIVE)
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ formatQueueDate(collection.receivedAt) }}
@@ -2366,17 +2453,17 @@ watch(
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Petugas Penerima (RECEIVE)
+                    Receiver (RECEIVE)
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
-                    {{ collection.receivedByUser?.name || (collection.receivedAt ? 'Tidak diketahui' : '-') }}
+                    {{ collection.receivedByUser?.name || (collection.receivedAt ? 'Unknown' : '-') }}
                   </dd>
                 </div>
                 <div
                   v-if="collection.status === 'REJECTED'"
                 >
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Alasan Ditolak
+                    Rejection Reason
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ collection.rejectReason || '-' }}
@@ -2386,7 +2473,7 @@ watch(
                   v-if="collection.status === 'RESCHEDULED'"
                 >
                   <dt class="text-xs text-gray-500 dark:text-gray-400">
-                    Jadwal Ulang
+                    Reschedule
                   </dt>
                   <dd class="text-sm text-gray-900 dark:text-gray-50">
                     {{ formatQueueDate(collection.rescheduledAt) }}
@@ -2399,7 +2486,7 @@ watch(
                 class="mt-3"
               >
                 <p class="mb-1 text-xs text-gray-500 dark:text-gray-400">
-                  Item terkait:
+                  Related items:
                 </p>
                 <div class="flex flex-wrap gap-1">
                   <UBadge
@@ -2419,15 +2506,15 @@ watch(
             v-else
             class="py-12 text-center text-gray-500 dark:text-gray-400"
           >
-            Tidak ada data pengambilan sample untuk antrian ini.
+            No sample collection data for this queue.
           </div>
         </template>
       </UModal>
 
-      <UModal v-model:open="completeMealConfirmOpen" title="Konfirmasi Complete Meal">
+      <UModal v-model:open="completeMealConfirmOpen" title="Confirm Complete Meal">
         <template #body>
           <p class="text-sm text-muted">
-            Selesaikan meal time untuk pasien
+            Complete meal time for patient
             <span class="font-semibold text-highlighted">{{ completeMealTarget?.patientName ?? '-' }}</span>?
           </p>
         </template>
