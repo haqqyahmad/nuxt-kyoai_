@@ -321,7 +321,7 @@ async function completeMealFromList() {
     completeMealConfirmOpen.value = false
   }
 }
-const { user, isSuperAdmin, allowedSelfRooms } = await useCurrentUser()
+const { user, isSuperAdmin, allowedSelfRooms, permissions } = await useCurrentUser()
 const {
   session: roomSession,
   pending: roomSessionPending,
@@ -546,6 +546,14 @@ watch(
   },
   { immediate: true }
 )
+
+const currentUserId = computed(() => user.value?.id ?? null)
+const canForceEndOthers = computed(() => permissions.value.includes('room:update'))
+
+function isOwnRoomSession(staffUserId: number) {
+  return currentUserId.value !== null && staffUserId === currentUserId.value
+}
+
 const effectiveWaitingRoomTypeId = computed(() =>
   isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
 )
@@ -1463,19 +1471,29 @@ async function refreshAll() {
 
 const endingSessionId = ref<string | null>(null)
 
-async function handleEndSession(sessionId: string, staffName: string) {
+async function handleEndSession(sessionId: string, staffName: string, isSelf = false) {
   if (endingSessionId.value) return
-  if (!confirm(`End room session for ${staffName}? The session will be forced to end and the room freed.`)) return
+
+  const confirmed = isSelf
+    ? confirm('End your room session? Your session will be ended and the room freed.')
+    : confirm(`Force end session for ${staffName}? The session will be forced to end and the room freed.`)
+  if (!confirmed) return
 
   endingSessionId.value = sessionId
   try {
-    await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
+    if (isSelf) {
+      await api.post('/medical/rooms/sessions/exit', {})
+    } else {
+      await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
+    }
     toast.add({
       title: 'Success',
-      description: `Room session for ${staffName} successfully ended.`,
+      description: isSelf
+        ? 'Your room session has been ended.'
+        : `Room session for ${staffName} successfully ended.`,
       color: 'success'
     })
-    await refreshActiveSessions()
+    await Promise.all([refreshActiveSessions(), refreshRoomSession()])
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } })?.response
     toast.add({
@@ -1724,13 +1742,14 @@ watch(
                     {{ formatSessionTime(staff.startedAt) }}
                   </span>
                   <UButton
+                    v-if="isOwnRoomSession(staff.userId) || canForceEndOthers"
                     icon="i-lucide-log-out"
                     size="xs"
-                    color="error"
+                    :color="isOwnRoomSession(staff.userId) ? 'warning' : 'error'"
                     variant="ghost"
                     :loading="endingSessionId === staff.sessionId"
-                    title="Force end session"
-                    @click="handleEndSession(staff.sessionId, staff.name)"
+                    :title="isOwnRoomSession(staff.userId) ? 'End your session' : 'Force end session'"
+                    @click="handleEndSession(staff.sessionId, staff.name, isOwnRoomSession(staff.userId))"
                   />
                 </div>
               </div>
