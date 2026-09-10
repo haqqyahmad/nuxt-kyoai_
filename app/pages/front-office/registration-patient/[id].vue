@@ -1428,9 +1428,7 @@ watch(
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID {{ reg.patient.idType }} Number
-                  </p>
+                  <p class="text-xs text-muted mb-1">ID Number</p>
                   <p class="font-mono text-xs font-medium">
                     {{ reg.patient.idType }}: {{ reg.patient.idNumber }}
                   </p>
