@@ -213,7 +213,7 @@ const resolveMediaUrl = (url?: string | null) => {
 
 const getPhotoUrl = () => {
   if (isEditing.value && photoPreview.value) {
-    return photoPreview.value;
+    return resolveMediaUrl(photoPreview.value);
   }
   if (!patient.value) return defaultPhotoUrl;
   return (
