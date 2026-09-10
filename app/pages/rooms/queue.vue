@@ -1596,27 +1596,6 @@ watch(
           />
 
           <UButton
-            v-if="canEnterRoom"
-            icon="i-lucide-door-open"
-            color="primary"
-            :loading="roomEnterActionLoading"
-            @click="openEnterRoomModal"
-          >
-            <span class="hidden lg:inline">Masuk Room</span>
-          </UButton>
-
-          <UButton
-            v-if="activeRoomSession"
-            icon="i-lucide-door-closed"
-            color="warning"
-            variant="soft"
-            :loading="roomExitActionLoading"
-            @click="openExitRoomModal"
-          >
-            <span class="hidden lg:inline">Keluar Room</span>
-          </UButton>
-
-          <UButton
             icon="i-lucide-rotate-ccw"
             color="neutral"
             variant="soft"
@@ -1663,8 +1642,8 @@ watch(
           color="info"
           variant="soft"
           icon="i-lucide-info"
-          title="Active assignment, but not in room yet"
-          :description="`You are assigned to ${assignment.room?.name || assignment.roomType?.name || 'room'}. Click 'Enter Room' at the top right to start session, then 'Pick Patient' button will be active.`"
+          title="Active assignment, starting room session"
+          :description="`You are assigned to ${assignment.room?.name || assignment.roomType?.name || 'room'}. The room session is activated automatically.`"
         />
 
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
