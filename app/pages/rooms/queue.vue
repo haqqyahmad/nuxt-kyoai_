@@ -70,6 +70,7 @@ type RoomQueueItem = {
       id_reg?: string | null
       examDate?: string | null
       scheduleDateExam?: string | null
+      priorityRegist?: string | null
       patient?: {
         id: number
         PatientId?: string | null
@@ -207,6 +208,7 @@ type WaitingRow = {
   patientPhone: string | null
   examDate: string | null
   rescheduleDate?: string | null
+  priorityRegist: string | null
   roomName: string
   itemSummary: string
   stageSummary: string
@@ -666,8 +668,33 @@ const historyItems = computed(() =>
     })
 )
 
+const PRIORITY_RANK: Record<string, number> = { VIP: 0, Emergency: 1, Normal: 2 }
+const PRIORITY_BADGE_COLOR: Record<string, 'warning' | 'error' | 'neutral'> = {
+  VIP: 'warning',
+  Emergency: 'error',
+  Normal: 'neutral'
+}
+
+function priorityRank(priority?: string | null) {
+  return PRIORITY_RANK[priority ?? ''] ?? 3
+}
+
+function isPriorityPatient(priority?: string | null) {
+  return priority === 'VIP' || priority === 'Emergency'
+}
+
+function priorityRowClass(priority?: string | null) {
+  if (priority === 'VIP') return 'bg-warning/5'
+  if (priority === 'Emergency') return 'bg-error/5'
+  return ''
+}
+
 const waitingItems = computed(() =>
   [...(waitingData.value ?? [])].sort((a, b) => {
+    const rankDiff = priorityRank(a.queueEntry?.registration?.priorityRegist)
+      - priorityRank(b.queueEntry?.registration?.priorityRegist)
+    if (rankDiff !== 0) return rankDiff
+
     const left = new Date(b.queueEntry?.checkinAt ?? b.unlockedAt ?? 0).getTime()
     const right = new Date(a.queueEntry?.checkinAt ?? a.unlockedAt ?? 0).getTime()
     return left - right
@@ -784,6 +811,7 @@ const waitingRows = computed<WaitingRow[]>(() =>
       patientPhone: patient?.phone ?? null,
       examDate: registration?.examDate ?? null,
       rescheduleDate: registration?.scheduleDateExam ?? null,
+      priorityRegist: registration?.priorityRegist ?? null,
       roomName: itemRoom,
       itemSummary: itemNames.length > 0
         ? `${itemNames.slice(0, 2).join(', ')}${itemNames.length > 2 ? ` +${itemNames.length - 2}` : ''}`
@@ -2175,6 +2203,7 @@ watch(
                     v-for="row in waitingRows"
                     :key="row.id"
                     class="align-top hover:bg-muted/20"
+                    :class="priorityRowClass(row.priorityRegist)"
                   >
                     <td class="border-b border-default px-4 py-4">
                       <div class="space-y-1">
@@ -2191,9 +2220,18 @@ watch(
                     </td>
                     <td class="border-b border-default px-4 py-4">
                       <div class="space-y-1">
-                        <p class="font-medium text-highlighted">
-                          {{ row.patientName }}
-                        </p>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <p class="font-medium text-highlighted">
+                            {{ row.patientName }}
+                          </p>
+                          <UBadge
+                            v-if="isPriorityPatient(row.priorityRegist)"
+                            :label="row.priorityRegist || ''"
+                            :color="PRIORITY_BADGE_COLOR[row.priorityRegist || ''] ?? 'neutral'"
+                            variant="subtle"
+                            size="sm"
+                          />
+                        </div>
                         <p class="text-xs text-muted">
                           RM {{ row.patientId }}
                         </p>
