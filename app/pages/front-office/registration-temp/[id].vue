@@ -885,11 +885,17 @@ function printModalAnswers() {
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    Contact Status
+                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
+                    ID Number
+                    <UBadge
+                      v-if="reg.patientExists === true && isChanged.idNumber"
+                      label="Change"
+                      color="warning"
+                      size="xs"
+                    />
                   </p>
-                  <p class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
-                    <UIcon name="i-lucide-check-circle-2" class="text-base" /> Verified
+                  <p class="font-mono text-xs font-medium">
+                    {{ reg.idType }}: {{ reg.idValue }}
                   </p>
                 </div>
               </div>
@@ -923,51 +929,27 @@ function printModalAnswers() {
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">
-                    ID Type
-                  </p>
-                  <p class="font-medium">
-                    {{ reg.idType }}
-                  </p>
+                  <p class="text-xs text-muted mb-1">Policy Number</p>
+                  <p class="font-medium">{{ reg.policyNumber ?? '-' }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1 flex items-center gap-1">
-                    ID Number
+                  <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+                  <p class="flex flex-wrap items-center gap-2 font-medium">
+                    <span>{{ reg.policyExpDate ?? '-' }}</span>
                     <UBadge
-                      v-if="reg.patientExists === true && isChanged.idNumber"
-                      label="Change"
+                      v-if="policyExpiry?.status === 'expired'"
+                      label="Expired"
+                      color="error"
+                      size="xs"
+                    />
+                    <UBadge
+                      v-else-if="policyExpiry?.status === 'soon'"
+                      :label="`Segera berakhir (${policyExpiry.days} hari)`"
                       color="warning"
                       size="xs"
                     />
                   </p>
-                  <p class="font-medium">
-                    {{ reg.idValue }}
-                  </p>
                 </div>
-                <template v-if="reg.policyNumber || reg.policyExpDate">
-                  <div>
-                    <p class="text-xs text-muted mb-1">Policy Number</p>
-                    <p class="font-medium">{{ reg.policyNumber ?? '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
-                    <p class="flex flex-wrap items-center gap-2 font-medium">
-                      <span>{{ reg.policyExpDate ?? '-' }}</span>
-                      <UBadge
-                        v-if="policyExpiry?.status === 'expired'"
-                        label="Expired"
-                        color="error"
-                        size="xs"
-                      />
-                      <UBadge
-                        v-else-if="policyExpiry?.status === 'soon'"
-                        :label="`Segera berakhir (${policyExpiry.days} hari)`"
-                        color="warning"
-                        size="xs"
-                      />
-                    </p>
-                  </div>
-                </template>
               </div>
             </div>
             <div v-else class="p-6 text-center text-sm text-muted">
