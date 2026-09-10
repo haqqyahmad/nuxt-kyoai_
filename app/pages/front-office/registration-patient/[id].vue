@@ -1428,11 +1428,11 @@ watch(
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Contact Status</p>
-                  <p
-                    class="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400"
-                  >
-                    <UIcon name="i-lucide-check-circle-2" class="text-base" /> Verified
+                  <p class="text-xs text-muted mb-1">
+                    ID {{ reg.patient.idType }} Number
+                  </p>
+                  <p class="font-mono text-xs font-medium">
+                    {{ reg.patient.idType }}: {{ reg.patient.idNumber }}
                   </p>
                 </div>
               </div>
@@ -1447,18 +1447,6 @@ watch(
                   <p class="text-xs text-muted mb-1">Email</p>
                   <p class="font-medium truncate">
                     {{ reg.patient.email ?? '-' }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs text-muted mb-1">ID Type</p>
-                  <p class="font-medium">
-                    {{ reg.patient.idType }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-xs text-muted mb-1">ID Number</p>
-                  <p class="font-mono text-xs font-medium">
-                    {{ reg.patient.idNumber }}
                   </p>
                 </div>
                 <div>
