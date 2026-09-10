@@ -260,14 +260,14 @@ const columns: TableColumn<TempRegist>[] = [
       row.getValue('gender') === 'male' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'dob',
+    accessorKey: 'priorityRegist',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'DOB',
+        label: 'Priority',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -278,24 +278,21 @@ const columns: TableColumn<TempRegist>[] = [
       })
     },
     cell: ({ row }) => {
-      const value = row.getValue('dob')
+      const priority = row.getValue('priorityRegist') as string
 
-      if (!value) return '-'
+      const colorMap: Record<string, string> = {
+        Emergency: 'bg-red-100 text-red-700 border-red-200',
+        VIP: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        Normal: 'bg-gray-100 text-gray-600 border-gray-200'
+      }
 
-      // 🔥 parse manual dari DD/MM/YYYY
-      const [day, month, year] = String(value).split('/')
-
-      if (!day || !month || !year) return 'Invalid'
-
-      const date = new Date(`${year}-${month}-${day}`)
-
-      if (isNaN(date.getTime())) return 'Invalid'
-
-      return date.toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
+      return h(
+        'span',
+        {
+          class: `px-2 py-1 rounded-md text-xs font-semibold border ${colorMap[priority] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`
+        },
+        priority || '-'
+      )
     }
   },
   {

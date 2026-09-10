@@ -30,6 +30,7 @@ type Patient = {
   statusRegistration?: string
   dob: string
   serviceType?: string
+  priorityRegist?: string
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
   company?: string
   createdAt: string
@@ -66,6 +67,7 @@ function mapPatient(item: any): Patient & { id_reg: string } {
     examDate: item.examDate,
     createdAt: item.createdAt,
     serviceType: item.serviceType,
+    priorityRegist: item.priorityRegist,
 
     canCheckout: item.canCheckout,
     checkoutDone: item.checkoutDone,
@@ -328,14 +330,14 @@ const columns: TableColumn<Patient>[] = [
       row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
   },
   {
-    accessorKey: 'idNumber',
+    accessorKey: 'priorityRegist',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
       return h(UButton, {
         color: 'neutral',
         variant: 'ghost',
-        label: 'Id Number',
+        label: 'Priority',
         icon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
@@ -346,8 +348,21 @@ const columns: TableColumn<Patient>[] = [
       })
     },
     cell: ({ row }) => {
-      const p = row.original
-      return ` ${p.idType ?? '-'} : ${p.idNumber ?? '-'} `
+      const priority = row.getValue('priorityRegist') as string
+
+      const colorMap: Record<string, string> = {
+        Emergency: 'bg-red-100 text-red-700 border-red-200',
+        VIP: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        Normal: 'bg-gray-100 text-gray-600 border-gray-200'
+      }
+
+      return h(
+        'span',
+        {
+          class: `px-2 py-1 rounded-md text-xs font-semibold border ${colorMap[priority] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`
+        },
+        priority || '-'
+      )
     }
   },
   {
