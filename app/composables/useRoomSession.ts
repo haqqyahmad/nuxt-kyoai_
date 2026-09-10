@@ -53,6 +53,7 @@ export async function useRoomSession() {
   async function enterRoomSession(payload: RoomSessionEnterPayload) {
     const res = await api.post('/medical/rooms/sessions/enter', payload)
     await refresh()
+    await refreshNuxtData('room-sessions-active')
     return res
   }
 
@@ -61,6 +62,7 @@ export async function useRoomSession() {
     session.value = null
     const res = await api.post('/medical/rooms/sessions/exit', payload)
     await refresh()
+    await refreshNuxtData('room-sessions-active')
     return res
   }
 

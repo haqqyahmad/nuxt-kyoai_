@@ -607,6 +607,7 @@ onMounted(async () => {
   forceRefresh()
   await refreshUser()
   await refreshMyAssignment()
+  await refreshActiveSessions()
 })
 </script>
 
