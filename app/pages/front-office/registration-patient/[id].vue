@@ -71,6 +71,8 @@ type Registration = {
     phone?: string
     email?: string
     dob?: string
+    policyNumber?: string | null
+    policyExpDate?: string | null
   } | null
   branch: { branchId: string; nameBranch: string } | null
   company: { id: number; codeCostumer: string; customerName: string } | null
@@ -1457,6 +1459,18 @@ watch(
                   <p class="text-xs text-muted mb-1">ID Number</p>
                   <p class="font-mono text-xs font-medium">
                     {{ reg.patient.idNumber }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs text-muted mb-1">Policy Number</p>
+                  <p class="font-medium">
+                    {{ reg.patient.policyNumber ?? '-' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+                  <p class="font-medium">
+                    {{ reg.patient.policyExpDate ?? '-' }}
                   </p>
                 </div>
               </div>
