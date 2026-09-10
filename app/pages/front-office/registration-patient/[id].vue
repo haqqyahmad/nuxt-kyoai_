@@ -191,6 +191,21 @@ function formatDob(d?: string) {
   })
 }
 
+// [POLICY] Status masa berlaku kartu polis
+const POLICY_SOON_DAYS = 30
+const policyExpiry = computed(() => {
+  const raw = reg.value?.patient?.policyExpDate
+  if (!raw) return null
+  const exp = parseLocalDate(raw)
+  if (!exp) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.ceil((exp.getTime() - today.getTime()) / 86400000)
+  if (days < 0) return { status: 'expired' as const, days }
+  if (days <= POLICY_SOON_DAYS) return { status: 'soon' as const, days }
+  return { status: 'valid' as const, days }
+})
+
 function parseLocalDate(d: string): Date | null {
   if (!d) return null
   const iso = new Date(d)
@@ -1407,6 +1422,22 @@ watch(
                 >ID: {{ reg.patient.patientCode }}</span
               >
             </div>
+            <div
+              v-if="reg.patient && policyExpiry && policyExpiry.status !== 'valid'"
+              class="px-5 pt-4"
+            >
+              <UAlert
+                :color="policyExpiry.status === 'expired' ? 'error' : 'warning'"
+                variant="subtle"
+                :icon="policyExpiry.status === 'expired' ? 'i-lucide-shield-x' : 'i-lucide-shield-alert'"
+                :title="
+                  policyExpiry.status === 'expired'
+                    ? 'Kartu polis sudah kadaluarsa'
+                    : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
+                "
+                description="Mohon perbarui data polis sebelum registrasi diproses."
+              />
+            </div>
             <div v-if="reg.patient" class="px-5 py-4">
               <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
@@ -1455,8 +1486,20 @@ watch(
                 </div>
                 <div>
                   <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
-                  <p class="font-medium">
-                    {{ reg.patient.policyExpDate ?? '-' }}
+                  <p class="flex flex-wrap items-center gap-2 font-medium">
+                    <span>{{ reg.patient.policyExpDate ?? '-' }}</span>
+                    <UBadge
+                      v-if="policyExpiry?.status === 'expired'"
+                      label="Expired"
+                      color="error"
+                      size="xs"
+                    />
+                    <UBadge
+                      v-else-if="policyExpiry?.status === 'soon'"
+                      :label="`Segera berakhir (${policyExpiry.days} hari)`"
+                      color="warning"
+                      size="xs"
+                    />
                   </p>
                 </div>
               </div>
