@@ -189,6 +189,21 @@ const isChanged = computed(() => {
 })
 const changedCount = computed(() => Object.values(isChanged.value).filter(Boolean).length)
 
+// [POLICY] Status masa berlaku kartu polis
+const POLICY_SOON_DAYS = 30
+const policyExpiry = computed(() => {
+  const raw = reg.value?.policyExpDate
+  if (!raw) return null
+  const exp = new Date(raw)
+  if (Number.isNaN(exp.getTime())) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.ceil((exp.getTime() - today.getTime()) / 86400000)
+  if (days < 0) return { status: 'expired' as const, days }
+  if (days <= POLICY_SOON_DAYS) return { status: 'soon' as const, days }
+  return { status: 'valid' as const, days }
+})
+
 // [F-ringan] Auto-suggest kandidat duplikat saat FO memilih "Pasien Baru"
 const duplicateSuggestions = ref<Patient[]>([])
 const duplicateSuggestionsLoading = ref(false)
@@ -794,6 +809,19 @@ function printModalAnswers() {
               </h3>
               <span v-if="reg.patientId" class="text-xs text-muted">ID: {{ reg.patientId }}</span>
             </div>
+            <div v-if="policyExpiry && policyExpiry.status !== 'valid'" class="px-5 pt-3">
+              <UAlert
+                :color="policyExpiry.status === 'expired' ? 'error' : 'warning'"
+                variant="subtle"
+                :icon="policyExpiry.status === 'expired' ? 'i-lucide-shield-x' : 'i-lucide-shield-alert'"
+                :title="
+                  policyExpiry.status === 'expired'
+                    ? 'Kartu polis sudah kadaluarsa'
+                    : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
+                "
+                description="Mohon perbarui data polis sebelum registrasi diproses."
+              />
+            </div>
             <div v-if="reg.patientExists === true && changedCount > 0" class="px-5 pt-3">
               <div class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
                 <UIcon name="i-lucide-alert-triangle" class="mt-0.5 text-warning shrink-0" />
@@ -918,7 +946,21 @@ function printModalAnswers() {
                   </div>
                   <div>
                     <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
-                    <p class="font-medium">{{ reg.policyExpDate ?? '-' }}</p>
+                    <p class="flex flex-wrap items-center gap-2 font-medium">
+                      <span>{{ reg.policyExpDate ?? '-' }}</span>
+                      <UBadge
+                        v-if="policyExpiry?.status === 'expired'"
+                        label="Expired"
+                        color="error"
+                        size="xs"
+                      />
+                      <UBadge
+                        v-else-if="policyExpiry?.status === 'soon'"
+                        :label="`Segera berakhir (${policyExpiry.days} hari)`"
+                        color="warning"
+                        size="xs"
+                      />
+                    </p>
                   </div>
                 </template>
               </div>
