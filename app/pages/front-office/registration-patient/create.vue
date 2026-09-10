@@ -430,7 +430,7 @@ function fullName(p: Patient) {
   return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ')
 }
 
-function selectPatient(p: Patient) {
+async function selectPatient(p: Patient) {
   selectedPatient.value = p
   isNewPatient.value = false
   patientSearch.value = fullName(p)
@@ -445,6 +445,20 @@ function selectPatient(p: Patient) {
     ? (companies.value ?? []).find(c => c.customerName?.toLowerCase() === companyName.toLowerCase())
     : null
   regForm.value.companyId = matchedCompany ? String(matchedCompany.id) : ''
+
+  // Alur manual (bukan temp): ambil detail lengkap (termasuk alamat) bila belum ada
+  if (!fromTemp.value && (!p.addresses || p.addresses.length === 0)) {
+    try {
+      const res = await api.get(`/patient/${p.id}`)
+      const full = res.data.data as Patient
+      if (selectedPatient.value?.id === p.id) {
+        selectedPatient.value = full
+        fillFormsFromPatient(full)
+      }
+    } catch {
+      // abaikan — tetap pakai data dari hasil pencarian
+    }
+  }
 }
 
 function handlePatientBlur() {
