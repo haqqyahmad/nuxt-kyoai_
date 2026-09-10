@@ -336,6 +336,30 @@ function applyTempPersonal(temp: { firstName?: string, middleName?: string, last
     idNumber: temp.idValue || '',
   }
 }
+function fillFormsFromPatient(p: Patient) {
+  personalForm.value = {
+    firstName: p.firstName || '',
+    middleName: p.middleName || '',
+    lastName: p.lastName || '',
+    gender: (p.gender || 'MALE') as string,
+    dob: toYMD(p.dob),
+    idType: p.idType || 'KTP',
+    idNumber: p.idNumber || '',
+  }
+  const a = p.addresses?.[0]
+  contactForm.value = {
+    phone: p.phone || '',
+    email: p.email || '',
+    addressType: a?.type || 'HOME',
+    detail: a?.detail || '',
+    note: a?.note || '',
+    district: a?.district || '',
+    city: a?.city || '',
+    province: a?.province || '',
+    country: a?.country || 'Indonesia',
+  }
+}
+
 const personalChanged = computed(() => {
   const p = selectedPatient.value
   if (!p || !fromTemp.value) return { firstName: false, middleName: false, lastName: false, gender: false, dob: false, idType: false, idNumber: false }
@@ -413,6 +437,7 @@ function selectPatient(p: Patient) {
   patientResults.value = []
   patientDropOpen.value = false
   regForm.value.position = p.histories?.[0]?.position ?? ''
+  fillFormsFromPatient(p)
 
   // Autofill perusahaan dari company history terbaru pasien
   const companyName = p.histories?.[0]?.company ?? p.histories?.[0]?.companyName ?? ''
