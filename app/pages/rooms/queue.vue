@@ -519,36 +519,6 @@ const activeRoomSession = computed(() => {
 })
 const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
 
-const autoEnterRoomAttempted = ref(false)
-
-async function autoEnterAssignedRoom() {
-  if (autoEnterRoomAttempted.value) return
-  if (assignmentPending.value || roomSessionPending.value) return
-
-  const assignedRoomId = assignment.value?.roomId
-  if (!assignedRoomId || activeRoomSession.value) return
-
-  autoEnterRoomAttempted.value = true
-  try {
-    await enterRoomSession({ roomId: assignedRoomId })
-  } catch {
-    await refreshRoomSession()
-  }
-}
-
-watch(
-  [
-    () => assignment.value?.roomId,
-    () => activeRoomSession.value?.id,
-    () => assignmentPending.value,
-    () => roomSessionPending.value
-  ],
-  () => {
-    void autoEnterAssignedRoom()
-  },
-  { immediate: true }
-)
-
 const currentUserId = computed(() => user.value?.id ?? null)
 const canForceEndOthers = computed(() => permissions.value.includes('room:update'))
 
