@@ -1174,10 +1174,13 @@ onMounted(async () => {
 
               <div class="rounded-xl border border-default p-4">
                 <p class="text-xs text-muted">
-                  Status
+                  Status Sesi
                 </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ myAssignment.isActive ? 'Aktif' : 'Nonaktif' }}
+                <p
+                  class="mt-1 font-medium"
+                  :class="activeSession ? 'text-success' : 'text-muted'"
+                >
+                  {{ activeSession ? 'Aktif - sedang di room' : 'Tidak aktif' }}
                 </p>
               </div>
             </div>
