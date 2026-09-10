@@ -191,8 +191,10 @@ const saveChanges = async () => {
     delete updateData.id;
     delete updateData.PatientId;
     delete updateData.createdAt;
+    delete updateData.updatedAt;
     delete updateData.addresses;
     delete updateData.histories;
+    delete updateData.bloodType;
 
     await api.patch(`/patient/${patient.value.id}`, updateData);
     await refresh();
