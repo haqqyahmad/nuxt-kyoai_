@@ -36,7 +36,8 @@ type Patient = {
   dob: string;
   maritalStatus?: string;
   phone?: string;
-  bloodGroup?: string;
+  bloodTypeId?: number | null;
+  bloodType?: { id: number; kode: string } | null;
   policyNumber?: string | null;
   policyExpDate?: string | null;
   createdAt: string;
@@ -50,6 +51,16 @@ const { data: patient, refresh } = await useAsyncData(
   () => api.get(`/patient/${route.params.id}`).then((res) => res.data.data),
 );
 
+const { data: bloodTypes } = await useAsyncData("master-blood-types", () =>
+  api.get("/master/blood-types").then((res) => res.data.data ?? []),
+);
+const bloodTypeOptions = computed(() =>
+  (bloodTypes.value ?? []).map((b: { id: number; kode: string }) => ({
+    label: b.kode,
+    value: b.id,
+  })),
+);
+
 // State untuk edit mode
 const isEditing = ref(false);
 const selectedPhotoFile = ref<File | null>(null);
@@ -59,7 +70,7 @@ const editForm = ref<Partial<Patient>>({
   gender: "",
   maritalStatus: "",
   idType: "",
-  bloodGroup: "",
+  bloodTypeId: null,
   policyNumber: "",
   policyExpDate: "",
 });
@@ -118,7 +129,7 @@ const startEditing = () => {
       gender: normalizeValue(patient.value.gender),
       maritalStatus: normalizeValue(patient.value.maritalStatus),
       idType: normalizeValue(patient.value.idType),
-      bloodGroup: normalizeValue(patient.value.bloodGroup),
+      bloodTypeId: patient.value.bloodTypeId ?? null,
       dob: formatDateForInput(patient.value.dob),
     };
 
@@ -677,18 +688,13 @@ const deleteAddress = async (addressId: string) => {
             </div>
             <div v-if="!isEditing">
               <p class="text-sm">
-                {{ patient.bloodGroup ?? "-" }}
+                {{ patient.bloodType?.kode ?? "-" }}
               </p>
             </div>
             <div v-else>
               <USelect
-                v-model="editForm.bloodGroup"
-                :items="[
-                  { label: 'A', value: 'A' },
-                  { label: 'B', value: 'B' },
-                  { label: 'AB', value: 'AB' },
-                  { label: 'O', value: 'O' },
-                ]"
+                v-model="editForm.bloodTypeId"
+                :items="bloodTypeOptions"
                 class="w-32"
               />
             </div>
