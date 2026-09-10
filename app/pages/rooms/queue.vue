@@ -668,7 +668,7 @@ const historyItems = computed(() =>
     })
 )
 
-const PRIORITY_RANK: Record<string, number> = { VIP: 0, Emergency: 1, Normal: 2 }
+const PRIORITY_RANK: Record<string, number> = { Emergency: 0, VIP: 1, Normal: 2 }
 const PRIORITY_BADGE_COLOR: Record<string, 'warning' | 'error' | 'neutral'> = {
   VIP: 'warning',
   Emergency: 'error',
@@ -684,8 +684,14 @@ function isPriorityPatient(priority?: string | null) {
 }
 
 function priorityRowClass(priority?: string | null) {
-  if (priority === 'VIP') return 'bg-warning/5'
-  if (priority === 'Emergency') return 'bg-error/5'
+  if (priority === 'Emergency') return 'bg-error/10'
+  if (priority === 'VIP') return 'bg-warning/10'
+  return ''
+}
+
+function priorityCellClass(priority?: string | null) {
+  if (priority === 'Emergency') return 'border-l-4 border-l-error'
+  if (priority === 'VIP') return 'border-l-4 border-l-warning'
   return ''
 }
 
@@ -2205,7 +2211,7 @@ watch(
                     class="align-top hover:bg-muted/20"
                     :class="priorityRowClass(row.priorityRegist)"
                   >
-                    <td class="border-b border-default px-4 py-4">
+                    <td class="border-b border-default px-4 py-4" :class="priorityCellClass(row.priorityRegist)">
                       <div class="space-y-1">
                         <p class="font-semibold text-highlighted">
                           {{ row.queueCode }}
