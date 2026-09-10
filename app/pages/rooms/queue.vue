@@ -516,6 +516,36 @@ const activeRoomSession = computed(() => {
   return roomSession.value as RoomSession
 })
 const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
+
+const autoEnterRoomAttempted = ref(false)
+
+async function autoEnterAssignedRoom() {
+  if (autoEnterRoomAttempted.value) return
+  if (assignmentPending.value || roomSessionPending.value) return
+
+  const assignedRoomId = assignment.value?.roomId
+  if (!assignedRoomId || activeRoomSession.value) return
+
+  autoEnterRoomAttempted.value = true
+  try {
+    await enterRoomSession({ roomId: assignedRoomId })
+  } catch {
+    await refreshRoomSession()
+  }
+}
+
+watch(
+  [
+    () => assignment.value?.roomId,
+    () => activeRoomSession.value?.id,
+    () => assignmentPending.value,
+    () => roomSessionPending.value
+  ],
+  () => {
+    void autoEnterAssignedRoom()
+  },
+  { immediate: true }
+)
 const effectiveWaitingRoomTypeId = computed(() =>
   isSuperAdmin.value ? selectedWaitingRoomTypeId.value : roomTypeId.value
 )
@@ -1564,6 +1594,27 @@ watch(
             variant="subtle"
             :label="roomSessionPending ? 'Checking room session...' : getRoomSessionLabel()"
           />
+
+          <UButton
+            v-if="canEnterRoom"
+            icon="i-lucide-door-open"
+            color="primary"
+            :loading="roomEnterActionLoading"
+            @click="openEnterRoomModal"
+          >
+            <span class="hidden lg:inline">Masuk Room</span>
+          </UButton>
+
+          <UButton
+            v-if="activeRoomSession"
+            icon="i-lucide-door-closed"
+            color="warning"
+            variant="soft"
+            :loading="roomExitActionLoading"
+            @click="openExitRoomModal"
+          >
+            <span class="hidden lg:inline">Keluar Room</span>
+          </UButton>
 
           <UButton
             icon="i-lucide-rotate-ccw"

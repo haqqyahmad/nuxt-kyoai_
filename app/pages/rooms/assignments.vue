@@ -496,8 +496,12 @@ async function submitSelfAssignment() {
       // lalu arahkan ke /rooms/queue (bukan sample-collection) agar langsung bisa ambil pasien.
       try {
         await enterRoomSession({ roomId: selfForm.roomId })
-      } catch {
-        // best-effort: jika gagal enter, tetap ke queue
+      } catch (error: unknown) {
+        toast.add({
+          title: 'Sesi room belum aktif',
+          description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
+          color: 'warning'
+        })
       }
 
       await navigateTo('/rooms/queue')
