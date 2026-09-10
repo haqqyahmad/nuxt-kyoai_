@@ -1470,29 +1470,38 @@ async function refreshAll() {
 }
 
 const endingSessionId = ref<string | null>(null)
+const isEndSessionModalOpen = ref(false)
+const endSessionTarget = ref<{ sessionId: string, staffName: string, isSelf: boolean } | null>(null)
 
-async function handleEndSession(sessionId: string, staffName: string, isSelf = false) {
+function openEndSessionConfirm(sessionId: string, staffName: string, isSelf: boolean) {
+  endSessionTarget.value = { sessionId, staffName, isSelf }
+  isEndSessionModalOpen.value = true
+}
+
+function closeEndSessionConfirm() {
   if (endingSessionId.value) return
+  isEndSessionModalOpen.value = false
+}
 
-  const confirmed = isSelf
-    ? confirm('End your room session? Your session will be ended and the room freed.')
-    : confirm(`Force end session for ${staffName}? The session will be forced to end and the room freed.`)
-  if (!confirmed) return
+async function handleEndSession() {
+  const target = endSessionTarget.value
+  if (!target || endingSessionId.value) return
 
-  endingSessionId.value = sessionId
+  endingSessionId.value = target.sessionId
   try {
-    if (isSelf) {
+    if (target.isSelf) {
       await api.post('/medical/rooms/sessions/exit', {})
     } else {
-      await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
+      await api.post(`/medical/rooms/sessions/${target.sessionId}/exit`, {})
     }
     toast.add({
       title: 'Success',
-      description: isSelf
+      description: target.isSelf
         ? 'Your room session has been ended.'
-        : `Room session for ${staffName} successfully ended.`,
+        : `Room session for ${target.staffName} successfully ended.`,
       color: 'success'
     })
+    isEndSessionModalOpen.value = false
     await Promise.all([refreshActiveSessions(), refreshRoomSession()])
   } catch (error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } })?.response
@@ -1749,7 +1758,7 @@ watch(
                     variant="ghost"
                     :loading="endingSessionId === staff.sessionId"
                     :title="isOwnRoomSession(staff.userId) ? 'End your session' : 'Force end session'"
-                    @click="handleEndSession(staff.sessionId, staff.name, isOwnRoomSession(staff.userId))"
+                    @click="openEndSessionConfirm(staff.sessionId, staff.name, isOwnRoomSession(staff.userId))"
                   />
                 </div>
               </div>
@@ -2357,6 +2366,45 @@ watch(
               @click="handleExitRoom"
             >
               Exit Room
+            </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="isEndSessionModalOpen"
+        :title="endSessionTarget?.isSelf ? 'End Your Session' : 'Force End Session'"
+      >
+        <template #body>
+          <div class="space-y-4">
+            <UAlert
+              :color="endSessionTarget?.isSelf ? 'warning' : 'error'"
+              :title="endSessionTarget?.isSelf
+                ? 'End your room session?'
+                : `Force end session for ${endSessionTarget?.staffName || '-'}?`"
+              :description="endSessionTarget?.isSelf
+                ? 'Your session will be ended and the room freed.'
+                : `The session for ${endSessionTarget?.staffName || 'this user'} will be forced to end and the room freed.`"
+            />
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="!!endingSessionId"
+              @click="closeEndSessionConfirm"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              :color="endSessionTarget?.isSelf ? 'warning' : 'error'"
+              :loading="!!endingSessionId"
+              @click="handleEndSession"
+            >
+              {{ endSessionTarget?.isSelf ? 'End Session' : 'Force End' }}
             </UButton>
           </div>
         </template>
