@@ -13,7 +13,7 @@ const router = useRouter()
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function goToDentalDetail() {
@@ -35,7 +35,7 @@ function goToDentalDetail() {
             Dental Examination
           </h4>
           <p class="text-xs text-muted">
-            Grade &amp; hasil dikelola langsung oleh dokter dental
+            Grade &amp; result are managed directly by the dental doctor
           </p>
         </div>
       </div>
@@ -48,7 +48,7 @@ function goToDentalDetail() {
 
     <div v-if="data.submittedAt">
       <p class="text-xs text-muted">
-        Disubmit
+        Submitted
       </p>
       <p class="font-medium text-highlighted">
         {{ formatDate(data.submittedAt) }}
@@ -57,7 +57,7 @@ function goToDentalDetail() {
 
     <div v-if="data.doctorComment">
       <p class="text-xs text-muted">
-        Kesimpulan
+        Conclusion
       </p>
       <p class="mt-0.5 text-sm text-highlighted line-clamp-3">
         {{ data.doctorComment }}
@@ -72,7 +72,7 @@ function goToDentalDetail() {
       size="sm"
       @click="goToDentalDetail"
     >
-      Lihat detail dental
+      View dental detail
     </UButton>
   </div>
 </template>

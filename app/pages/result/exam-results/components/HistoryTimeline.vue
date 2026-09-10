@@ -6,6 +6,7 @@ type DiffAuditEntry = {
   entity?: string
   action?: string
   actorId?: number | null
+  actorName?: string | null
   actorRole?: string | null
   notes?: string | null
   createdAt?: string
@@ -71,7 +72,9 @@ const filteredEntries = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(e => {
-      const actor = `user #${e.actorId}` + (e.actorRole ? ` ${e.actorRole}` : '')
+      const actor = [e.actorName, e.actorId != null ? `user #${e.actorId}` : null, e.actorRole]
+        .filter(Boolean)
+        .join(' ')
       const diffText = e.payloadAfter ? JSON.stringify(Object.keys(e.payloadAfter)) : ''
       const valueText = e.payloadAfter
         ? Object.entries(e.payloadAfter).map(([k, v]) => `${k} ${v.from} ${v.to}`).join(' ')
@@ -87,17 +90,42 @@ const filteredEntries = computed(() => {
 function formatDate(dateString?: string | null) {
   if (!dateString) return { date: '-', time: '-' }
   const d = new Date(dateString)
-  const date = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   return { date, time }
 }
 
-function formatDiffValue(v: unknown) {
-  if (v == null) return '—'
-  if (typeof v === 'string' && v.includes('T') && v.includes('Z')) {
-    const d = new Date(v)
-    if (!isNaN(d.getTime())) return d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+function formatDiffItem(item: unknown): string {
+  if (item == null) return '—'
+  if (typeof item !== 'object') return String(item)
+  const o = item as Record<string, unknown>
+  // Dental finding shape: { toothNumber, conditions, note }
+  if (o.toothNumber != null) {
+    const conds = Array.isArray(o.conditions) ? o.conditions.join(', ') : ''
+    const note = o.note ? ` (${o.note})` : ''
+    return `Tooth ${o.toothNumber}${conds ? `: ${conds}` : ''}${note}`
   }
+  const parts = Object.entries(o)
+    .filter(([, val]) => val != null && val !== '')
+    .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : String(val)}`)
+  return parts.length ? parts.join('; ') : JSON.stringify(o)
+}
+
+function formatDiffValue(v: unknown) {
+  if (v == null || v === '') return '—'
+  if (typeof v === 'string') {
+    if (v.includes('T') && v.includes('Z')) {
+      const d = new Date(v)
+      if (!isNaN(d.getTime())) return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    }
+    return v
+  }
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  if (Array.isArray(v)) {
+    if (!v.length) return '[]'
+    return v.map(formatDiffItem).join(' | ')
+  }
+  if (typeof v === 'object') return formatDiffItem(v)
   return String(v)
 }
 
@@ -109,6 +137,12 @@ function actorInitials(actorId?: number | null, role?: string | null) {
   if (role === 'dokter' || role === 'dokter luar') return 'DL'
   if (actorId != null) return `U${actorId}`
   return 'SY'
+}
+
+function actorLabel(actorName?: string | null, actorId?: number | null) {
+  if (actorName) return actorName
+  if (actorId != null) return `User #${actorId}`
+  return 'System'
 }
 
 function isInputAction(action?: string) {
@@ -202,8 +236,8 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                     </span>
                   </div>
                   <div class="ht-meta">
-                    <template v-if="entry.actorId">
-                      user #{{ entry.actorId }}
+                    <template v-if="entry.actorName || entry.actorId">
+                      {{ actorLabel(entry.actorName, entry.actorId) }}
                       <template v-if="entry.actorRole"> • {{ entry.actorRole }}</template>
                     </template>
                     <template v-else>system</template>
@@ -246,8 +280,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                 <div class="ht-actor">
                   <span class="ht-avatar">{{ actorInitials(entry.actorId, entry.actorRole) }}</span>
                   <span>
-                    <template v-if="entry.actorRole">{{ entry.actorRole }}</template>
-                    <template v-else-if="entry.actorId">user #{{ entry.actorId }}</template>
+                    <template v-if="entry.actorName">{{ entry.actorName }}</template>
+                    <template v-else-if="entry.actorRole">{{ entry.actorRole }}</template>
+                    <template v-else-if="entry.actorId">User #{{ entry.actorId }}</template>
                     <template v-else>system</template>
                   </span>
                 </div>

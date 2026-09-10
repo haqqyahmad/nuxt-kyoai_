@@ -5,6 +5,7 @@ type DiffAuditEntry = {
   entity: string;
   entityId: string;
   actorId: number | null;
+  actorName: string | null;
   actorRole: string | null;
   action: string;
   payloadBefore: Record<string, { from: unknown; to: unknown }> | null;

@@ -86,7 +86,7 @@ function seed() {
   state.doctorComment = d.doctorComment ?? ''
   state.commentsManual = Boolean(d.doctorComment)
   state.suggestedOverride = d.suggestedGrade
-    ? d.suggestedGrade !== suggested.value.grade || d.gradeReason === 'Grade suggested dipilih manual oleh dokter.'
+    ? d.suggestedGrade !== suggested.value.grade || d.gradeReason === 'Suggested grade selected manually by the doctor.'
     : false
   state.suggestedGrade = d.suggestedGrade ?? undefined
   const findings: FindingMap = {}
@@ -96,8 +96,8 @@ function seed() {
   state.findings = findings
 }
 
-// Toggle exclusive Normal — Normal dihapus otomatis saat opsi abnormal dipilih,
-// dan dikembalikan saat semua abnormal dilepas.
+// Toggle exclusive Normal — Normal is removed automatically when an abnormal
+// option is selected, and restored when all abnormal options are deselected.
 function toggleExclusiveNormal(list: string[], value: string) {
   if (value === 'Normal') {
     list.splice(0, list.length, 'Normal')
@@ -177,20 +177,20 @@ const suggested = computed(() => {
   const oralAbnormal = [...state.extraOral, ...state.intraOral].filter(v => v !== 'Normal')
 
   if (allFindingConditions.value.some(c => urgent.includes(c))) {
-    return { grade: 'D' as DentalGrade, label: DENTAL_GRADE_CONFIG.D.label, reason: 'Terdapat temuan yang membutuhkan evaluasi segera.' }
+    return { grade: 'D' as DentalGrade, label: DENTAL_GRADE_CONFIG.D.label, reason: 'There is a finding that requires immediate evaluation.' }
   }
   if (allFindingConditions.value.some(c => treatment.includes(c)) || oralAbnormal.length >= 2) {
-    return { grade: 'C' as DentalGrade, label: DENTAL_GRADE_CONFIG.C.label, reason: 'Terdapat kondisi gigi atau oral yang membutuhkan perawatan.' }
+    return { grade: 'C' as DentalGrade, label: DENTAL_GRADE_CONFIG.C.label, reason: 'There is a dental or oral condition that requires treatment.' }
   }
   if (allFindingConditions.value.length || state.otherDental.length || oralAbnormal.length) {
-    return { grade: 'B' as DentalGrade, label: DENTAL_GRADE_CONFIG.B.label, reason: 'Terdapat temuan ringan atau kebutuhan perawatan rutin.' }
+    return { grade: 'B' as DentalGrade, label: DENTAL_GRADE_CONFIG.B.label, reason: 'There are minor findings or routine treatment needs.' }
   }
-  return { grade: 'A' as DentalGrade, label: DENTAL_GRADE_CONFIG.A.label, reason: 'Belum ada temuan abnormal.' }
+  return { grade: 'A' as DentalGrade, label: DENTAL_GRADE_CONFIG.A.label, reason: 'No abnormal findings yet.' }
 })
 
 const gradeConfig = computed(() => displayData.value?.gradeConfig ?? DENTAL_GRADE_CONFIG)
 
-// Suggested grade efektif: auto-computed kecuali dokter override manual.
+// Effective suggested grade: auto-computed unless the doctor overrides manually.
 const effectiveSuggestedGrade = computed(() =>
   state.suggestedOverride && state.suggestedGrade
     ? state.suggestedGrade
@@ -202,7 +202,7 @@ function resetSuggestedToAuto() {
   state.suggestedOverride = false
 }
 
-// Sinkron auto-suggested ke state kalau belum dioverride.
+// Sync auto-suggested to state when not overridden.
 watch(suggested, (auto) => {
   if (!state.suggestedOverride) state.suggestedGrade = auto.grade
 }, { immediate: true })
@@ -255,11 +255,11 @@ async function save() {
   saving.value = true
   try {
     await api.post(`/mcu/exams/${props.examId}/dental`, buildPayload())
-    toast.add({ title: 'Berhasil', description: 'Pemeriksaan gigi (draft) disimpan.', color: 'success' })
+    toast.add({ title: 'Success', description: 'Dental examination (draft) saved.', color: 'success' })
     emit('saved')
   } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Pemeriksaan gigi gagal disimpan.'
-    toast.add({ title: 'Gagal menyimpan', description: message, color: 'error' })
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to save dental examination.'
+    toast.add({ title: 'Failed to save', description: message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -270,11 +270,11 @@ async function submit() {
   try {
     await api.post(`/mcu/exams/${props.examId}/dental/submit`, buildPayload())
     confirmSubmit.value = false
-    toast.add({ title: 'Berhasil', description: 'Pemeriksaan gigi disubmit ke department.', color: 'success' })
+    toast.add({ title: 'Success', description: 'Dental examination submitted to department.', color: 'success' })
     emit('saved')
   } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Submit pemeriksaan gigi gagal.'
-    toast.add({ title: 'Gagal submit', description: message, color: 'error' })
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to submit dental examination.'
+    toast.add({ title: 'Failed to submit', description: message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -295,10 +295,10 @@ if (props.data) seed()
               Dental Examination · {{ props.data?.gradeConfig ? '' : 'live' }}
             </p>
             <h3 class="mt-1 text-base font-semibold text-highlighted">
-              Pemeriksaan Gigi
+              Dental Examination
             </h3>
           </div>
-          <UBadge label="Grading otomatis, dokter dapat mengubah" color="primary" variant="soft" />
+          <UBadge label="Automated grading, doctor can override" color="primary" variant="soft" />
         </div>
       </template>
 
@@ -310,7 +310,7 @@ if (props.data) seed()
             <div class="flex items-center gap-2">
               <UBadge
                 v-if="state.extraOral.filter(v => v !== 'Normal').length > 0"
-                :label="`${state.extraOral.filter(v => v !== 'Normal').length} dipilih`"
+                :label="`${state.extraOral.filter(v => v !== 'Normal').length} selected`"
                 color="primary"
                 variant="soft"
                 size="xs"
@@ -336,8 +336,8 @@ if (props.data) seed()
               {{ opt }}
             </button>
           </div>
-          <UFormField label="Keterangan tambahan" class="mt-4">
-            <UInput v-model="state.extraOralNote" :disabled="disabled" placeholder="Contoh: edema ringan pada sisi kiri" />
+          <UFormField label="Additional note" class="mt-4">
+            <UInput v-model="state.extraOralNote" :disabled="disabled" placeholder="e.g. mild edema on the left side" />
           </UFormField>
         </div>
 
@@ -347,7 +347,7 @@ if (props.data) seed()
             <div class="flex items-center gap-2">
               <UBadge
                 v-if="state.intraOral.filter(v => v !== 'Normal').length > 0"
-                :label="`${state.intraOral.filter(v => v !== 'Normal').length} dipilih`"
+                :label="`${state.intraOral.filter(v => v !== 'Normal').length} selected`"
                 color="primary"
                 variant="soft"
                 size="xs"
@@ -373,14 +373,14 @@ if (props.data) seed()
               {{ opt }}
             </button>
           </div>
-          <UFormField label="Keterangan tambahan" class="mt-4">
-            <UInput v-model="state.intraOralNote" :disabled="disabled" placeholder="Contoh: lesi pada mukosa bukal" />
+          <UFormField label="Additional note" class="mt-4">
+            <UInput v-model="state.intraOralNote" :disabled="disabled" placeholder="e.g. lesion on the buccal mucosa" />
           </UFormField>
         </div>
       </div>
     </UCard>
 
-    <!-- Dental Chart (kiri) + Kondisi Gigi (kanan) -->
+    <!-- Dental Chart (left) + Tooth Conditions (right) -->
     <div class="grid grid-cols-1 gap-4" :class="state.selectedTooth ? 'lg:grid-cols-[4fr_1fr]' : 'lg:grid-cols-1'">
       <!-- Dental Chart -->
       <UCard class="border border-default/80 shadow-sm">
@@ -389,7 +389,7 @@ if (props.data) seed()
             <h3 class="text-base font-semibold text-highlighted">
               Dental Chart
             </h3>
-            <UBadge :label="state.selectedTooth ? `Gigi ${state.selectedTooth} dipilih` : 'Belum ada gigi dipilih'" color="neutral" variant="subtle" />
+            <UBadge :label="state.selectedTooth ? `Tooth ${state.selectedTooth} selected` : 'No tooth selected'" color="neutral" variant="subtle" />
           </div>
         </template>
 
@@ -459,7 +459,7 @@ if (props.data) seed()
             v-if="selectedFinding && selectedFinding.conditions.length > 0"
             color="primary"
             variant="soft"
-            :title="`Gigi ${selectedFinding.toothNumber}`"
+            :title="`Tooth ${selectedFinding.toothNumber}`"
           >
             <template #description>
               <div class="flex flex-wrap gap-2">
@@ -482,10 +482,10 @@ if (props.data) seed()
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 class="text-base font-semibold text-highlighted">
-                Kondisi Gigi {{ state.selectedTooth }}
+                Tooth Conditions {{ state.selectedTooth }}
               </h3>
               <p class="text-xs text-muted">
-                Klik beberapa kondisi. Dental Findings akan diperbarui langsung.
+                Click multiple conditions. Dental Findings will update immediately.
               </p>
             </div>
             <UButton
@@ -496,7 +496,7 @@ if (props.data) seed()
               :disabled="disabled"
               @click="clearTooth"
             >
-              Hapus temuan
+              Clear finding
             </UButton>
           </div>
         </template>
@@ -515,12 +515,12 @@ if (props.data) seed()
           </button>
         </div>
 
-        <UFormField label="Catatan khusus gigi" class="mt-4">
+        <UFormField label="Tooth note" class="mt-4">
           <UInput
             v-if="state.findings[state.selectedTooth]"
             v-model="state.findings[state.selectedTooth]!.note"
             :disabled="disabled"
-            placeholder="Contoh: karies pada permukaan distal"
+            placeholder="e.g. caries on the distal surface"
           />
         </UFormField>
       </UCard>
@@ -533,12 +533,12 @@ if (props.data) seed()
           <h3 class="text-base font-semibold text-highlighted">
             Dental Findings
           </h3>
-          <UBadge :label="`${findingsList.length} gigi`" color="neutral" variant="subtle" />
+          <UBadge :label="`${findingsList.length} teeth`" color="neutral" variant="subtle" />
         </div>
       </template>
 
       <div v-if="!findingsList.length" class="rounded-xl border border-dashed border-default py-8 text-center text-sm text-muted">
-        Belum ada temuan dental.
+        No dental findings yet.
       </div>
       <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div
@@ -605,12 +605,12 @@ if (props.data) seed()
           {{ opt }}
         </button>
       </div>
-      <UFormField label="Keterangan Other Dental" class="mt-4">
+      <UFormField label="Other Dental note" class="mt-4">
         <UTextarea
           v-model="state.otherNote"
           :disabled="disabled"
           :rows="3"
-          placeholder="Tambahkan lokasi atau penjelasan temuan"
+          placeholder="Add location or description of the finding"
         />
       </UFormField>
     </UCard>
@@ -644,7 +644,7 @@ if (props.data) seed()
             v-model="state.suggestedGrade"
             :disabled="disabled"
             :items="gradeOptions"
-            placeholder="Auto — tidak dipilih"
+            placeholder="Auto — not selected"
             @change="state.suggestedOverride = true"
           />
           <p class="mt-2 text-xs text-muted">
@@ -663,7 +663,7 @@ if (props.data) seed()
               v-model="state.finalGrade"
               :disabled="disabled"
               :items="gradeOptions"
-              placeholder="Pilih final grade"
+              placeholder="Select final grade"
               @change="onFinalGradeChange"
             />
           </UFormField>
@@ -680,7 +680,7 @@ if (props.data) seed()
             :disabled="disabled"
             @click="useAutoComment"
           >
-            Gunakan komentar otomatis
+            Use auto comment
           </UButton>
         </div>
         <UTextarea v-model="state.doctorComment" :disabled="disabled" :rows="4" />
@@ -699,7 +699,7 @@ if (props.data) seed()
           :loading="saving"
           @click="save"
         >
-          Simpan Draft
+          Save Draft
         </UButton>
         <UButton
           v-if="showSubmit"
@@ -718,23 +718,23 @@ if (props.data) seed()
       v-model:open="confirmSubmit"
       :dismissible="false"
       :close="false"
-      title="Konfirmasi Submit Pemeriksaan Gigi"
+      title="Confirm Submit Dental Examination"
     >
       <template #body>
         <p class="text-sm text-highlighted">
-          Yakin ingin submit pemeriksaan gigi ke department?
+          Submit the dental examination to the department?
         </p>
         <p class="mt-2 text-xs text-muted">
-          Setelah submit, hasil terkunci dan masuk workflow approval department.
+          After submitting, the result is locked and enters the department approval workflow.
         </p>
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="outline" @click="confirmSubmit = false">
-            Tidak, kembali
+            No, back
           </UButton>
           <UButton color="primary" :loading="saving" @click="submit">
-            Ya, submit
+            Yes, submit
           </UButton>
         </div>
       </template>

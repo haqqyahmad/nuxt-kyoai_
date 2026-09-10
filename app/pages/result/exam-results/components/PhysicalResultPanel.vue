@@ -35,7 +35,7 @@ const isNormal = (value: string) => value.trim().toLowerCase() === 'no abnormali
 const patientName = computed(() => [props.result.patient?.firstName, props.result.patient?.middleName, props.result.patient?.lastName].filter(Boolean).join(' ') || '-')
 const genderLabel = computed(() => props.result.patient?.gender === 'MALE' ? 'Male' : props.result.patient?.gender === 'FEMALE' ? 'Female' : props.result.patient?.gender || '-')
 function formatDate(value?: string | null) {
-  return value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
+  return value ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
 }
 function ageAtDob(value?: string | null) {
   if (!value) return '-'

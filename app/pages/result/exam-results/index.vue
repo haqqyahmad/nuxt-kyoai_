@@ -156,7 +156,7 @@ function formatPatientName(patient?: Patient | null) {
 
 function formatDateTime(dateString?: string | null) {
   if (!dateString) return '-'
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(dateString))
@@ -360,14 +360,49 @@ function onPageSizeChange(value: string | null) {
   loadResults()
 }
 
+// Satu baris per exam_id (department dokter).
+function mapExamRow(row: any): ExamResult {
+  const names: string[] = Array.isArray(row.itemNames) ? row.itemNames : []
+  const itemLabel = names.length
+    ? `${names.slice(0, 3).join(', ')}${row.itemCount > 3 ? ` +${row.itemCount - 3}` : ''}`
+    : '-'
+  return {
+    id: row.firstExamItemId ?? row.examId,
+    queueCode: row.queueCode ?? '-',
+    queueEntryId: row.examId,
+    patient: row.patient ?? null,
+    item: {
+      id: row.examId,
+      name: itemLabel,
+      code: row.itemCount ? `${row.itemCount} items` : null,
+      department: row.departments?.[0] ?? null,
+      roomType: row.roomTypes?.[0] ?? null
+    },
+    resultTiming: row.resultTiming ?? undefined,
+    status: row.status === 'pending' ? 'pending' : 'completed',
+    checkinAt: row.checkinAt ?? null,
+    createdAt: row.checkinAt ?? undefined,
+    exam: { id: row.examId }
+  }
+}
+
 async function loadResults() {
   loading.value = true
   try {
+    // [Group by exam] Department dokter tampil satu baris per exam_id.
+    const groupByExam = menuDepartmentCode.value === 'DOK'
+
     const params: Record<string, unknown> = {
       page: page.value,
-      limit: limit.value,
+      limit: limit.value
+    }
+
+    if (groupByExam) {
+      params.groupBy = 'exam'
+      params.scope = 'false'
+    } else {
       // view=list → BE pakai query ringan (hanya field tabel, tanpa inputans/results).
-      view: 'list'
+      params.view = 'list'
     }
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {
@@ -408,7 +443,11 @@ async function loadResults() {
     const payload = res.data?.data ?? res.data
     const meta = res.data?.meta ?? {}
 
-    if (Array.isArray(payload)) {
+    if (groupByExam) {
+      const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
+      results.value = rows.map(mapExamRow)
+      total.value = Number(meta.total ?? rows.length)
+    } else if (Array.isArray(payload)) {
       results.value = payload
       total.value = meta.total ?? payload.length
     } else if (payload?.data) {

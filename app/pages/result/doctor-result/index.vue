@@ -219,7 +219,9 @@ async function load() {
       page: currentPage.value,
       limit: pageSize.value,
       groupBy: 'exam',
-      scope: 'false'
+      scope: 'false',
+      // Hanya exam yang registrasinya sudah CheckOut di Front Office.
+      requireCheckout: 'true'
     }
     // Gate doctor worklist based on MedicalReport status (not exam status),
     // because exams with DOCTOR_REVIEW status are generally already 'completed'.

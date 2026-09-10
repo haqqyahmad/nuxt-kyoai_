@@ -7,7 +7,7 @@ const props = defineProps<{ data: DentalExamData | null }>()
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 const grading = computed(() => {
@@ -30,7 +30,7 @@ function findingConditions(tooth: string) {
   return props.data?.findings?.find(f => f.toothNumber === tooth)?.conditions ?? []
 }
 
-// Ringkasan kondisi: condition -> daftar nomor gigi yang mengalaminya
+// Condition summary: condition -> list of tooth numbers that have it
 const conditionSummary = computed<Record<string, string[]>>(() => {
   const map: Record<string, string[]> = {}
   for (const f of props.data?.findings ?? []) {
@@ -48,12 +48,12 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
     <!-- Patient header -->
     <div class="rounded-xl border border-default p-4">
       <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-        Detail Pasien
+        Patient Details
       </p>
       <div class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 lg:grid-cols-6">
         <div>
           <p class="text-xs text-muted">
-            Nama
+            Name
           </p>
           <p class="font-semibold text-highlighted">
             {{ data.patientName }}
@@ -61,7 +61,7 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
         </div>
         <div>
           <p class="text-xs text-muted">
-            Pasien ID
+            Patient ID
           </p>
           <p class="font-semibold text-highlighted">
             {{ data.patientId ?? '-' }}
@@ -85,15 +85,15 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
         </div>
         <div>
           <p class="text-xs text-muted">
-            Umur
+            Age
           </p>
           <p class="font-semibold text-highlighted">
-            {{ data.age != null ? `${data.age} th` : '-' }}
+            {{ data.age != null ? `${data.age} y` : '-' }}
           </p>
         </div>
         <div>
           <p class="text-xs text-muted">
-            Tanggal
+            Date
           </p>
           <p class="font-semibold text-highlighted">
             {{ formatDate(data.examDate) }}
@@ -130,7 +130,7 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
       </div>
     </div>
 
-    <!-- Dental Chart (kiri) + Kondisi Gigi (kanan) -->
+    <!-- Dental Chart (left) + Tooth Conditions (right) -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
       <!-- Dental Chart -->
       <div class="rounded-xl border border-default p-4">
@@ -189,13 +189,13 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
         </div>
       </div>
 
-      <!-- Kondisi Gigi -->
+      <!-- Tooth Conditions -->
       <div class="rounded-xl border border-default p-4">
         <h4 class="mb-3 text-sm font-semibold text-highlighted">
-          Kondisi Gigi
+          Tooth Conditions
         </h4>
         <div v-if="!Object.keys(conditionSummary).length" class="rounded-lg border border-dashed border-default py-6 text-center text-sm text-muted">
-          Tidak ada kondisi ditemukan.
+          No conditions found.
         </div>
         <div v-else class="space-y-3">
           <div
@@ -205,7 +205,7 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{{ condition }}</span>
-              <span class="text-xs text-muted">{{ teeth.length }} gigi</span>
+              <span class="text-xs text-muted">{{ teeth.length }} teeth</span>
             </div>
             <div class="mt-2 flex flex-wrap gap-1.5">
               <span v-for="tooth in teeth" :key="tooth" class="rounded-full border border-default bg-default px-2 py-0.5 text-xs font-semibold text-highlighted">{{ tooth }}</span>
@@ -221,7 +221,7 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
         Dental Findings
       </h4>
       <div v-if="!data.findings?.length" class="rounded-lg border border-dashed border-default py-6 text-center text-sm text-muted">
-        Tidak ada temuan dental.
+        No dental findings.
       </div>
       <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div

@@ -173,7 +173,6 @@ type ResultDraft = {
 }
 
 type BadgeColor = 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'
-type GradingValue = 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC'
 type ResultPayload = {
   inputanId: string
   valueString?: string
@@ -245,20 +244,6 @@ async function fetchAllAudit() {
     auditLoading.value = false
   }
 }
-
-const groupGradingItems: Array<{ label: string; value: GradingValue }> = [
-  { label: 'Normal', value: 'NORMAL' },
-  { label: 'Abnormal (increased)', value: 'ABNORMAL_INC' },
-  { label: 'Abnormal (decreased)', value: 'ABNORMAL_DEC' }
-]
-
-const groupGradingForm = ref<{ groupId: string; groupName: string; grading?: GradingValue }>({
-  groupId: '',
-  groupName: '',
-  grading: undefined
-})
-const autoComment = ref<string | null>(null)
-const groupGradingSaving = ref(false)
 
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(
@@ -495,57 +480,6 @@ function getSampleImpactLabel(impact: SampleImpact) {
   if (impact.collectionStatus === 'RESCHEDULED') return `${name} rescheduled`
   if (impact.collectionStatus !== 'RECEIVED') return `${name} not received`
   return `${name} received`
-}
-
-async function loadGroupResults() {
-  if (!props.result?.exam?.id) return
-  try {
-    const { data } = await api.get(`/mcu/exams/${props.result?.exam?.id}/group-results`)
-    const list = data?.data ?? []
-    if (Array.isArray(list) && list.length > 0) {
-      const g = list[0]
-      groupGradingForm.value = {
-        groupId: g.groupId,
-        groupName: g.groupName ?? '',
-        grading: g.grading ?? undefined
-      }
-      autoComment.value = g.autoComment ?? null
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-async function saveGroupGrading() {
-  if (!props.result?.exam?.id) return
-  if (!groupGradingForm.value.groupId) {
-    toast.add({ title: 'groupId is required', color: 'error' })
-    return
-  }
-  groupGradingSaving.value = true
-  try {
-    const items = (props.result.exam?.results ?? [])
-      .filter((r: any) => r.grading && r.grading !== 'NORMAL')
-      .map((r: any) => ({
-        inputanId: r.inputanId,
-        grading: r.grading,
-        name: inputanLabel(r.inputanId)
-      }))
-    const { data } = await api.post(`/mcu/exams/${props.result?.exam?.id}/group-result`, {
-      ...groupGradingForm.value,
-      items
-    })
-    autoComment.value = data?.data?.autoComment ?? null
-    toast.add({ title: 'Group grading saved', color: 'success' })
-  } catch (e: any) {
-    toast.add({ title: e?.response?.data?.message ?? 'Failed to save', color: 'error' })
-  } finally {
-    groupGradingSaving.value = false
-  }
-}
-
-function inputanLabel(inputanId: string) {
-  return props.result?.item?.inputans?.find((i: any) => i.id === inputanId)?.label ?? inputanId
 }
 
 const externalDoctors = ref<Array<{ id: number; name: string }>>([])
@@ -859,7 +793,7 @@ function formatPatientName(patient?: Patient | null) {
 
 function formatDateTime(dateString?: string | null) {
   if (!dateString) return '-'
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(dateString))
@@ -867,7 +801,7 @@ function formatDateTime(dateString?: string | null) {
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return '-'
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium'
   }).format(new Date(dateString))
 }
@@ -1649,7 +1583,6 @@ watch(
       seedDraftsFromExistingResults()
       if (props.result.id) {
         fetchAllAudit()
-        loadGroupResults()
         void loadExternalAttachmentPreview()
       } else {
         resetAudit()
@@ -2502,12 +2435,6 @@ onBeforeUnmount(() => {
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Queue ID</dt>
-                    <dd class="mt-1 text-sm font-semibold text-highlighted">
-                      {{ result.queueEntryId }}
-                    </dd>
-                  </div>
-                  <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">Examination Type</dt>
                     <dd class="mt-1">
                       <UBadge :color="getExamTypeColor(result.exam?.examType)" variant="subtle">
@@ -2521,112 +2448,168 @@ onBeforeUnmount(() => {
                       {{ result?.exam?.examCode }}
                     </dd>
                   </div>
+                  <div>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Reg No.</dt>
+                    <dd class="mt-1 font-mono text-sm font-semibold text-highlighted">
+                      {{ result.queueCode || '-' }}
+                    </dd>
+                  </div>
                   <div v-if="hasExternalResultContext">
                     <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
-                    <dd class="mt-1 space-y-2">
-                      <UBadge
-                        v-if="result?.exam?.externalStatus"
-                        :color="externalStatusColor[result?.exam?.externalStatus] ?? 'neutral'"
-                        variant="subtle"
-                      >
-                        {{ result?.exam?.externalStatus }}
-                      </UBadge>
-                      <span v-else class="text-sm text-muted">-</span>
+                    <dd class="mt-2 space-y-3">
+                      <!-- Assignment -->
+                      <div class="rounded-lg border border-default bg-muted/20 p-3">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                            <UIcon name="i-lucide-user-round" class="size-3.5" />
+                            Assignment
+                          </div>
+                          <UBadge
+                            v-if="result?.exam?.externalStatus"
+                            :color="externalStatusColor[result?.exam?.externalStatus] ?? 'neutral'"
+                            variant="subtle"
+                            size="xs"
+                          >
+                            {{ result?.exam?.externalStatus }}
+                          </UBadge>
+                        </div>
 
-                      <div
-                        v-if="
-                          result?.exam?.externalStatus === 'ASSIGNED' ||
-                          result?.exam?.externalStatus === 'PROCESSING' ||
-                          result?.exam?.externalStatus === 'FILLED'
-                        "
-                        class="text-sm font-medium text-highlighted"
-                      >
-                        {{
-                          formatExternalActor(
-                            result?.exam?.assignedExternalUser,
-                            result?.exam?.assignedExternalUserId
-                          )
-                        }}
+                        <div
+                          v-if="
+                            result?.exam?.externalStatus === 'ASSIGNED' ||
+                            result?.exam?.externalStatus === 'PROCESSING' ||
+                            result?.exam?.externalStatus === 'FILLED'
+                          "
+                          class="mt-2 flex items-center gap-2 text-sm"
+                        >
+                          <UIcon name="i-lucide-stethoscope" class="size-4 text-primary" />
+                          <span class="font-medium text-highlighted">
+                            {{
+                              formatExternalActor(
+                                result?.exam?.assignedExternalUser,
+                                result?.exam?.assignedExternalUserId
+                              )
+                            }}
+                          </span>
+                        </div>
+
+                        <div
+                          v-if="
+                            !isExternalDoctor &&
+                            (!result?.exam?.externalStatus ||
+                              result?.exam?.externalStatus === 'CANCELLED')
+                          "
+                          class="mt-2 flex flex-wrap items-center gap-2"
+                        >
+                          <USelectMenu
+                            v-model="selectedExternalDoctor"
+                            :items="externalDoctors"
+                            value-key="id"
+                            label-key="name"
+                            placeholder="Select external doctor"
+                            class="min-w-48 flex-1"
+                          />
+                          <UButton
+                            size="xs"
+                            color="primary"
+                            variant="soft"
+                            icon="i-lucide-user-plus"
+                            :loading="externalSaving"
+                            :disabled="!selectedExternalDoctor"
+                            @click="assignExternalDoctor"
+                          >
+                            Assign Doctor
+                          </UButton>
+                        </div>
+
+                        <div
+                          v-if="!isExternalDoctor && result?.exam?.externalStatus === 'ASSIGNED'"
+                          class="mt-2"
+                        >
+                          <UButton
+                            size="xs"
+                            color="error"
+                            variant="soft"
+                            icon="i-lucide-ban"
+                            :loading="externalSaving"
+                            @click="openCancelExternal"
+                          >
+                            Cancel Assignment
+                          </UButton>
+                        </div>
+
+                        <p v-if="isExternalDoctor" class="mt-2 text-xs text-muted">
+                          The result PDF comes from the nurse. You fill in the structured examination
+                          results below.
+                        </p>
                       </div>
 
-                      <div
-                        v-if="
-                          !isExternalDoctor &&
-                          (!result?.exam?.externalStatus ||
-                            result?.exam?.externalStatus === 'CANCELLED')
-                        "
-                        class="flex items-center gap-2"
-                      >
-                        <USelectMenu
-                          v-model="selectedExternalDoctor"
-                          :items="externalDoctors"
-                          value-key="id"
-                          label-key="name"
-                          placeholder="Select external doctor"
-                          class="min-w-48"
-                        />
-                        <UButton
-                          size="xs"
-                          color="primary"
-                          variant="soft"
-                          :loading="externalSaving"
-                          :disabled="!selectedExternalDoctor"
-                          @click="assignExternalDoctor"
-                        >
-                          Assign
-                        </UButton>
-                      </div>
+                      <!-- Result File -->
+                      <div class="rounded-lg border border-default bg-muted/20 p-3">
+                        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                          <UIcon name="i-lucide-file-text" class="size-3.5" />
+                          Result File
+                        </div>
 
-                      <div
-                        v-if="
-                          !isExternalDoctor &&
-                          (result?.exam?.externalStatus === 'ASSIGNED' ||
-                            result?.exam?.externalStatus === 'PROCESSING')
-                        "
-                        class="flex items-center gap-2"
-                      >
-                        <UButton
-                          v-if="result?.exam?.externalStatus === 'ASSIGNED'"
-                          size="xs"
-                          color="error"
-                          variant="soft"
-                          :loading="externalSaving"
-                          @click="openCancelExternal"
+                        <div
+                          v-if="
+                            !isExternalDoctor &&
+                            (result?.exam?.externalStatus === 'ASSIGNED' ||
+                              result?.exam?.externalStatus === 'PROCESSING')
+                          "
+                          class="mt-2 space-y-2"
                         >
-                          Cancel
-                        </UButton>
-                        <UButton
-                          size="xs"
-                          color="success"
-                          variant="soft"
-                          :loading="externalSaving"
-                          @click="uploadExternalResult"
-                        >
-                          Upload Result
-                        </UButton>
-                        <UInput
-                          type="file"
-                          accept="application/pdf"
-                          size="xs"
-                          @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
-                        />
-                      </div>
+                          <UInput
+                            type="file"
+                            accept="application/pdf"
+                            size="xs"
+                            class="w-full"
+                            @change="(e: any) => (externalFile = e?.target?.files?.[0] ?? null)"
+                          />
+                          <p v-if="externalFile" class="truncate text-xs text-muted">
+                            {{ externalFile.name }}
+                          </p>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <UButton
+                              size="xs"
+                              color="success"
+                              variant="soft"
+                              icon="i-lucide-upload"
+                              :disabled="!externalFile"
+                              :loading="externalSaving"
+                              @click="uploadExternalResult"
+                            >
+                              Upload Result
+                            </UButton>
+                            <UButton
+                              v-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
+                              size="xs"
+                              color="neutral"
+                              variant="outline"
+                              icon="i-lucide-file-text"
+                              :loading="externalSaving"
+                              @click="openExternalAttachment"
+                            >
+                              View PDF
+                            </UButton>
+                          </div>
+                        </div>
 
-                      <p v-if="isExternalDoctor" class="text-xs text-muted">
-                        The result PDF comes from the nurse. You fill in the structured examination
-                        results below.
-                      </p>
-                      <UButton
-                        v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
-                        size="xs"
-                        color="neutral"
-                        variant="outline"
-                        icon="i-lucide-file-text"
-                        :loading="externalSaving"
-                        @click="openExternalAttachment"
-                      >
-                        View PDF
-                      </UButton>
+                        <div v-else class="mt-2">
+                          <UButton
+                            v-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
+                            size="xs"
+                            color="neutral"
+                            variant="outline"
+                            icon="i-lucide-file-text"
+                            :loading="externalSaving"
+                            @click="openExternalAttachment"
+                          >
+                            View PDF
+                          </UButton>
+                          <p v-else class="text-xs text-muted">No file uploaded yet.</p>
+                        </div>
+                      </div>
                     </dd>
                   </div>
                   <div>
@@ -2675,22 +2658,27 @@ onBeforeUnmount(() => {
                       <thead class="bg-muted/40">
                         <tr>
                           <th
-                            class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[18%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                          >
+                            Group
+                          </th>
+                          <th
+                            class="w-[24%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Parameter
                           </th>
                           <th
-                            class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[22%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Normal Value
                           </th>
                           <th
-                            class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[22%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Result
                           </th>
                           <th
-                            class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[14%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Status
                           </th>
@@ -2704,6 +2692,14 @@ onBeforeUnmount(() => {
                           class="transition hover:bg-muted/20"
                           :class="inputanReturnNote(inputan.id) ? 'bg-error/5' : ''"
                         >
+                          <td class="px-3 py-2.5 align-middle">
+                            <UBadge
+                              :label="(inputan as any).groupName || (inputan as any).itemName || '-'"
+                              color="neutral"
+                              variant="subtle"
+                              size="sm"
+                            />
+                          </td>
                           <td class="px-3 py-2.5 align-middle">
                             <div class="min-w-0">
                               <p class="text-sm font-semibold text-highlighted">
@@ -3042,71 +3038,6 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </UCard>
-
-              <UCard class="order-3 border border-default/80 bg-default/80 shadow-sm">
-                <template #header>
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                        Group Grading & Auto Comment
-                      </h4>
-                      <p class="mt-1 text-xs text-muted">
-                        Item grading is calculated automatically. Group grading is filled manually,
-                        then the system generates an auto doctor comment.
-                      </p>
-                    </div>
-                    <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
-                  </div>
-                </template>
-
-                <div class="space-y-4">
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <UFormField label="Group ID">
-                      <UInput
-                        v-model="groupGradingForm.groupId"
-                        placeholder="e.g. HEMATOLOGY"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Group Name">
-                      <UInput
-                        v-model="groupGradingForm.groupName"
-                        placeholder="e.g. Hematology"
-                        class="w-full"
-                      />
-                    </UFormField>
-                  </div>
-
-                  <UFormField label="Grading Group (manual)">
-                    <USelect
-                      v-model="groupGradingForm.grading"
-                      :items="groupGradingItems"
-                      :placeholder="'Select grading group'"
-                      class="w-full sm:w-72"
-                    />
-                  </UFormField>
-
-                  <div>
-                    <p class="mb-1 text-xs font-medium text-muted">Auto Doctor Comment</p>
-                    <UTextarea
-                      :model-value="autoComment ?? ''"
-                      readonly
-                      :rows="4"
-                      class="w-full"
-                      placeholder="Auto-comment will be generated after saving the group grading."
-                    />
-                  </div>
-
-                  <UButton
-                    v-if="canEditCurrentResult"
-                    :loading="groupGradingSaving"
-                    icon="i-lucide-save"
-                    @click="saveGroupGrading"
-                  >
-                    Save Group Grading
-                  </UButton>
-                </div>
-              </UCard>
             </div>
           </div>
         </div>
@@ -3144,29 +3075,43 @@ onBeforeUnmount(() => {
     </template>
   </BaseFullscreenModal>
 
-  <UModal v-model:open="cancelExternalOpen" title="Cancel External Doctor Assignment">
+  <UModal
+    v-model:open="cancelExternalOpen"
+    title="Cancel External Doctor Assignment"
+    description="The external doctor will be unassigned from this examination item. This action is recorded in the audit history."
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
     <template #body>
-      <p class="text-sm text-muted">
-        Cancel the external doctor assignment for this item? The reason will be recorded in the audit history.
-      </p>
-      <UFormField label="Reason" class="mt-4">
-        <UTextarea
-          v-model="cancelExternalReason"
-          :rows="3"
-          placeholder="Cancellation reason (optional)"
-          class="w-full"
+      <div class="space-y-4">
+        <UAlert
+          icon="i-lucide-triangle-alert"
+          color="warning"
+          variant="soft"
+          :title="`Assigned to ${formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId)}`"
+          :description="result?.item?.name || 'Examination item'"
         />
-      </UFormField>
+
+        <UFormField label="Reason" hint="optional">
+          <UTextarea
+            v-model="cancelExternalReason"
+            :rows="3"
+            :maxlength="500"
+            placeholder="e.g. Wrong doctor assigned, patient rescheduled…"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
     </template>
+
     <template #footer>
-      <div class="flex justify-end gap-2">
+      <div class="flex w-full justify-end gap-2">
         <UButton
           color="neutral"
-          variant="soft"
+          variant="outline"
           :disabled="cancelExternalSubmitting"
           @click="cancelExternalOpen = false"
         >
-          No
+          Keep Assignment
         </UButton>
         <UButton
           color="error"
@@ -3174,7 +3119,7 @@ onBeforeUnmount(() => {
           :loading="cancelExternalSubmitting"
           @click="cancelExternalDoctor"
         >
-          Yes, Cancel
+          Cancel Assignment
         </UButton>
       </div>
     </template>

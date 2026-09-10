@@ -31,10 +31,10 @@ const save = async (submit = false) => {
     } else {
       emit('saved')
     }
-    toast.add({ title: submit ? 'Pemeriksaan disubmit' : 'Draft tersimpan', color: 'success' })
+    toast.add({ title: submit ? 'Examination submitted' : 'Draft saved', color: 'success' })
   } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Data tidak dapat disimpan'
-    toast.add({ title: 'Gagal', description: message, color: 'error' })
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Data could not be saved'
+    toast.add({ title: 'Failed', description: message, color: 'error' })
   } finally { saving.value = false }
 }
 onMounted(load)
@@ -49,7 +49,7 @@ onMounted(load)
             {{ config?.name || 'Doctor Examination' }}
           </h3>
           <p class="text-xs text-muted">
-            Pemeriksaan item dokter
+            Doctor examination item
           </p>
         </div>
         <UBadge :label="status" color="success" variant="soft" />
@@ -70,7 +70,7 @@ onMounted(load)
         v-if="data.value === 'UNDEFINED'"
         v-model="data.detail"
         :disabled="!editable"
-        placeholder="Detail wajib"
+        placeholder="Detail required"
       />
     </div>
 
@@ -87,7 +87,7 @@ onMounted(load)
         v-if="data.normal === false"
         v-model="data.detail"
         :disabled="!editable"
-        placeholder="Details wajib"
+        placeholder="Details required"
       />
     </div>
 
@@ -112,7 +112,7 @@ onMounted(load)
             v-model="finding.grade"
             :disabled="!editable"
             :items="['GRADE_1', 'GRADE_2', 'GRADE_3', 'GRADE_4']"
-            placeholder="Grade wajib"
+            placeholder="Grade required"
           />
           <UInput
             v-if="finding.code === 'OTHERS' && finding.value"
@@ -129,7 +129,7 @@ onMounted(load)
         Save Draft
       </UButton>
       <UButton :loading="saving" @click="save(true)">
-        Selesaikan Pemeriksaan
+        Complete Examination
       </UButton>
     </div>
   </UCard>
