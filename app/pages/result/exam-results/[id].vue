@@ -75,12 +75,12 @@ async function loadResult() {
         : []
 
     result.value = rows[0] ?? null
-    if (!result.value) error.value = 'Result tidak ditemukan atau tidak dapat diakses.'
+    if (!result.value) error.value = 'Result not found or inaccessible.'
   } catch (value: unknown) {
     const response = typeof value === 'object' && value && 'response' in value
       ? (value as { response?: { data?: { message?: string } } }).response
       : undefined
-    error.value = response?.data?.message || 'Gagal memuat detail result.'
+    error.value = response?.data?.message || 'Failed to load result detail.'
     result.value = null
   } finally {
     loading.value = false
@@ -110,13 +110,13 @@ onMounted(() => {
         <UAlert
           color="error"
           variant="soft"
-          title="Detail result tidak tersedia"
+          title="Result detail unavailable"
           :description="error"
           class="max-w-xl"
         />
       </div>
 
-      <!-- Dental: editor + view khusus dental -->
+      <!-- Dental: editor + dental-specific view -->
       <div v-else-if="isDental && examId" class="h-full overflow-auto">
         <div class="flex items-center gap-3 px-2 pt-2">
           <UButton
@@ -141,7 +141,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Physical Examination: structured DoctorExam, tampilan result standar tanpa grade -->
+      <!-- Physical Examination: structured DoctorExam, standard result view without grade -->
       <PhysicalResultPanel
         v-else-if="isPhysical && result"
         :result="result as any"

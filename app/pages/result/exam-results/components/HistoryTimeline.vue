@@ -50,12 +50,12 @@ function toggleAll() {
 type ActionDef = { title: string, badge: string, dotColor: string, dotIcon: string, type: string }
 
 const actionDefs: Record<string, ActionDef> = {
-  ASSIGN_EXTERNAL:  { title: 'Pemeriksaan ditugaskan ke dokter luar', badge: 'ASSIGN_EXTERNAL', dotColor: 'dot-amber', dotIcon: '+', type: 'status' },
-  CANCEL_EXTERNAL:  { title: 'Penugasan dokter luar dibatalkan',     badge: 'CANCEL_EXTERNAL', dotColor: 'dot-gray', dotIcon: '×', type: 'status' },
-  START_PROCESSING: { title: 'Dokter luar mulai memproses',           badge: 'START_PROCESSING', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
-  SUBMIT_EXTERNAL:  { title: 'Hasil eksternal diterima sistem',       badge: 'SUBMIT_EXTERNAL', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
-  SUBMIT_INPUT:     { title: 'Dokter mengirim hasil pemeriksaan',     badge: 'SUBMIT_INPUT', dotColor: 'dot-green', dotIcon: '✓', type: 'submit' },
-  UPDATE_INPUT:     { title: 'Draft inputan diperbarui',              badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
+  ASSIGN_EXTERNAL:  { title: 'Examination assigned to external doctor', badge: 'ASSIGN_EXTERNAL', dotColor: 'dot-amber', dotIcon: '+', type: 'status' },
+  CANCEL_EXTERNAL:  { title: 'External doctor assignment cancelled',     badge: 'CANCEL_EXTERNAL', dotColor: 'dot-gray', dotIcon: '×', type: 'status' },
+  START_PROCESSING: { title: 'External doctor started processing',           badge: 'START_PROCESSING', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  SUBMIT_EXTERNAL:  { title: 'External result received by system',       badge: 'SUBMIT_EXTERNAL', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  SUBMIT_INPUT:     { title: 'Doctor submitted examination result',     badge: 'SUBMIT_INPUT', dotColor: 'dot-green', dotIcon: '✓', type: 'submit' },
+  UPDATE_INPUT:     { title: 'Draft input updated',              badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
 }
 
 function getActionDef(action?: string): ActionDef {
@@ -132,15 +132,15 @@ function getStatusDiffs(entry: DiffAuditEntry) {
     <div class="ht-header">
       <div>
         <div class="ht-eyebrow">Medical Result Review</div>
-        <h2 class="ht-title">Riwayat Proses Pemeriksaan</h2>
-        <p class="ht-sub">Timeline aktivitas yang lebih mudah dipindai, dengan detail perubahan yang bisa dibuka saat diperlukan.</p>
+        <h2 class="ht-title">Examination Process History</h2>
+        <p class="ht-sub">Easier to scan activity timeline, with detailed changes that can be opened when needed.</p>
       </div>
       <div v-if="queueCode" class="ht-queue">{{ queueCode }}</div>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="ht-empty">
-      <span class="ht-spinner" /> Memuat riwayat proses...
+      <span class="ht-spinner" /> Loading process history...
     </div>
 
     <template v-else>
@@ -148,16 +148,16 @@ function getStatusDiffs(entry: DiffAuditEntry) {
       <div class="ht-toolbar">
         <label class="ht-search">
           <span class="ht-search-icon">⌕</span>
-          <input v-model="searchQuery" placeholder="Cari event, user, parameter, atau nilai..." />
+          <input v-model="searchQuery" placeholder="Search event, user, parameter, or value..." />
         </label>
         <select v-model="typeFilter" class="ht-select">
-          <option value="">Semua aktivitas</option>
+          <option value="">All activities</option>
           <option value="submit">Submit</option>
           <option value="update">Update</option>
           <option value="status">Status</option>
         </select>
         <button class="ht-btn" @click="toggleAll">
-          {{ allExpanded ? 'Tutup semua' : 'Buka semua' }}
+          {{ allExpanded ? 'Collapse all' : 'Expand all' }}
         </button>
       </div>
 
@@ -166,7 +166,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
         <header class="ht-history-head">
           <div>
             <h3 class="ht-history-title">Audit Trail</h3>
-            <p class="ht-history-desc">Urutan terbaru di atas. Klik sebuah aktivitas untuk melihat perubahan detail.</p>
+            <p class="ht-history-desc">Newest first. Click an activity to view detailed changes.</p>
           </div>
         </header>
 
@@ -285,7 +285,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
         </div>
 
         <div v-if="!filteredEntries.length && !workHistory?.length" class="ht-empty-block">
-          Tidak ada riwayat yang cocok dengan filter.
+          No history matching the filter.
         </div>
       </div>
     </template>

@@ -27,10 +27,10 @@ const canApprove = computed(() => data.value?.canApproveDepartment === true)
 
 const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
   switch (props.resultStatus) {
-    case 'DEPARTMENT_APPROVED': return { label: `Approved by ${data.value?.doctorName || 'Dokter'}`, color: 'success' }
+    case 'DEPARTMENT_APPROVED': return { label: `Approved by ${data.value?.doctorName || 'Doctor'}`, color: 'success' }
     case 'DEPARTMENT_REVIEW': return { label: 'Pending Approval', color: 'warning' }
-    case 'RETURNED_TO_DEPARTMENT': return { label: 'Dikembalikan', color: 'error' }
-    default: return { label: 'Belum Disubmit', color: 'neutral' }
+    case 'RETURNED_TO_DEPARTMENT': return { label: 'Returned', color: 'error' }
+    default: return { label: 'Not Submitted', color: 'neutral' }
   }
 })
 
@@ -39,11 +39,11 @@ async function handleApprove() {
   approving.value = true
   try {
     await api.post(`/mcu/exams/${props.examId}/department-result/approve`, { departmentId: props.departmentId })
-    toast.add({ title: 'Disetujui', description: 'Hasil dental disetujui departemen.', color: 'success' })
+    toast.add({ title: 'Approved', description: 'Dental result approved by department.', color: 'success' })
     emit('approved')
   } catch (error: unknown) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Gagal approve.'
-    toast.add({ title: 'Gagal approve', description: message, color: 'error' })
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to approve.'
+    toast.add({ title: 'Failed to approve', description: message, color: 'error' })
   } finally {
     approving.value = false
   }
@@ -89,10 +89,10 @@ function printDental() {
           </div>
           <div>
             <h3 class="text-base font-semibold text-highlighted">
-              Pemeriksaan Gigi (Dental)
+              Dental Examination
             </h3>
             <p class="text-xs text-muted">
-              {{ isSubmitted ? 'Hasil sudah disubmit' : canEdit ? 'Bisa diedit sebelum submit' : 'Dental examination' }}
+              {{ isSubmitted ? 'Result already submitted' : canEdit ? 'Editable before submit' : 'Dental examination' }}
             </p>
           </div>
         </div>
@@ -112,7 +112,7 @@ function printDental() {
             size="sm"
             @click="printDental"
           >
-            Cetak
+            Print
           </UButton>
           <UButton
             v-if="canApprove"
@@ -162,7 +162,7 @@ function printDental() {
         :disabled="saving"
         @click="editing = false"
       >
-        Batal
+        Cancel
       </UButton>
     </div>
 
@@ -172,13 +172,13 @@ function printDental() {
       variant="soft"
       icon="i-lucide-info"
       class="mt-4"
-      title="Submit hasil dental"
-      description="Klik 'Edit' untuk mengubah data, lalu 'Submit & Release' untuk menyelesaikan. Submit = release langsung, tidak perlu approval MCU doctor."
+      title="Submit dental result"
+      description="Click 'Edit' to change data, then 'Submit & Release' to complete. Submit = immediate release, no MCU doctor approval required."
     />
 
     <div v-if="isSubmitted" class="mt-3 flex items-center gap-2 text-sm text-success">
       <UIcon name="i-lucide-check-circle-2" class="size-4" />
-      <span>Hasil dental sudah disubmit dan di-release.</span>
+      <span>Dental result has been submitted and released.</span>
     </div>
   </UCard>
 </template>

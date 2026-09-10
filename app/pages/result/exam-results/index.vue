@@ -175,8 +175,8 @@ function getStatusLabel(status?: string) {
   if (status === 'pending') return 'Pending'
   if (status === 'DEPARTMENT_REVIEW') return 'Pending Approval'
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
-  if (status === 'SUBMITTED_TO_DOCTOR') return 'Dikirim ke Dokter'
-  if (status === 'RETURNED_TO_DEPARTMENT') return 'Dikembalikan'
+  if (status === 'SUBMITTED_TO_DOCTOR') return 'Sent to Doctor'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
   if (status === 'DRAFT') return 'Draft'
   return status || '-'
 }
@@ -366,7 +366,8 @@ async function loadResults() {
     const params: Record<string, unknown> = {
       page: page.value,
       limit: limit.value,
-      groupBy: isExternalDoctor.value ? 'item' : 'exam'
+      // view=list → BE pakai query ringan (hanya field tabel, tanpa inputans/results).
+      view: 'list'
     }
 
     if (departmentFilter.value && departmentFilter.value !== 'all') {
@@ -516,8 +517,8 @@ onMounted(async () => {
   <UDashboardPanel id="exam-results">
     <template #header>
       <UDashboardNavbar
-        :title="isExternalDoctor ? 'Pekerjaan Dokter Luar' : 'Exam Results Management'"
-        :subtitle="isExternalDoctor ? 'Hasil pemeriksaan yang ditugaskan kepada Anda' : 'Manage inline and deferred exam results'"
+        :title="isExternalDoctor ? 'External Doctor Workspace' : 'Exam Results Management'"
+        :subtitle="isExternalDoctor ? 'Examinations assigned to you' : 'Manage inline and deferred exam results'"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -544,8 +545,8 @@ onMounted(async () => {
           icon="i-lucide-stethoscope"
           color="info"
           variant="soft"
-          title="Workspace Dokter Luar"
-          description="Hanya pemeriksaan yang ditugaskan kepada akun Anda yang ditampilkan. Isi hasil, simpan draft, lalu submit."
+          title="External Doctor Workspace"
+          description="Only examinations assigned to your account are shown. Fill in results, save draft, then submit."
         />
 
         <!-- Filters Section -->
@@ -663,7 +664,7 @@ onMounted(async () => {
               No results found
             </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
-              {{ isExternalDoctor ? 'Belum ada pemeriksaan yang ditugaskan kepada Anda.' : 'No exam results match your filter criteria. Try adjusting your filters.' }}
+              {{ isExternalDoctor ? 'No examinations assigned to you yet.' : 'No exam results match your filter criteria. Try adjusting your filters.' }}
             </p>
           </div>
 

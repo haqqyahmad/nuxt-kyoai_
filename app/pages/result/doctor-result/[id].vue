@@ -163,8 +163,8 @@ const revisionCount = computed(() =>
 
 function formatActionLabel(action: string) {
   const labels: Record<string, string> = {
-    SUBMIT: 'Dokter Submit',
-    RESUBMIT: 'Dokter Resubmit',
+    SUBMIT: 'Doctor Submit',
+    RESUBMIT: 'Doctor Resubmit',
     VERIFY: 'MR Verify',
     RETURN: 'MR Return',
     RELEASE: 'MR Release'
@@ -197,7 +197,7 @@ const autoCommentText = computed(() =>
   finalComment.value || Object.values(comments.value).filter(Boolean).join(' ')
 )
 
-// [F] Ringkasan grade per group (sidebar)
+// [F] Grade summary per group (sidebar)
 const groupSummary = computed(() =>
   allGroups.value
     .filter(g => g.groupId && g.showInDoctorResult !== false)
@@ -212,7 +212,7 @@ const abnormalGroupsPending = computed(() =>
   groupSummary.value.filter(s => s.group.isAbnormal && !s.grade)
 )
 
-// Ringkasan Grading — semua item gradable dari SEMUA department (bukan per tab aktif)
+// Grading Summary — all gradable items from ALL departments (not per active tab)
 const selectedSummary = computed(() =>
   allItems.value
     .filter(item => selectedGrades.value[item.inputanId] || item.grade)
@@ -231,7 +231,7 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
       h('span', { class: 'font-medium text-highlighted' }, row.original.inputanLabel),
       h('span', { class: 'text-xs text-muted' }, row.original.gradable ? 'gradable = 1' : 'gradable = 0'),
       itemRevisionNote(row.original)
-        ? h(UBadge, { label: 'Perlu Revisi', color: 'error', variant: 'soft', size: 'xs', class: 'mt-1 w-fit' })
+        ? h(UBadge, { label: 'Needs Revision', color: 'error', variant: 'soft', size: 'xs', class: 'mt-1 w-fit' })
         : null
     ])
   },
@@ -261,20 +261,20 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
   },
   {
     id: 'comment',
-    header: 'Komentar Otomatis',
+    header: 'Auto Comment',
     cell: ({ row }) => h('div', { class: 'max-w-md text-sm leading-5' }, [
       itemRevisionNote(row.original)
-        ? h('div', { class: 'mb-1 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error' }, `Catatan MR: ${itemRevisionNote(row.original)}`)
+        ? h('div', { class: 'mb-1 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error' }, `MR Note: ${itemRevisionNote(row.original)}`)
         : null,
-      h('div', {}, comments.value[row.original.inputanId] ?? row.original.comment ?? (row.original.gradable ? 'Pilih grade untuk komentar otomatis.' : '-')),
+      h('div', {}, comments.value[row.original.inputanId] ?? row.original.comment ?? (row.original.gradable ? 'Select a grade for auto comment.' : '-')),
       row.original.recommendation && (comments.value[row.original.inputanId] || row.original.comment)
-        ? h('div', { class: 'mt-1 text-xs text-muted' }, `Rekomendasi: ${row.original.recommendation}`)
+        ? h('div', { class: 'mt-1 text-xs text-muted' }, `Recommendation: ${row.original.recommendation}`)
         : null
     ])
   }
 ]
 
-// Physical/DoctorExam memakai tabel yang sama, tanpa grade item dan grade group.
+// Physical/DoctorExam use the same table, without item grade and group grade.
 const structuredItemColumns: TableColumn<DoctorResultItem>[] = itemColumns.filter(column =>
   ['item', 'result', 'status'].includes(String(column.id))
 )
@@ -305,10 +305,10 @@ async function loadGradeOptions() {
   }
 }
 
-// [F] Grade group: grade + komentar (opsional)
+// [F] Group grade: grade + comment (optional)
 async function onGroupGradeChange(group: DoctorResultGroup, grade: string, comment: string) {
   if (!group.groupId) return
-  // jaga komentar user: kalau sudah terisi manual, pertahankan
+  // preserve the user's comment: if already filled manually, keep it
   const existing = groupGrades.value[group.groupId]?.comment ?? group.comment ?? ''
   const finalComment = existing || (grade ? groupCommentFor(group, grade) : '')
   groupGradeLoading.value[group.groupId] = true
@@ -338,7 +338,7 @@ function groupCommentFor(group: DoctorResultGroup, grade: string) {
   return group.commentOptions?.find(o => o.grade === grade)?.comment ?? ''
 }
 
-// Hapus grade lewat card Ringkasan Grading — sync otomatis ke select (selectedGrades)
+// Remove grade via the Grading Summary card — auto syncs to the select (selectedGrades)
 async function removeGrade(item: DoctorResultItem) {
   gradeLoading.value[item.inputanId] = true
   try {
@@ -356,7 +356,7 @@ function scrollToDepartment(departmentId: string) {
   })
 }
 
-// Scroll spy — highlight tab otomatis saat user scroll
+// Scroll spy — auto highlight the tab when the user scrolls
 let observer: IntersectionObserver | null = null
 function setupScrollSpy() {
   observer?.disconnect()
@@ -419,11 +419,11 @@ function renderGradeCell(item: DoctorResultItem) {
     ])
   }
 
-  if (!item.gradable) return h('span', { class: 'text-xs text-muted' }, 'Tidak gradable')
+  if (!item.gradable) return h('span', { class: 'text-xs text-muted' }, 'Not gradable')
 
   const options = gradeOptionsCache.value[item.inputanId]
   if (options?.length === 0) {
-    return h('span', { class: 'text-xs text-muted' }, `Tidak ada grade untuk kondisi ${flagLabel(item.flag)}`)
+    return h('span', { class: 'text-xs text-muted' }, `No grade for condition ${flagLabel(item.flag)}`)
   }
 
   return h(USelect, {
@@ -433,7 +433,7 @@ function renderGradeCell(item: DoctorResultItem) {
     'class': 'w-28',
     'loading': gradeLoading.value[item.inputanId] || !options,
     'disabled': !options,
-    'placeholder': 'Pilih',
+    'placeholder': 'Select',
     'onUpdate:modelValue': (value: string) => onGradeChange(item, value)
   })
 }
@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
   <UDashboardPanel id="doctor-result-detail" class="w-full min-w-0">
     <template #body>
       <div class="flex w-full min-w-0 flex-col gap-4 pb-6">
-        <!-- Header minimal: back + title + right actions -->
+        <!-- Minimal header: back + title + right actions -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default pb-3">
           <div class="flex min-w-0 items-center gap-3">
             <UButton
@@ -485,7 +485,7 @@ onBeforeUnmount(() => {
                 </h1>
               </div>
               <p class="mt-1 text-sm text-muted">
-                Grade hanya muncul pada item dengan gradable = 1.
+                Grade only appears on items with gradable = 1.
               </p>
             </div>
           </div>
@@ -494,7 +494,7 @@ onBeforeUnmount(() => {
               {{ gradedCount }}/{{ totalGradable }} graded
             </UBadge>
             <UButton icon="i-lucide-save" color="neutral" variant="outline">
-              Simpan Draft
+              Save Draft
             </UButton>
             <UButton
               v-if="mrReturned"
@@ -504,7 +504,7 @@ onBeforeUnmount(() => {
               :loading="submitting"
               @click="openReturnDeptModal"
             >
-              Return ke Department
+              Return to Department
             </UButton>
             <UButton
               icon="i-lucide-file-code"
@@ -521,7 +521,7 @@ onBeforeUnmount(() => {
               :loading="printLoading"
               @click="onPrintReport"
             >
-              Print Hasil MCU
+              Print MCU Result
             </UButton>
             <UButton
               icon="i-lucide-send"
@@ -530,25 +530,25 @@ onBeforeUnmount(() => {
               :disabled="!canSubmit"
               @click="submitResult"
             >
-              Submit ke MR Review
+              Submit to MR Review
             </UButton>
           </div>
         </div>
 
-        <!-- [MR] Banner revisi dari MR -->
+        <!-- [MR] Revision banner from MR -->
         <UAlert
           v-if="mrReturned"
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-          title="Report dikembalikan oleh MR — perbaiki lalu submit ulang"
-          :description="mrReturnReason || 'MR meminta perbaikan pada report ini.'"
+          title="Report returned by MR — fix then resubmit"
+          :description="mrReturnReason || 'MR requested fixes on this report.'"
         >
           <template #description>
             <div class="mt-1 space-y-1">
-              <p>{{ mrReturnReason || 'MR meminta perbaikan pada report ini.' }}</p>
+              <p>{{ mrReturnReason || 'MR requested fixes on this report.' }}</p>
               <p v-if="mrReturnRevisions.length" class="text-xs">
-                Item yang perlu direvisi:
+                Items to revise:
                 <span v-for="rev in mrReturnRevisions" :key="rev.inputanId" class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5">
                   {{ rev.label || rev.inputanId.slice(0, 8) }}{{ rev.note ? ` — ${rev.note}` : '' }}
                 </span>
@@ -570,7 +570,7 @@ onBeforeUnmount(() => {
             <template #header>
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 class="font-semibold">
-                  Data Pasien
+                  Patient Data
                 </h2>
                 <UBadge color="info" variant="soft">
                   DOCTOR_REVIEW
@@ -581,7 +581,7 @@ onBeforeUnmount(() => {
             <div class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <div class="min-w-0">
                 <div class="text-xs font-semibold uppercase text-muted">
-                  Pasien
+                  Patient
                 </div>
                 <div class="truncate font-semibold">
                   {{ data.patient.name }}
@@ -608,7 +608,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="min-w-0">
                 <div class="text-xs font-semibold uppercase text-muted">
-                  Umur
+                  Age
                 </div>
                 <div class="truncate font-semibold">
                   {{ data.patient.age }}
@@ -616,7 +616,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="min-w-0">
                 <div class="text-xs font-semibold uppercase text-muted">
-                  Perusahaan
+                  Company
                 </div>
                 <div class="truncate font-semibold">
                   {{ data.patient.company }}
@@ -624,7 +624,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="min-w-0">
                 <div class="text-xs font-semibold uppercase text-muted">
-                  Paket
+                  Package
                 </div>
                 <div class="truncate font-semibold">
                   {{ data.patient.package }}
@@ -638,8 +638,8 @@ onBeforeUnmount(() => {
             icon="i-lucide-alert-triangle"
             color="warning"
             variant="soft"
-            :title="`${pendingCount} item grading belum diisi`"
-            description="Semua item gradable harus diisi sebelum submit ke MR Review."
+            :title="`${pendingCount} grading items not filled`"
+            description="All gradable items must be filled before submitting to MR Review."
           />
 
           <UAlert
@@ -647,8 +647,8 @@ onBeforeUnmount(() => {
             icon="i-lucide-alert-triangle"
             color="error"
             variant="soft"
-            :title="`${abnormalGroupsPending.length} group abnormal belum di-grade`"
-            description="Kelompok dengan item abnormal wajib diberi grade group sebelum submit."
+            :title="`${abnormalGroupsPending.length} abnormal groups not graded`"
+            description="Groups with abnormal items must be given a group grade before submitting."
           />
 
           <!-- Sticky Group Anchor Navigation -->
@@ -673,10 +673,10 @@ onBeforeUnmount(() => {
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <div class="min-w-0">
                     <h2 class="font-semibold">
-                      Hasil Pemeriksaan Multi-Department
+                      Multi-Department Examination Results
                     </h2>
                     <p class="text-xs text-muted">
-                      {{ allItems.length }} item, {{ abnormalCount }} abnormal
+                      {{ allItems.length }} items, {{ abnormalCount }} abnormal
                     </p>
                   </div>
                   <UBadge color="warning" variant="soft">
@@ -698,7 +698,7 @@ onBeforeUnmount(() => {
                         {{ dept.departmentName }}
                       </h3>
                       <p class="text-xs text-muted">
-                        {{ (dept as any).itemCount ?? (dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) + ((dept as any).doctorExams?.length ?? 0)) }} item
+                        {{ (dept as any).itemCount ?? (dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) + ((dept as any).doctorExams?.length ?? 0)) }} items
                       </p>
                     </div>
                     <UBadge color="neutral" variant="soft">
@@ -706,7 +706,7 @@ onBeforeUnmount(() => {
                     </UBadge>
                   </div>
 
-                  <!-- [DENTAL] Summary dept gigi — hanya kesimpulan, grade dari dokter dental -->
+                  <!-- [DENTAL] Dental dept summary — conclusion only, grades from dental doctor -->
                   <div
                     v-if="(dept as any).dental"
                     class="w-full min-w-0 overflow-hidden rounded-lg border border-teal-500/30"
@@ -715,7 +715,7 @@ onBeforeUnmount(() => {
                       <div class="flex min-w-0 items-center gap-2">
                         <UIcon name="i-lucide-stethoscope" class="size-4 text-teal-600" />
                         <h4 class="truncate font-semibold">
-                          Dental Examination — Kesimpulan
+                          Dental Examination — Conclusion
                         </h4>
                       </div>
                       <div class="flex items-center gap-2">
@@ -732,7 +732,7 @@ onBeforeUnmount(() => {
                           variant="outline"
                           @click="router.push(`/rooms/dental/print/${examId}`)"
                         >
-                          Cetak
+                          Print
                         </UButton>
                       </div>
                     </div>
@@ -753,7 +753,7 @@ onBeforeUnmount(() => {
                           <h4 class="truncate font-semibold">
                             {{ group.groupName }}
                           </h4>
-                          <small class="text-xs text-muted">Result approved dari department</small>
+                          <small class="text-xs text-muted">Result approved by department</small>
                         </div>
                         <UBadge
                           v-if="group.isAbnormal"
@@ -767,30 +767,30 @@ onBeforeUnmount(() => {
                         </span>
                       </div>
 
-                      <!-- [F] strip grade group -->
+                      <!-- [F] group grade strip -->
                       <div
                         v-if="!(group as any).structured"
                         class="flex flex-wrap items-center gap-3 border-b border-default px-4 py-3"
                         :class="group.isAbnormal ? 'bg-error/5' : 'bg-success/5'"
                       >
-                        <span class="text-xs font-semibold text-muted">Grade Group</span>
+                        <span class="text-xs font-semibold text-muted">Group Grade</span>
                         <USelect
                           class="w-44"
                           size="sm"
                           :model-value="groupGrades[group.groupId!]?.grade ?? group.grade ?? (group.isAbnormal ? '' : group.defaultGrade ?? 'A')"
                           :items="(group.gradeOptions ?? []).map(o => ({ label: `${o.grade} - ${o.label}`, value: o.grade }))"
-                          placeholder="Pilih"
+                          placeholder="Select"
                           :loading="group.groupId ? groupGradeLoading[group.groupId] : false"
                           @update:model-value="onGroupGradeChange(group, $event as string, groupCommentFor(group, $event as string))"
                         />                       <UInput
                           class="min-w-48 flex-1"
                           size="sm"
                           :model-value="groupGrades[group.groupId!]?.comment ?? group.comment ?? ''"
-                          placeholder="Komentar group (opsional)"
+                          placeholder="Group comment (optional)"
                           @update:model-value="(v) => onGroupCommentChange(group, v as string)"
                         />
                         <small v-if="!group.isAbnormal" class="text-xs text-success">
-                          otomatis A, dapat diubah
+                          auto A, editable
                         </small>
                       </div>
 
@@ -821,7 +821,7 @@ onBeforeUnmount(() => {
                 <template #header>
                   <div class="flex items-center justify-between gap-2">
                     <h2 class="font-semibold">
-                      Kesimpulan Dokter
+                      Doctor Conclusion
                     </h2>
                     <UBadge color="success" variant="soft">
                       Auto generated
@@ -863,10 +863,10 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
                     <p v-else class="mt-2 text-xs text-muted">
-                      Tidak ada grade group.
+                      No group grade.
                     </p>
                     <p v-if="abnormalGroupsPending.length" class="mt-2 text-xs font-semibold text-warning">
-                      {{ abnormalGroupsPending.length }} group abnormal belum di-grade
+                      {{ abnormalGroupsPending.length }} abnormal groups not graded
                     </p>
                   </div>
 
@@ -875,12 +875,12 @@ onBeforeUnmount(() => {
                     color="warning"
                     variant="soft"
                     title="Auto-comment"
-                    description="Komentar otomatis diambil dari kombinasi item, status nilai, dan grade."
+                    description="Auto comments are taken from the combination of item, value status, and grade."
                   />
 
                   <div class="rounded-lg border border-default p-3">
                     <h3 class="text-sm font-semibold">
-                      Ringkasan Grading
+                      Grading Summary
                     </h3>
                     <div v-if="selectedSummary.length" class="mt-3 space-y-2">
                       <div
@@ -905,13 +905,13 @@ onBeforeUnmount(() => {
                           color="error"
                           variant="ghost"
                           :loading="gradeLoading[entry.item.inputanId]"
-                          aria-label="Hapus grade"
+                          aria-label="Delete grade"
                           @click="removeGrade(entry.item)"
                         />
                       </div>
                     </div>
                     <p v-else class="mt-2 text-sm text-muted">
-                      Belum ada grade dipilih.
+                      No grade selected yet.
                     </p>
                   </div>
 
@@ -919,7 +919,7 @@ onBeforeUnmount(() => {
                     <USelect
                       v-model="finalGrade"
                       :items="[...FINAL_GRADES]"
-                      placeholder="Pilih final grade"
+                      placeholder="Select final grade"
                       class="w-full"
                     />
                   </UFormField>
@@ -928,16 +928,16 @@ onBeforeUnmount(() => {
                     <USelect
                       v-model="fitnessLevel"
                       :items="[...FITNESS_LEVELS]"
-                      placeholder="Pilih fitness level"
+                      placeholder="Select fitness level"
                       class="w-full"
                     />
                   </UFormField>
 
-                  <UFormField label="Komentar Kesimpulan Otomatis">
+                  <UFormField label="Auto Conclusion Comment">
                     <UTextarea
                       v-model="finalComment"
                       :rows="8"
-                      placeholder="Komentar otomatis akan muncul setelah grade dipilih."
+                      placeholder="Auto comment will appear after a grade is selected."
                       class="w-full"
                     />
                     <p v-if="!finalComment && autoCommentText" class="mt-1 text-xs text-muted">
@@ -945,11 +945,11 @@ onBeforeUnmount(() => {
                     </p>
                   </UFormField>
 
-                  <UFormField label="Catatan Internal Dokter">
+                  <UFormField label="Doctor Internal Note">
                     <UTextarea
                       v-model="internalNote"
                       :rows="4"
-                      placeholder="Catatan internal, tidak tampil pada sertifikat."
+                      placeholder="Internal note, not shown on the certificate."
                       class="w-full"
                     />
                   </UFormField>
@@ -973,7 +973,7 @@ onBeforeUnmount(() => {
                     :disabled="!canSubmit"
                     @click="submitResult"
                   >
-                    Submit ke MR Review
+                    Submit to MR Review
                   </UButton>
                 </div>
               </UCard>
@@ -986,7 +986,7 @@ onBeforeUnmount(() => {
                       <UIcon name="i-lucide-history" class="size-4 text-primary" />
                       <h3 class="text-sm font-semibold">History</h3>
                     </div>
-                    <UBadge v-if="revisionCount" label="revisi" :color="'error'" variant="soft" size="xs">
+                    <UBadge v-if="revisionCount" label="revision" :color="'error'" variant="soft" size="xs">
                       {{ revisionCount }}× return
                     </UBadge>
                   </div>
@@ -997,11 +997,11 @@ onBeforeUnmount(() => {
                     :key="i"
                     class="rounded-lg border p-2.5 text-xs"
                   >
-                    <!-- Header baris -->
+                    <!-- Row header -->
                     <div class="flex items-center gap-2">
                       <UIcon :name="actionIcon(act.action)" :class="`size-3.5 text-${actionColor(act.action)}`" />
                       <UBadge :label="formatActionLabel(act.action)" :color="actionColor(act.action)" variant="subtle" size="xs" />
-                      <span class="text-muted">{{ new Date(act.createdAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
+                      <span class="text-muted">{{ new Date(act.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
                       <span v-if="act.actorId" class="text-muted">· User #{{ act.actorId }}</span>
                     </div>
 
@@ -1028,9 +1028,9 @@ onBeforeUnmount(() => {
 
                     <!-- RETURN detail -->
                     <div v-if="act.action === 'RETURN'" class="mt-1.5 space-y-1">
-                      <p class="text-muted"><strong>Alasan:</strong> {{ act.reason ?? '-' }}</p>
+                      <p class="text-muted"><strong>Reason:</strong> {{ act.reason ?? '-' }}</p>
                       <div v-if="(act.payload?.items?.length ?? 0) > 0" class="mt-1 rounded bg-error/5 p-1.5">
-                        <p class="mb-1 font-semibold text-error">Item perlu diperiksa:</p>
+                        <p class="mb-1 font-semibold text-error">Items to review:</p>
                         <div class="space-y-0.5">
                           <div v-for="item in act.payload!.items!" :key="item.inputanId" class="flex items-start gap-1.5">
                             <span>•</span>
@@ -1046,7 +1046,7 @@ onBeforeUnmount(() => {
 
                     <!-- VERIFY/RELEASE -->
                     <div v-if="act.action === 'VERIFY' || act.action === 'RELEASE'" class="mt-1 text-muted">
-                      {{ act.action === 'VERIFY' ? 'Report diverifikasi oleh MR' : 'Report dirilis untuk final' }}
+                      {{ act.action === 'VERIFY' ? 'Report verified by MR' : 'Report released as final' }}
                     </div>
                   </div>
                 </div>
@@ -1056,11 +1056,11 @@ onBeforeUnmount(() => {
         </template>
 
         <!-- Return to department modal -->
-        <UModal v-model:open="showReturnDeptModal" title="Return ke Department" description="Pilih item yang perlu dikembalikan ke department terkait.">
+        <UModal v-model:open="showReturnDeptModal" title="Return to Department" description="Select items to return to the related department.">
           <template #body>
             <div class="space-y-4">
-              <UFormField label="Alasan Return">
-                <UTextarea v-model="returnDeptReason" :rows="3" placeholder="Alasan return ke department" />
+              <UFormField label="Return Reason">
+                <UTextarea v-model="returnDeptReason" :rows="3" placeholder="Reason for returning to department" />
               </UFormField>
 
               <div class="max-h-80 space-y-2 overflow-y-auto rounded border p-2">
@@ -1078,7 +1078,7 @@ onBeforeUnmount(() => {
                     v-model="item.note"
                     class="mt-2"
                     size="sm"
-                    placeholder="Catatan untuk department"
+                    placeholder="Note for department"
                   />
                 </div>
               </div>
@@ -1086,7 +1086,7 @@ onBeforeUnmount(() => {
           </template>
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton label="Batal" variant="outline" @click="showReturnDeptModal = false" />
+              <UButton label="Cancel" variant="outline" @click="showReturnDeptModal = false" />
               <UButton label="Return" color="warning" :loading="submitting" :disabled="!returnDeptReason.trim() || !returnDeptItems.some(i => i.checked)" @click="submitReturnDept" />
             </div>
           </template>

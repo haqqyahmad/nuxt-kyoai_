@@ -80,20 +80,20 @@ const totalExams = ref(0)
 const pageSize = ref(20)
 
 const statusOptions = [
-  { label: 'Semua Status', value: 'all' },
+  { label: 'All Status', value: 'all' },
   { label: 'Pending', value: 'pending' },
-  { label: 'Perlu Revisi', value: 'needs_revision' },
+  { label: 'Needs Revision', value: 'needs_revision' },
   { label: 'Completed', value: 'completed' }
 ]
 
 const companyOptions = computed(() => [
-  { label: 'Semua Perusahaan', value: 'all' },
+  { label: 'All Companies', value: 'all' },
   ...[...new Set(exams.value.map(e => e.company).filter(Boolean))]
     .map(company => ({ label: String(company), value: String(company) }))
 ])
 
 const packageOptions = computed(() => [
-  { label: 'Semua Paket MCU', value: 'all' },
+  { label: 'All MCU Packages', value: 'all' },
   ...[...new Set(exams.value.map(e => e.packageName).filter(Boolean))]
     .map(packageName => ({ label: String(packageName), value: String(packageName) }))
 ])
@@ -148,7 +148,7 @@ const displayColumnItems = computed(() =>
 const columns: TableColumn<ExamListItem>[] = [
   {
     id: 'patient',
-    header: 'Pasien',
+    header: 'Patient',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
       h('span', { class: 'font-medium text-highlighted' }, getPatientName(row.original)),
       h('span', { class: 'text-xs text-muted' }, row.original.patient?.PatientId ?? '-')
@@ -164,7 +164,7 @@ const columns: TableColumn<ExamListItem>[] = [
   },
   {
     id: 'company',
-    header: 'Perusahaan',
+    header: 'Company',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
       h('span', {}, row.original.company ?? '-'),
       h('span', { class: 'text-xs text-muted' }, row.original.packageName ?? 'MCU')
@@ -175,7 +175,7 @@ const columns: TableColumn<ExamListItem>[] = [
     header: 'Progress',
     cell: ({ row }) => h('div', { class: 'flex items-center gap-2' }, [
       h(UProgress, { value: progressValue(row.original), class: 'w-24' }),
-      h('span', { class: 'text-xs text-muted whitespace-nowrap' }, `${row.original.completedItemCount ?? 0}/${row.original.itemCount ?? 0} item`)
+      h('span', { class: 'text-xs text-muted whitespace-nowrap' }, `${row.original.completedItemCount ?? 0}/${row.original.itemCount ?? 0} items`)
     ])
   },
   {
@@ -189,21 +189,21 @@ const columns: TableColumn<ExamListItem>[] = [
   },
   {
     id: 'revision',
-    header: 'Revisi',
+    header: 'Revision',
     cell: ({ row }) => {
       const items = row.original.revisionItems ?? []
       if (!row.original.needsRevision) return h('span', { class: 'text-xs text-muted' }, '-')
       return h('div', { class: 'max-w-xs' }, [
-        h('div', { class: 'text-xs font-semibold text-error' }, `${row.original.revisionCount ?? 0} item perlu revisi`),
+        h('div', { class: 'text-xs font-semibold text-error' }, `${row.original.revisionCount ?? 0} items need revision`),
         ...items.map(item => h('div', { class: 'text-xs text-muted mt-0.5' }, `• ${item.label ?? item.inputanId.slice(0, 8)}${item.note ? ` — ${item.note}` : ''}`))
       ])
     }
   },
   {
     id: 'actions',
-    header: () => h('div', { class: 'text-right' }, 'Aksi'),
+    header: () => h('div', { class: 'text-right' }, 'Action'),
     cell: ({ row }) => h('div', { class: 'text-right' }, h(UButton, {
-      label: 'Isi Result',
+      label: 'Fill Result',
       icon: 'i-lucide-stethoscope',
       trailingIcon: 'i-lucide-arrow-right',
       size: 'sm',
@@ -221,8 +221,8 @@ async function load() {
       groupBy: 'exam',
       scope: 'false'
     }
-    // Gate worklist dokter berdasarkan status MedicalReport (bukan status exam),
-    // karena exam berstatus DOCTOR_REVIEW umumnya sudah 'completed'.
+    // Gate doctor worklist based on MedicalReport status (not exam status),
+    // because exams with DOCTOR_REVIEW status are generally already 'completed'.
     if (statusFilter.value === 'pending') params.medicalReportStatus = 'DOCTOR_REVIEW'
     else if (statusFilter.value === 'needs_revision') params.medicalReportStatus = 'MR_RETURNED_TO_DOCTOR'
     else if (statusFilter.value === 'completed') params.medicalReportStatus = 'DOCTOR_APPROVED'
@@ -239,7 +239,7 @@ async function load() {
     const errMsg = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
       title: 'Failed to load',
-      description: errMsg?.response?.data?.message || errMsg?.message || 'Gagal memuat data',
+      description: errMsg?.response?.data?.message || errMsg?.message || 'Failed to load data',
       color: 'error'
     })
   } finally {
@@ -263,7 +263,7 @@ function statusColor(status?: string) {
 }
 
 function displayStatus(exam: ExamListItem) {
-  if (exam.needsRevision) return 'Perlu Revisi'
+  if (exam.needsRevision) return 'Needs Revision'
   return exam.status === 'completed' ? 'completed' : exam.status ?? 'pending'
 }
 
@@ -319,11 +319,11 @@ onMounted(load)
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-stethoscope" class="size-6 text-primary" />
             <h1 class="text-2xl font-bold">
-              Daftar Pasien Doctor Review
+              Doctor Review Patient List
             </h1>
           </div>
           <p class="mt-1 text-sm text-muted">
-            Pilih pasien untuk mengisi grading item dokter dan membentuk kesimpulan MCU.
+            Select a patient to fill doctor item grading and form the MCU conclusion.
           </p>
         </div>
 
@@ -332,7 +332,7 @@ onMounted(load)
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-xs font-semibold uppercase text-muted">
-                  Siap Review
+                  Ready for Review
                 </p>
                 <p class="mt-1 text-2xl font-bold">
                   {{ totalPending }}
@@ -345,7 +345,7 @@ onMounted(load)
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-xs font-semibold uppercase text-muted">
-                  Siap MR Review
+                  Ready for MR Review
                 </p>
                 <p class="mt-1 text-2xl font-bold">
                   {{ totalCompleted }}
@@ -358,7 +358,7 @@ onMounted(load)
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-xs font-semibold uppercase text-muted">
-                  Total Item
+                  Total Items
                 </p>
                 <p class="mt-1 text-2xl font-bold">
                   {{ totalItems }}
@@ -369,14 +369,14 @@ onMounted(load)
           </UCard>
         </div>
 
-        <!-- [MR] Alert: exam yang dikembalikan MR dan butuh revisi -->
+        <!-- [MR] Alert: exams returned by MR and needing revision -->
         <UAlert
           v-if="revisionExams.length"
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-          title="Report dikembalikan oleh MR"
-          :description="`${revisionExams.length} exam butuh revisi (${totalRevisionItems} item ditandai). Perbaiki lalu submit ulang ke MR.`"
+          title="Report returned by MR"
+          :description="`${revisionExams.length} exams need revision (${totalRevisionItems} items flagged). Fix and resubmit to MR.`"
         >
           <template #description>
             <div class="mt-1 space-y-1.5">
@@ -387,7 +387,7 @@ onMounted(load)
               >
                 <span class="font-medium">{{ exam.patientName || [exam.patient?.firstName, exam.patient?.lastName].filter(Boolean).join(' ') || '-' }}</span>
                 <span class="font-mono text-xs">{{ exam.exam?.examCode }}</span>
-                <span v-if="(exam.revisionCount ?? 0) > 0" class="text-xs">{{ exam.revisionCount }} item ditandai</span>
+                <span v-if="(exam.revisionCount ?? 0) > 0" class="text-xs">{{ exam.revisionCount }} items flagged</span>
                 <ul v-if="(exam.revisionItems?.length ?? 0) > 0" class="w-full pl-4 text-xs text-muted">
                   <li v-for="item in exam.revisionItems" :key="item.inputanId">
                     • {{ item.label ?? item.inputanId.slice(0, 8) }}{{ item.note ? ` — ${item.note}` : '' }}
@@ -397,7 +397,7 @@ onMounted(load)
             </div>
           </template>
           <template #actions>
-            <UButton label="Lihat Semua" size="sm" color="error" variant="outline" @click="statusFilter = 'needs_revision'" />
+            <UButton label="View All" size="sm" color="error" variant="outline" @click="statusFilter = 'needs_revision'" />
           </template>
         </UAlert>
 
@@ -406,10 +406,10 @@ onMounted(load)
             <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h2 class="font-semibold">
-                  Pasien Siap Review
+                  Patients Ready for Review
                 </h2>
                 <p class="text-xs text-muted">
-                  {{ filteredExams.length }} exam
+                  {{ filteredExams.length }} exams
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
@@ -435,20 +435,20 @@ onMounted(load)
             <UInput
               v-model="search"
               icon="i-lucide-search"
-              placeholder="Cari pasien / exam code / perusahaan"
+              placeholder="Search patient / exam code / company"
               class="sm:col-span-2 xl:col-span-1"
             />
             <UInput
               v-model="examDateFrom"
               type="date"
               icon="i-lucide-calendar"
-              placeholder="Exam dari"
+              placeholder="Exam from"
             />
             <UInput
               v-model="examDateTo"
               type="date"
               icon="i-lucide-calendar"
-              placeholder="Exam sampai"
+              placeholder="Exam to"
             />
             <USelect
               v-model="statusFilter"
@@ -482,7 +482,7 @@ onMounted(load)
 
           <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 md:flex-row md:items-center md:justify-between">
             <div class="text-sm text-muted">
-              Menampilkan {{ exams.length }} dari {{ totalExams }} pasien
+              Showing {{ exams.length }} of {{ totalExams }} patients
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <USelect

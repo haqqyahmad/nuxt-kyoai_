@@ -14,11 +14,11 @@ function withoutKey<T>(obj: Record<string, T>, key: string): Record<string, T> {
 }
 
 /**
- * Composable untuk Doctor Result MCU.
+ * Composable for Doctor Result MCU.
  * - load(): GET /mcu/exams/:id/doctor-result
- * - selectGrade(): POST /mcu/exams/:id/doctor-result/grade (optimistic + auto-comment dari MstGradeRule)
+ * - selectGrade(): POST /mcu/exams/:id/doctor-result/grade (optimistic + auto-comment from MstGradeRule)
  * - submit(): POST /mcu/exams/:id/doctor-result/submit
- * - gradeOptions(): daftar grade yang valid untuk item (sesuai flag/condition)
+ * - gradeOptions(): list of valid grades for an item (based on flag/condition)
  */
 export function useDoctorResult(examId: string) {
   const api = useApi()
@@ -61,7 +61,7 @@ export function useDoctorResult(examId: string) {
     allItems.value.filter(i => i.gradable).length
   )
 
-  // [F] group abnormal wajib di-grade dulu
+  // [F] abnormal groups must be graded first
   const allGroups = computed(() =>
     (data.value?.departments ?? []).flatMap(d => d.groups ?? [])
   )
@@ -91,7 +91,7 @@ export function useDoctorResult(examId: string) {
       const payload = res.data?.data ?? res.data
       data.value = payload
 
-      // Preload grade dari server
+      // Preload grade from server
       selectedGrades.value = {}
       comments.value = {}
       groupGrades.value = {}
@@ -113,7 +113,7 @@ export function useDoctorResult(examId: string) {
         }
       }
     } catch (err) {
-      error.value = getErrorMessage(err, 'Gagal memuat doctor result')
+      error.value = getErrorMessage(err, 'Failed to load doctor result')
       toast.add({ title: 'Error', description: error.value, color: 'error' })
     } finally {
       loading.value = false
@@ -143,7 +143,7 @@ export function useDoctorResult(examId: string) {
     }
   }
 
-  // ── grade options untuk dropdown ───────────────────────────────────
+  // ── grade options for dropdown ─────────────────────────────────────
   async function gradeOptionsFor(item: DoctorResultItem): Promise<string[]> {
     const rules = await fetchGradeRules(item)
     const grades = [...new Set(rules.map(r => r.grade))]
@@ -155,7 +155,7 @@ export function useDoctorResult(examId: string) {
     // optimistic
     selectedGrades.value[item.inputanId] = grade
 
-    // cari auto-comment dari rule
+    // find auto-comment from the rule
     try {
       const rules = await fetchGradeRules(item)
       const rule = rules.find(r => r.grade === grade && r.isActive && String(r.condition || 'normal').toLowerCase() === String(item.flag || 'normal').toLowerCase())
@@ -164,7 +164,7 @@ export function useDoctorResult(examId: string) {
       comments.value[item.inputanId] = ''
     }
 
-    // persist ke BE
+    // persist to BE
     try {
       await api.post(`/mcu/exams/${examId}/doctor-result/grade`, {
         grades: [{ inputanId: item.inputanId, grade }]
@@ -178,8 +178,8 @@ export function useDoctorResult(examId: string) {
       selectedGrades.value = withoutKey(selectedGrades.value, item.inputanId)
       comments.value = withoutKey(comments.value, item.inputanId)
       toast.add({
-        title: 'Gagal simpan grade',
-        description: getErrorMessage(err, 'Gagal menyimpan grade'),
+        title: 'Failed to save grade',
+        description: getErrorMessage(err, 'Failed to save grade'),
         color: 'error'
       })
     }
@@ -187,7 +187,7 @@ export function useDoctorResult(examId: string) {
 
   async function clearGrade(item: DoctorResultItem) {
     if (item.locked) return false
-    // simpan nilai lama untuk rollback
+    // save the old value for rollback
     const prevGrade = selectedGrades.value[item.inputanId] ?? item.grade ?? ''
     const prevComment = comments.value[item.inputanId] ?? item.comment ?? ''
     // optimistic
@@ -195,7 +195,7 @@ export function useDoctorResult(examId: string) {
     comments.value = withoutKey(comments.value, item.inputanId)
     item.grade = null
     item.comment = null
-    // persist ke BE (hapus grade doctor, bukan master grade rule)
+    // persist to BE (delete doctor grade, not the master grade rule)
     try {
       await api.delete(`/mcu/exams/${examId}/doctor-result/grade/${item.inputanId}`)
       return true
@@ -206,8 +206,8 @@ export function useDoctorResult(examId: string) {
       item.grade = prevGrade || null
       item.comment = prevComment || null
       toast.add({
-        title: 'Gagal hapus grade',
-        description: getErrorMessage(err, 'Gagal menghapus grade'),
+        title: 'Failed to delete grade',
+        description: getErrorMessage(err, 'Failed to delete grade'),
         color: 'error'
       })
       return false
@@ -224,8 +224,8 @@ export function useDoctorResult(examId: string) {
     } catch (err) {
       delete groupGrades.value[groupId]
       toast.add({
-        title: 'Gagal simpan grade group',
-        description: getErrorMessage(err, 'Gagal menyimpan grade group'),
+        title: 'Failed to save group grade',
+        description: getErrorMessage(err, 'Failed to save group grade'),
         color: 'error'
       })
       return false
@@ -241,8 +241,8 @@ export function useDoctorResult(examId: string) {
     } catch (err) {
       if (prev) groupGrades.value[groupId] = prev
       toast.add({
-        title: 'Gagal hapus grade group',
-        description: getErrorMessage(err, 'Gagal menghapus grade group'),
+        title: 'Failed to delete group grade',
+        description: getErrorMessage(err, 'Failed to delete group grade'),
         color: 'error'
       })
       return false
@@ -254,12 +254,12 @@ export function useDoctorResult(examId: string) {
     submitting.value = true
     try {
       const res = await api.post(`/mcu/exams/${examId}/doctor-result/return-department`, payload)
-      toast.add({ title: 'Dikembalikan', description: 'Item dikembalikan ke department terkait', color: 'warning' })
+      toast.add({ title: 'Returned', description: 'Items returned to the related department', color: 'warning' })
       return res.data
     } catch (err) {
       toast.add({
-        title: 'Gagal return ke department',
-        description: getErrorMessage(err, 'Gagal return ke department'),
+        title: 'Failed to return to department',
+        description: getErrorMessage(err, 'Failed to return to department'),
         color: 'error'
       })
       return false
@@ -283,12 +283,12 @@ export function useDoctorResult(examId: string) {
         internalNote: internalNote.value
       }
       const res = await api.post(`/mcu/exams/${examId}/doctor-result/submit`, payload)
-      toast.add({ title: 'Sukses', description: 'Doctor result terkirim ke MR Review', color: 'success' })
+      toast.add({ title: 'Success', description: 'Doctor result sent to MR Review', color: 'success' })
       return res.data
     } catch (err) {
       toast.add({
-        title: 'Gagal submit',
-        description: getErrorMessage(err, 'Gagal submit doctor result'),
+        title: 'Failed to submit',
+        description: getErrorMessage(err, 'Failed to submit doctor result'),
         color: 'error'
       })
       return false

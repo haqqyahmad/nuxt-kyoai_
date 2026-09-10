@@ -207,8 +207,8 @@ async function fetchAllAudit() {
   }
   auditLoading.value = true
   try {
-    // View petugas (groupBy exam): result.id = examId, item id ada di result.items.
-    // View dokter luar (groupBy item): result.id = examItemId.
+    // Officer view (groupBy exam): result.id = examId, item id is in result.items.
+    // External doctor view (groupBy item): result.id = examItemId.
     const examId = props.result.exam?.id ?? (props.result as any).examId ?? null
     const examItemIds = (props.result as any).items?.length
       ? (props.result as any).items.map((it: any) => it.id)
@@ -248,8 +248,8 @@ async function fetchAllAudit() {
 
 const groupGradingItems: Array<{ label: string; value: GradingValue }> = [
   { label: 'Normal', value: 'NORMAL' },
-  { label: 'Abnormal (meningkat)', value: 'ABNORMAL_INC' },
-  { label: 'Abnormal (menurun)', value: 'ABNORMAL_DEC' }
+  { label: 'Abnormal (increased)', value: 'ABNORMAL_INC' },
+  { label: 'Abnormal (decreased)', value: 'ABNORMAL_DEC' }
 ]
 
 const groupGradingForm = ref<{ groupId: string; groupName: string; grading?: GradingValue }>({
@@ -262,7 +262,7 @@ const groupGradingSaving = ref(false)
 
 const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlocked))
 const sampleBlockedDescription = computed(
-  () => props.result?.sampleBlockedReason || 'Sample belum siap untuk pengisian hasil'
+  () => props.result?.sampleBlockedReason || 'Sample not ready for result entry'
 )
 const canEditCurrentResult = computed(() => {
   if (isExternalDoctor.value && props.result?.isExternalResult)
@@ -280,13 +280,13 @@ const isExternalResultFilled = computed(
     props.result?.exam?.externalStatus === 'FILLED'
 )
 
-// [F] Approve department (reviewer step / four-eyes): status REVIEW + diizinkan backend.
+// [F] Approve department (reviewer step / four-eyes): REVIEW status + allowed by backend.
 const departmentApproveBlockedReason = computed<string | null>(() => {
   const r = props.result
   if (r?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return null
-  if (r.departmentCanApprove === false) return r.departmentApproveDisableReason || 'Anda tidak memiliki hak approve step ini'
+  if (r.departmentCanApprove === false) return r.departmentApproveDisableReason || 'You do not have permission to approve this step'
   if (Number(r.exam?.resultSubmittedBy) != null && Number(r.exam?.resultSubmittedBy) === Number(currentUser.value?.id)) {
-    return 'Inputter/submitter yang sama tidak boleh approve (four-eyes).'
+    return 'The same inputter/submitter cannot approve (four-eyes).'
   }
   return null
 })
@@ -311,12 +311,12 @@ async function handleApproveResult() {
   approving.value = true
   try {
     await api.post(`/mcu/exams/${examId}/department-result/approve`, { departmentId })
-    toast.add({ title: 'Disetujui', description: 'Hasil disetujui departemen.', color: 'success' })
+    toast.add({ title: 'Approved', description: 'Result approved by department.', color: 'success' })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal approve',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menyetujui.'),
+      title: 'Approve failed',
+      description: getErrorMessage(error, 'An error occurred while approving.'),
       color: 'error'
     })
   } finally {
@@ -336,10 +336,10 @@ const externalProcessingRemainingLabel = computed(() => {
   const deadline = props.result?.exam?.externalProcessingDeadline
   if (!deadline) return ''
   const ms = new Date(deadline).getTime() - Date.now()
-  if (ms <= 0) return 'sudah lewat batas waktu (3 jam)'
+  if (ms <= 0) return 'deadline exceeded (3 hours)'
   const hours = Math.floor(ms / 3600000)
   const minutes = Math.floor((ms % 3600000) / 60000)
-  return `${hours} jam ${minutes} menit tersisa`
+  return `${hours} hours ${minutes} minutes remaining`
 })
 
 const externalStarting = ref(false)
@@ -350,15 +350,15 @@ async function startExternalProcessing() {
   try {
     await api.post(`/mcu/exams/${props.result?.exam?.id}/external-processing/start`, { examItemId })
     toast.add({
-      title: 'Berhasil',
-      description: 'Pemeriksaan dokter luar dimulai. Batas waktu submit 3 jam.',
+      title: 'Success',
+      description: 'External doctor examination started. Submit deadline 3 hours.',
       color: 'success'
     })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal memulai pemeriksaan dokter luar.'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to start external doctor examination.'),
       color: 'error'
     })
   } finally {
@@ -382,19 +382,19 @@ const slaOverdue = computed(() => {
 const slaRemainingLabel = computed(() => {
   if (!slaDeadline.value) return ''
   const ms = slaDeadline.value.getTime() - Date.now()
-  if (ms <= 0) return 'sudah lewat batas waktu'
+  if (ms <= 0) return 'deadline exceeded'
   const hours = Math.floor(ms / 3600000)
   const days = Math.floor(hours / 24)
-  if (days > 0) return `${days} hari ${hours % 24} jam tersisa`
-  return `${hours} jam tersisa`
+  if (days > 0) return `${days} days ${hours % 24} hours remaining`
+  return `${hours} hours remaining`
 })
 
 const resultStatusOptions = [
-  { label: 'Belum Siap (NOT_READY)', value: 'NOT_READY' },
-  { label: 'Siap (READY)', value: 'READY' },
+  { label: 'Not Ready (NOT_READY)', value: 'NOT_READY' },
+  { label: 'Ready (READY)', value: 'READY' },
   { label: 'Draft (DRAFT)', value: 'DRAFT' },
-  { label: 'Tersubmit (SUBMITTED)', value: 'SUBMITTED' },
-  { label: 'Dikembalikan (RETURNED)', value: 'RETURNED' }
+  { label: 'Submitted (SUBMITTED)', value: 'SUBMITTED' },
+  { label: 'Returned (RETURNED)', value: 'RETURNED' }
 ]
 const selectedResultStatus = ref<string>('')
 const statusSaving = ref(false)
@@ -418,12 +418,12 @@ async function handleUpdateResultStatus() {
       examItemId: props.result.id,
       resultStatus: selectedResultStatus.value
     })
-    toast.add({ title: 'Status proses diperbarui', color: 'success' })
+    toast.add({ title: 'Process status updated', color: 'success' })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal update status',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status.'),
+      title: 'Failed to update status',
+      description: getErrorMessage(error, 'An error occurred while updating status.'),
       color: 'error'
     })
   } finally {
@@ -442,12 +442,12 @@ async function setResultStatus(status: string) {
       resultStatus: status
     })
     selectedResultStatus.value = status
-    toast.add({ title: 'Status proses diperbarui', color: 'success' })
+    toast.add({ title: 'Process status updated', color: 'success' })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal update status',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memperbarui status.'),
+      title: 'Failed to update status',
+      description: getErrorMessage(error, 'An error occurred while updating status.'),
       color: 'error'
     })
   } finally {
@@ -464,18 +464,18 @@ const resultWorkflowLabel = computed(() => {
   return null
 })
 
-// [RETURN] Revisi dari dokter → department (pola sama seperti MR → dokter)
+// [RETURN] Revision from doctor → department (same pattern as MR → doctor)
 const isReturnedToDepartment = computed(
   () => props.result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT'
 )
 const returnReason = computed(() => props.result?.returnReason ?? null)
 const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
 function returnItemLabel(inputanId: string | null) {
-  if (!inputanId) return 'Item pemeriksaan'
+  if (!inputanId) return 'Examination item'
   const inputan = (props.result?.item?.inputans ?? []).find((inp) => inp.id === inputanId)
   return inputan?.label || inputanId.slice(0, 8)
 }
-// [RETURN] Catatan per inputan (dari return dokter → dept)
+// [RETURN] Notes per input (from doctor return → dept)
 const returnNoteByInputan = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
   for (const rev of returnRevisionItems.value) {
@@ -491,10 +491,10 @@ function inputanReturnNote(inputanId: string | null) {
 
 function getSampleImpactLabel(impact: SampleImpact) {
   const name = impact.sampleTypeName || 'Sample'
-  if (impact.collectionStatus === 'REJECTED') return `${name} ditolak`
-  if (impact.collectionStatus === 'RESCHEDULED') return `${name} dijadwalkan ulang`
-  if (impact.collectionStatus !== 'RECEIVED') return `${name} belum diterima`
-  return `${name} diterima`
+  if (impact.collectionStatus === 'REJECTED') return `${name} rejected`
+  if (impact.collectionStatus === 'RESCHEDULED') return `${name} rescheduled`
+  if (impact.collectionStatus !== 'RECEIVED') return `${name} not received`
+  return `${name} received`
 }
 
 async function loadGroupResults() {
@@ -519,7 +519,7 @@ async function loadGroupResults() {
 async function saveGroupGrading() {
   if (!props.result?.exam?.id) return
   if (!groupGradingForm.value.groupId) {
-    toast.add({ title: 'groupId wajib diisi', color: 'error' })
+    toast.add({ title: 'groupId is required', color: 'error' })
     return
   }
   groupGradingSaving.value = true
@@ -536,9 +536,9 @@ async function saveGroupGrading() {
       items
     })
     autoComment.value = data?.data?.autoComment ?? null
-    toast.add({ title: 'Grading group disimpan', color: 'success' })
+    toast.add({ title: 'Group grading saved', color: 'success' })
   } catch (e: any) {
-    toast.add({ title: e?.response?.data?.message ?? 'Gagal menyimpan', color: 'error' })
+    toast.add({ title: e?.response?.data?.message ?? 'Failed to save', color: 'error' })
   } finally {
     groupGradingSaving.value = false
   }
@@ -583,7 +583,7 @@ async function loadExternalDoctors() {
 }
 loadExternalDoctors()
 
-function getErrorMessage(error: unknown, fallback = 'Terjadi kesalahan'): string {
+function getErrorMessage(error: unknown, fallback = 'An error occurred'): string {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as any).data
     if (data?.message)
@@ -623,7 +623,7 @@ function getExtResult(inputanId: string) {
   return externalResultsMap.value.get(inputanId) ?? null
 }
 
-// Urutkan opsi pilihan berdasarkan sortOrder (stabil untuk sortOrder sama).
+// Sort selection options by sortOrder (stable for equal sortOrder).
 function sortedOpsis(inputan: ExamInput): ExamInputOption[] {
   return [...(inputan.opsis ?? [])].sort((a, b) =>
     (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
@@ -643,7 +643,7 @@ function getExternalHeaderSubtitle() {
   const parts = [
     patient?.PatientId,
     props.result?.queueCode,
-    patient?.gender === 'MALE' ? 'Laki-laki' : patient?.gender === 'FEMALE' ? 'Perempuan' : null,
+    patient?.gender === 'MALE' ? 'Male' : patient?.gender === 'FEMALE' ? 'Female' : null,
     getAgeAtExamLabel(patient, props.result?.checkinAt)
   ].filter(Boolean)
   return parts.join(' - ') || '-'
@@ -733,7 +733,7 @@ async function loadExternalAttachmentPreview() {
   } catch (error: unknown) {
     externalAttachmentError.value = getErrorMessage(
       error,
-      'PDF hasil dokter luar tidak dapat dimuat.'
+      'External doctor result PDF could not be loaded.'
     )
   } finally {
     externalAttachmentLoading.value = false
@@ -747,12 +747,12 @@ async function assignExternalDoctor() {
       externalUserId: selectedExternalDoctor.value,
       examItemId: getExternalExamItemId()
     })
-    toast.add({ title: 'Berhasil', description: 'Dokter luar ditugaskan.', color: 'success' })
+    toast.add({ title: 'Success', description: 'External doctor assigned.', color: 'success' })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal menugaskan dokter luar.'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to assign external doctor.'),
       color: 'error'
     })
   } finally {
@@ -778,16 +778,16 @@ async function cancelExternalDoctor() {
       reason: cancelExternalReason.value || null
     })
     toast.add({
-      title: 'Berhasil',
-      description: 'Penugasan dokter luar dibatalkan.',
+      title: 'Success',
+      description: 'External doctor assignment cancelled.',
       color: 'success'
     })
     cancelExternalOpen.value = false
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal membatalkan penugasan.'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to cancel assignment.'),
       color: 'error'
     })
   } finally {
@@ -797,7 +797,7 @@ async function cancelExternalDoctor() {
 
 async function uploadExternalResult() {
   if (!externalFile.value) {
-    toast.add({ title: 'PDF wajib diunggah', color: 'warning' })
+    toast.add({ title: 'PDF is required', color: 'warning' })
     return
   }
   externalSaving.value = true
@@ -809,15 +809,15 @@ async function uploadExternalResult() {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     toast.add({
-      title: 'Berhasil',
-      description: 'PDF hasil dokter luar berhasil diunggah.',
+      title: 'Success',
+      description: 'External doctor result PDF uploaded successfully.',
       color: 'success'
     })
     emit('resultSaved', props.result as ExamResultDetail)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal mengunggah PDF hasil dokter luar.'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to upload external doctor result PDF.'),
       color: 'error'
     })
   } finally {
@@ -839,8 +839,8 @@ async function openExternalAttachment() {
     window.setTimeout(() => URL.revokeObjectURL(url), 60000)
   } catch (error: unknown) {
     toast.add({
-      title: 'PDF tidak dapat dibuka',
-      description: getErrorMessage(error, 'Gagal membuka PDF hasil dokter luar.'),
+      title: 'PDF could not be opened',
+      description: getErrorMessage(error, 'Failed to open external doctor result PDF.'),
       color: 'error'
     })
   } finally {
@@ -975,14 +975,14 @@ function getVisibleNormalRanges(inputan: ExamInput) {
   return ageMatched.filter((range) => (range.ageMin ?? -1) === bestAgeMin)
 }
 
-// Visibilitas field berdasarkan jenis kelamin pasien (item radiologi/USG).
-// Field disembunyikan HANYA bila seluruh rentang normal-nya dibatasi pada sex
-// yang tidak cocok dengan gender pasien. `sex: null` atau tidak ada rentang
-// normal → selalu tampil untuk semua gender.
+// Field visibility based on patient gender (radiology/USG items).
+// Field is hidden ONLY when its entire normal range is restricted to a sex
+// that does not match the patient's gender. `sex: null` or no normal range
+// → always visible for all genders.
 function inputanGenderRestrictedToSexes(inputan: ExamInput): string[] {
   const sexes = new Set<string>()
   for (const range of [...(inputan.nilaiNormalSel ?? []), ...(inputan.nilaiNormalNum ?? [])]) {
-    if (!range.sex) return [] // ada rentang universal → tidak dibatasi gender
+    if (!range.sex) return [] // a universal range exists → not restricted by gender
     sexes.add(getPatientGenderKey(range.sex) ?? '')
   }
   return [...sexes].filter(Boolean)
@@ -1221,8 +1221,8 @@ function getStatusLabel(status?: string) {
   if (status === 'pending') return 'Pending'
   if (status === 'DEPARTMENT_REVIEW') return 'Pending Approval'
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
-  if (status === 'SUBMITTED_TO_DOCTOR') return 'Dikirim ke Dokter'
-  if (status === 'RETURNED_TO_DEPARTMENT') return 'Dikembalikan'
+  if (status === 'SUBMITTED_TO_DOCTOR') return 'Sent to Doctor'
+  if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
   if (status === 'DRAFT') return 'Draft'
   return status || '-'
 }
@@ -1446,13 +1446,13 @@ function seedDraftsFromExistingResults() {
       draft.valueCalculated = String(existing.valueCalculated)
     }
 
-    // [Autoselect] Pilihan belum terisi → default opsi pertama (tetap editable).
+    // [Autoselect] Unfilled choice → default to first option (remains editable).
     if (draft.valueSelected === undefined && inputan.inputType === 'selected') {
       const firstOption = sortedOpsis(inputan)[0]
       if (firstOption) draft.valueSelected = firstOption.value
     }
 
-    // [Lain - lain] Field teks "( Lain - lain )" yang belum terisi → default "-".
+    // [Others] Unfilled "( Others )" text field → default to "-".
     if (draft.valueString === undefined
       && inputan.inputType === 'string'
       && /\blain[- ]+lain\b/i.test(inputan.label)) {
@@ -1518,7 +1518,7 @@ async function handleSaveResult() {
 
   if (isResultBlockedBySample.value) {
     toast.add({
-      title: 'Result terkunci',
+      title: 'Result locked',
       description: sampleBlockedDescription.value,
       color: 'warning'
     })
@@ -1580,7 +1580,7 @@ async function handleSubmitResult() {
 
   if (isResultBlockedBySample.value) {
     toast.add({
-      title: 'Result terkunci',
+      title: 'Result locked',
       description: sampleBlockedDescription.value,
       color: 'warning'
     })
@@ -1607,8 +1607,8 @@ async function handleSubmitResult() {
       })
 
       toast.add({
-        title: 'Hasil disubmit',
-        description: 'Hasil dokter luar berhasil dikirim.',
+        title: 'Result submitted',
+        description: 'External doctor result sent successfully.',
         color: 'success'
       })
 
@@ -1623,7 +1623,7 @@ async function handleSubmitResult() {
 
     toast.add({
       title: 'Results submitted',
-      description: 'Hasil masuk approval department.',
+      description: 'Result entered department approval.',
       color: 'success'
     })
 
@@ -1688,7 +1688,7 @@ onBeforeUnmount(() => {
           color="neutral"
           variant="ghost"
           size="sm"
-          aria-label="Kembali ke daftar result"
+           aria-label="Back to result list"
           class="mt-0.5 shrink-0"
           @click="emit('close')"
         />
@@ -1716,7 +1716,7 @@ onBeforeUnmount(() => {
               variant="soft"
               :to="`/rooms/dental/${result?.exam?.id}`"
             >
-              Hasil Dental
+              Dental Result
             </UButton>
           </div>
           <h1
@@ -1775,7 +1775,7 @@ onBeforeUnmount(() => {
             icon="i-lucide-save"
             @click="handleSaveResult"
           >
-            Simpan Draft
+            Save Draft
           </UButton>
           <UButton
             color="primary"
@@ -1789,7 +1789,7 @@ onBeforeUnmount(() => {
             icon="i-lucide-send"
             @click="handleSubmitResult"
           >
-            Submit Hasil
+            Submit Result
           </UButton>
         </div>
       </div>
@@ -1801,14 +1801,14 @@ onBeforeUnmount(() => {
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-          title="Hasil dikembalikan oleh dokter"
-          :description="returnReason || 'Perbaiki hasil yang ditandai lalu submit ulang.'"
-        >
-          <template #description>
-            <div class="mt-1 space-y-1">
-              <p>{{ returnReason || 'Perbaiki hasil yang ditandai lalu submit ulang.' }}</p>
-              <p v-if="returnRevisionItems.length" class="text-xs">
-                Item yang perlu diperbaiki:
+           title="Result returned by doctor"
+           :description="returnReason || 'Fix the marked results then resubmit.'"
+         >
+           <template #description>
+             <div class="mt-1 space-y-1">
+               <p>{{ returnReason || 'Fix the marked results then resubmit.' }}</p>
+               <p v-if="returnRevisionItems.length" class="text-xs">
+                 Items that need fixing:
                 <span
                   v-for="(rev, revIdx) in returnRevisionItems"
                   :key="rev.inputanId ?? revIdx"
@@ -1830,7 +1830,7 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center justify-between gap-3">
               <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                Konteks Pemeriksaan
+                Examination Context
               </h4>
               <div class="flex items-center gap-2">
                 <UButton
@@ -1838,7 +1838,7 @@ onBeforeUnmount(() => {
                   color="neutral"
                   variant="ghost"
                   icon="i-lucide-chevron-up"
-                  aria-label="Tutup atau buka konteks"
+                  aria-label="Collapse or expand context"
                   :class="externalContextOpen ? '' : 'rotate-180'"
                   @click="externalContextOpen = !externalContextOpen"
                 />
@@ -1868,7 +1868,7 @@ onBeforeUnmount(() => {
           </template>
 
           <div v-show="externalContextOpen">
-            <!-- Batas waktu pengerjaan dokter luar: 3 jam setelah mulai diproses -->
+            <!-- External doctor processing deadline: 3 hours after processing started -->
             <div
               v-if="result?.exam?.externalStatus === 'PROCESSING' && externalProcessingDeadline"
               class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3"
@@ -1890,12 +1890,12 @@ onBeforeUnmount(() => {
                 >
                   {{
                     externalProcessingOverdue
-                      ? 'Batas waktu submit sudah lewat'
-                      : 'Pemeriksaan sedang diproses dokter luar'
+                      ? 'Submit deadline has passed'
+                      : 'Examination being processed by external doctor'
                   }}
                 </p>
                 <p class="text-xs text-muted">
-                  Mulai {{ formatDateTime(result.exam?.externalProcessingStartedAt) }} · Deadline
+                  Started {{ formatDateTime(result.exam?.externalProcessingStartedAt) }} · Deadline
                   {{ formatDateTime(result.exam?.externalProcessingDeadline) }} ·
                   <span
                     class="font-semibold"
@@ -1906,7 +1906,7 @@ onBeforeUnmount(() => {
                 </p>
               </div>
               <UBadge
-                label="Batas 3 jam"
+                label="3-hour limit"
                 :color="externalProcessingOverdue ? 'error' : 'primary'"
                 variant="solid"
                 size="sm"
@@ -1918,10 +1918,10 @@ onBeforeUnmount(() => {
             >
               <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-highlighted">Pemeriksaan belum diproses</p>
+                <p class="text-sm font-semibold text-highlighted">Examination not started</p>
                 <p class="text-xs text-muted">
-                  Mulai pemeriksaan untuk mengaktifkan form hasil. Batas waktu submit 3 jam setelah
-                  mulai.
+                  Start the examination to enable the result form. Submit deadline is 3 hours after
+                  starting.
                 </p>
               </div>
               <UButton
@@ -1931,25 +1931,25 @@ onBeforeUnmount(() => {
                 icon="i-lucide-play"
                 @click="startExternalProcessing"
               >
-                Mulai Proses
+                Start Process
               </UButton>
             </div>
             <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">No. RM / Antrian</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">MR No. / Queue</dt>
                 <dd class="mt-1 break-words font-mono font-semibold text-highlighted">
                   {{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Item Pemeriksaan</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">Examination Item</dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{ result.item?.name || '-' }}
                   <span class="font-mono text-muted">{{ result.item?.code || '' }}</span>
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{
                     formatExternalActor(
@@ -1960,7 +1960,7 @@ onBeforeUnmount(() => {
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Petugas Pengambil</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">Collector</dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{ getExternalCollectorLabel() }}
                 </dd>
@@ -1972,7 +1972,7 @@ onBeforeUnmount(() => {
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{
                     formatExternalActor(
@@ -2006,23 +2006,23 @@ onBeforeUnmount(() => {
                 v-if="externalAttachmentLoading"
                 class="flex h-full items-center justify-center text-sm text-muted"
               >
-                <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Memuat
+                <UIcon name="i-lucide-loader-circle" class="mr-2 size-4 animate-spin" />Loading
                 PDF...
               </div>
               <iframe
                 v-else-if="externalAttachmentPreviewUrl"
                 :src="externalAttachmentPreviewUrl"
-                title="PDF hasil pemeriksaan"
+                title="PDF result of examination"
                 class="h-full w-full flex-1 border-0 bg-muted/30"
               />
               <div v-else class="flex h-full items-center justify-center p-6">
                 <UAlert
                   color="warning"
                   variant="soft"
-                  title="PDF belum tersedia"
+                  title="PDF not yet available"
                   :description="
                     externalAttachmentError ||
-                    'Nurse perlu mengunggah PDF sebelum dokter luar mengisi hasil.'
+                    'Nurse must upload the PDF before the external doctor fills in the result.'
                   "
                   class="max-w-md"
                 />
@@ -2032,7 +2032,7 @@ onBeforeUnmount(() => {
               class="mx-4 mb-8 flex min-h-16 items-center justify-between gap-3 rounded-b-lg border border-t-0 border-default/80 bg-default px-4 py-4 text-xs text-muted"
             >
               <span class="min-w-0 truncate">{{
-                result.exam?.externalAttachment?.originalName || 'Dokumen PDF pemeriksaan'
+                result.exam?.externalAttachment?.originalName || 'Examination PDF document'
               }}</span>
               <span class="shrink-0 font-semibold text-highlighted">PDF Preview</span>
             </div>
@@ -2046,10 +2046,10 @@ onBeforeUnmount(() => {
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
                   <h4 class="text-base font-semibold text-highlighted">
-                    Input Hasil {{ result.item?.name || 'Pemeriksaan' }}
+                    Input Result {{ result.item?.name || 'Examination' }}
                   </h4>
                   <p class="mt-1 text-xs text-muted">
-                    Isi parameter berdasarkan PDF di sebelah kiri.
+                    Fill in parameters based on the PDF on the left.
                   </p>
                 </div>
                 <div
@@ -2065,7 +2065,7 @@ onBeforeUnmount(() => {
                     "
                     @click="externalInputColumns = 'one'"
                   >
-                    Input 1 Kolom
+                    Input 1 Column
                   </button>
                   <button
                     type="button"
@@ -2077,7 +2077,7 @@ onBeforeUnmount(() => {
                     "
                     @click="externalInputColumns = 'two'"
                   >
-                    Input 2 Kolom
+                    Input 2 Columns
                   </button>
                 </div>
               </div>
@@ -2085,8 +2085,8 @@ onBeforeUnmount(() => {
             <div
               class="border-b border-default/70 bg-info/10 px-4 py-3 text-xs text-info-700 dark:text-info-300"
             >
-              Dokter luar hanya mengisi hasil terstruktur. Assignment dan upload PDF dikelola oleh
-              nurse.
+              External doctor only fills in structured results. Assignment and PDF upload are
+              managed by the nurse.
             </div>
             <div
               v-if="result.item?.inputans?.length"
@@ -2108,7 +2108,7 @@ onBeforeUnmount(() => {
   type="number"
   :disabled="!canEditCurrentResult || isResultBlockedBySample"
   :class="getResultInputClass(inputan)"
-  placeholder="Masukkan hasil"
+  placeholder="Enter result"
   @input="recomputeCalculatedDrafts(true)"
 />
 <span v-if="getInputDraft(inputan.id).valueNumber !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueNumber), inputan.numberFormat) }}</span>
@@ -2118,7 +2118,7 @@ onBeforeUnmount(() => {
                   type="text"
                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                   class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
-                  placeholder="Masukkan hasil"
+                  placeholder="Enter result"
                 />
                 <template v-else-if="inputan.inputType === 'selected'">
                   <select
@@ -2126,7 +2126,7 @@ onBeforeUnmount(() => {
                     :disabled="!canEditCurrentResult || isResultBlockedBySample"
                     class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    <option selected value="" disabled>Pilih hasil</option>
+                    <option selected value="" disabled>Select result</option>
                     <option v-for="opsi in sortedOpsis(inputan)" :key="opsi.id" :value="opsi.value">
                       {{ opsi.label }}
                     </option>
@@ -2139,7 +2139,7 @@ onBeforeUnmount(() => {
                       type="text"
                       :disabled="!canEditCurrentResult || isResultBlockedBySample"
                       class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
-                      placeholder="Tuliskan detail jika memilih Others"
+                       placeholder="Enter details if selecting Others"
                     />
                   </div>
                 </template>
@@ -2149,14 +2149,14 @@ onBeforeUnmount(() => {
   type="number"
   disabled
   :class="getResultInputClass(inputan)"
-  placeholder="Dihitung otomatis"
+  placeholder="Calculated automatically"
 />
 <span v-if="getInputDraft(inputan.id).valueCalculated !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueCalculated), inputan.numberFormat) }}</span>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span v-if="getVisibleNormalRanges(inputan).length"
                     >Normal:
                     {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat) }}</span
-                  ><span v-else>Normal: belum tersedia</span
+                  ><span v-else>Normal: not available</span
                   ><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
               </div>
@@ -2165,10 +2165,10 @@ onBeforeUnmount(() => {
                 :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"
               >
                 <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-                  >Kesimpulan / Catatan</label
+                  >Conclusion / Note</label
                 ><UTextarea
                   :rows="4"
-                  placeholder="Tambahkan interpretasi atau catatan dokter..."
+                  placeholder="Add interpretation or doctor note..."
                   class="w-full"
                 />
               </div>
@@ -2177,16 +2177,16 @@ onBeforeUnmount(() => {
               <UAlert
                 color="warning"
                 variant="soft"
-                title="Template hasil belum tersedia"
-                description="Item ini belum memiliki parameter input hasil."
+                title="Template result not yet available"
+                description="This item has no input parameters yet."
               />
             </div>
             <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10">
               <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                <!-- Status manual hanya untuk item bukan external result -->
+                <!-- Manual status only for items that are not external results -->
                 <template v-if="!hasExternalResultContext">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs text-muted">Ubah Status:</span>
+                    <span class="text-xs text-muted">Change Status:</span>
                     <USelect
                       v-model="selectedResultStatus"
                       :items="resultStatusOptions"
@@ -2213,7 +2213,7 @@ onBeforeUnmount(() => {
                       icon="i-lucide-play"
                       @click="setResultStatus('READY')"
                     >
-                      Mulai Proses
+                      Start Process
                     </UButton>
                     <UButton
                       color="neutral"
@@ -2223,7 +2223,7 @@ onBeforeUnmount(() => {
                       icon="i-lucide-save"
                       @click="handleSaveResult"
                     >
-                      Simpan Draft </UButton
+                      Save Draft </UButton
                     ><UButton
                       color="primary"
                       :loading="submitting"
@@ -2231,12 +2231,12 @@ onBeforeUnmount(() => {
                       icon="i-lucide-send"
                       @click="handleSubmitResult"
                     >
-                      Submit Hasil
+                      Submit Result
                     </UButton>
                   </div>
                 </template>
 
-                <!-- Dokter luar: tombol Simpan Draft + Submit setelah Mulai Proses (PROCESSING) -->
+                <!-- External doctor: Save Draft + Submit buttons after Start Process (PROCESSING) -->
                 <template v-else-if="result?.exam?.externalStatus === 'PROCESSING'">
                   <div class="flex flex-col gap-2 sm:flex-row">
                     <UButton
@@ -2247,7 +2247,7 @@ onBeforeUnmount(() => {
                       icon="i-lucide-save"
                       @click="handleSaveResult"
                     >
-                      Simpan Draft
+                      Save Draft
                     </UButton>
                     <UButton
                       color="primary"
@@ -2261,7 +2261,7 @@ onBeforeUnmount(() => {
                       icon="i-lucide-send"
                       @click="handleSubmitResult"
                     >
-                      Submit Hasil
+                      Submit Result
                     </UButton>
                   </div>
                 </template>
@@ -2282,7 +2282,7 @@ onBeforeUnmount(() => {
           <div class="flex items-start gap-2">
             <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0" />
             <div class="min-w-0">
-              <p class="text-sm font-semibold">Result dikunci karena sample</p>
+              <p class="text-sm font-semibold">Result locked due to sample</p>
               <p class="text-xs">
                 {{ sampleBlockedDescription }}
               </p>
@@ -2302,7 +2302,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Peringatan untuk petugas: status dokter luar -->
+        <!-- Warning for officer: external doctor status -->
         <div
           v-if="hasExternalResultContext && !isExternalDoctor && result?.exam?.externalStatus"
           class="border-b px-4 py-3"
@@ -2329,15 +2329,15 @@ onBeforeUnmount(() => {
             />
             <div class="min-w-0">
               <p v-if="result?.exam?.externalStatus === 'ASSIGNED'" class="text-sm font-semibold">
-                Dokter luar belum memulai pemeriksaan
+                External doctor has not started the examination
               </p>
               <p
                 v-else-if="result?.exam?.externalStatus === 'PROCESSING'"
                 class="text-sm font-semibold"
               >
-                Dokter luar sedang mengerjakan pemeriksaan
+                External doctor is working on the examination
                 <span v-if="externalProcessingOverdue" class="text-error">
-                  — batas waktu sudah lewat (3 jam)</span
+                  — deadline has passed (3 hours)</span
                 >
                 <span v-else> — {{ externalProcessingRemainingLabel }}</span>
               </p>
@@ -2345,9 +2345,9 @@ onBeforeUnmount(() => {
                 v-else-if="result?.exam?.externalStatus === 'FILLED'"
                 class="text-sm font-semibold"
               >
-                Dokter luar sudah mengisi hasil
+                External doctor has filled in the result
               </p>
-              <p v-else class="text-sm font-semibold">Penugasan dibatalkan</p>
+              <p v-else class="text-sm font-semibold">Assignment cancelled</p>
               <p class="text-xs opacity-80">
                 {{
                   formatExternalActor(
@@ -2356,10 +2356,10 @@ onBeforeUnmount(() => {
                   )
                 }}
                 <template v-if="result?.exam?.externalStatus === 'PROCESSING'">
-                  · Mulai {{ formatDateTime(result?.exam?.externalProcessingStartedAt) }}
+                  · Started {{ formatDateTime(result?.exam?.externalProcessingStartedAt) }}
                 </template>
                 <template v-else-if="result?.exam?.externalStatus === 'ASSIGNED'">
-                  · Ditugaskan {{ formatDateTime(result?.exam?.externalAssignedAt) }}
+                  · Assigned {{ formatDateTime(result?.exam?.externalAssignedAt) }}
                 </template>
               </p>
             </div>
@@ -2369,7 +2369,7 @@ onBeforeUnmount(() => {
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Nomor Antrean</p>
+              <p class="text-xs uppercase tracking-wide text-muted">Queue Number</p>
               <p class="mt-2 text-lg font-semibold text-highlighted">
                 {{ result.queueCode }}
               </p>
@@ -2378,7 +2378,7 @@ onBeforeUnmount(() => {
               v-if="!hasExternalResultContext"
               class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm"
             >
-              <p class="text-xs uppercase tracking-wide text-muted">Status Proses</p>
+              <p class="text-xs uppercase tracking-wide text-muted">Process Status</p>
               <div class="mt-2">
                 <USelect
                   v-model="selectedResultStatus"
@@ -2400,7 +2400,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Tipe Hasil</p>
+              <p class="text-xs uppercase tracking-wide text-muted">Result Type</p>
               <div class="mt-2">
                 <UBadge
                   :label="getTypeLabel(result.resultTiming)"
@@ -2410,7 +2410,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Waktu Check-in</p>
+              <p class="text-xs uppercase tracking-wide text-muted">Check-in Time</p>
               <p class="mt-2 text-sm font-semibold text-highlighted">
                 {{ formatDateTime(result.checkinAt) }}
               </p>
@@ -2430,7 +2430,7 @@ onBeforeUnmount(() => {
                 <template #header>
                   <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                      Ringkasan Pasien
+                      Patient Summary
                     </h4>
                     <UIcon name="i-lucide-user-round" class="size-4 text-muted" />
                   </div>
@@ -2438,25 +2438,25 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Nama Pasien</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Patient Name</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatPatientName(result.patient) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Nomor Rekam Medis</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Medical Record Number</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.PatientId || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Tanggal Lahir</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Date of Birth</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDate(result.patient?.dob) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Jenis Kelamin</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Gender</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{
                         result.patient?.gender === 'MALE'
@@ -2469,7 +2469,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div>
                     <dt class="text-xs uppercase tracking-wide text-muted">
-                      Usia Saat Pemeriksaan
+                      Age at Examination
                     </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getAgeAtExamLabel(result.patient, result.checkinAt) }}
@@ -2482,7 +2482,7 @@ onBeforeUnmount(() => {
                 <template #header>
                   <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                      Informasi Pemeriksaan
+                      Examination Information
                     </h4>
                     <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
                   </div>
@@ -2490,7 +2490,7 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Pemeriksaan</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Examination</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.item?.name || '-' }}
                     </dd>
@@ -2502,27 +2502,27 @@ onBeforeUnmount(() => {
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">ID Antrean</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Queue ID</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.queueEntryId }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Jenis Pemeriksaan</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Examination Type</dt>
                     <dd class="mt-1">
                       <UBadge :color="getExamTypeColor(result.exam?.examType)" variant="subtle">
-                        {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Rawat Jalan' : 'MCU' }}
+                        {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Outpatient' : 'MCU' }}
                       </UBadge>
                     </dd>
                   </div>
                   <div v-if="result.exam?.examCode">
-                    <dt class="text-xs uppercase tracking-wide text-muted">Exam Code (Edisi)</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Exam Code (Edition)</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted font-mono">
                       {{ result?.exam?.examCode }}
                     </dd>
                   </div>
                   <div v-if="hasExternalResultContext">
-                    <dt class="text-xs uppercase tracking-wide text-muted">Dokter Luar</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
                     <dd class="mt-1 space-y-2">
                       <UBadge
                         v-if="result?.exam?.externalStatus"
@@ -2562,7 +2562,7 @@ onBeforeUnmount(() => {
                           :items="externalDoctors"
                           value-key="id"
                           label-key="name"
-                          placeholder="Pilih dokter luar"
+                          placeholder="Select external doctor"
                           class="min-w-48"
                         />
                         <UButton
@@ -2573,7 +2573,7 @@ onBeforeUnmount(() => {
                           :disabled="!selectedExternalDoctor"
                           @click="assignExternalDoctor"
                         >
-                          Tugaskan
+                          Assign
                         </UButton>
                       </div>
 
@@ -2593,7 +2593,7 @@ onBeforeUnmount(() => {
                           :loading="externalSaving"
                           @click="openCancelExternal"
                         >
-                          Batalkan
+                          Cancel
                         </UButton>
                         <UButton
                           size="xs"
@@ -2602,7 +2602,7 @@ onBeforeUnmount(() => {
                           :loading="externalSaving"
                           @click="uploadExternalResult"
                         >
-                          Upload Hasil
+                          Upload Result
                         </UButton>
                         <UInput
                           type="file"
@@ -2613,8 +2613,8 @@ onBeforeUnmount(() => {
                       </div>
 
                       <p v-if="isExternalDoctor" class="text-xs text-muted">
-                        PDF hasil berasal dari nurse. Anda mengisi hasil pemeriksaan terstruktur di
-                        bawah.
+                        The result PDF comes from the nurse. You fill in the structured examination
+                        results below.
                       </p>
                       <UButton
                         v-else-if="result.exam?.attachmentUrl || result.exam?.externalAttachment"
@@ -2625,12 +2625,12 @@ onBeforeUnmount(() => {
                         :loading="externalSaving"
                         @click="openExternalAttachment"
                       >
-                        Lihat PDF
+                        View PDF
                       </UButton>
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Waktu Selesai</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">Completion Time</dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDateTime(result.completedAt) }}
                     </dd>
@@ -2656,10 +2656,10 @@ onBeforeUnmount(() => {
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h4 class="text-sm font-semibold uppercase tracking-wide text-muted">
-                        Input Hasil Pemeriksaan
+                        Examination Result Input
                       </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Isi hasil sesuai parameter dan rentang normal pasien.
+                        Fill in the results according to the parameters and the patient's normal range.
                       </p>
                     </div>
                     <UIcon name="i-lucide-file-pen-line" class="size-4 text-muted" />
@@ -2682,12 +2682,12 @@ onBeforeUnmount(() => {
                           <th
                             class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
-                            Nilai Normal
+                            Normal Value
                           </th>
                           <th
                             class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
-                            Hasil
+                            Result
                           </th>
                           <th
                             class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
@@ -2712,7 +2712,7 @@ onBeforeUnmount(() => {
                               <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                 <UBadge
                                   v-if="inputanReturnNote(inputan.id)"
-                                  label="Perlu Revisi"
+                                  label="Needs Revision"
                                   color="error"
                                   variant="soft"
                                   size="sm"
@@ -2731,7 +2731,7 @@ onBeforeUnmount(() => {
                                 v-if="inputanReturnNote(inputan.id)"
                                 class="mt-1.5 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error"
                               >
-                                Catatan Dokter: {{ inputanReturnNote(inputan.id) }}
+                                Doctor Note: {{ inputanReturnNote(inputan.id) }}
                               </p>
                             </div>
                           </td>
@@ -2754,7 +2754,7 @@ onBeforeUnmount(() => {
                               </div>
                             </div>
                             <span v-else class="text-xs text-amber-600 dark:text-amber-400">
-                              Belum tersedia
+                              Not available
                             </span>
                           </td>
 
@@ -2766,7 +2766,7 @@ onBeforeUnmount(() => {
                                 type="number"
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 :class="getResultInputClass(inputan)"
-                                placeholder="Masukkan hasil"
+                                placeholder="Enter result"
                                 @input="recomputeCalculatedDrafts(true)"
                               />
 
@@ -2776,7 +2776,7 @@ onBeforeUnmount(() => {
                                 type="text"
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
-                                placeholder="Masukkan hasil"
+                                placeholder="Enter result"
                               />
 
                               <select
@@ -2785,7 +2785,7 @@ onBeforeUnmount(() => {
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
-                                <option value="">Pilih hasil</option>
+                                <option value="">Select result</option>
                                 <option
                                   v-for="opsi in sortedOpsis(inputan)"
                                   :key="opsi.id"
@@ -2813,7 +2813,7 @@ onBeforeUnmount(() => {
                                   type="text"
                                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                   class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
-                                  placeholder="Tuliskan detail"
+                                  placeholder="Write details"
                                 />
                               </div>
 
@@ -2823,7 +2823,7 @@ onBeforeUnmount(() => {
                                 type="number"
                                 disabled
                                 :class="getResultInputClass(inputan)"
-                                placeholder="Dihitung otomatis"
+                                placeholder="Calculated automatically"
                               />
                               <p
                                 v-if="inputan.formula?.formula"
@@ -2845,7 +2845,7 @@ onBeforeUnmount(() => {
                               v-if="isResultOutsideNormalRange(inputan)"
                               class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
                             >
-                              Di luar nilai normal
+                              Outside normal range
                             </p>
                           </td>
                         </tr>
@@ -2858,11 +2858,11 @@ onBeforeUnmount(() => {
                   v-else
                   class="rounded-2xl border border-dashed border-default/70 bg-muted/20 p-6 text-center text-sm text-muted"
                 >
-                  Belum ada parameter input untuk pemeriksaan ini.
+                  No input parameters available for this examination yet.
                 </div>
               </UCard>
 
-              <!-- Hasil Dokter Luar - tampilkan jika externalStatus === 'FILLED' dan bukan external doctor workspace -->
+              <!-- External Doctor Result - shown when externalStatus === 'FILLED' and not external doctor workspace -->
               <UCard
                 v-if="isExternalResultFilled"
                 class="order-1 border border-emerald-200/50 bg-emerald-50/30 dark:border-emerald-900/20 dark:bg-emerald-950/20 shadow-sm"
@@ -2873,10 +2873,10 @@ onBeforeUnmount(() => {
                       <h4
                         class="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
                       >
-                        Hasil Dokter Luar (Sudah Submit)
+                        External Doctor Result (Submitted)
                       </h4>
                       <p class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                        Detail hasil yang diisi dokter luar:
+                        Details filled in by external doctor:
                         {{
                           formatExternalActor(
                             result?.exam?.assignedExternalUser,
@@ -2910,12 +2910,12 @@ onBeforeUnmount(() => {
                           <th
                             class="w-[25%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
                           >
-                            Nilai Normal
+                            Normal Value
                           </th>
                           <th
                             class="w-[32%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
                           >
-                            Hasil Dokter Luar
+                            External Doctor Result
                           </th>
                           <th
                             class="w-[15%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"
@@ -2970,7 +2970,7 @@ onBeforeUnmount(() => {
                               </div>
                             </div>
                             <span v-else class="text-xs text-amber-600 dark:text-amber-400">
-                              Belum tersedia
+                              Not available
                             </span>
                           </td>
 
@@ -3015,7 +3015,7 @@ onBeforeUnmount(() => {
                                   ID: {{ getExtResult(inputan.id)!.inputanId }}
                                 </p>
                               </div>
-                              <p v-else class="text-sm text-muted">Belum diisi</p>
+                              <p v-else class="text-sm text-muted">Not filled</p>
                             </div>
                           </td>
 
@@ -3031,7 +3031,7 @@ onBeforeUnmount(() => {
                                 v-if="getExtResult(inputan.id)!.flag === 'abnormal'"
                                 class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
                               >
-                                Di luar nilai normal
+                                Outside normal range
                               </p>
                             </div>
                             <span v-else class="text-xs text-muted">-</span>
@@ -3051,8 +3051,8 @@ onBeforeUnmount(() => {
                         Group Grading & Auto Comment
                       </h4>
                       <p class="mt-1 text-xs text-muted">
-                        Grading item dihitung otomatis. Grading group diisi manual, lalu sistem
-                        membuat auto doctor comment.
+                        Item grading is calculated automatically. Group grading is filled manually,
+                        then the system generates an auto doctor comment.
                       </p>
                     </div>
                     <UIcon name="i-lucide-clipboard-list" class="size-4 text-muted" />
@@ -3081,7 +3081,7 @@ onBeforeUnmount(() => {
                     <USelect
                       v-model="groupGradingForm.grading"
                       :items="groupGradingItems"
-                      :placeholder="'Pilih grading group'"
+                      :placeholder="'Select grading group'"
                       class="w-full sm:w-72"
                     />
                   </UFormField>
@@ -3093,7 +3093,7 @@ onBeforeUnmount(() => {
                       readonly
                       :rows="4"
                       class="w-full"
-                      placeholder="Auto-comment akan digenerate setelah simpan grading group."
+                      placeholder="Auto-comment will be generated after saving the group grading."
                     />
                   </div>
 
@@ -3103,7 +3103,7 @@ onBeforeUnmount(() => {
                     icon="i-lucide-save"
                     @click="saveGroupGrading"
                   >
-                    Simpan Grading Group
+                    Save Group Grading
                   </UButton>
                 </div>
               </UCard>
@@ -3116,7 +3116,7 @@ onBeforeUnmount(() => {
     <template #footer>
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <UButton v-if="!embedded" color="neutral" variant="soft" @click="emit('close')">
-          Kembali
+          Back
         </UButton>
         <template v-if="canEditCurrentResult || canSubmitCurrentResult">
           <UButton
@@ -3126,7 +3126,7 @@ onBeforeUnmount(() => {
             :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
             @click="handleSaveResult"
           >
-            Simpan Draft
+            Save Draft
           </UButton>
           <UButton
             color="primary"
@@ -3134,26 +3134,26 @@ onBeforeUnmount(() => {
             :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
             @click="handleSubmitResult"
           >
-            Submit Hasil
+            Submit Result
           </UButton>
         </template>
         <UButton v-else-if="!embedded" color="neutral" variant="soft" disabled>
-          Hasil Terkunci
+          Result Locked
         </UButton>
       </div>
     </template>
   </BaseFullscreenModal>
 
-  <UModal v-model:open="cancelExternalOpen" title="Batalkan Penugasan Dokter Luar">
+  <UModal v-model:open="cancelExternalOpen" title="Cancel External Doctor Assignment">
     <template #body>
       <p class="text-sm text-muted">
-        Batalkan penugasan dokter luar untuk item ini? Alasan dicatat dalam riwayat audit.
+        Cancel the external doctor assignment for this item? The reason will be recorded in the audit history.
       </p>
-      <UFormField label="Alasan" class="mt-4">
+      <UFormField label="Reason" class="mt-4">
         <UTextarea
           v-model="cancelExternalReason"
           :rows="3"
-          placeholder="Alasan pembatalan (opsional)"
+          placeholder="Cancellation reason (optional)"
           class="w-full"
         />
       </UFormField>
@@ -3174,7 +3174,7 @@ onBeforeUnmount(() => {
           :loading="cancelExternalSubmitting"
           @click="cancelExternalDoctor"
         >
-          Yes, Batalkan
+          Yes, Cancel
         </UButton>
       </div>
     </template>
