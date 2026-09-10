@@ -223,9 +223,9 @@ onSelect: (e) => {
     {
       label: 'Log out',
       icon: 'i-lucide-log-out',
-      onSelect: () => {
-        const { removeToken } = useAuth()
-        removeToken()
+      onSelect: async () => {
+        const { logout } = useAuth()
+        await logout()
         navigateTo('/login')
       }
     }

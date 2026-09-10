@@ -44,10 +44,24 @@ export const useAuth = () => {
     clearNuxtData('room-session-me')
   }
 
+  const logout = async () => {
+    if (import.meta.client) {
+      try {
+        const api = useApi()
+        await api.post('/medical/rooms/sessions/exit', {}, { timeout: 5000 })
+      } catch {
+        // best-effort: sesi room mungkin tidak aktif / gagal keluar
+      }
+    }
+
+    removeToken()
+  }
+
   return {
     getToken,
     setToken,
     removeToken,
+    logout,
     isJwtExpired
   }
 }
