@@ -21,6 +21,10 @@ const links: NavigationMenuItem[] = [
   }
 ]
 
+const hideTabs = computed(() =>
+  /^\/services\/(types|packages)\/.+/.test(route.path)
+)
+
 </script>
 
 <template>
@@ -33,7 +37,7 @@ const links: NavigationMenuItem[] = [
       </UDashboardNavbar>
 
       <!-- <UDashboardToolbar v-if="!route.path.includes('/settings/roles')"> -->
-      <UDashboardToolbar>
+      <UDashboardToolbar v-if="!hideTabs">
         <!-- NOTE: The `-mx-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
         <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
       </UDashboardToolbar>

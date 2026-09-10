@@ -12,10 +12,13 @@ const UBadge = resolveComponent('UBadge')
 
 const api = useApi()
 const toast = useToast()
+const router = useRouter()
 
 type PaketRow = {
   id: string
   paketName: string
+  code: string
+  type: string
   itemCount: number
   inputanCount: number
   firstItems: string[]
@@ -29,6 +32,8 @@ function mapPaket(paket: any): PaketRow {
   return {
     id: paket.id,
     paketName: paket.name,
+    code: paket.code ?? '-',
+    type: paket.type ?? 'personal',
     itemCount: paketItems.length,
     inputanCount: paketItems.reduce(
       (sum: number, paketItem: any) => sum + (paketItem.item?.inputans?.length ?? 0),
@@ -128,6 +133,16 @@ function getRowItems(row: Row<PaketRow>) {
       to: `/services/packages/${row.original.id}`
     },
     {
+      label: 'Copy paket',
+      icon: 'i-lucide-copy',
+      onSelect() {
+        router.push({
+          path: '/services/packages/create',
+          query: { copyId: row.original.id }
+        })
+      }
+    },
+    {
       type: 'separator'
     },
     {
@@ -184,6 +199,21 @@ const columns: TableColumn<PaketRow>[] = [
       return h('div', { class: 'flex flex-col' }, [
         h('p', { class: 'font-medium text-highlighted' }, row.original.paketName),
         h('p', { class: 'text-xs text-muted' }, `${row.original.itemCount} item • ${row.original.inputanCount} inputan`)
+      ])
+    }
+  },
+  {
+    accessorKey: 'code',
+    header: 'Kode Paket',
+    cell: ({ row }) => {
+      return h('div', { class: 'flex flex-col gap-1' }, [
+        h('span', { class: 'font-mono text-sm text-highlighted' }, row.original.code),
+        h(UBadge, {
+          label: row.original.type === 'company' ? 'Company' : 'Personal',
+          color: row.original.type === 'company' ? 'primary' : 'neutral',
+          variant: 'subtle',
+          size: 'xs'
+        })
       ])
     }
   },

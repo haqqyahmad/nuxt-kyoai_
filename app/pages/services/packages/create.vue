@@ -2,8 +2,8 @@
 <script setup lang="ts">
 const api = useApi()
 const toast = useToast()
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 
 type InputanOpsi = {
   id: string
@@ -69,11 +69,20 @@ type PaketDetail = {
   id: string
   name: string
   isActive: boolean
+  code?: string | null
+  type?: string | null
   paketItems: {
     id: string
     sortOrder: number
     item: MstItem
   }[]
+}
+
+type Company = {
+  id: number
+  codeCostumer: string
+  customerName: string
+  CustomerType?: string
 }
 
 const INPUT_TYPE_LABEL: Record<string, string> = {
@@ -102,17 +111,59 @@ const displayPaketName = computed(() =>
 
 const paketName = ref('')
 const paketIsActive = ref(true)
+const paketType = ref<'company' | 'personal'>('personal')
+const companyCode = ref('')
 const formPending = ref(false)
 const paketId = computed(() => {
   const value = route.query.paketId
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 })
+const copySourceId = computed(() => {
+  const value = route.query.copyId
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+})
 const isEditMode = computed(() => !!paketId.value)
+const isCopyMode = computed(() => !isEditMode.value && !!copySourceId.value)
 const pageTitle = computed(() =>
   isEditMode.value
     ? `Edit ${displayPaketName.value} Package`
-    : `New ${displayPaketName.value} Package`
+    : isCopyMode.value
+      ? `Copy ${displayPaketName.value} Package`
+      : `New ${displayPaketName.value} Package`
 )
+
+const companies = ref<Company[]>([])
+const companyOptions = computed(() =>
+  companies.value
+    .filter(c => c.CustomerType !== 'Personal')
+    .map(c => ({
+      label: `${c.customerName} (${c.codeCostumer})`,
+      value: c.codeCostumer
+    }))
+)
+
+const personalCode = computed(() =>
+  companies.value.find(c => c.CustomerType === 'Personal')?.codeCostumer || 'P0001'
+)
+
+async function fetchCompanies() {
+  try {
+    const res = await api.get('/customer')
+    const payload = res.data?.data
+    companies.value = Array.isArray(payload) ? payload : []
+  } catch (err) {
+    console.error('fetch companies error:', err)
+    companies.value = []
+  }
+}
+
+const generatedCodePreview = computed(() => {
+  const abbr = paketName.value.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase() || 'PK'
+  if (isEditMode.value) return ''
+  return paketType.value === 'company'
+    ? `${companyCode.value || 'COM'}-${abbr}XXXXX`
+    : `${personalCode.value}-${abbr}XXXXX`
+})
 
 // ────────────────────────────────────────────
 // Department
@@ -352,6 +403,7 @@ async function loadPaketForEdit() {
 
     paketName.value = payload.name ?? ''
     paketIsActive.value = payload.isActive ?? true
+    paketType.value = (payload.type as 'company' | 'personal') ?? 'personal'
     additionalItems.value = payload.paketItems
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -367,6 +419,78 @@ async function loadPaketForEdit() {
   } finally {
     formPending.value = false
   }
+}
+
+const sourcePakets = ref<{ id: string, name: string }[]>([])
+const selectedSourceId = ref('')
+const sourcePaketOptions = computed(() =>
+  sourcePakets.value.map(p => ({ label: p.name, value: p.id }))
+)
+
+async function fetchSourcePakets() {
+  try {
+    const res = await api.get('/mcu/pakets', { params: { limit: 500 } })
+    const payload = res.data?.data
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    sourcePakets.value = list.map((p: any) => ({
+      id: p.id,
+      name: p.name
+    }))
+  } catch (err) {
+    console.error('fetch source pakets error:', err)
+    sourcePakets.value = []
+  }
+}
+
+async function applySourcePaket(id: string) {
+  formPending.value = true
+
+  try {
+    const res = await api.get(`/mcu/pakets/${id}`)
+    const payload = res.data?.data as PaketDetail | null
+
+    if (!payload) {
+      toast.add({
+        title: 'Gagal',
+        description: 'Paket sumber tidak ditemukan',
+        color: 'error'
+      })
+      return
+    }
+
+    paketName.value = `${payload.name} (Copy)`
+    paketType.value = (payload.type as 'company' | 'personal') ?? 'personal'
+    if (paketType.value === 'company' && payload.code?.includes('-')) {
+      companyCode.value = payload.code.split('-')[0] ?? ''
+    }
+    additionalItems.value = payload.paketItems
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(paketItem => paketItem.item)
+      .filter((item, index, array) => array.findIndex(current => current.id === item.id) === index)
+  } catch (err: any) {
+    toast.add({
+      title: 'Gagal',
+      description: err?.response?.data?.message ?? 'Gagal memuat paket sumber',
+      color: 'error'
+    })
+  } finally {
+    formPending.value = false
+  }
+}
+
+watch(selectedSourceId, (id) => {
+  if (id) applySourcePaket(id)
+})
+
+async function loadPaketForCopy() {
+  if (!copySourceId.value) return
+  selectedSourceId.value = copySourceId.value
+  await applySourcePaket(copySourceId.value)
 }
 
 function addAdditionalItem(item: MstItem) {
@@ -444,13 +568,17 @@ async function submit() {
 
   try {
     const itemIds = [...new Set(additionalItems.value.map(item => item.id))]
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: paketName.value.trim(),
       isActive: paketIsActive.value,
+      type: paketType.value,
+      companyCode: paketType.value === 'company' ? companyCode.value : undefined,
       itemIds
     }
 
     if (isEditMode.value && paketId.value) {
+      delete payload.type
+      delete payload.companyCode
       await api.put(`/mcu/pakets/${paketId.value}`, payload)
     } else {
       await api.post('/mcu/pakets', payload)
@@ -460,7 +588,9 @@ async function submit() {
       title: 'Berhasil',
       description: isEditMode.value
         ? 'Paket MCU berhasil diperbarui'
-        : 'Paket MCU berhasil dibuat',
+        : isCopyMode.value
+          ? 'Paket MCU berhasil dicopy'
+          : 'Paket MCU berhasil dibuat',
       color: 'success'
     })
 
@@ -480,7 +610,13 @@ async function submit() {
   }
 }
 
-await loadPaketForEdit()
+if (isCopyMode.value) {
+  await loadPaketForCopy()
+} else {
+  await loadPaketForEdit()
+}
+await fetchCompanies()
+await fetchSourcePakets()
 </script>
 
 <template>
@@ -509,7 +645,7 @@ await loadPaketForEdit()
         />
       </div>
 
-      <div v-else class="max-w-5xl mx-auto py-6 px-4 space-y-5">
+      <div v-else class="w-full py-6 px-4 space-y-5">
         <div
           class="grid gap-5 items-start"
           style="grid-template-columns: repeat(2, minmax(0, 1fr))"
@@ -550,12 +686,63 @@ await loadPaketForEdit()
               </div>
 
               <div class="p-4 space-y-3">
+                <UFormField
+                  v-if="!isEditMode"
+                  label="Copy Paket (opsional)"
+                >
+                  <USelect
+                    v-model="selectedSourceId"
+                    :items="sourcePaketOptions"
+                    placeholder="Pilih paket yang ingin dicopy"
+                    icon="i-lucide-copy"
+                    class="w-full"
+                  />
+                </UFormField>
+
                 <UFormField label="Nama Paket *">
                   <UInput
                     v-model="paketName"
                     icon="i-lucide-package"
                     placeholder="Contoh: Paket MCU Lengkap"
                     class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Tipe Paket *">
+                  <USelect
+                    v-model="paketType"
+                    :items="[
+                      { label: 'Personal', value: 'personal' },
+                      { label: 'Company', value: 'company' }
+                    ]"
+                    :disabled="isEditMode"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField
+                  v-if="paketType === 'company' && !isEditMode"
+                  label="Company *"
+                >
+                  <USelect
+                    v-model="companyCode"
+                    :items="companyOptions"
+                    placeholder="Pilih company"
+                    icon="i-lucide-building-2"
+                    :loading="!companies.length"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField
+                  v-if="!isEditMode"
+                  label="Kode Paket (otomatis)"
+                >
+                  <UInput
+                    :model-value="generatedCodePreview"
+                    icon="i-lucide-hash"
+                    disabled
+                    class="w-full font-mono opacity-90"
                   />
                 </UFormField>
 
@@ -692,42 +879,53 @@ await loadPaketForEdit()
                     :key="item.id"
                     class="rounded-lg border border-default overflow-hidden bg-background"
                   >
-                    <button
-                      class="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-elevated transition-colors text-left"
-                      @click="toggleAdditional(item.id)"
-                    >
-                      <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div class="flex items-center gap-1.5 px-3 py-2.5">
+                      <button
+                        class="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+                        @click="toggleAdditional(item.id)"
+                      >
+                        <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <UIcon
+                            name="i-lucide-flask-conical"
+                            class="text-primary text-xs"
+                          />
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-semibold truncate">
+                            {{ item.name }}
+                          </p>
+
+                          <p class="text-xs text-muted">
+                            {{ item.code }}
+
+                            <template v-if="getDepartmentName(item)">
+                              · {{ getDepartmentName(item) }}
+                            </template>
+
+                            · {{ item.inputans.length }} inputan
+                          </p>
+                        </div>
+
                         <UIcon
-                          name="i-lucide-flask-conical"
-                          class="text-primary text-xs"
+                          :name="
+                            expandedAdditional.has(item.id)
+                              ? 'i-lucide-chevron-up'
+                              : 'i-lucide-chevron-down'
+                          "
+                          class="text-muted text-xs flex-shrink-0"
                         />
-                      </div>
+                      </button>
 
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold truncate">
-                          {{ item.name }}
-                        </p>
-
-                        <p class="text-xs text-muted">
-                          {{ item.code }}
-
-                          <template v-if="getDepartmentName(item)">
-                            · {{ getDepartmentName(item) }}
-                          </template>
-
-                          · {{ item.inputans.length }} inputan
-                        </p>
-                      </div>
-
-                      <UIcon
-                        :name="
-                          expandedAdditional.has(item.id)
-                            ? 'i-lucide-chevron-up'
-                            : 'i-lucide-chevron-down'
-                        "
-                        class="text-muted text-xs flex-shrink-0"
+                      <UButton
+                        icon="i-lucide-trash-2"
+                        color="error"
+                        variant="ghost"
+                        size="xs"
+                        title="Hapus item"
+                        @click.stop="removeAdditionalItem(item.id)"
                       />
-                    </button>
+                    </div>
 
                     <Transition
                       enter-active-class="transition-all duration-200 ease-out"
