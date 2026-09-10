@@ -338,7 +338,7 @@ function applyTempPersonal(temp: { firstName?: string, middleName?: string, last
 }
 const personalChanged = computed(() => {
   const p = selectedPatient.value
-  if (!p) return { firstName: false, middleName: false, lastName: false, gender: false, dob: false, idType: false, idNumber: false }
+  if (!p || !fromTemp.value) return { firstName: false, middleName: false, lastName: false, gender: false, dob: false, idType: false, idNumber: false }
   return {
     firstName: nrm(personalForm.value.firstName) !== nrm(p.firstName),
     middleName: nrm(personalForm.value.middleName) !== nrm(p.middleName),
@@ -351,13 +351,13 @@ const personalChanged = computed(() => {
 })
 
 const contactChanged = computed(() => ({
-  phone: !!selectedPatient.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
-  email: !!selectedPatient.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email),
+  phone: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
+  email: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email),
 }))
 const addrChanged = computed(() => {
   const p = selectedPatient.value
   const a = p?.addresses?.[0]
-  if (!p) return { addressType: false, detail: false, district: false, city: false, province: false, country: false, note: false }
+  if (!p || !fromTemp.value) return { addressType: false, detail: false, district: false, city: false, province: false, country: false, note: false }
   return {
     addressType: nrm(contactForm.value.addressType) !== nrm(a?.type),
     detail: nrm(contactForm.value.detail) !== nrm(a?.detail),
