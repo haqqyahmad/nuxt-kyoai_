@@ -169,6 +169,12 @@ const PRIORITY_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' 
   Emergency: 'error'
 }
 
+function priorityBlockClass(priority?: string | null) {
+  if (priority === 'Emergency') return 'border-error/40 bg-error/10'
+  if (priority === 'VIP') return 'border-warning/40 bg-warning/10'
+  return ''
+}
+
 function formatDateTime(d?: string) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -1605,7 +1611,10 @@ watch(
                     </p>
                   </div>
                 </div>
-                <div class="flex items-center justify-between px-1">
+                <div
+                  class="flex items-center justify-between gap-2 rounded-xl border border-transparent px-3 py-2"
+                  :class="priorityBlockClass(reg.priorityRegist)"
+                >
                   <span class="text-sm text-muted">Priority Level</span>
                   <UBadge
                     :label="reg.priorityRegist"
