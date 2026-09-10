@@ -167,10 +167,15 @@ const norm = (v?: string | null) => (v ? String(v).trim().toLowerCase() : '')
 function normDateStr(v?: string | null) {
   if (!v) return ''
   const s = String(v).trim()
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`
-  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
   if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+  // ISO datetime dll → pakai komponen tanggal LOKAL (hindari pergeseran timezone)
+  const d = new Date(s)
+  if (!Number.isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
   return s.slice(0, 10)
 }
 function patientFullName(p?: Patient | null) {
