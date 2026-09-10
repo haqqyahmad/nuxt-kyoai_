@@ -1471,10 +1471,10 @@ async function refreshAll() {
 
 const endingSessionId = ref<string | null>(null)
 const isEndSessionModalOpen = ref(false)
-const endSessionTarget = ref<{ sessionId: string, staffName: string, isSelf: boolean } | null>(null)
+const endSessionTarget = ref<{ sessionId: string, staffName: string } | null>(null)
 
-function openEndSessionConfirm(sessionId: string, staffName: string, isSelf: boolean) {
-  endSessionTarget.value = { sessionId, staffName, isSelf }
+function openEndSessionConfirm(sessionId: string, staffName: string) {
+  endSessionTarget.value = { sessionId, staffName }
   isEndSessionModalOpen.value = true
 }
 
@@ -1483,22 +1483,24 @@ function closeEndSessionConfirm() {
   isEndSessionModalOpen.value = false
 }
 
+function onEndSessionClick(staff: { sessionId: string, userId: number, name: string }) {
+  if (isOwnRoomSession(staff.userId)) {
+    openExitRoomModal()
+    return
+  }
+  openEndSessionConfirm(staff.sessionId, staff.name)
+}
+
 async function handleEndSession() {
   const target = endSessionTarget.value
   if (!target || endingSessionId.value) return
 
   endingSessionId.value = target.sessionId
   try {
-    if (target.isSelf) {
-      await api.post('/medical/rooms/sessions/exit', {})
-    } else {
-      await api.post(`/medical/rooms/sessions/${target.sessionId}/exit`, {})
-    }
+    await api.post(`/medical/rooms/sessions/${target.sessionId}/exit`, {})
     toast.add({
       title: 'Success',
-      description: target.isSelf
-        ? 'Your room session has been ended.'
-        : `Room session for ${target.staffName} successfully ended.`,
+      description: `Room session for ${target.staffName} successfully ended.`,
       color: 'success'
     })
     isEndSessionModalOpen.value = false
@@ -1758,7 +1760,7 @@ watch(
                     variant="ghost"
                     :loading="endingSessionId === staff.sessionId"
                     :title="isOwnRoomSession(staff.userId) ? 'End your session' : 'Force end session'"
-                    @click="openEndSessionConfirm(staff.sessionId, staff.name, isOwnRoomSession(staff.userId))"
+                    @click="onEndSessionClick(staff)"
                   />
                 </div>
               </div>
@@ -2339,13 +2341,13 @@ watch(
         </template>
       </UModal>
 
-      <UModal v-model:open="isExitRoomModalOpen" title="Exit Room">
+      <UModal v-model:open="isExitRoomModalOpen" title="End Your Session">
         <template #body>
           <div class="space-y-4">
             <UAlert
               color="warning"
-              title="Exit active room session?"
-              :description="`Current active session: ${getRoomSessionLabel()}. After exiting, you can move to another room.`"
+              title="End your room session?"
+              :description="`Current active session: ${getRoomSessionLabel()}. Your session will be ended and the room freed.`"
             />
           </div>
         </template>
@@ -2365,26 +2367,19 @@ watch(
               :loading="roomExitActionLoading"
               @click="handleExitRoom"
             >
-              Exit Room
+              End Session
             </UButton>
           </div>
         </template>
       </UModal>
 
-      <UModal
-        v-model:open="isEndSessionModalOpen"
-        :title="endSessionTarget?.isSelf ? 'End Your Session' : 'Force End Session'"
-      >
+      <UModal v-model:open="isEndSessionModalOpen" title="Force End Session">
         <template #body>
           <div class="space-y-4">
             <UAlert
-              :color="endSessionTarget?.isSelf ? 'warning' : 'error'"
-              :title="endSessionTarget?.isSelf
-                ? 'End your room session?'
-                : `Force end session for ${endSessionTarget?.staffName || '-'}?`"
-              :description="endSessionTarget?.isSelf
-                ? 'Your session will be ended and the room freed.'
-                : `The session for ${endSessionTarget?.staffName || 'this user'} will be forced to end and the room freed.`"
+              color="error"
+              :title="`Force end session for ${endSessionTarget?.staffName || '-'}?`"
+              :description="`The session for ${endSessionTarget?.staffName || 'this user'} will be forced to end and the room freed.`"
             />
           </div>
         </template>
@@ -2400,11 +2395,11 @@ watch(
               Cancel
             </UButton>
             <UButton
-              :color="endSessionTarget?.isSelf ? 'warning' : 'error'"
+              color="error"
               :loading="!!endingSessionId"
               @click="handleEndSession"
             >
-              {{ endSessionTarget?.isSelf ? 'End Session' : 'Force End' }}
+              Force End
             </UButton>
           </div>
         </template>
