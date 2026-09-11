@@ -520,6 +520,72 @@ function printQuestionnaire(q: PatientQuestionnaire) {
   })
 }
 
+function printQueueTicket() {
+  if (!import.meta.client) return
+  const r = reg.value
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const esc = (s?: string | null) => (s || '-').replace(/</g, '&lt;')
+  const code = esc(r?.queue?.queueCode)
+  const patientName = esc(r?.patient?.patientName)
+  const rm = esc(r?.patient?.patientCode)
+  const branch = esc(r?.branch?.nameBranch)
+  const company = r?.company?.customerName ? esc(r.company.customerName) : ''
+  const regNo = esc(r?.id_reg)
+  const examDate = r?.examDate
+    ? new Date(r.examDate).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+    : '-'
+  const printedAt = new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const logo = new URL('/logo.png', window.location.origin).toString()
+
+  const html = `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Tiket Antrian ${code}</title>
+<style>
+  @page { size: auto; margin: 10mm; }
+  * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; color: #111; }
+  body { margin: 0; padding: 12px; }
+  .ticket { width: 320px; margin: 0 auto; border: 2px dashed #94a3b8; border-radius: 12px; padding: 18px 20px; text-align: center; }
+  .logo { height: 42px; object-fit: contain; margin-bottom: 8px; }
+  .branch { font-size: 12px; color: #475569; margin-bottom: 10px; }
+  .label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #64748b; }
+  .code { font-size: 44px; font-weight: 800; letter-spacing: 1px; margin: 4px 0 10px; }
+  .divider { border-top: 1px solid #e2e8f0; margin: 12px 0; }
+  .row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; text-align: left; margin: 4px 0; }
+  .row .k { color: #64748b; }
+  .row .v { font-weight: 600; text-align: right; }
+  .name { font-size: 15px; font-weight: 700; }
+  .footer { margin-top: 12px; font-size: 10px; color: #94a3b8; }
+</style>
+</head>
+<body>
+  <div class="ticket">
+    <img class="logo" src="${logo}" alt="Logo" />
+    <div class="branch">${branch}</div>
+    <div class="label">Nomor Antrian</div>
+    <div class="code">${code}</div>
+    <div class="name">${patientName}</div>
+    <div class="divider"></div>
+    <div class="row"><span class="k">No. RM</span><span class="v">${rm}</span></div>
+    <div class="row"><span class="k">No. Registrasi</span><span class="v">${regNo}</span></div>
+    <div class="row"><span class="k">Tanggal Exam</span><span class="v">${examDate}</span></div>
+    ${company ? `<div class="row"><span class="k">Perusahaan</span><span class="v">${company}</span></div>` : ''}
+    <div class="footer">Dicetak: ${printedAt}</div>
+  </div>
+</body>
+</html>`
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.onload = () => {
+    printWindow.focus()
+    printWindow.print()
+  }
+}
+
 type StatusHistoryItem = {
   id: string
   action: string
@@ -2284,6 +2350,7 @@ watch(
               color="neutral"
               variant="outline"
               label="Print Tiket"
+              @click="printQueueTicket"
             />
             <UButton color="primary" label="Selesai" @click="checkinSuccessOpen = false" />
           </div>
