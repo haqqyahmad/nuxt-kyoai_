@@ -1397,7 +1397,7 @@ watch(
           <button
             v-if="activeQueue"
             type="button"
-            class="w-full cursor-pointer rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 text-left transition-colors hover:bg-primary/5"
+            class="cursor-pointer rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 text-left transition-colors hover:bg-primary/5"
             title="Lihat & print tiket antrian"
             @click="checkinSuccessOpen = true"
           >
