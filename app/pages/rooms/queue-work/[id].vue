@@ -19,6 +19,7 @@ type Patient = {
   email?: string | null
   idType?: string | null
   idNumber?: string | null
+  photoUrl?: string | null
 }
 
 type QueueStageItem = {
@@ -660,6 +661,16 @@ function getInputValueClass(itemId: string, inputan: ExamInput) {
 
 const queuePatient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
 const patient = computed(() => patientDetail.value ?? queuePatient.value)
+
+function resolveMediaUrl(url?: string | null) {
+  if (!url) return ''
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  let base = useRuntimeConfig().public.apiBase || ''
+  base = base.replace(/\/+$/, '').replace(/\/api$/, '')
+  return base ? `${base}${url}` : url
+}
+
+const patientPhotoUrl = computed(() => resolveMediaUrl(patient.value?.photoUrl))
 
 function formatPatientDetail(patient?: Patient | null) {
   if (!patient) return ''
@@ -2034,8 +2045,17 @@ async function handleSubmitItemAction() {
                   </span>
                   <span class="text-xs text-muted">• ID: {{ patient?.PatientId || '-' }}</span>
                 </div>
-                <h2 class="mt-1 text-lg font-bold text-highlighted sm:text-xl">
-                  {{ formatPatientName(patient) }}
+                <h2 class="mt-1 flex items-center gap-3 text-lg font-bold text-highlighted sm:text-xl">
+                  <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30">
+                    <img
+                      v-if="patientPhotoUrl"
+                      :src="patientPhotoUrl"
+                      alt="Foto pasien"
+                      class="h-full w-full object-cover"
+                    />
+                    <UIcon v-else name="i-lucide-user" class="size-6 text-muted" />
+                  </span>
+                  <span>{{ formatPatientName(patient) }}</span>
                 </h2>
                 <p class="text-xs text-muted">
                   {{ formatPatientDetail(patient) }}
