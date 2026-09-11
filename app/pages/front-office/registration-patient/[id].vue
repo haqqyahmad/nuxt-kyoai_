@@ -656,6 +656,8 @@ const checkinPreviewLoading = ref(false)
 const checkinPreview = ref<CheckinPreview | null>(null)
 const activeQueue = computed(() => reg.value?.queue ?? null)
 const checkinSuccessOpen = ref(false)
+const checkinServiceNumber = ref('')
+const checkinPaketOpen = ref(true)
 
 const todayStr = () => {
   const d = new Date()
@@ -699,6 +701,9 @@ async function openCheckinModal() {
   }
 
   await loadCheckinPreview()
+  checkinServiceNumber.value =
+    checkinPreview.value?.registration.serviceNumber ?? reg.value?.serviceNumber ?? ''
+  checkinPaketOpen.value = true
   checkinModalOpen.value = true
 }
 
@@ -708,7 +713,8 @@ async function confirmCheckin() {
 
   try {
     const res = await api.post(`/registration/${reg.value.id}/checkin`, {
-      queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate
+      queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate,
+      serviceNumber: checkinServiceNumber.value.trim() || undefined
     })
 
     const entry = res.data.data
@@ -2204,8 +2210,25 @@ watch(
               </div>
             </div>
 
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-muted">Service Number (No. Loker)</label>
+              <UInput
+                v-model="checkinServiceNumber"
+                icon="i-lucide-key-round"
+                placeholder="Nomor loker pasien"
+                class="w-full"
+              />
+              <p class="text-[11px] text-muted">
+                Nomor ini dipakai sebagai nomor loker pasien. Kosongkan untuk memakai nomor bawaan.
+              </p>
+            </div>
+
             <div class="rounded-xl border border-default bg-elevated/60 p-4">
-              <div class="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                class="w-full flex items-center justify-between gap-3 text-left"
+                @click="checkinPaketOpen = !checkinPaketOpen"
+              >
                 <div>
                   <p class="text-xs text-muted">Paket MCU</p>
                   <p class="text-sm font-semibold">
@@ -2214,14 +2237,20 @@ watch(
                     }}
                   </p>
                 </div>
-                <UBadge
-                  :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`"
-                  color="neutral"
-                  variant="subtle"
-                />
-              </div>
+                <div class="flex items-center gap-2">
+                  <UBadge
+                    :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`"
+                    color="neutral"
+                    variant="subtle"
+                  />
+                  <UIcon
+                    :name="checkinPaketOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    class="size-4 text-muted"
+                  />
+                </div>
+              </button>
 
-              <div class="mt-4 space-y-3">
+              <div v-show="checkinPaketOpen" class="mt-4 space-y-3">
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
                     Item Paket
