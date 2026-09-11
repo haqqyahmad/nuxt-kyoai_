@@ -1397,19 +1397,14 @@ watch(
           <button
             v-if="activeQueue"
             type="button"
-            class="w-full rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 flex items-center justify-between gap-4 text-left transition-colors hover:bg-primary/5"
+            class="w-full cursor-pointer rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 text-left transition-colors hover:bg-primary/5"
             title="Lihat & print tiket antrian"
             @click="checkinSuccessOpen = true"
           >
-            <div>
-              <p class="text-xs text-muted">Queue Number</p>
-              <p class="text-3xl font-bold text-primary">
-                {{ activeQueue.queueCode }}
-              </p>
-            </div>
-            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-primary">
-              <UIcon name="i-lucide-printer" class="size-4" /> Print Tiket
-            </span>
+            <p class="text-xs text-muted">Queue Number</p>
+            <p class="text-3xl font-bold text-primary">
+              {{ activeQueue.queueCode }}
+            </p>
           </button>
         </div>
 
