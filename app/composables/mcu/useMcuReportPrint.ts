@@ -237,18 +237,26 @@ export function buildPhysicalRows(raw: Array<{ label: string, value: string, gro
   // Kelompokkan berdasarkan `group` agar template existing tetap menerima
   // {label, subLabels, subValues, showSub}; legacy label-keyed lanjut ke parser lama.
   if (raw.some(entry => entry.group)) {
-    const grouped = new Map<string, Array<{ label: string, value: string }>>()
+    // Gabungkan baris per sub-bagian jadi satu section + sub bernomor
+    // (Eyes · Right/Left → Eyes : "1. Right" / "2. Left") agar preview/PDF
+    // sama dengan mcu_report_template.html.
+    const SEP = ' · '
+    const grouped = new Map<string, Array<{ sub: string, value: string }>>()
     for (const entry of raw) {
       const group = entry.group || entry.label
-      const values = grouped.get(group) ?? []
-      values.push({ label: entry.label, value: entry.value })
-      grouped.set(group, values)
+      const sepIndex = group.indexOf(SEP)
+      const section = sepIndex === -1 ? group : group.slice(0, sepIndex)
+      const groupSub = sepIndex === -1 ? '' : group.slice(sepIndex + SEP.length).trim()
+      const labelSub = entry.label === group ? '' : entry.label.replace(group, '').replace(SEP, '').trim()
+      const values = grouped.get(section) ?? []
+      values.push({ sub: labelSub || groupSub, value: entry.value })
+      grouped.set(section, values)
     }
-    return [...grouped].map(([group, entries]) => {
-      const showSub = entries.length > 1 || entries.some(entry => entry.label !== group)
+    return [...grouped].map(([section, entries]) => {
+      const showSub = entries.length > 1 || entries.some(entry => entry.sub !== '')
       return {
-        label: group,
-        subLabels: showSub ? entries.map(entry => entry.label.replace(`${group} · `, '')) : [''],
+        label: section,
+        subLabels: showSub ? entries.map((entry, index) => entry.sub ? `${index + 1}. ${entry.sub}` : '') : [''],
         subValues: entries.map(entry => entry.value),
         showSub
       }
@@ -346,19 +354,23 @@ export function useMcuReportPrint() {
   // CSP ketat untuk print window: blok script, connect, frame, object.
   const printCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
 
+  // Wajib standards mode: tanpa doctype, iframe/preview render quirks mode →
+  // tabel tidak mewarisi font-size (default 16px) sehingga beda dari design.
+  const ensureDocType = (html: string) => /^\s*<!doctype/i.test(html) ? html : `<!DOCTYPE html>\n${html}`
+
   function renderMcuReportHtml(payload: McuPrintPayload, opts: { headerImageUrl?: string } = {}): string {
     // Debug: lihat data print di devtools (F12 → Console). Nilai groupName
     // aktual dipakai untuk filter `{% if group.groupName not in [...] %}`.
     console.log('[McuReportPrint] payload', payload)
     const template = payload.printTemplate?.trim()
     if (!template) {
-      return '<html><head>' + printCsp + '</head><body><p style="font-family:Arial,sans-serif;padding:20px;">Template print belum tersedia. Hubungi admin.</p></body></html>'
+      return ensureDocType('<html><head>' + printCsp + '</head><body><p style="font-family:Arial,sans-serif;padding:20px;">Template print belum tersedia. Hubungi admin.</p></body></html>')
     }
     let html = renderTemplate(template, { ...payload, physical: buildPhysicalRows(payload.physical ?? []), headerImageUrl: opts.headerImageUrl ?? '' })
     // Inject CSP ke <head> bila ada, sisipkan setelah <head> / sebelum <head>.
     if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, m => `${m}${printCsp}`)
     else html = html.replace(/<html[^>]*>/i, m => `${m}${printCsp}`)
-    return html
+    return ensureDocType(html)
   }
 
   // Render template kustom item (ECG/USG/EYE) dengan context item-nya.
@@ -382,7 +394,7 @@ export function useMcuReportPrint() {
     let html = renderTemplate(template, ctx)
     if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, m => `${m}${printCsp}`)
     else html = html.replace(/<html[^>]*>/i, m => `${m}${printCsp}`)
-    return html
+    return ensureDocType(html)
   }
 
   async function printMcuReport(examId: string): Promise<boolean> {
