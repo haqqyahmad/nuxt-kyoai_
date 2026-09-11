@@ -386,11 +386,19 @@ export function useMcuReportPrint() {
   }
 
   async function printMcuReport(examId: string): Promise<boolean> {
+    if (loading.value) return false
     const printWindow = window.open('', '_blank')
     if (!printWindow) {
       toast.add({ title: 'Popup diblokir', description: 'Izinkan popup untuk membuka PDF hasil MCU.', color: 'warning' })
       return false
     }
+
+    printWindow.document.write(
+      '<!doctype html><html><head><title>Menyiapkan PDF…</title></head>'
+      + '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;'
+      + 'font-family:Arial,sans-serif;color:#555">Menyiapkan PDF hasil MCU…</body></html>'
+    )
+    printWindow.document.close()
 
     loading.value = true
     try {
