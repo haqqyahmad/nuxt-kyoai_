@@ -659,6 +659,10 @@ const checkinSuccessOpen = ref(false)
 const checkinServiceNumber = ref('')
 const checkinPaketOpen = ref(false)
 
+const serviceNumberModalOpen = ref(false)
+const serviceNumberInput = ref('')
+const serviceNumberSaving = ref(false)
+
 const todayStr = () => {
   const d = new Date()
   const y = d.getFullYear()
@@ -736,6 +740,34 @@ async function confirmCheckin() {
     toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
   } finally {
     checkinLoading.value = false
+  }
+}
+
+function openServiceNumberModal() {
+  serviceNumberInput.value = reg.value?.serviceNumber ?? ''
+  serviceNumberModalOpen.value = true
+}
+
+async function saveServiceNumber() {
+  if (!reg.value || serviceNumberSaving.value) return
+  const value = serviceNumberInput.value.trim()
+  if (!value) {
+    toast.add({ title: 'Wajib diisi', description: 'Service Number tidak boleh kosong', color: 'warning' })
+    return
+  }
+  serviceNumberSaving.value = true
+  try {
+    await api.patch(`/registration/${reg.value.id}/service-number`, { serviceNumber: value })
+    await refresh()
+    serviceNumberModalOpen.value = false
+    toast.add({ title: 'Berhasil', description: 'Service Number diperbarui', color: 'success' })
+  } catch (err: unknown) {
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      'Gagal memperbarui Service Number'
+    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+  } finally {
+    serviceNumberSaving.value = false
   }
 }
 
@@ -1634,10 +1666,20 @@ watch(
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Service No.</span>
-                <code
-                  class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono"
-                  >{{ reg.serviceNumber }}</code
-                >
+                <div class="flex items-center gap-1.5">
+                  <code
+                    class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono"
+                    >{{ reg.serviceNumber }}</code
+                  >
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    title="Edit Service Number"
+                    @click="openServiceNumberModal"
+                  />
+                </div>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Branch</span>
@@ -2470,6 +2512,43 @@ watch(
               color="primary"
               :loading="savingReschedule"
               @click="doCheckout"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="serviceNumberModalOpen" title="Edit Service Number">
+        <template #body>
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-muted">Service Number (No. Loker)</label>
+              <UInput
+                v-model="serviceNumberInput"
+                icon="i-lucide-key-round"
+                placeholder="Nomor loker / service number"
+                class="w-full"
+                @keyup.enter="saveServiceNumber"
+              />
+            </div>
+            <p class="text-[11px] text-muted">
+              Nomor ini dipakai sebagai Service No. registrasi (mis. nomor loker pasien).
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Batal"
+              :disabled="serviceNumberSaving"
+              @click="serviceNumberModalOpen = false"
+            />
+            <UButton
+              color="primary"
+              label="Simpan"
+              :loading="serviceNumberSaving"
+              @click="saveServiceNumber"
             />
           </div>
         </template>
