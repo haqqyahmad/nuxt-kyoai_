@@ -420,7 +420,7 @@ type PatientGroup = {
 const patientGroups = computed<PatientGroup[]>(() => {
   const map = new Map<string, PatientGroup>()
   for (const r of results.value) {
-    const key = r.patientCode || r.patientName || 'unknown'
+    const key = `${r.patientCode || r.patientName || 'unknown'}||${r.examDate || ''}`
     let g = map.get(key)
     if (!g) {
       g = {
@@ -439,6 +439,15 @@ const patientGroups = computed<PatientGroup[]>(() => {
     g.questionnaires.push(r)
     if (r.status !== 'Completed') g.status = 'Pending'
   }
+
+  for (const g of map.values()) {
+    g.questionnaires.sort((a, b) => {
+      const ca = a.completionDate ? new Date(a.completionDate).getTime() : 0
+      const cb = b.completionDate ? new Date(b.completionDate).getTime() : 0
+      return cb - ca
+    })
+  }
+
   return Array.from(map.values())
 })
 
@@ -719,10 +728,10 @@ watch(results, () => {
                       </span>
                     </td>
                     <td class="p-3.5 text-slate-600 dark:text-neutral-300">
-                      {{ g.questionnaires.length ? fmtDate(g.questionnaires[0].examDate) : '-' }}
+                      {{ g.questionnaires.length ? fmtDate(g.questionnaires[0]?.examDate) : '-' }}
                     </td>
                     <td class="p-3.5 text-slate-600 dark:text-neutral-300">
-                      {{ g.questionnaires.length ? g.questionnaires[0].branchName : '-' }}
+                      {{ g.questionnaires.length ? (g.questionnaires[0]?.branchName ?? '-') : '-' }}
                     </td>
                   </tr>
 
