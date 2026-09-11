@@ -677,6 +677,7 @@ const photoVideoEl = ref<HTMLVideoElement | null>(null)
 const photoStarting = ref(false)
 const photoSaving = ref(false)
 const photoError = ref('')
+const photoViewerOpen = ref(false)
 
 const todayStr = () => {
   const d = new Date()
@@ -1682,7 +1683,13 @@ watch(
             </div>
             <div v-if="reg.patient" class="px-5 py-4">
               <div class="flex items-center gap-4 mb-4">
-                <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-default bg-muted/30 flex items-center justify-center">
+                <button
+                  type="button"
+                  class="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-default bg-muted/30 flex items-center justify-center"
+                  :class="patientPhotoUrl ? 'cursor-zoom-in hover:ring-2 hover:ring-primary/40' : 'cursor-default'"
+                  :title="patientPhotoUrl ? 'Lihat foto' : undefined"
+                  @click="patientPhotoUrl && (photoViewerOpen = true)"
+                >
                   <img
                     v-if="patientPhotoUrl"
                     :src="patientPhotoUrl"
@@ -1690,7 +1697,7 @@ watch(
                     class="h-full w-full object-cover"
                   />
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
-                </div>
+                </button>
                 <div class="space-y-1">
                   <UButton
                     icon="i-lucide-camera"
@@ -2739,6 +2746,24 @@ watch(
               :disabled="photoStarting || !!photoError"
               @click="captureAndSavePhoto"
             />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="photoViewerOpen" title="Foto Pasien" :ui="{ content: 'sm:max-w-2xl' }">
+        <template #body>
+          <div class="flex items-center justify-center">
+            <img
+              v-if="patientPhotoUrl"
+              :src="patientPhotoUrl"
+              alt="Foto pasien"
+              class="max-h-[70vh] w-auto rounded-xl border border-default"
+            />
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton color="primary" label="Tutup" @click="photoViewerOpen = false" />
           </div>
         </template>
       </UModal>
