@@ -671,6 +671,7 @@ function resolveMediaUrl(url?: string | null) {
 }
 
 const patientPhotoUrl = computed(() => resolveMediaUrl(patient.value?.photoUrl))
+const photoViewerOpen = ref(false)
 
 function formatPatientDetail(patient?: Patient | null) {
   if (!patient) return ''
@@ -2039,7 +2040,13 @@ async function handleSubmitItemAction() {
           <div class="rounded-2xl border border-default/80 bg-default p-4 shadow-sm sm:p-5">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-5">
               <div class="mx-auto shrink-0 md:mx-0">
-                <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30">
+                <button
+                  type="button"
+                  class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30"
+                  :class="patientPhotoUrl ? 'cursor-zoom-in hover:ring-2 hover:ring-primary/40' : 'cursor-default'"
+                  :title="patientPhotoUrl ? 'Lihat foto' : undefined"
+                  @click="patientPhotoUrl && (photoViewerOpen = true)"
+                >
                   <img
                     v-if="patientPhotoUrl"
                     :src="patientPhotoUrl"
@@ -2047,7 +2054,7 @@ async function handleSubmitItemAction() {
                     class="h-full w-full object-cover"
                   />
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
-                </div>
+                </button>
               </div>
               <div class="md:flex-1">
                 <div class="flex items-center gap-2">
@@ -2838,6 +2845,24 @@ async function handleSubmitItemAction() {
         >
           Masuk Room
         </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal v-model:open="photoViewerOpen" title="Foto Pasien" :ui="{ content: 'sm:max-w-2xl' }">
+    <template #body>
+      <div class="flex items-center justify-center">
+        <img
+          v-if="patientPhotoUrl"
+          :src="patientPhotoUrl"
+          alt="Foto pasien"
+          class="max-h-[70vh] w-auto rounded-xl border border-default"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end">
+        <UButton color="primary" label="Tutup" @click="photoViewerOpen = false" />
       </div>
     </template>
   </UModal>
