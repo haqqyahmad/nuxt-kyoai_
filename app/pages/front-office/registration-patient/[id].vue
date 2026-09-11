@@ -1665,7 +1665,7 @@ watch(
                 </UBadge>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
-                <span class="text-xs text-muted">Service No.</span>
+                <span class="text-xs font-semibold text-primary">Service No.</span>
                 <div class="flex items-center gap-1.5">
                   <code
                     class="text-xs bg-elevated border border-default rounded px-2 py-0.5 font-mono"
@@ -2521,7 +2521,7 @@ watch(
         <template #body>
           <div class="space-y-3">
             <div class="space-y-1">
-              <label class="text-xs font-medium text-muted">Service Number (No. Loker)</label>
+              <label class="text-xs font-semibold text-primary">Service Number (No. Loker)</label>
               <UInput
                 v-model="serviceNumberInput"
                 icon="i-lucide-key-round"
