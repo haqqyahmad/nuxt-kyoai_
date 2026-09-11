@@ -66,6 +66,13 @@ const isEditing = ref(false);
 const selectedPhotoFile = ref<File | null>(null);
 const photoPreview = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+
+const cameraOpen = ref(false);
+const cameraStream = ref<MediaStream | null>(null);
+const cameraVideoEl = ref<HTMLVideoElement | null>(null);
+const cameraStarting = ref(false);
+const cameraSaving = ref(false);
+const cameraError = ref("");
 const editForm = ref<Partial<Patient>>({
   gender: "",
   maritalStatus: "",
@@ -181,6 +188,100 @@ const handlePhotoUpload = (event: Event) => {
     reader.readAsDataURL(input.files[0]);
   }
 };
+
+const photoMenuItems = [
+  [
+    {
+      label: "Ambil dari Kamera",
+      icon: "i-lucide-camera",
+      onSelect: () => openCamera(),
+    },
+    {
+      label: "Pilih dari File",
+      icon: "i-lucide-image",
+      onSelect: () => handlePhotoClick(),
+    },
+  ],
+];
+
+async function startCameraStream() {
+  cameraStarting.value = true;
+  cameraError.value = "";
+  try {
+    if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Browser tidak mendukung akses kamera");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    cameraStream.value = stream;
+    const el = cameraVideoEl.value;
+    if (el) {
+      el.srcObject = stream;
+      await el.play().catch(() => {});
+    }
+  } catch (e) {
+    cameraError.value = (e as Error)?.message || "Gagal mengakses kamera";
+  } finally {
+    cameraStarting.value = false;
+  }
+}
+
+async function openCamera() {
+  cameraError.value = "";
+  cameraOpen.value = true;
+  await nextTick();
+  await startCameraStream();
+}
+
+function stopCameraStream() {
+  cameraStream.value?.getTracks().forEach((track) => track.stop());
+  cameraStream.value = null;
+  if (cameraVideoEl.value) cameraVideoEl.value.srcObject = null;
+}
+
+function closeCamera() {
+  stopCameraStream();
+  cameraOpen.value = false;
+}
+
+async function captureCamera() {
+  const video = cameraVideoEl.value;
+  if (!video || cameraSaving.value) return;
+  cameraSaving.value = true;
+  try {
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas tidak tersedia");
+    ctx.drawImage(video, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
+    );
+    if (!blob) throw new Error("Gagal mengambil gambar");
+    const file = new File([blob], "patient-photo.jpg", { type: "image/jpeg" });
+    selectedPhotoFile.value = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      photoPreview.value = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    stopCameraStream();
+    cameraOpen.value = false;
+  } catch (err) {
+    cameraError.value = (err as Error)?.message || "Gagal mengambil foto";
+  } finally {
+    cameraSaving.value = false;
+  }
+}
+
+onBeforeUnmount(() => {
+  stopCameraStream();
+});
 
 // Fungsi untuk menyimpan perubahan
 const saveChanges = async () => {
@@ -435,17 +536,34 @@ const deleteAddress = async (addressId: string) => {
         >
         <!-- Foto Profil -->
         <div class="relative flex-shrink-0 mx-auto md:mx-0">
+          <UDropdownMenu
+            v-if="isEditing"
+            :items="photoMenuItems"
+            :content="{ align: 'center' }"
+          >
+            <div
+              class="group relative rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg cursor-pointer"
+            >
+              <img
+                :src="getPhotoUrl()"
+                :alt="fullName"
+                class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
+              />
+              <div
+                class="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <UIcon name="i-lucide-camera" class="text-white text-lg sm:text-xl" />
+              </div>
+            </div>
+          </UDropdownMenu>
           <div
+            v-else
             class="rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg"
           >
             <img
               :src="getPhotoUrl()"
               :alt="fullName"
               class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
-              :class="{
-                'cursor-pointer hover:opacity-90 transition-opacity': isEditing,
-              }"
-              @click="handlePhotoClick"
             />
           </div>
           <input
@@ -456,16 +574,6 @@ const deleteAddress = async (addressId: string) => {
             class="hidden"
             @change="handlePhotoUpload"
           />
-          <div
-            v-if="isEditing"
-            class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-            @click="handlePhotoClick"
-          >
-            <UIcon
-              name="i-lucide-camera"
-              class="text-white text-lg sm:text-xl"
-            />
-          </div>
         </div>
 
         <!-- Informasi Utama -->
@@ -1003,6 +1111,64 @@ const deleteAddress = async (addressId: string) => {
             >
               {{ editingAddress?.id ? "Simpan Perubahan" : "Tambah Alamat" }}
             </UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Modal Kamera Foto -->
+      <UModal
+        v-model:open="cameraOpen"
+        title="Ambil Foto Pasien"
+        :ui="{ content: 'sm:max-w-lg' }"
+      >
+        <template #body>
+          <div class="space-y-3">
+            <div
+              class="relative aspect-square overflow-hidden rounded-xl border border-default bg-black"
+            >
+              <video
+                ref="cameraVideoEl"
+                autoplay
+                playsinline
+                muted
+                class="h-full w-full object-cover"
+              />
+              <div
+                v-if="cameraStarting"
+                class="absolute inset-0 flex items-center justify-center bg-black/40"
+              >
+                <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-white" />
+              </div>
+            </div>
+            <UAlert
+              v-if="cameraError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-camera-off"
+              :description="cameraError"
+            />
+            <p class="text-[11px] text-muted">
+              Pastikan wajah pasien terlihat jelas di dalam frame, lalu klik Ambil Foto.
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Batal"
+              :disabled="cameraSaving"
+              @click="closeCamera"
+            />
+            <UButton
+              icon="i-lucide-camera"
+              color="primary"
+              label="Ambil Foto"
+              :loading="cameraSaving"
+              :disabled="cameraStarting || !!cameraError"
+              @click="captureCamera"
+            />
           </div>
         </template>
       </UModal>
