@@ -2037,25 +2037,27 @@ async function handleSubmitItemAction() {
 
         <template v-else>
           <div class="rounded-2xl border border-default/80 bg-default p-4 shadow-sm sm:p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-5">
+              <div class="mx-auto shrink-0 md:mx-0">
+                <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30">
+                  <img
+                    v-if="patientPhotoUrl"
+                    :src="patientPhotoUrl"
+                    alt="Foto pasien"
+                    class="h-full w-full object-cover"
+                  />
+                  <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
+                </div>
+              </div>
+              <div class="md:flex-1">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
                     Pasien Aktif
                   </span>
                   <span class="text-xs text-muted">• ID: {{ patient?.PatientId || '-' }}</span>
                 </div>
-                <h2 class="mt-1 flex items-center gap-3 text-lg font-bold text-highlighted sm:text-xl">
-                  <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30">
-                    <img
-                      v-if="patientPhotoUrl"
-                      :src="patientPhotoUrl"
-                      alt="Foto pasien"
-                      class="h-full w-full object-cover"
-                    />
-                    <UIcon v-else name="i-lucide-user" class="size-6 text-muted" />
-                  </span>
-                  <span>{{ formatPatientName(patient) }}</span>
+                <h2 class="mt-1 text-lg font-bold text-highlighted sm:text-xl">
+                  {{ formatPatientName(patient) }}
                 </h2>
                 <p class="text-xs text-muted">
                   {{ formatPatientDetail(patient) }}
