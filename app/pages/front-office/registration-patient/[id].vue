@@ -1688,7 +1688,7 @@ watch(
                   />
                 </div>
               </div>
-              <div v-if="reg.serviceNumber" class="px-5 pb-3">
+              <div v-if="reg.serviceNumber" class="px-5 pb-3 flex justify-center">
                 <ServiceNumberBarcode :value="reg.serviceNumber" :height="48" />
               </div>
               <div class="flex items-center justify-between px-5 py-3">
