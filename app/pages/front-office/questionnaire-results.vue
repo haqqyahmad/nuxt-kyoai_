@@ -172,6 +172,11 @@ function maritalLabel(m?: string | null): string {
   return map[m] ?? m
 }
 
+function documentLogoUrl(): string {
+  if (!import.meta.client) return '/logo.png'
+  return new URL('/logo.png', window.location.origin).toString()
+}
+
 function formatDateTime(d?: string | null) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -299,7 +304,7 @@ function legacyPrintHtml(row: QuestionnaireResult): string {
       <body>
         <table class="printwrap">
           <thead>
-            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: '' })}</th></tr>
+            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: documentLogoUrl() })}</th></tr>
           </thead>
           <tbody>
             <tr><td>
