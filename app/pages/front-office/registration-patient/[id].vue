@@ -538,6 +538,10 @@ function printQueueTicket() {
     : '-'
   const printedAt = new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   const logo = new URL('/logo.png', window.location.origin).toString()
+  const serviceNumber = esc(r?.serviceNumber)
+  const serviceBarcode = r?.serviceNumber
+    ? code39Svg(r.serviceNumber, { height: 44, showText: false })
+    : ''
 
   const html = `<!doctype html>
 <html lang="id">
@@ -558,6 +562,8 @@ function printQueueTicket() {
   .row .k { color: #64748b; }
   .row .v { font-weight: 600; text-align: right; }
   .name { font-size: 12px; font-weight: 700; }
+  .barcode { margin-top: 6px; display: flex; justify-content: center; }
+  .barcode svg { max-width: 100%; height: auto; }
   .footer { margin-top: 8px; font-size: 8px; color: #94a3b8; }
 </style>
 </head>
@@ -573,6 +579,7 @@ function printQueueTicket() {
     <div class="row"><span class="k">No. Registrasi</span><span class="v">${regNo}</span></div>
     <div class="row"><span class="k">Tanggal Exam</span><span class="v">${examDate}</span></div>
     ${company ? `<div class="row"><span class="k">Perusahaan</span><span class="v">${company}</span></div>` : ''}
+    ${serviceBarcode ? `<div class="divider"></div><div class="label">Service No.</div><div class="barcode">${serviceBarcode}</div><div class="name" style="font-size:10px;">${serviceNumber}</div>` : ''}
     <div class="footer">Dicetak: ${printedAt}</div>
   </div>
 </body>
@@ -1680,6 +1687,9 @@ watch(
                     @click="openServiceNumberModal"
                   />
                 </div>
+              </div>
+              <div v-if="reg.serviceNumber" class="px-5 pb-3">
+                <ServiceNumberBarcode :value="reg.serviceNumber" :height="48" />
               </div>
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Branch</span>
