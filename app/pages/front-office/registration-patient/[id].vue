@@ -74,6 +74,7 @@ type Registration = {
     dob?: string
     policyNumber?: string | null
     policyExpDate?: string | null
+    photoUrl?: string | null
   } | null
   branch: { branchId: string; nameBranch: string } | null
   company: { id: number; codeCostumer: string; customerName: string } | null
@@ -670,6 +671,13 @@ const serviceNumberModalOpen = ref(false)
 const serviceNumberInput = ref('')
 const serviceNumberSaving = ref(false)
 
+const photoModalOpen = ref(false)
+const photoStream = ref<MediaStream | null>(null)
+const photoVideoEl = ref<HTMLVideoElement | null>(null)
+const photoStarting = ref(false)
+const photoSaving = ref(false)
+const photoError = ref('')
+
 const todayStr = () => {
   const d = new Date()
   const y = d.getFullYear()
@@ -777,6 +785,102 @@ async function saveServiceNumber() {
     serviceNumberSaving.value = false
   }
 }
+
+function resolveMediaUrl(url?: string | null) {
+  if (!url) return ''
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  let base = useRuntimeConfig().public.apiBase || ''
+  base = base.replace(/\/+$/, '').replace(/\/api$/, '')
+  return base ? `${base}${url}` : url
+}
+
+const patientPhotoUrl = computed(() => resolveMediaUrl(reg.value?.patient?.photoUrl))
+
+async function startCameraStream() {
+  photoStarting.value = true
+  photoError.value = ''
+  try {
+    if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Browser tidak mendukung akses kamera')
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+      audio: false
+    })
+    photoStream.value = stream
+    const el = photoVideoEl.value
+    if (el) {
+      el.srcObject = stream
+      await el.play().catch(() => {})
+    }
+  } catch (e) {
+    photoError.value = (e as Error)?.message || 'Gagal mengakses kamera'
+  } finally {
+    photoStarting.value = false
+  }
+}
+
+async function openCamera() {
+  if (!reg.value?.patient?.id) {
+    toast.add({ title: 'Tidak ada data pasien', description: 'Pasien belum terhubung ke registrasi ini.', color: 'warning' })
+    return
+  }
+  photoError.value = ''
+  photoModalOpen.value = true
+  await nextTick()
+  await startCameraStream()
+}
+
+function stopCameraStream() {
+  photoStream.value?.getTracks().forEach(track => track.stop())
+  photoStream.value = null
+  if (photoVideoEl.value) photoVideoEl.value.srcObject = null
+}
+
+function closeCamera() {
+  stopCameraStream()
+  photoModalOpen.value = false
+}
+
+async function captureAndSavePhoto() {
+  const video = photoVideoEl.value
+  const patientId = reg.value?.patient?.id
+  if (!video || !patientId || photoSaving.value) return
+  photoSaving.value = true
+  try {
+    const w = video.videoWidth || 640
+    const h = video.videoHeight || 480
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas tidak tersedia')
+    ctx.drawImage(video, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+    if (!blob) throw new Error('Gagal mengambil gambar')
+    const formData = new FormData()
+    formData.append('photo', new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' }))
+    await api.post(`/patient/${patientId}/upload-photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    await refresh()
+    stopCameraStream()
+    photoModalOpen.value = false
+    toast.add({ title: 'Berhasil', description: 'Foto pasien tersimpan', color: 'success' })
+  } catch (err: unknown) {
+    const msg =
+      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      (err as Error)?.message ??
+      'Gagal menyimpan foto'
+    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+  } finally {
+    photoSaving.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  stopCameraStream()
+})
 
 const checkinPaketItems = computed(() => checkinPreview.value?.examVerification.paketItems ?? [])
 const checkinAdditionalItems = computed(
@@ -1577,6 +1681,30 @@ watch(
               />
             </div>
             <div v-if="reg.patient" class="px-5 py-4">
+              <div class="flex items-center gap-4 mb-4">
+                <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-default bg-muted/30 flex items-center justify-center">
+                  <img
+                    v-if="patientPhotoUrl"
+                    :src="patientPhotoUrl"
+                    alt="Foto pasien"
+                    class="h-full w-full object-cover"
+                  />
+                  <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
+                </div>
+                <div class="space-y-1">
+                  <UButton
+                    icon="i-lucide-camera"
+                    color="primary"
+                    variant="soft"
+                    size="sm"
+                    :label="patientPhotoUrl ? 'Ganti Foto' : 'Ambil Foto'"
+                    @click="openCamera"
+                  />
+                  <p class="text-[11px] text-muted">
+                    Ambil foto pasien langsung dari kamera.
+                  </p>
+                </div>
+              </div>
               <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
                   <p class="text-xs text-muted mb-1">Full Name</p>
@@ -2559,6 +2687,57 @@ watch(
               label="Simpan"
               :loading="serviceNumberSaving"
               @click="saveServiceNumber"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="photoModalOpen" title="Ambil Foto Pasien" :ui="{ content: 'sm:max-w-lg' }">
+        <template #body>
+          <div class="space-y-3">
+            <div class="relative aspect-square overflow-hidden rounded-xl border border-default bg-black">
+              <video
+                ref="photoVideoEl"
+                autoplay
+                playsinline
+                muted
+                class="h-full w-full object-cover"
+              />
+              <div
+                v-if="photoStarting"
+                class="absolute inset-0 flex items-center justify-center bg-black/40"
+              >
+                <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin text-white" />
+              </div>
+            </div>
+            <UAlert
+              v-if="photoError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-camera-off"
+              :description="photoError"
+            />
+            <p class="text-[11px] text-muted">
+              Pastikan wajah pasien terlihat jelas di dalam frame sebelum mengambil foto.
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Batal"
+              :disabled="photoSaving"
+              @click="closeCamera"
+            />
+            <UButton
+              icon="i-lucide-camera"
+              color="primary"
+              label="Ambil & Simpan"
+              :loading="photoSaving"
+              :disabled="photoStarting || !!photoError"
+              @click="captureAndSavePhoto"
             />
           </div>
         </template>
