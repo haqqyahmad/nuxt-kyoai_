@@ -657,7 +657,7 @@ const checkinPreview = ref<CheckinPreview | null>(null)
 const activeQueue = computed(() => reg.value?.queue ?? null)
 const checkinSuccessOpen = ref(false)
 const checkinServiceNumber = ref('')
-const checkinPaketOpen = ref(true)
+const checkinPaketOpen = ref(false)
 
 const todayStr = () => {
   const d = new Date()
@@ -702,7 +702,7 @@ async function openCheckinModal() {
 
   await loadCheckinPreview()
   checkinServiceNumber.value = ''
-  checkinPaketOpen.value = true
+  checkinPaketOpen.value = false
   checkinModalOpen.value = true
 }
 
