@@ -545,20 +545,20 @@ function printQueueTicket() {
 <meta charset="utf-8" />
 <title>Tiket Antrian ${code}</title>
 <style>
-  @page { size: auto; margin: 10mm; }
+  @page { size: auto; margin: 6mm; }
   * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; color: #111; }
-  body { margin: 0; padding: 12px; }
-  .ticket { width: 320px; margin: 0 auto; border: 2px dashed #94a3b8; border-radius: 12px; padding: 18px 20px; text-align: center; }
-  .logo { height: 42px; object-fit: contain; margin-bottom: 8px; }
-  .branch { font-size: 12px; color: #475569; margin-bottom: 10px; }
-  .label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #64748b; }
-  .code { font-size: 44px; font-weight: 800; letter-spacing: 1px; margin: 4px 0 10px; }
-  .divider { border-top: 1px solid #e2e8f0; margin: 12px 0; }
-  .row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; text-align: left; margin: 4px 0; }
+  body { margin: 0; padding: 6px; }
+  .ticket { width: 220px; margin: 0 auto; border: 1.5px dashed #94a3b8; border-radius: 10px; padding: 12px 14px; text-align: center; }
+  .logo { height: 28px; object-fit: contain; margin-bottom: 6px; }
+  .branch { font-size: 10px; color: #475569; margin-bottom: 8px; }
+  .label { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #64748b; }
+  .code { font-size: 30px; font-weight: 800; letter-spacing: 0.5px; margin: 2px 0 8px; }
+  .divider { border-top: 1px solid #e2e8f0; margin: 8px 0; }
+  .row { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; text-align: left; margin: 3px 0; }
   .row .k { color: #64748b; }
   .row .v { font-weight: 600; text-align: right; }
-  .name { font-size: 15px; font-weight: 700; }
-  .footer { margin-top: 12px; font-size: 10px; color: #94a3b8; }
+  .name { font-size: 12px; font-weight: 700; }
+  .footer { margin-top: 8px; font-size: 8px; color: #94a3b8; }
 </style>
 </head>
 <body>
