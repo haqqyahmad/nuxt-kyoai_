@@ -701,8 +701,7 @@ async function openCheckinModal() {
   }
 
   await loadCheckinPreview()
-  checkinServiceNumber.value =
-    checkinPreview.value?.registration.serviceNumber ?? reg.value?.serviceNumber ?? ''
+  checkinServiceNumber.value = ''
   checkinPaketOpen.value = true
   checkinModalOpen.value = true
 }
