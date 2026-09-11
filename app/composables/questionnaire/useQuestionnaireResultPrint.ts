@@ -88,9 +88,11 @@ const PRINT_CSS = `
   .answer { font-weight: bold; }
   .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
-  .signature-space { height: 60px; }
-  .sign-ttd { text-align: center; margin-right: -40px; }
-  .sign-name { text-align: center; margin-right: -40px; }
+  .signature-block { display: inline-block; min-width: 220px; text-align: center; }
+  .sign-city { font-weight: 500; }
+  .signature-space { height: 70px; }
+  .sign-ttd { margin: 0; }
+  .sign-name { margin-top: 4px; font-weight: 700; }
   .consent-section { margin-top: 20px; line-height: 1.3; }
   .consent-signature { page-break-inside: avoid; break-inside: avoid; }
   .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
@@ -148,10 +150,12 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
             </div>
 
             <div class="signature-area">
-              <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-              <div class="signature-space"></div>
-              <div class="sign-ttd">( ttd )</div>
-              <div class="sign-name">${row.patientName}</div>
+              <div class="signature-block">
+                <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                <div class="signature-space"></div>
+                <div class="sign-ttd">( ttd )</div>
+                <div class="sign-name">${row.patientName}</div>
+              </div>
             </div>
           </div>
 
