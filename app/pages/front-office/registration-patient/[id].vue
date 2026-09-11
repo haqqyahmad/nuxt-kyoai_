@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { examTypeBadgeColor } from '~/constants/room-types'
+import { printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
 const api = useApi()
@@ -454,6 +455,7 @@ type PatientQuestionnaire = {
   questionnaire_name: string
   status: 'Completed' | 'Pending'
   completionDate: string | null
+  print_template?: string | null
   answers?: Array<{
     questionId: string
     questionText: string
@@ -495,6 +497,27 @@ function openModal(q: PatientQuestionnaire) {
   modalTitle.value = q.questionnaire_name
   modalAnswers.value = q.answers ?? []
   modalOpen.value = true
+}
+
+function printQuestionnaire(q: PatientQuestionnaire) {
+  const p = reg.value?.patient
+  const fullName = p
+    ? (p.patientName || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' '))
+    : '-'
+  printQuestionnaireResult({
+    questionnaire_name: q.questionnaire_name,
+    patientName: fullName,
+    patientGender: p?.gender ?? null,
+    patientDob: p?.dob ?? null,
+    patientPhone: p?.phone ?? null,
+    patientCode: p?.patientCode ?? null,
+    registrationRef: reg.value?.id_reg ?? null,
+    companyName: reg.value?.company?.customerName ?? null,
+    branchName: reg.value?.branch?.nameBranch ?? null,
+    examDate: reg.value?.examDate ?? null,
+    print_template: q.print_template ?? null,
+    answers: q.answers ?? []
+  })
 }
 
 type StatusHistoryItem = {
@@ -1778,7 +1801,9 @@ watch(
                           color="primary"
                           variant="ghost"
                           size="xs"
+                          title="Print hasil questionnaire"
                           :disabled="q.status !== 'Completed'"
+                          @click="printQuestionnaire(q)"
                         />
                       </div>
                     </td>
