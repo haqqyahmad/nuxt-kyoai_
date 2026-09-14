@@ -1,111 +1,114 @@
 <script setup lang="ts">
-import type { Period, Range, Stat } from '~/types'
-
-const props = defineProps<{
-  period: Period
-  range: Range
-}>()
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0
-  })
+type HomeStat = {
+  title: string
+  description: string
+  icon: string
+  to: string
+  value: number
+  color: 'primary' | 'info' | 'warning' | 'success'
 }
 
-const baseStats = [
-  {
-    title: 'Patients',
-    icon: 'i-lucide-users',
-    url: '/patients',
-    minValue: 400,
-    maxValue: 1000,
-    minVariation: -15,
-    maxVariation: 25
-  },
-  {
-    title: 'Users',
-    icon: 'i-lucide-user',
-    url: '/users',
-    minValue: 1000,
-    maxValue: 2000,
-    minVariation: -10,
-    maxVariation: 20
-  },
-  {
-    title: 'Revenue',
-    icon: 'i-lucide-circle-dollar-sign',
-    minValue: 200000,
-    maxValue: 500000,
-    minVariation: -20,
-    maxVariation: 30,
-    formatter: formatCurrency
-  },
-  {
-    title: 'Orders',
-    icon: 'i-lucide-shopping-cart',
-    minValue: 100,
-    maxValue: 300,
-    minVariation: -5,
-    maxVariation: 15
-  }
-]
+const api = useApi()
 
-const { data: stats } = await useAsyncData<Stat[]>(
-  'stats',
+const COLOR_UI: Record<string, string> = {
+  primary: 'p-2.5 rounded-full bg-primary/10 ring ring-inset ring-primary/25 flex-col',
+  info: 'p-2.5 rounded-full bg-info/10 ring ring-inset ring-info/25 flex-col',
+  warning: 'p-2.5 rounded-full bg-warning/10 ring ring-inset ring-warning/25 flex-col',
+  success: 'p-2.5 rounded-full bg-success/10 ring ring-inset ring-success/25 flex-col'
+}
+
+const { data: stats, pending } = await useAsyncData<HomeStat[]>(
+  'home-stats',
   async () => {
-    return baseStats.map((stat) => {
-      const value = randomInt(stat.minValue, stat.maxValue)
-      const variation = randomInt(stat.minVariation, stat.maxVariation)
+    const [patients, registrations, temps, rooms] = await Promise.allSettled([
+      api.get('/patient', { params: { limit: 1 } }),
+      api.get('/registration', { params: { limit: 1 } }),
+      api.get('/registration-temp', { params: { limit: 200 } }),
+      api.get('/medical/rooms/sessions/active')
+    ])
 
-      return {
-        title: stat.title,
-        icon: stat.icon,
-        url: stat.url,
-        value: stat.formatter ? stat.formatter(value) : value,
-        variation
+    const totalOf = (res: PromiseSettledResult<{ data?: { meta?: { total?: number }, data?: unknown[] } }>) =>
+      res.status === 'fulfilled'
+        ? Number(res.value?.data?.meta?.total ?? (Array.isArray(res.value?.data?.data) ? res.value.data.data.length : 0))
+        : 0
+
+    const tempPending = temps.status === 'fulfilled'
+      ? (Array.isArray(temps.value?.data?.data) ? temps.value.data.data as { status?: string }[] : [])
+          .filter(item => item.status === 'PENDING').length
+      : 0
+
+    const activeRooms = rooms.status === 'fulfilled'
+      ? (Array.isArray(rooms.value?.data?.data) ? rooms.value.data.data.length : 0)
+      : 0
+
+    return [
+      {
+        title: 'Total Pasien',
+        description: 'Pasien terdaftar',
+        icon: 'i-lucide-users',
+        to: '/patients',
+        value: totalOf(patients),
+        color: 'primary'
+      },
+      {
+        title: 'Registrasi',
+        description: 'Seluruh registrasi',
+        icon: 'i-lucide-clipboard-list',
+        to: '/front-office/registration-patient',
+        value: totalOf(registrations),
+        color: 'info'
+      },
+      {
+        title: 'Menunggu Verifikasi',
+        description: 'Permintaan registrasi baru',
+        icon: 'i-lucide-clock',
+        to: '/front-office/registration-temp',
+        value: tempPending,
+        color: 'warning'
+      },
+      {
+        title: 'Room Aktif',
+        description: 'Room dengan petugas',
+        icon: 'i-lucide-door-open',
+        to: '/rooms/queue',
+        value: activeRooms,
+        color: 'success'
       }
-    })
+    ]
   },
-  {
-    watch: [() => props.period, () => props.range],
-    default: () => []
-  }
+  { default: () => [] }
 )
+
+function formatValue(value: number): string {
+  return Number.isFinite(value) ? value.toLocaleString('id-ID') : '0'
+}
 </script>
 
 <template>
-  <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
+  <UPageGrid class="gap-4 sm:gap-6 lg:grid-cols-4">
     <UPageCard
       v-for="(stat, index) in stats"
       :key="index"
       :icon="stat.icon"
       :title="stat.title"
-      :to="stat.url"
+      :to="stat.to"
       variant="subtle"
       :ui="{
         container: 'gap-y-1.5',
         wrapper: 'items-start',
-        leading:
-          'p-2.5 rounded-full bg-primary/10 ring ring-inset ring-primary/25 flex-col',
+        leading: COLOR_UI[stat.color],
         title: 'font-normal text-muted text-xs uppercase'
       }"
-      class="lg:rounded-none first:rounded-l-lg last:rounded-r-lg hover:z-1"
+      class="hover:z-1"
     >
       <div class="flex items-center gap-2">
         <span class="text-2xl font-semibold text-highlighted">
-          {{ stat.value }}
+          {{ pending ? '—' : formatValue(stat.value) }}
         </span>
-
-        <UBadge
-          :color="stat.variation > 0 ? 'success' : 'error'"
-          variant="subtle"
-          class="text-xs"
-        >
-          {{ stat.variation > 0 ? "+" : "" }}{{ stat.variation }}%
-        </UBadge>
       </div>
+      <p class="text-xs text-muted">
+        {{ stat.description }}
+      </p>
     </UPageCard>
   </UPageGrid>
 </template>

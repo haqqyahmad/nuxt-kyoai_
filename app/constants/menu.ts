@@ -74,19 +74,20 @@ export function buildMenuTree(): MenuItem[] {
     },
     {
       label: 'Master Data',
-      icon: 'i-lucide-hard-drive',
+      icon: 'i-lucide-database',
       children: [
-        { label: 'Branches', to: '/branches' },
-        { label: 'Customers', to: '/customer' },
+        { label: 'Branches', icon: 'i-lucide-building-2', to: '/branches' },
+        { label: 'Customers', icon: 'i-lucide-briefcase', to: '/customer' },
         {
           label: 'Departments',
+          icon: 'i-lucide-network',
           children: [
             { label: 'Medical', icon: 'i-lucide-stethoscope', to: '/departments/medical' },
             { label: 'Non Medical', icon: 'i-lucide-building', to: '/departments' }
           ]
         },
-        { label: 'Patients', to: '/patients' },
-        { label: 'Users', to: '/users' }
+        { label: 'Patients', icon: 'i-lucide-users', to: '/patients' },
+        { label: 'Users', icon: 'i-lucide-user-cog', to: '/users' }
       ]
     },
     {
@@ -95,25 +96,26 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         {
           label: 'Items',
+          icon: 'i-lucide-package',
           children: [
-            { label: 'List Items', to: '/items/mcu' },
-            { label: 'Master Group', to: '/items/groups' },
-            { label: 'Sample Types', to: '/items/sample-types' }
+            { label: 'List Items', icon: 'i-lucide-list', to: '/items/mcu' },
+            { label: 'Master Group', icon: 'i-lucide-folder-tree', to: '/items/groups' },
+            { label: 'Sample Types', icon: 'i-lucide-test-tube-diagonal', to: '/items/sample-types' }
           ]
         },
         { label: 'Master Grade', icon: 'i-lucide-clipboard-list', to: '/medical/master-grading' },
-        { label: 'Questionnaire', to: '/questionnaire' },
-        { label: 'Rooms', to: '/rooms' },
-        { label: 'Room Types', to: '/rooms/types' },
-        { label: 'Services', to: '/services' }
+        { label: 'Questionnaire', icon: 'i-lucide-clipboard-check', to: '/questionnaire' },
+        { label: 'Rooms', icon: 'i-lucide-door-open', to: '/rooms' },
+        { label: 'Room Types', icon: 'i-lucide-layout-grid', to: '/rooms/types' },
+        { label: 'Services', icon: 'i-lucide-concierge-bell', to: '/services' }
       ]
     },
     {
       label: 'Examination',
       icon: 'i-lucide-stethoscope',
       children: [
-        { label: 'Room Assignment', to: '/rooms/assignments' },
-        { label: 'Room Queue', to: '/rooms/queue' },
+        { label: 'Room Assignment', icon: 'i-lucide-clipboard-list', to: '/rooms/assignments' },
+        { label: 'Room Queue', icon: 'i-lucide-list-ordered', to: '/rooms/queue' },
         { label: 'Queue Search', icon: 'i-lucide-scan-barcode', to: '/queue-search' }
       ]
     },
@@ -123,35 +125,42 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         {
           label: 'Hasil Exam Lab',
+          icon: 'i-lucide-flask-conical',
           to: '/result/exam-results?department=lab',
           resultDepartmentCode: 'LAB'
         },
         {
           label: 'Hasil Exam Radiology',
+          icon: 'i-lucide-scan',
           to: '/result/exam-results?department=radiology',
           resultDepartmentCode: 'RAD'
         },
         {
           label: 'Hasil Exam Nurse',
+          icon: 'i-lucide-heart-pulse',
           to: '/result/exam-results?department=nurse',
           resultDepartmentCode: 'NURSE'
         },
         {
           label: 'Hasil Exam Dokter',
+          icon: 'i-lucide-stethoscope',
           to: '/result/exam-results?department=dokter',
           resultDepartmentCode: 'DOK'
         },
         {
           label: 'Hasil Exam Dental',
+          icon: 'i-lucide-smile',
           to: '/result/exam-results?department=dental',
           resultDepartmentCode: 'DENTAL'
         },
         {
           label: 'Doctor Result MCU',
+          icon: 'i-lucide-clipboard-check',
           to: '/result/doctor-result'
         },
         {
           label: 'MR Review',
+          icon: 'i-lucide-file-search',
           to: '/result/mr-review'
         },
         {
@@ -165,38 +174,39 @@ export function buildMenuTree(): MenuItem[] {
       label: 'Lab',
       icon: 'i-lucide-flask-conical',
       children: [
-        { label: 'Sample Receive', to: '/rooms/sample-reception', permission: 'sample:receive' }
+        { label: 'Sample Receive', icon: 'i-lucide-package-open', to: '/rooms/sample-reception', permission: 'sample:receive' }
       ]
     },
     {
       label: 'Front Office',
       icon: 'i-lucide-users',
       children: [
-        { label: 'Temp Registration', to: '/front-office/registration-temp' },
-        { label: 'Patient Appointment', to: '/front-office/registration-patient' },
-        { label: 'Hasil Questionnaire', to: '/front-office/questionnaire-results' }
+        { label: 'Temp Registration', icon: 'i-lucide-clipboard-pen-line', to: '/front-office/registration-temp' },
+        { label: 'Patient Appointment', icon: 'i-lucide-calendar-clock', to: '/front-office/registration-patient' },
+        { label: 'Hasil Questionnaire', icon: 'i-lucide-clipboard-check', to: '/front-office/questionnaire-results' }
       ]
     },
     {
       label: 'HRIS',
       icon: 'i-lucide-file-user',
       children: [
-        { label: 'Dashboard HRIS', to: '/hris' },
-        { label: 'Employees', to: '/hris/employees' },
+        { label: 'Dashboard HRIS', icon: 'i-lucide-layout-dashboard', to: '/hris' },
+        { label: 'Employees', icon: 'i-lucide-id-card', to: '/hris/employees' },
         {
           label: 'Attendance',
+          icon: 'i-lucide-calendar-clock',
           children: [
-            { label: 'Dashboard Attendance', to: '/hris/attendance' },
-            { label: 'Attendance Analytics', to: '/hris/attendance/analytics' },
-            { label: 'Attendance Report', to: '/hris/attendance/tracking' },
-            { label: 'Shift Configuration', to: '/hris/attendance/shift-configuration' },
-            { label: 'Shift Schedule', to: '/hris/attendance/shift-schedule' }
+            { label: 'Dashboard Attendance', icon: 'i-lucide-layout-dashboard', to: '/hris/attendance' },
+            { label: 'Attendance Analytics', icon: 'i-lucide-chart-column', to: '/hris/attendance/analytics' },
+            { label: 'Attendance Report', icon: 'i-lucide-file-spreadsheet', to: '/hris/attendance/tracking' },
+            { label: 'Shift Configuration', icon: 'i-lucide-settings-2', to: '/hris/attendance/shift-configuration' },
+            { label: 'Shift Schedule', icon: 'i-lucide-calendar-days', to: '/hris/attendance/shift-schedule' }
           ]
         },
-        { label: 'National Holidays', to: '/hris/national-holidays' },
-        { label: 'Leave Management', to: '/hris/leaves' },
-        { label: 'Reimbursement', to: '/hris/reimbursement' },
-        { label: 'Recruitment', to: '/hris/recruitment' }
+        { label: 'National Holidays', icon: 'i-lucide-calendar-heart', to: '/hris/national-holidays' },
+        { label: 'Leave Management', icon: 'i-lucide-plane', to: '/hris/leaves' },
+        { label: 'Reimbursement', icon: 'i-lucide-receipt', to: '/hris/reimbursement' },
+        { label: 'Recruitment', icon: 'i-lucide-user-search', to: '/hris/recruitment' }
       ]
     },
     {

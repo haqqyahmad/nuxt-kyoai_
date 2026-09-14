@@ -1,8 +1,6 @@
 <!-- app/pages/index.vue -->
 <script setup lang="ts">
-import { sub } from 'date-fns'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Period, Range } from '~/types'
 
 usePageSeo({
   title: 'Dashboard',
@@ -36,17 +34,38 @@ const items = [
   ]
 ] satisfies DropdownMenuItem[][]
 
-const range = shallowRef<Range>({
-  start: sub(new Date(), { days: 14 }),
-  end: new Date()
-})
-const period = ref<Period>('daily')
+const quickActions = [
+  {
+    title: 'Pasien Baru',
+    description: 'Tambah & kelola data pasien',
+    icon: 'i-lucide-user-round-plus',
+    to: '/patients'
+  },
+  {
+    title: 'Registrasi',
+    description: 'Buat registrasi pemeriksaan',
+    icon: 'i-lucide-clipboard-plus',
+    to: '/front-office/registration-patient'
+  },
+  {
+    title: 'Antrean Room',
+    description: 'Pantau antrean & panggil pasien',
+    icon: 'i-lucide-list-ordered',
+    to: '/rooms/queue'
+  },
+  {
+    title: 'Hasil Pemeriksaan',
+    description: 'Lihat & input hasil exam',
+    icon: 'i-lucide-file-check-2',
+    to: '/result/exam-results'
+  }
+]
 </script>
 
 <template>
   <UDashboardPanel id="home">
     <template #header>
-      <UDashboardNavbar title="Home" :ui="{ right: 'gap-3' }">
+      <UDashboardNavbar title="Dashboard" :ui="{ right: 'gap-3' }">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -70,21 +89,30 @@ const period = ref<Period>('daily')
           </UDropdownMenu>
         </template>
       </UDashboardNavbar>
-
-      <UDashboardToolbar>
-        <template #left>
-          <!-- NOTE: The `-ms-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
-          <HomeDateRangePicker v-model="range" class="-ms-1" />
-
-          <HomePeriodSelect v-model="period" :range="range" />
-        </template>
-      </UDashboardToolbar>
     </template>
 
     <template #body>
-      <HomeStats :period="period" :range="range" />
-      <HomeChart :period="period" :range="range" />
-      <HomeSales :period="period" :range="range" />
+      <div class="space-y-6">
+        <HomeStats />
+
+        <div>
+          <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+            Aksi Cepat
+          </h2>
+          <UPageGrid class="gap-4 sm:gap-6 lg:grid-cols-4">
+            <UPageCard
+              v-for="(action, index) in quickActions"
+              :key="index"
+              :icon="action.icon"
+              :title="action.title"
+              :description="action.description"
+              :to="action.to"
+              variant="outline"
+              :ui="{ leading: 'p-2.5 rounded-full bg-elevated ring ring-inset ring-default' }"
+            />
+          </UPageGrid>
+        </div>
+      </div>
     </template>
   </UDashboardPanel>
 </template>
