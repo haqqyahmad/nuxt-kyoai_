@@ -301,6 +301,7 @@ const activeExamId = computed(() => {
 })
 const stageActionLoading = ref(false)
 const itemActionLoading = ref<Record<string, boolean>>({})
+const collectionActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
 const resultDrafts = reactive<Record<string, Record<string, ResultDraft>>>({})
 const itemNotes = reactive<Record<string, string>>({})
@@ -820,34 +821,120 @@ function isReceiveStageActive() {
   return activeStageCode.value === 'RECEIVE'
 }
 
-function getItemCollections(item: RoomExamItem): SampleCollection[] {
-  const itemId = item.trxExamItem?.item?.id
-  if (!itemId) return []
-  return sampleCollections.value.filter(c =>
-    c.items?.some(i => i.itemId === itemId)
-  )
+function itemNameForId(itemId: string) {
+  const found = roomExamItems.value.find(item => item.trxExamItem?.item?.id === itemId)
+  return found?.trxExamItem?.item?.name ?? 'Item pemeriksaan'
 }
 
-function getPendingCollection(item: RoomExamItem): SampleCollection | null {
-  return getItemCollections(item).find(c => c.status === 'PENDING') ?? null
+function collectionHasOnlyRefusedItems(collection: SampleCollection) {
+  if (!collection.items?.length) return false
+  return collection.items.every(si => refusedItemIds.value.has(si.itemId))
 }
 
-function getCollectedCollection(item: RoomExamItem): SampleCollection | null {
-  return getItemCollections(item).find(c => c.status === 'COLLECTED') ?? null
-}
-
-function canCollectSample(item: RoomExamItem) {
+function canCollectCollection(collection: SampleCollection) {
+  if (collection.status !== 'PENDING') return false
   if (!isCollectStageActive() || !currentRoomStageCodes.value.has('COLLECT')) return false
-  if (activeStage.value?.status !== 'IN_PROGRESS') return false
-  if (item.status !== 'IN_PROGRESS') return false
-  return !!getPendingCollection(item)
+  if (!roomStageInProgress.value) return false
+  return !collectionHasOnlyRefusedItems(collection)
 }
 
-function canReceiveSample(item: RoomExamItem) {
+function canReceiveCollection(collection: SampleCollection) {
+  if (collection.status !== 'COLLECTED') return false
   if (!isReceiveStageActive() || !currentRoomStageCodes.value.has('RECEIVE')) return false
-  if (activeStage.value?.status !== 'IN_PROGRESS') return false
-  if (item.status !== 'IN_PROGRESS') return false
-  return !!getCollectedCollection(item)
+  return roomStageInProgress.value
+}
+
+function canRejectCollection(collection: SampleCollection) {
+  if (!roomStageInProgress.value) return false
+  if (collection.status === 'PENDING') {
+    return isCollectStageActive() && currentRoomStageCodes.value.has('COLLECT')
+  }
+  if (['COLLECTED', 'RECEIVED'].includes(collection.status)) {
+    return isReceiveStageActive() && currentRoomStageCodes.value.has('RECEIVE')
+  }
+  return false
+}
+
+function collectionStatusLabel(status: string) {
+  if (status === 'PENDING') return 'Belum diambil'
+  if (status === 'COLLECTED') return 'Sudah diambil'
+  if (status === 'RECEIVED') return 'Diterima lab'
+  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RESCHEDULED') return 'Reschedule'
+  return status
+}
+
+function collectionStatusColor(status: string): 'success' | 'info' | 'neutral' | 'warning' | 'error' {
+  if (status === 'RECEIVED') return 'success'
+  if (status === 'COLLECTED') return 'info'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'RESCHEDULED') return 'warning'
+  return 'neutral'
+}
+
+const sampleCollectionCards = computed(() =>
+  sampleCollections.value.map(collection => ({
+    id: collection.id,
+    status: collection.status,
+    sampleName: collection.sampleType?.name ?? 'Sample',
+    items: (collection.items ?? []).map(si => itemNameForId(si.itemId)),
+    canCollect: canCollectCollection(collection),
+    canReceive: canReceiveCollection(collection),
+    canReject: canRejectCollection(collection)
+  }))
+)
+
+const isRejectSampleModalOpen = ref(false)
+const rejectSampleTarget = ref<{ id: string, sampleName: string } | null>(null)
+const rejectSampleReason = ref('')
+const rejectSampleSubmitting = ref(false)
+
+function openRejectSampleModal(sample: { id: string, sampleName: string }) {
+  rejectSampleTarget.value = sample
+  rejectSampleReason.value = ''
+  isRejectSampleModalOpen.value = true
+}
+
+function closeRejectSampleModal() {
+  isRejectSampleModalOpen.value = false
+  rejectSampleTarget.value = null
+  rejectSampleReason.value = ''
+}
+
+async function submitRejectSample() {
+  const target = rejectSampleTarget.value
+  if (!target || rejectSampleSubmitting.value) return
+
+  if (!rejectSampleReason.value.trim()) {
+    toast.add({
+      title: 'Alasan wajib diisi',
+      description: 'Isi alasan penolakan sample.',
+      color: 'warning'
+    })
+    return
+  }
+
+  rejectSampleSubmitting.value = true
+  try {
+    await api.patch(`/medical/exams/queue/samples/${target.id}/reject`, {
+      rejectReason: rejectSampleReason.value.trim()
+    })
+    await loadPage(true)
+    toast.add({
+      title: 'Berhasil',
+      description: `Sample ${target.sampleName} ditolak.`,
+      color: 'success'
+    })
+    closeRejectSampleModal()
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal menolak sample',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat menolak sample.'),
+      color: 'error'
+    })
+  } finally {
+    rejectSampleSubmitting.value = false
+  }
 }
 
 function rendererFor(item: RoomExamItem) {
@@ -1019,6 +1106,16 @@ function getStatusTextClass(color: string) {
 }
 function isSampleManagedItem(item: RoomExamItem) {
   return Boolean(item.sampleImpact)
+}
+
+// Room lab hanya mengerjakan pengambilan sample (per jenis sample), bukan per item.
+const isLabRoom = computed(() =>
+  roomAssignment.value?.roomType?.code === 'LAB'
+  || roomExamItems.value.some(item => isSampleManagedItem(item))
+)
+
+function isSampleOnlyItem(item: RoomExamItem) {
+  return isLabRoom.value && isSampleManagedItem(item)
 }
 
 function getSampleCollectionStatus(item: RoomExamItem) {
@@ -1706,17 +1803,16 @@ async function handleStartItem(item: RoomExamItem) {
   }
 }
 
-async function handleCollectSample(item: RoomExamItem) {
-  const collection = getPendingCollection(item)
-  if (!collection || itemActionLoading.value[item.id]) return
+async function handleCollectCollection(collectionId: string) {
+  if (collectionActionLoading.value[collectionId]) return
 
-  setItemLoading(item.id, true)
+  collectionActionLoading.value = { ...collectionActionLoading.value, [collectionId]: true }
   try {
-    await api.patch(`/medical/exams/queue/samples/${collection.id}/collect`, {})
+    await api.patch(`/medical/exams/queue/samples/${collectionId}/collect`, {})
     await loadPage(true)
     toast.add({
       title: 'Berhasil',
-      description: `Sample ${collection.sampleType?.name ?? ''} berhasil diambil.`.trim(),
+      description: 'Sample berhasil diambil.',
       color: 'success'
     })
   } catch (error: unknown) {
@@ -1726,21 +1822,20 @@ async function handleCollectSample(item: RoomExamItem) {
       color: 'error'
     })
   } finally {
-    setItemLoading(item.id, false)
+    collectionActionLoading.value = { ...collectionActionLoading.value, [collectionId]: false }
   }
 }
 
-async function handleReceiveSample(item: RoomExamItem) {
-  const collection = getCollectedCollection(item)
-  if (!collection || itemActionLoading.value[item.id]) return
+async function handleReceiveCollection(collectionId: string) {
+  if (collectionActionLoading.value[collectionId]) return
 
-  setItemLoading(item.id, true)
+  collectionActionLoading.value = { ...collectionActionLoading.value, [collectionId]: true }
   try {
-    await api.patch(`/medical/exams/queue/samples/${collection.id}/receive`, {})
+    await api.patch(`/medical/exams/queue/samples/${collectionId}/receive`, {})
     await loadPage(true)
     toast.add({
       title: 'Berhasil',
-      description: `Sample ${collection.sampleType?.name ?? ''} berhasil diterima.`.trim(),
+      description: 'Sample berhasil diterima.',
       color: 'success'
     })
   } catch (error: unknown) {
@@ -1750,7 +1845,7 @@ async function handleReceiveSample(item: RoomExamItem) {
       color: 'error'
     })
   } finally {
-    setItemLoading(item.id, false)
+    collectionActionLoading.value = { ...collectionActionLoading.value, [collectionId]: false }
   }
 }
 
@@ -2128,6 +2223,102 @@ async function handleSubmitItemAction() {
             </div>
           </div>
 
+          <UCard v-if="isLabRoom && sampleCollectionCards.length" class="border border-default/80 shadow-sm">
+            <template #header>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-test-tubes" class="size-5 text-primary" />
+                  <div>
+                    <h3 class="text-sm font-bold text-highlighted">
+                      Sampel Pemeriksaan
+                    </h3>
+                    <p class="text-xs text-muted">
+                      Ambil/terima per jenis sampel. Banyak item bisa memakai satu sampel yang sama.
+                    </p>
+                  </div>
+                </div>
+                <UBadge color="neutral" variant="subtle">
+                  {{ sampleCollectionCards.length }} sampel
+                </UBadge>
+              </div>
+            </template>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div
+                v-for="sample in sampleCollectionCards"
+                :key="sample.id"
+                class="rounded-xl border border-default/80 bg-muted/20 p-3"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <UIcon name="i-lucide-test-tube" class="size-4 shrink-0 text-primary" />
+                    <span class="truncate text-sm font-bold text-highlighted">{{ sample.sampleName }}</span>
+                  </div>
+                  <UBadge
+                    :color="collectionStatusColor(sample.status)"
+                    variant="subtle"
+                    size="sm"
+                  >
+                    {{ collectionStatusLabel(sample.status) }}
+                  </UBadge>
+                </div>
+
+                <p class="mt-2 line-clamp-2 text-xs text-muted">
+                  {{ sample.items.length ? sample.items.join(', ') : 'Tanpa item terkait' }}
+                </p>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <UButton
+                    v-if="sample.canCollect"
+                    color="info"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-test-tube"
+                    :loading="collectionActionLoading[sample.id]"
+                    @click="handleCollectCollection(sample.id)"
+                  >
+                    Ambil Sample
+                  </UButton>
+                  <UButton
+                    v-else-if="sample.canReceive"
+                    color="success"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-package-check"
+                    :loading="collectionActionLoading[sample.id]"
+                    @click="handleReceiveCollection(sample.id)"
+                  >
+                    Terima Sample
+                  </UButton>
+
+                  <UButton
+                    v-if="sample.canReject"
+                    color="error"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-ban"
+                    @click="openRejectSampleModal(sample)"
+                  >
+                    Tolak Sample
+                  </UButton>
+
+                  <span
+                    v-if="!sample.canCollect && !sample.canReceive && !sample.canReject"
+                    class="text-xs text-muted"
+                  >
+                    {{ sample.status === 'RECEIVED'
+                      ? 'Selesai'
+                      : sample.status === 'REJECTED'
+                        ? 'Sample ditolak'
+                        : sample.status === 'RESCHEDULED'
+                          ? 'Dijadwalkan ulang'
+                          : 'Menunggu tahap terkait' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </UCard>
+
           <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
 
           <UAlert
@@ -2328,29 +2519,7 @@ async function handleSubmitItemAction() {
                   <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-default/80 bg-muted/30 px-5 py-3.5">
                     <div class="flex flex-wrap items-center gap-2">
                       <UButton
-                        v-if="canCollectSample(selectedItem)"
-                        color="info"
-                        variant="soft"
-                        icon="i-lucide-test-tube"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="handleCollectSample(selectedItem)"
-                      >
-                        Ambil Sample
-                      </UButton>
-
-                      <UButton
-                        v-else-if="canReceiveSample(selectedItem)"
-                        color="info"
-                        variant="soft"
-                        icon="i-lucide-package-check"
-                        :loading="itemActionLoading[selectedItem.id]"
-                        @click="handleReceiveSample(selectedItem)"
-                      >
-                        Terima Sample
-                      </UButton>
-
-                      <UButton
-                        v-if="selectedItem.status === 'PENDING' && roomStageInProgress"
+                        v-if="selectedItem.status === 'PENDING' && roomStageInProgress && !isSampleOnlyItem(selectedItem)"
                         color="warning"
                         variant="soft"
                         icon="i-lucide-play"
@@ -2383,7 +2552,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="selectedItem.status === 'IN_PROGRESS'"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && !isSampleOnlyItem(selectedItem)"
                         color="success"
                         variant="soft"
                         icon="i-lucide-check"
@@ -2397,7 +2566,7 @@ async function handleSubmitItemAction() {
 
                     <div class="flex flex-wrap items-center gap-1.5">
                       <UButton
-                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status) && !isSampleOnlyItem(selectedItem)"
                         color="error"
                         variant="soft"
                         size="sm"
@@ -2741,6 +2910,53 @@ async function handleSubmitItemAction() {
           @click="handleSubmitItemAction"
         >
           {{ selectedItemActionType === 'skip' ? 'Tolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isRejectSampleModalOpen"
+    title="Tolak Sample"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="error"
+          :title="rejectSampleTarget?.sampleName || 'Sample'"
+          description="Sample ini akan ditolak. Item pemeriksaan yang memakai sample ini tidak bisa dikerjakan sampai sample diambil ulang."
+        />
+
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-highlighted">
+            Alasan penolakan
+          </label>
+          <UTextarea
+            v-model="rejectSampleReason"
+            :rows="4"
+            placeholder="Contoh: pasien menolak, sample hemolisis, volume kurang..."
+          />
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="rejectSampleSubmitting"
+          @click="closeRejectSampleModal"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="error"
+          icon="i-lucide-ban"
+          :loading="rejectSampleSubmitting"
+          @click="submitRejectSample"
+        >
+          Tolak Sample
         </UButton>
       </div>
     </template>
