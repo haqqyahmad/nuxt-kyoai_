@@ -15,7 +15,7 @@ type PageSeoOverride = {
  *   })
  *
  * Field yang tidak diisi akan diambil otomatis dari resolvePageSeo(route.path)
- * (pageSeo -> dynamic route -> label menu -> humanisasi -> default).
+ * (label menu -> humanisasi -> default).
  */
 export function usePageSeo(override: PageSeoOverride = {}) {
   const route = useRoute()

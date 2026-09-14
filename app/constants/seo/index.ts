@@ -1,13 +1,12 @@
 import { buildMenuTree, type MenuItem } from '../menu'
-import { masterSeo } from './master'
-import { medicalSeo } from './medical'
-import { frontOfficeSeo } from './front-office'
-import { settingsSeo } from './settings'
-import { hrisSeo } from './hris'
-import { loginSeo } from './login'
 
 /**
- * SEO CONFIG PER PAGE
+ * SEO PAGE (AUTO)
+ * Judul halaman di-resolve otomatis dari:
+ *   1. label menu sidebar (constants/menu.ts)
+ *   2. humanisasi segmen path (id/uuid diabaikan)
+ *   3. defaultSeo
+ * Deskripsi otomatis memakai defaultSeo.description.
  */
 
 export type PageSeo = {
@@ -20,20 +19,6 @@ export const defaultSeo: PageSeo = {
   description: 'Medical management system.'
 }
 
-export const pageSeo: Record<string, PageSeo> = {
-  '/': {
-    title: 'Dashboard',
-    description: 'Ringkasan data dan aktivitas sistem.'
-  },
-
-  ...loginSeo,
-  ...masterSeo,
-  ...medicalSeo,
-  ...frontOfficeSeo,
-  ...settingsSeo,
-  ...hrisSeo
-}
-
 export function humanizeSeoTitle(segment: string): string {
   return String(segment ?? '')
     .replace(/[-_]+/g, ' ')
@@ -42,7 +27,7 @@ export function humanizeSeoTitle(segment: string): string {
     .replace(/\b\w/g, char => char.toUpperCase())
 }
 
-// path -> label dari menu sidebar (untuk judul halaman yang tidak ada di pageSeo)
+// path -> label dari menu sidebar
 function flattenMenuLabels(items: MenuItem[], acc: Record<string, string> = {}): Record<string, string> {
   for (const item of items) {
     const to = typeof item.to === 'string' ? item.to.split('?')[0] : null
@@ -64,33 +49,22 @@ const isIdLikeSegment = (segment: string): boolean => {
 }
 
 /**
- * Resolve SEO untuk path apa pun secara dinamis:
- *  1. exact match di pageSeo
- *  2. pola dynamic (/x/:id) untuk route ber-parameter
- *  3. label dari menu sidebar
- *  4. humanisasi segmen terakhir yang bermakna
- *  5. defaultSeo
+ * Resolve SEO untuk path apa pun secara otomatis:
+ *  1. label menu sidebar (exact)
+ *  2. humanisasi segmen terakhir yang bermakna (bukan id/uuid)
+ *  3. defaultSeo
  */
 export function resolvePageSeo(path: string): PageSeo {
   const clean = (path || '/').replace(/\/+$/, '') || '/'
-  if (pageSeo[clean]) return pageSeo[clean]
 
-  const segments = clean.split('/').filter(Boolean)
-
-  // 2) dynamic match: ganti segmen terakhir dengan :id secara bertahap
-  for (let i = segments.length; i >= 1; i--) {
-    const pattern = `/${[...segments.slice(0, i - 1), ':id'].join('/')}`
-    if (pageSeo[pattern]) return pageSeo[pattern]
-  }
-
-  // 3) label menu
   if (menuLabelByPath[clean]) {
     return { title: menuLabelByPath[clean], description: defaultSeo.description }
   }
 
-  // 4) humanisasi segmen terakhir yang bukan id/uuid
+  const segments = clean.split('/').filter(Boolean)
   const meaningful = segments.filter(segment => !isIdLikeSegment(segment))
   const last = meaningful[meaningful.length - 1] ?? segments[segments.length - 1]
+
   if (last) {
     return { title: humanizeSeoTitle(last), description: defaultSeo.description }
   }

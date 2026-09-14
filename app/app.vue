@@ -24,7 +24,7 @@ useHead({
 
 /**
  * AUTO SEO (dinamis)
- * Prioritas: definePageMeta({ seo / title / description }) -> pageSeo -> menu -> humanisasi -> default
+ * Prioritas: definePageMeta({ seo / title / description }) -> label menu -> humanisasi -> default
  */
 type SeoMeta = { title?: string, description?: string }
 
