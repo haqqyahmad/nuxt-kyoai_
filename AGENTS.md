@@ -58,7 +58,7 @@ server/api/            # Nitro mock API
 
 - Instance Axios via `useApi()`.
 - Endpoint di config: `NUXT_PUBLIC_API_BASE`.
-- Auth: JWT token disimpan di localStorage (selalu, untuk mencegah logout di tab baru).
+- Auth: JWT token disimpan di localStorage (dibagi antar tab). Non-remember: dibuatkan session cookie `kyoai_session` (hilang saat browser ditutup) → logout otomatis saat browser ditutup. Remember me: flag `kyoai_persist` di localStorage → token tetap (30d).
 - Auth: Middleware `auth.ts` + `guest.ts` cek JWT expiry — redirect ke login jika expired.
 - 401 → redirect ke `/login`.
 

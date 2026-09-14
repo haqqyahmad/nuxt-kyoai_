@@ -1,3 +1,7 @@
+const TOKEN_KEY = 'token'
+const PERSIST_KEY = 'kyoai_persist'
+const SESSION_MARKER = 'kyoai_session'
+
 function base64UrlDecode(str: string): string {
   str = str.replace(/-/g, '+').replace(/_/g, '/')
   while (str.length % 4) str += '='
@@ -15,29 +19,91 @@ function isJwtExpired(token: string): boolean {
   }
 }
 
-export const useAuth = () => {
-  const getToken = () => {
-    if (!import.meta.client) return null
+function hasSessionCookie(): boolean {
+  if (!import.meta.client) return false
+  return document.cookie.split(';').some(c => c.trim().startsWith(`${SESSION_MARKER}=`))
+}
 
-    return localStorage.getItem('token')
+function setSessionCookie() {
+  document.cookie = `${SESSION_MARKER}=1; path=/; SameSite=Lax`
+}
+
+function clearSessionCookie() {
+  document.cookie = `${SESSION_MARKER}=; path=/; Max-Age=0; SameSite=Lax`
+}
+
+// "Session marker": session cookie (dibagi antar tab, hilang saat browser ditutup).
+// Fallback ke sessionStorage bila cookie tak bisa di-set (mis. cookie diblokir).
+function setSessionMarker() {
+  setSessionCookie()
+  if (!hasSessionCookie()) {
+    try {
+      sessionStorage.setItem(SESSION_MARKER, '1')
+    } catch {
+      // abaikan
+    }
   }
+}
 
-  const setToken = (token: string, _remember = false) => {
+function hasSessionMarker(): boolean {
+  if (hasSessionCookie()) return true
+  try {
+    return sessionStorage.getItem(SESSION_MARKER) === '1'
+  } catch {
+    return false
+  }
+}
+
+function clearSessionMarker() {
+  clearSessionCookie()
+  try {
+    sessionStorage.removeItem(SESSION_MARKER)
+  } catch {
+    // abaikan
+  }
+}
+
+export const useAuth = () => {
+  const removeToken = () => {
     if (!import.meta.client) return
 
-    removeToken()
-
-    localStorage.setItem('token', token)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(PERSIST_KEY)
+    clearSessionMarker()
 
     clearNuxtData('current-user')
     clearNuxtData('permission-catalog')
     clearNuxtData('room-session-me')
   }
 
-  const removeToken = () => {
+  const getToken = () => {
+    if (!import.meta.client) return null
+
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) return null
+
+    // Token non-persist ("remember me" tidak dicentang): valid hanya selama sesi browser.
+    // Kalau marker sesi hilang (browser sudah ditutup), token dianggap kedaluwarsa.
+    const persisted = localStorage.getItem(PERSIST_KEY) === '1'
+    if (!persisted && !hasSessionMarker()) {
+      removeToken()
+      return null
+    }
+
+    return token
+  }
+
+  const setToken = (token: string, remember = false) => {
     if (!import.meta.client) return
 
-    localStorage.removeItem('token')
+    removeToken()
+
+    localStorage.setItem(TOKEN_KEY, token)
+    if (remember) {
+      localStorage.setItem(PERSIST_KEY, '1')
+    } else {
+      setSessionMarker()
+    }
 
     clearNuxtData('current-user')
     clearNuxtData('permission-catalog')
