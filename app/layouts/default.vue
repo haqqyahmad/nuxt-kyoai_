@@ -164,13 +164,6 @@ const parentMenus: Record<string, string[]> = {
   Lab: []
 }
 
-const activeResultDepartment = computed(() => {
-  const department = route.query.department
-  const value = Array.isArray(department) ? department[0] : department
-
-  return typeof value === 'string' ? value.toLowerCase() : ''
-})
-
 const updateActiveMenu = () => {
   const currentPath = route.path
 
@@ -243,6 +236,49 @@ function canAccessResultDeptForMenu(code?: string) {
   return canAccessResultDepartment(code)
 }
 
+type SidebarTarget = { path: string, full: string, query: string }
+
+function collectTargets(items: SidebarItem[], acc: SidebarTarget[] = []): SidebarTarget[] {
+  for (const item of items) {
+    if (typeof item.to === 'string') {
+      const [pathPart, queryPart = ''] = item.to.split('?')
+      if (pathPart) acc.push({ path: pathPart, full: item.to, query: queryPart })
+    }
+    if (Array.isArray(item.children) && item.children.length > 0) {
+      collectTargets(item.children as SidebarItem[], acc)
+    }
+  }
+  return acc
+}
+
+// Target menu paling spesifik yang cocok dengan route sekarang
+// (menangani path detail + query, mis. /result/exam-results?department=lab).
+const activeTarget = computed<string | null>(() => {
+  const targets = collectTargets(buildMenuTree() as SidebarItem[])
+  let best: SidebarTarget | null = null
+
+  for (const target of targets) {
+    const matchesPath = route.path === target.path || route.path.startsWith(`${target.path}/`)
+    if (!matchesPath) continue
+
+    if (target.query) {
+      const params = new URLSearchParams(target.query)
+      let ok = true
+      for (const [key, value] of params.entries()) {
+        if (String(route.query[key] ?? '') !== value) {
+          ok = false
+          break
+        }
+      }
+      if (!ok) continue
+    }
+
+    if (!best || target.path.length > best.path.length) best = target
+  }
+
+  return best?.full ?? null
+})
+
 function buildNavItems(items: SidebarItem[]): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
     if (item.permission && !permissions.value.includes(item.permission)) return acc
@@ -266,12 +302,9 @@ function buildNavItems(items: SidebarItem[]): NavigationMenuItem[] {
 
       if (children.length === 0) return acc
       nav.children = children
-    } else if (item.resultDepartmentCode) {
-      nav.active = activeResultDepartment.value === item.resultDepartmentCode.toLowerCase()
-    } else if (typeof item.to === 'string') {
-      const to = item.to
-      nav.active = ['/result/doctor-result', '/result/mr-review', '/result/exam-status']
-        .some(prefix => to.startsWith(prefix) && route.path.startsWith(prefix))
+      nav.active = children.some(child => (child as SidebarItem).active === true)
+    } else {
+      nav.active = typeof item.to === 'string' && item.to === activeTarget.value
     }
 
     acc.push(nav)
