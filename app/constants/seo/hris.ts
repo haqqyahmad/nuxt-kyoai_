@@ -1,7 +1,7 @@
 export const hrisSeo = {
 
   '/hris': {
-    title: 'Dashboard',
+    title: 'HRIS Dashboard',
     description: 'Manage MCU items.'
   },
 
