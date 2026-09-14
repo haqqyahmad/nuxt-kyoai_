@@ -609,7 +609,6 @@ const mealConfigItems = ref<Item[]>([])
 const mealSearchTerm = ref<string>('')
 const loadingMealItems = ref(false)
 const mealSampleFilter = ref<string>('')
-const mealSampleTypes = ref<Array<{ id: string, code?: string | null, name?: string | null }>>([])
 
 const mealItemOptions = computed(() =>
   mealConfigItems.value
@@ -623,18 +622,34 @@ const mealItemOptions = computed(() =>
     }))
 )
 
-const mealSampleOptions = computed(() => [
-  { label: 'Semua sample', value: '' },
-  ...mealSampleTypes.value.map(sample => ({
-    label: sample.name || sample.code || '-',
-    value: sample.id
-  }))
-])
+const mealSampleOptions = computed(() => {
+  const options = new Map<string, string>()
+  for (const item of mealConfigItems.value) {
+    for (const entry of item.sampleTypes ?? []) {
+      const id = entry.sampleTypeId ?? entry.sampleType?.id
+      if (!id || options.has(id)) continue
+      options.set(id, entry.sampleType?.name || entry.sampleType?.code || id)
+    }
+  }
+  return [...options.entries()]
+    .map(([value, label]) => ({ label, value }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+})
 
 function selectAllFilteredMealItems() {
   const ids = mealItemOptions.value.map(option => option.value)
   selectedMealItemIds.value = [...new Set([...selectedMealItemIds.value, ...ids])]
 }
+
+function deselectFilteredMealItems() {
+  const ids = new Set(mealItemOptions.value.map(option => option.value))
+  selectedMealItemIds.value = selectedMealItemIds.value.filter(id => !ids.has(id))
+}
+
+const filteredSelectedCount = computed(() => {
+  const ids = new Set(mealItemOptions.value.map(option => option.value))
+  return selectedMealItemIds.value.filter(id => ids.has(id)).length
+})
 
 const selectedMealItemNames = computed(() =>
   selectedMealItemIds.value
@@ -664,18 +679,6 @@ async function loadMealItems(search = '', limit = 50) {
   }
 }
 
-async function loadMealSampleTypes() {
-  if (mealSampleTypes.value.length) return
-  try {
-    const res = await api.get('/medical/exams/sample-types', { params: { isActive: true, limit: 100 } })
-    const payload = res.data?.data ?? res.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
-    mealSampleTypes.value = list as Array<{ id: string, code?: string | null, name?: string | null }>
-  } catch {
-    mealSampleTypes.value = []
-  }
-}
-
 async function openMealConfigGlobal() {
   mealConfigItems.value = []
   selectedMealItemIds.value = []
@@ -686,7 +689,6 @@ async function openMealConfigGlobal() {
 
   try {
     const cfgPromise = api.get('/master/app-config/meal_duration_minutes')
-    const samplesPromise = loadMealSampleTypes()
     const selectedRes = await api.get('/mcu/items', { params: { mealPrerequisite: true, limit: 100 } })
 
     const selectedPayload = selectedRes.data?.data ?? selectedRes.data
@@ -699,7 +701,7 @@ async function openMealConfigGlobal() {
     const cfg = cfgRes.data?.data ?? null
     mealDurationValue.value = cfg?.value ? Number(cfg.value) : null
 
-    await Promise.all([loadMealItems('', 500), samplesPromise])
+    await loadMealItems('', 500)
   } catch (error: unknown) {
     mealConfigItems.value = []
     const err = error as { response?: { data?: { message?: string } } }
@@ -1278,22 +1280,50 @@ watch(currentPage, (page) => {
                 label="Filter Item by Sample"
                 description="Pilih sample untuk memfilter item, lalu pilih semuanya sebagai Prerequisite Meal."
               >
-                <div class="flex flex-wrap items-center gap-2">
-                  <USelect
-                    v-model="mealSampleFilter"
-                    :items="mealSampleOptions"
-                    icon="i-lucide-test-tube-diagonal"
-                    class="w-60"
-                  />
-                  <UButton
-                    icon="i-lucide-check-check"
-                    color="warning"
-                    variant="soft"
-                    :disabled="!mealItemOptions.length"
-                    @click="selectAllFilteredMealItems"
-                  >
-                    Pilih semua ({{ mealItemOptions.length }})
-                  </UButton>
+                <div class="space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <USelectMenu
+                      v-model="mealSampleFilter"
+                      :items="mealSampleOptions"
+                      value-key="value"
+                      label-key="label"
+                      icon="i-lucide-test-tube-diagonal"
+                      placeholder="Semua sample"
+                      class="w-60"
+                    />
+                    <UButton
+                      v-if="mealSampleFilter"
+                      icon="i-lucide-x"
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      @click="mealSampleFilter = ''"
+                    >
+                      Reset filter
+                    </UButton>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <UButton
+                      icon="i-lucide-check-check"
+                      color="warning"
+                      variant="soft"
+                      size="sm"
+                      :disabled="!mealItemOptions.length"
+                      @click="selectAllFilteredMealItems"
+                    >
+                      Pilih semua ({{ mealItemOptions.length }})
+                    </UButton>
+                    <UButton
+                      icon="i-lucide-eraser"
+                      color="error"
+                      variant="soft"
+                      size="sm"
+                      :disabled="!filteredSelectedCount"
+                      @click="deselectFilteredMealItems"
+                    >
+                      Hapus hasil filter ({{ filteredSelectedCount }})
+                    </UButton>
+                  </div>
                 </div>
               </UFormField>
 
