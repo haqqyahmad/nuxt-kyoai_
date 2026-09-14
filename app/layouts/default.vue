@@ -430,6 +430,8 @@ onMounted(() => {
             :collapsed="collapsed"
             :items="links[0]"
             orientation="vertical"
+            type="single"
+            collapsible
             tooltip
             popover
           />
