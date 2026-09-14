@@ -179,6 +179,7 @@ const updateActiveMenu = () => {
   for (const [group, paths] of Object.entries(menuGroups)) {
     for (const rawPath of paths) {
       const path = rawPath.split('?')[0]
+      if (!path) continue
       const matches = currentPath === path || currentPath.startsWith(`${path}/`)
       if (matches && path.length > bestLength) {
         bestLength = path.length
