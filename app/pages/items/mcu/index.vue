@@ -651,11 +651,18 @@ const filteredSelectedCount = computed(() => {
   return selectedMealItemIds.value.filter(id => ids.has(id)).length
 })
 
-const selectedMealItemNames = computed(() =>
+const selectedMealItems = computed(() =>
   selectedMealItemIds.value
-    .map(id => mealConfigItems.value.find(item => item.id === id)?.name)
-    .filter(Boolean) as string[]
+    .map((id) => {
+      const item = mealConfigItems.value.find(i => i.id === id)
+      return item ? { value: id, label: `${item.code} - ${item.name}` } : null
+    })
+    .filter(Boolean) as Array<{ value: string, label: string }>
 )
+
+function removeMealItem(value: string) {
+  selectedMealItemIds.value = selectedMealItemIds.value.filter(id => id !== value)
+}
 
 async function loadMealItems(search = '', limit = 50) {
   loadingMealItems.value = true
@@ -1341,29 +1348,57 @@ watch(currentPage, (page) => {
                   label-key="label"
                   multiple
                   searchable
-                  placeholder="Pilih satu atau lebih item"
+                  placeholder="Cari & pilih item..."
                   class="w-full"
                   @update:search-term="loadMealItems"
                 >
-                  <template #default>
-                    <template v-if="selectedMealItemIds.length">
-                      <div class="flex flex-wrap gap-1 pr-6">
-                        <UBadge
-                          v-for="(name, i) in selectedMealItemNames"
-                          :key="i"
-                          color="warning"
-                          variant="soft"
-                          size="sm"
-                        >
-                          {{ name }}
-                        </UBadge>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <span class="text-muted">Pilih satu atau lebih item</span>
-                    </template>
+                  <template #default="{ modelValue }">
+                    <span v-if="Array.isArray(modelValue) && modelValue.length" class="truncate text-sm text-default">
+                      {{ modelValue.length }} item dipilih
+                    </span>
+                    <span v-else class="truncate text-muted">Cari & pilih item...</span>
                   </template>
                 </USelectMenu>
+
+                <div
+                  v-if="selectedMealItems.length"
+                  class="mt-2 rounded-lg border border-default bg-elevated/40 px-2.5 py-2"
+                >
+                  <div class="mb-1.5 flex items-center justify-between">
+                    <span class="text-xs font-medium text-muted">
+                      {{ selectedMealItems.length }} item terpilih
+                    </span>
+                    <UButton
+                      icon="i-lucide-trash-2"
+                      size="xs"
+                      color="neutral"
+                      variant="link"
+                      @click="selectedMealItemIds = []"
+                    >
+                      Bersihkan
+                    </UButton>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <UBadge
+                      v-for="item in selectedMealItems"
+                      :key="item.value"
+                      color="warning"
+                      variant="soft"
+                      size="sm"
+                      class="gap-1 pr-1"
+                    >
+                      <span class="max-w-[240px] truncate">{{ item.label }}</span>
+                      <UIcon
+                        name="i-lucide-x"
+                        class="size-3 shrink-0 cursor-pointer opacity-60 hover:opacity-100"
+                        @click="removeMealItem(item.value)"
+                      />
+                    </UBadge>
+                  </div>
+                </div>
+                <p v-else class="mt-1 text-xs text-muted">
+                  Belum ada item dipilih.
+                </p>
               </UFormField>
             </div>
 
