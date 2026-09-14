@@ -24,14 +24,34 @@ const periodOptions = [
   { label: 'Semua', value: 'all' }
 ]
 
-const todayKey = new Date().toISOString().slice(0, 10)
-
 function localKey(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+const todayKey = localKey(new Date())
+
+const periodRange = computed<{ queueDateFrom?: string, queueDateTo?: string }>(() => {
+  const now = new Date()
+  if (period.value === 'today') {
+    return { queueDateFrom: localKey(now), queueDateTo: localKey(now) }
+  }
+  if (period.value === '7d') {
+    return {
+      queueDateFrom: localKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)),
+      queueDateTo: localKey(now)
+    }
+  }
+  if (period.value === '30d') {
+    return {
+      queueDateFrom: localKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)),
+      queueDateTo: localKey(now)
+    }
+  }
+  return {}
+})
 
 const { data: regs } = await useAsyncData<RegistrationRow[]>(
   'home-charts-regs',
@@ -47,11 +67,12 @@ const { data: depts } = await useAsyncData<DeptQueue[]>(
   async () => {
     const deptRes = await api.get('/medical/departments')
     const list = (deptRes.data?.data ?? []) as { id: string, name: string }[]
+    const range = periodRange.value
 
     const settled = await Promise.allSettled(list.map(async (dept) => {
       const [all, todayItems] = await Promise.all([
-        api.get(`/medical/exams/queue/department/${dept.id}`, { params: { status: 'ALL', limit: 1 } }),
-        api.get(`/medical/exams/queue/department/${dept.id}`, { params: { status: 'ALL', queueDate: todayKey, limit: 1000 } })
+        api.get(`/medical/exams/queue/department/${dept.id}`, { params: { status: 'ALL', limit: 1, ...range } }),
+        api.get(`/medical/exams/queue/department/${dept.id}`, { params: { status: 'ALL', queueDateFrom: todayKey, queueDateTo: todayKey, limit: 1000 } })
       ])
       return {
         name: dept.name,
@@ -66,7 +87,7 @@ const { data: depts } = await useAsyncData<DeptQueue[]>(
         : { name: list[index]?.name ?? '-', total: 0, today: [] }
     )
   },
-  { default: () => [] }
+  { default: () => [], watch: [period] }
 )
 
 // ── Periode ───────────────────────────────────────────────────
@@ -328,7 +349,7 @@ const todayQueueOptions = {
               Pemeriksaan per Departemen
             </h3>
             <p class="text-sm text-muted">
-              Jumlah antrian pemeriksaan tiap departemen.
+              Jumlah antrian pemeriksaan tiap departemen (per periode).
             </p>
           </div>
         </template>
