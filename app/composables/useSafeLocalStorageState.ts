@@ -1,4 +1,4 @@
-import { onMounted, reactive, watch } from 'vue'
+import { reactive, watch } from 'vue'
 
 export function useSafeLocalStorageState<T extends Record<string, unknown>>(
   key: string,

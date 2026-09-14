@@ -84,7 +84,7 @@ export type DoctorResultResponse = {
     action: string
     actorId: number | null
     reason: string | null
-    payload: any
+    payload: unknown
     createdAt: string
   }>
 }

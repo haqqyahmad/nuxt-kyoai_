@@ -6,7 +6,7 @@ type EmployeeItem = {
   nik: string
   nama: string
   status?: string
-  educations?: any[]
+  educations?: unknown[]
 }
 
 const emit = defineEmits<{
@@ -20,7 +20,6 @@ const props = defineProps<{
   status?: string
 }>()
 
-const openEdit = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(8)
 
@@ -40,10 +39,6 @@ const paginatedEmployees = computed(() => {
   const end = start + pageSize.value
   return filteredEmployees.value.slice(start, end)
 })
-
-const totalPages = computed(() =>
-  Math.ceil(filteredEmployees.value.length / pageSize.value)
-)
 
 function getInitial(name?: string) {
   if (!name) return '-'

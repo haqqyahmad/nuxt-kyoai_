@@ -92,12 +92,6 @@ const companyOptions = computed(() => [
     .map(company => ({ label: String(company), value: String(company) }))
 ])
 
-const packageOptions = computed(() => [
-  { label: 'All MCU Packages', value: 'all' },
-  ...[...new Set(exams.value.map(e => e.packageName).filter(Boolean))]
-    .map(packageName => ({ label: String(packageName), value: String(packageName) }))
-])
-
 const filteredExams = computed(() => {
   const q = search.value.toLowerCase()
   return exams.value.filter((e) => {
@@ -275,7 +269,7 @@ function progressValue(exam: ExamListItem) {
   return Math.round(((exam.completedItemCount ?? 0) / exam.itemCount) * 100)
 }
 
-watch(currentPage, (page) => {
+watch(currentPage, () => {
   load()
 })
 

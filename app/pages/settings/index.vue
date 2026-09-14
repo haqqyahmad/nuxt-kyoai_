@@ -18,6 +18,81 @@ const profileSchema = z.object({
 
 type ProfileSchema = z.output<typeof profileSchema>
 
+type EmployeeProfileData = {
+  nik?: string | null
+  nama?: string | null
+  email?: string | null
+  no_hp?: string | null
+  status?: string | null
+  employeePersonal?: Array<{
+    no_ktp?: string | null
+    no_kk?: string | null
+    tempat_lahir?: string | null
+    tanggal_lahir?: string | null
+    jenis_kelamin?: string | null
+    nama_ibu_kandung?: string | null
+    alamat_ktp?: string | null
+    alamat_domisili?: string | null
+    tanggal_abis_ktp?: string | null
+    religion?: { nama_agama?: string | null } | null
+    blood_type?: { kode?: string | null } | null
+    marital_status?: { nama?: string | null } | null
+  }> | null
+  educations?: Array<{
+    id: string | number
+    nama_sekolah?: string | null
+    jurusan?: string | null
+    tahun_masuk?: string | number | null
+    tahun_lulus?: string | number | null
+  }> | null
+  employee_emergency_contacts?: Array<{
+    id: string | number
+    nama?: string | null
+    hubungan?: string | null
+    telepon?: string | null
+  }> | null
+  empleyeeChild?: Array<{
+    id: string | number
+    nama?: string | null
+    jenis_kelamin?: string | null
+    tanggal_lahir?: string | null
+    pendidikan?: string | null
+    pekerjaan?: string | null
+  }> | null
+  employeePosition?: Array<{
+    id: string | number
+    department?: { nama_department?: string | null } | null
+    section?: { nama?: string | null } | null
+  }> | null
+  employeeDocument?: Array<{
+    no_npwp?: string | null
+    no_asuransi?: string | null
+    no_jamsostek?: string | null
+    no_bpjs_kesehatan?: string | null
+    no_bpjs_ketenagakerjaan?: string | null
+    no_dplk?: string | null
+  }> | null
+  employeeHealth?: Array<{
+    tinggi_badan?: string | number | null
+    berat_badan?: string | number | null
+    kacamata?: boolean | null
+    alergi?: string | null
+    cacat_bicara?: boolean | null
+    cacat_pendengaran?: boolean | null
+    cacat_penglihatan?: boolean | null
+    cacat_anggota_badan?: boolean | null
+    cacat_lain?: boolean | null
+    cacat_penjelasan?: string | null
+  }> | null
+}
+
+type LeaveBalanceItem = {
+  id: string | number
+  tahun: string | number
+  jatah_cuti_baru: number
+  sisa_baru: number
+}
+
 const profile = reactive<Partial<ProfileSchema>>({
   name: '',
   email: '',
@@ -26,11 +101,11 @@ const profile = reactive<Partial<ProfileSchema>>({
 })
 
 const pending = ref(false)
-const error = ref<any>(null)
+const error = ref<unknown>(null)
 
-const employeeBasic = computed(() => (currentUser.value as any)?.employee ?? null)
-const employeeData = ref<any>(null)
-const leaveBalanceData = ref<any[]>([])
+const employeeBasic = computed(() => (currentUser.value as { employee?: { id?: number } } | null)?.employee ?? null)
+const employeeData = ref<EmployeeProfileData | null>(null)
+const leaveBalanceData = ref<LeaveBalanceItem[]>([])
 const employeeTab = ref('basic')
 
 const empTabs = [
@@ -49,10 +124,10 @@ const userRoles = computed(() =>
   currentUser.value?.roles?.map((r: { role?: { name?: string } }) => r.role?.name).filter(Boolean) ?? []
 )
 
-function fmtDate(val: any): string {
+function fmtDate(val: unknown): string {
   if (!val) return '-'
   try {
-    const d = new Date(typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val) ? val.slice(0, 10) : val)
+    const d = new Date(typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val) ? val.slice(0, 10) : (val as string | number | Date))
     if (isNaN(d.getTime())) return '-'
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   } catch { return '-' }

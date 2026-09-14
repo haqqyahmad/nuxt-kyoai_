@@ -4,7 +4,7 @@ let scroller: Element | null = null
 
 function onScroll(event: Event) {
   const target = event.target as Element
-  const top = target.scrollTop || (target as any).scrollY || 0
+  const top = target.scrollTop || (target as Element & { scrollY?: number }).scrollY || 0
   if (top > 300) {
     scroller = target
     visible.value = true

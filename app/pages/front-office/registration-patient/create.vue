@@ -467,7 +467,9 @@ async function selectPatient(p: Patient) {
 }
 
 function handlePatientBlur() {
-  setTimeout(() => { patientDropOpen.value = false }, 200)
+  setTimeout(() => {
+    patientDropOpen.value = false
+  }, 200)
 }
 
 function clearPatient() {

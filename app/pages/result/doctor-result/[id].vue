@@ -47,7 +47,6 @@ const {
   internalNote,
   allItems,
   allGroups,
-  pendingGroups,
   pendingCount,
   gradedCount,
   totalGradable,
@@ -87,14 +86,6 @@ const revisionMap = computed<Record<string, string>>(() => {
   }
   return map
 })
-const revisionByExamItem = computed<Record<string, string>>(() => {
-  const map: Record<string, string> = {}
-  for (const rev of mrReturnRevisions.value) {
-    if (rev.inputanId && !map[rev.inputanId]) map[rev.inputanId] = rev.note ?? ''
-  }
-  return map
-})
-
 function itemRevisionNote(item: DoctorResultItem) {
   return revisionMap.value[item.inputanId] ?? ''
 }
@@ -186,11 +177,6 @@ function actionColor(action: string) {
   if (action === 'RELEASE') return 'primary'
   if (action === 'RESUBMIT') return 'warning'
   return 'info'
-}
-
-function actionGradeSummary(act: AuditAction) {
-  const grades = act.payload?.grades ?? []
-  return grades.filter(g => g.grade).map(g => `${g.label ?? g.inputanId.slice(0, 8)}: ${g.grade}`)
 }
 
 const autoCommentText = computed(() =>
@@ -306,7 +292,7 @@ async function loadGradeOptions() {
 }
 
 // [F] Group grade: grade + comment (optional)
-async function onGroupGradeChange(group: DoctorResultGroup, grade: string, comment: string) {
+async function onGroupGradeChange(group: DoctorResultGroup, grade: string, _comment: string) {
   if (!group.groupId) return
   // preserve the user's comment: if already filled manually, keep it
   const existing = groupGrades.value[group.groupId]?.comment ?? group.comment ?? ''

@@ -382,21 +382,35 @@ async function submitImportPreview() {
       return nodes.flatMap(node => [node, ...flatten(node.children ?? [])])
     }
 
-    importPreviewRows.value.forEach((row) => { row.error = '' })
+    importPreviewRows.value.forEach((row) => {
+      row.error = ''
+    })
 
     for (let i = 0; i < importPreviewRows.value.length; i++) {
       const row = importPreviewRows.value[i]!
-      if (!row.name.trim()) { row.error = 'name wajib diisi'; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (!row.name.trim()) {
+        row.error = 'name wajib diisi'
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
 
       const department = departments.value.find(dep => norm(dep.code) === norm(row.departmentCode) || norm(dep.name) === norm(row.departmentCode))
-      if (!department) { row.error = `department "${row.departmentCode}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+      if (!department) {
+        row.error = `department "${row.departmentCode}" tidak ditemukan`
+        errors.push(`Baris ${i + 1}: ${row.error}`)
+        continue
+      }
 
       const currentGroups = await getGroupsForDepartment(department.id)
       const flat = flatten(currentGroups)
       let parentId: string | null = null
       if (row.parentCode || row.parentName) {
         const parent = flat.find(group => norm(group.code) === norm(row.parentCode) || norm(group.name) === norm(row.parentName))
-        if (!parent) { row.error = `parent "${row.parentCode || row.parentName}" tidak ditemukan`; errors.push(`Baris ${i + 1}: ${row.error}`); continue }
+        if (!parent) {
+          row.error = `parent "${row.parentCode || row.parentName}" tidak ditemukan`
+          errors.push(`Baris ${i + 1}: ${row.error}`)
+          continue
+        }
         parentId = parent.id
       }
 

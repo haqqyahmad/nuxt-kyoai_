@@ -1,3 +1,7 @@
+<script setup>
+defineOptions({ name: 'AppLoading' })
+</script>
+
 <template>
   <AppLoadingScreen
     title="Memuat halaman"

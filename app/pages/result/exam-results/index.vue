@@ -84,6 +84,20 @@ type ExamResult = {
   }>
 }
 
+type ExamResultRow = {
+  firstExamItemId?: string | null
+  examId: string
+  queueCode?: string | null
+  patient?: Patient | null
+  itemNames?: string[]
+  itemCount?: number
+  departments?: Department[]
+  roomTypes?: Department[]
+  resultTiming?: 'inline' | 'deferred' | null
+  status?: string | null
+  checkinAt?: string | null
+}
+
 const api = useApi()
 const router = useRouter()
 const route = useRoute()
@@ -361,10 +375,10 @@ function onPageSizeChange(value: string | null) {
 }
 
 // Satu baris per exam_id (department dokter).
-function mapExamRow(row: any): ExamResult {
+function mapExamRow(row: ExamResultRow): ExamResult {
   const names: string[] = Array.isArray(row.itemNames) ? row.itemNames : []
   const itemLabel = names.length
-    ? `${names.slice(0, 3).join(', ')}${row.itemCount > 3 ? ` +${row.itemCount - 3}` : ''}`
+    ? `${names.slice(0, 3).join(', ')}${(row.itemCount ?? 0) > 3 ? ` +${(row.itemCount ?? 0) - 3}` : ''}`
     : '-'
   return {
     id: row.firstExamItemId ?? row.examId,

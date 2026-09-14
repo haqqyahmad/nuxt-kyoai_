@@ -26,6 +26,10 @@ type ItemSample = {
   sortOrder: number
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 const currentSamples = ref<ItemSample[]>([]) // samples yang sudah tersimpan
@@ -64,14 +68,6 @@ const isDirty = computed(() => {
 
   return JSON.stringify(cur) !== JSON.stringify(drft)
 })
-
-// label untuk dropdown
-const sampleTypeOptions = computed(() =>
-  availableSampleTypes.value.map(s => ({
-    label: `${s.name} (${s.code})`,
-    value: s.id
-  }))
-)
 
 // ─── Load ────────────────────────────────────────────────────────────────────
 
@@ -199,10 +195,10 @@ async function save() {
 
     toast.add({ title: 'Berhasil', description: 'Sample item berhasil disimpan', color: 'success' })
     await load()
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menyimpan sample item',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal menyimpan sample item',
       color: 'error'
     })
   } finally {
@@ -211,14 +207,6 @@ async function save() {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getSampleTypeName(id: string) {
-  return allSampleTypes.value.find(s => s.id === id)?.name ?? '-'
-}
-
-function getSampleTypeCode(id: string) {
-  return allSampleTypes.value.find(s => s.id === id)?.code ?? ''
-}
 
 // opsi dropdown per row — includes yang sedang dipilih row ini
 function rowOptions(row: DraftRow) {

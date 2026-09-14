@@ -130,10 +130,12 @@ async function deletePaket() {
     })
 
     router.push('/services/packages')
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Gagal menghapus paket',
+      description: message ?? 'Gagal menghapus paket',
       color: 'error'
     })
   }
@@ -342,7 +344,7 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
 
             <div v-else class="space-y-4 p-5">
               <div
-                v-for="(paketItem, index) in sortedPaketItems"
+                v-for="paketItem in sortedPaketItems"
                 :key="paketItem.id"
                 class="rounded-2xl border border-default overflow-hidden"
               >

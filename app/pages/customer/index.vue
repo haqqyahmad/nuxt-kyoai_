@@ -64,19 +64,31 @@ function shortCustomerName(name: string) {
   return String(name ?? '').replace(/^(?:PT|CV)\.?\s*/i, '').trim()
 }
 
+type CustomerContact = {
+  type: string
+  value: string
+  isPrimary?: boolean
+}
+
+type CustomerAddress = {
+  detail?: string
+  city?: string
+  province?: string
+}
+
 type Customer = {
   id: number
   codeCostumer: string
   customerName: string
   CustomerType: string
   is_active: string
-  contacts?: any[]
-  addresses?: any[]
+  contacts?: CustomerContact[]
+  addresses?: CustomerAddress[]
 }
 
 function getPrimaryContact(row: Customer, type: 'EMAIL' | 'PHONE') {
   return (
-    row.contacts?.find((c: any) => c.type === type && c.isPrimary)?.value ?? '-'
+    row.contacts?.find(c => c.type === type && c.isPrimary)?.value ?? '-'
   )
 }
 
@@ -114,7 +126,7 @@ async function deleteSelectedCustomers() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/customer/${row.original.id}`))
+      selectedRows.map((row: Row<Customer>) => api.delete(`/customer/${row.original.id}`))
     )
     toast.add({ title: 'Berhasil', description: 'Customer terpilih berhasil dihapus', color: 'success' })
     table.value?.tableApi?.resetRowSelection()

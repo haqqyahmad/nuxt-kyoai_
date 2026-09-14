@@ -15,7 +15,8 @@ const props = defineProps<{
 }>()
 
 const {
-  removeConditional
+  removeConditional,
+  updateConditional
 } = useQuestionnaireStore()
 
 // const parentQuestions = computed(() => {
@@ -58,12 +59,31 @@ const optionItems = computed(() => {
   })) ?? []
 })
 
+const parentQuestionIdModel = computed({
+  get: () => props.question.conditional?.parentQuestionId ?? '',
+  set: (value: string) => {
+    updateConditional(props.sectionId, props.question.id, {
+      parentQuestionId: value
+    })
+  }
+})
+
+const showIfOptionIdsModel = computed({
+  get: () => props.question.conditional?.showIfOptionIds ?? [],
+  set: (value: string[]) => {
+    updateConditional(props.sectionId, props.question.id, {
+      showIfOptionIds: value
+    })
+  }
+})
+
 watch(
   () => props.question.conditional?.parentQuestionId,
   () => {
     if (props.question.conditional) {
-      // Reset to empty array instead of string
-      props.question.conditional.showIfOptionIds = []
+      updateConditional(props.sectionId, props.question.id, {
+        showIfOptionIds: []
+      })
     }
   }
 )
@@ -97,7 +117,7 @@ watch(
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <USelect
-        v-model="question.conditional!.parentQuestionId"
+        v-model="parentQuestionIdModel"
         :items="parentQuestionItems"
         value-key="value"
         option-attribute="label"
@@ -105,7 +125,7 @@ watch(
       />
 
       <USelect
-        v-model="question.conditional!.showIfOptionIds"
+        v-model="showIfOptionIdsModel"
         :items="optionItems"
         value-key="value"
         option-attribute="label"

@@ -57,6 +57,10 @@ type Department = {
   type?: 'office' | 'medical' | null
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 /**
  * fetch departments
  */
@@ -370,10 +374,10 @@ async function ensureItemCreated() {
       description: 'Silakan konfigurasi template exam',
       color: 'success'
     })
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal membuat item',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal membuat item',
       color: 'error'
     })
     activeTab.value = 'info'
@@ -466,10 +470,10 @@ async function submit() {
       })
     }
     emit('success')
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menyimpan item',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal menyimpan item',
       color: 'error'
     })
   } finally {

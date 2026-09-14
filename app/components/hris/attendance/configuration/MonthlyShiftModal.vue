@@ -33,6 +33,10 @@ type AssignmentForm = {
   shiftTemplateId: number | undefined
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const open = defineModel<boolean>('open', { default: false })
 
 const emit = defineEmits<{
@@ -173,12 +177,12 @@ async function submit() {
     resetForm()
     open.value = false
     emit('refresh')
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Monthly shift template gagal dibuat.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Monthly shift template gagal dibuat.',
       color: 'error'
     })
   } finally {

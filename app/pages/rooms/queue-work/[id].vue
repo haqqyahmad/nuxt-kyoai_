@@ -250,7 +250,6 @@ const { user, permissions } = await useCurrentUser()
 const today = new Date().toISOString().slice(0, 10)
 const {
   data: assignmentData,
-  pending: assignmentPending,
   refresh: refreshAssignment
 } = await useAsyncData<RoomAssignment | null>(
   'room-assignment-work',
@@ -335,7 +334,6 @@ const roomAssignment = computed(() => assignmentData.value ?? null)
 const currentRoomId = computed(() =>
   activeRoomSession.value?.roomId ?? roomAssignment.value?.roomId ?? null
 )
-const canEnterRoom = computed(() => Boolean(roomAssignment.value?.roomId) && !activeRoomSession.value)
 const canUseAssignShortcut = computed(() => !roomAssignment.value?.roomId)
 
 const { data: currentRoomData } = await useAsyncData<CurrentRoom | null>(
@@ -877,19 +875,6 @@ function isTreadmillScreeningExamItem(item: RoomExamItem) {
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
 const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDentalExamItem(item)))
 
-// [TREADMILL CLEARANCE] Semua hasil Physical Examination "No abnormality"?
-// Syarat agar tombol approve & buka treadmill aktif.
-const allPhysicalNoAbnormality = computed<boolean>(() => {
-  const physicalItems = roomExamItems.value.filter(isPhysicalExamItem)
-  if (!physicalItems.length) return false
-  return physicalItems.every((item) => {
-    // Item harus sudah disubmit/selesai
-    if (!isExamResultSubmitted(item) && item.status !== 'DONE') return false
-    // Semua baris hasil harus normal (tidak ada flag abnormal/out-of-range)
-    return getPhysicalLegacyRows(item).every(row => !row.flag || row.flag === 'normal')
-  })
-})
-
 function isCustomDoctorExamItem(item: RoomExamItem) {
   return isDentalExamItem(item) || isPhysicalExamItem(item) || isDoctorTestExamItem(item) || isTreadmillScreeningExamItem(item)
 }
@@ -1397,32 +1382,6 @@ function closeItemActionModal() {
   selectedItemActionType.value = null
   itemActionReason.value = ''
   itemActionNote.value = ''
-}
-
-function openExitRoomModal() {
-  if (!activeRoomSession.value) {
-    toast.add({
-      title: 'Sesi room belum aktif',
-      description: 'Tidak ada room aktif yang bisa dikeluarkan.',
-      color: 'warning'
-    })
-    return
-  }
-
-  isExitRoomModalOpen.value = true
-}
-
-function openEnterRoomModal() {
-  if (!roomAssignment.value?.roomId) {
-    toast.add({
-      title: 'Belum ada assignment room',
-      description: 'Tidak ada room assignment yang bisa dipakai untuk masuk room.',
-      color: 'warning'
-    })
-    return
-  }
-
-  isEnterRoomModalOpen.value = true
 }
 
 async function handleEnterRoom() {

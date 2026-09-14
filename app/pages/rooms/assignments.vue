@@ -12,7 +12,6 @@ const {
   canSelfAssign,
   allowedSelfRoomIds,
   allowedSelfRooms,
-  allowedSelfRoomTypeCodes,
   isSuperAdmin,
   refresh: refreshUser
 } = await useCurrentUser()

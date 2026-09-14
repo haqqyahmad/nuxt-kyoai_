@@ -67,10 +67,6 @@ function openReturnModal() {
   showReturnModal.value = true
 }
 
-function removeReturnItem(idx: number) {
-  returnItems.value.splice(idx, 1)
-}
-
 const selectedReturnItems = computed(() => returnItems.value.filter(r => r.checked))
 
 const departments = computed(() => doctorResult.value?.departments ?? [])
@@ -127,7 +123,7 @@ async function handleVerify() {
 async function handleReturn() {
   if (!returnReason.value.trim()) return
   returnLoading.value = true
-  const payload: any = {
+  const payload: { reason: string, items: { inputanId: string, note: string }[] } = {
     reason: returnReason.value.trim(),
     items: selectedReturnItems.value.map(r => ({
       inputanId: r.inputanId,

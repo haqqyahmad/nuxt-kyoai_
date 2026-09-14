@@ -26,7 +26,24 @@ type PaketRow = {
   createdAt: string
 }
 
-function mapPaket(paket: any): PaketRow {
+type PaketApiPaketItem = {
+  item?: {
+    name?: string | null
+    inputans?: unknown[] | null
+  } | null
+}
+
+type PaketApi = {
+  id: string
+  name: string
+  code?: string | null
+  type?: string | null
+  isActive: boolean
+  createdAt: string
+  paketItems?: PaketApiPaketItem[] | null
+}
+
+function mapPaket(paket: PaketApi): PaketRow {
   const paketItems = Array.isArray(paket?.paketItems) ? paket.paketItems : []
 
   return {
@@ -36,13 +53,13 @@ function mapPaket(paket: any): PaketRow {
     type: paket.type ?? 'personal',
     itemCount: paketItems.length,
     inputanCount: paketItems.reduce(
-      (sum: number, paketItem: any) => sum + (paketItem.item?.inputans?.length ?? 0),
+      (sum: number, paketItem: PaketApiPaketItem) => sum + (paketItem.item?.inputans?.length ?? 0),
       0
     ),
     firstItems: paketItems
       .slice(0, 3)
-      .map((paketItem: any) => paketItem.item?.name)
-      .filter(Boolean),
+      .map(paketItem => paketItem.item?.name)
+      .filter((name): name is string => Boolean(name)),
     isActive: paket.isActive,
     createdAt: paket.createdAt
   }
@@ -77,7 +94,7 @@ async function deletePaket(id: string) {
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus paket',
@@ -101,7 +118,7 @@ async function deleteSelectedRows() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/mcu/pakets/${row.original.id}`))
+      selectedRows.map(row => api.delete(`/mcu/pakets/${row.original.id}`))
     )
 
     toast.add({
@@ -112,7 +129,7 @@ async function deleteSelectedRows() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus paket',

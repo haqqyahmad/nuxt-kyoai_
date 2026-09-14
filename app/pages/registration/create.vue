@@ -193,15 +193,6 @@ function useNewPatient() {
   patientDropOpen.value = false
 }
 
-const activeCompany = computed(() => {
-  if (!selectedPatient.value?.histories?.length) return null
-  return (
-    selectedPatient.value.histories.find(h => !h.endDate)
-    ?? selectedPatient.value.histories.at(-1)
-    ?? null
-  )
-})
-
 // ─────────────────────────────────────────────
 // Registration Form
 // ─────────────────────────────────────────────
@@ -264,10 +255,11 @@ async function submit() {
 
     toast.add({ title: 'Berhasil', description: 'Registrasi berhasil dibuat', color: 'success' })
     router.push('/front-office/registration-patient')
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan'
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: message,
       color: 'error'
     })
   } finally {

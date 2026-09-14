@@ -238,7 +238,7 @@ async function loadGroupConfigs() {
 
 function openGroupConfig(group: GroupGradeConfig) {
   editingGroupConfig.value = group
-  Object.keys(groupConfigComments).forEach(k => delete groupConfigComments[k])
+  Object.keys(groupConfigComments).forEach(k => Reflect.deleteProperty(groupConfigComments, k))
   for (const opt of group.commentOptions) {
     groupConfigComments[`${group.groupId}:${opt.grade}`] = opt.comment
   }
@@ -263,7 +263,7 @@ async function saveGroupConfig() {
   } catch (value: unknown) {
     toast.add({ title: 'Gagal simpan config', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
   } finally {
-    delete configSaving.value[groupId]
+    Reflect.deleteProperty(configSaving.value, groupId)
   }
 }
 
@@ -279,7 +279,7 @@ async function toggleGroupShow(group: GroupGradeConfig) {
     group.showInDoctorResult = !group.showInDoctorResult
     toast.add({ title: 'Gagal', description: getErrorMessage(value, 'Terjadi kesalahan.'), color: 'error' })
   } finally {
-    delete configSaving.value[groupId]
+    Reflect.deleteProperty(configSaving.value, groupId)
   }
 }
 

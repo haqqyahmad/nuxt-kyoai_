@@ -16,6 +16,10 @@ type WorkingHour = {
   days: number[]
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const open = defineModel<boolean>('open', {
   default: false
 })
@@ -278,12 +282,12 @@ async function submit() {
 
     open.value = false
     resetForm()
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Shift gagal dibuat.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Shift gagal dibuat.',
       color: 'error'
     })
   } finally {

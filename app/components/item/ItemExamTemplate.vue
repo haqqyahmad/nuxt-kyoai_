@@ -52,6 +52,32 @@ type Inputan = {
   _key: number
 }
 
+type ApiNilaiNormalSel = {
+  id?: string
+  sex?: 'MALE' | 'FEMALE' | null
+  ageMin?: number
+  opsiId?: string
+  opsi?: { id?: string }
+}
+
+type ApiInputan = {
+  id?: string
+  label: string
+  inputType: InputType
+  numberFormat?: NumberFormat
+  uom?: string | null
+  sortOrder: number
+  allowBlank: boolean
+  formula?: { formula?: string } | null
+  nilaiNormalNum?: NilaiNormalNum[]
+  opsis?: Opsi[]
+  nilaiNormalSel?: ApiNilaiNormalSel[]
+}
+
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const NUMBER_FORMAT_OPTIONS: Array<{ label: string, value: NumberFormat }> = [
   { label: 'Auto (maks 2 desimal, buang nol)', value: 'auto' },
   { label: 'Integer (tanpa desimal)', value: 'integer' },
@@ -111,7 +137,7 @@ function canPersistSelectedRules(inp: Inputan) {
     && inp.nilaiNormalSel.every(n => !!n.opsiId)
 }
 
-function mapInputanFromApi(inp: any): Inputan {
+function mapInputanFromApi(inp: ApiInputan): Inputan {
   return {
     id: inp.id,
     label: inp.label,
@@ -123,7 +149,7 @@ function mapInputanFromApi(inp: any): Inputan {
     formula: inp.formula?.formula ?? undefined,
     nilaiNormalNumber: inp.nilaiNormalNum ?? [],
     opsis: inp.opsis ?? [],
-    nilaiNormalSel: (inp.nilaiNormalSel ?? []).map((n: any) => ({
+    nilaiNormalSel: (inp.nilaiNormalSel ?? []).map((n: ApiNilaiNormalSel) => ({
       id: n.id,
       sex: n.sex ?? null,
       ageMin: n.ageMin ?? 0,
@@ -185,7 +211,7 @@ async function loadInputans() {
     }
 
     const res = await api.get(`/mcu/items/${props.itemId}`)
-    const raw: any[] = res.data.data?.inputans ?? []
+    const raw: ApiInputan[] = res.data.data?.inputans ?? []
 
     const previousSelectedId = selectedInputan.value?.id ?? null
     inputans.value = raw.map(mapInputanFromApi)
@@ -330,10 +356,10 @@ async function saveNilaiNormalSel(inp: Inputan) {
       selectedInputanKey.value = found._key
       configTab.value = 'selektif'
     }
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menyimpan nilai normal pilihan',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal menyimpan nilai normal pilihan',
       color: 'error'
     })
   } finally {
@@ -416,10 +442,10 @@ async function save() {
     lastSavedSnapshot.value = currentSnapshot
     await loadInputans()
     toast.add({ title: 'Berhasil', description: 'Template exam berhasil disimpan', color: 'success' })
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menyimpan template',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal menyimpan template',
       color: 'error'
     })
   } finally {

@@ -6,7 +6,7 @@ import {
   useQuestionnaireStore
 } from '~/stores/questionnaire/questionnaire'
 
-const props = defineProps<{
+defineProps<{
   sectionId: string
   question: Question
 }>()

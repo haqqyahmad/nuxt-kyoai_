@@ -299,7 +299,7 @@ watch(() => formApprove.patientExists, (val) => {
   }
 })
 
-const updateStatus = async (id: string, status: string, payload?: any) => {
+const updateStatus = async (id: string, status: string, payload?: unknown) => {
   if (status === 'APPROVED') {
     return api.post(`/registration-temp/${id}/approve`, payload)
   }
@@ -309,15 +309,8 @@ const updateStatus = async (id: string, status: string, payload?: any) => {
   }
 }
 
-const examDateRef = ref<any>(null)
-const rejectReasonRef = ref<any>(null)
-
-function focusInput(refEl: any) {
-  if (!refEl) return
-  const el = refEl.$el as HTMLElement
-  const input = el?.querySelector('input, textarea') as HTMLElement
-  input?.focus()
-}
+const examDateRef = useTemplateRef<{ $el?: HTMLElement }>('examDateRef')
+const rejectReasonRef = useTemplateRef<{ $el?: HTMLElement }>('rejectReasonRef')
 
 async function openStatusModal(status: string) {
   selectedStatus.value = status
@@ -400,7 +393,7 @@ async function confirmChangeStatus() {
   try {
     const oldStatus = reg.value?.status
 
-    const payload: any = {
+    const payload = {
       reason: formReject.rejectReason
     }
 
@@ -428,13 +421,6 @@ async function confirmChangeStatus() {
     })
     console.error(err)
   }
-}
-
-const statusLabel: Record<string, string> = {
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-  PENDING: 'Pending',
-  PROCESS: 'Process'
 }
 
 // ─────────────────────────────────────────────
@@ -577,6 +563,13 @@ function formatAnswer(q: TempAnswer): string {
 // ─────────────────────────────────────────────
 // Status history
 // ─────────────────────────────────────────────
+type StatusHistoryPayload = {
+  status?: {
+    from?: string
+    to?: string
+  }
+}
+
 type StatusHistoryItem = {
   id: string
   action: string
@@ -585,8 +578,8 @@ type StatusHistoryItem = {
   actorId?: number | null
   actorRole?: string | null
   actorName?: string | null
-  payloadBefore?: Record<string, any> | null
-  payloadAfter?: Record<string, any> | null
+  payloadBefore?: StatusHistoryPayload | null
+  payloadAfter?: StatusHistoryPayload | null
 }
 
 const statusHistory = ref<StatusHistoryItem[]>([])

@@ -4,15 +4,41 @@ type EmergencyContact = { id?: number, employee_id?: number, nama: string, hubun
 type Child = { id?: number, employee_id?: number, nama: string, jenis_kelamin: string, tempat_lahir?: string, tanggal_lahir?: string, pendidikan?: string, pekerjaan?: string }
 type Position = { id?: number, employee_id?: number, department_id?: number, section_id?: number, company_id?: number, branch_id?: number, position_id?: number, golongan_id?: number, grade_id?: number, tanggal_mulai?: string, tanggal_selesai?: string, is_primary?: boolean }
 
+type EmployeePersonalRecord = { id?: number, no_ktp?: string, no_kk?: string, tempat_lahir?: string, tanggal_lahir?: string, jenis_kelamin?: string, nama_ibu_kandung?: string, alamat_ktp?: string, alamat_domisili?: string, tanggal_abis_ktp?: string, agama_id?: number | null, blood_type_id?: number | null, marital_status_id?: number | null }
+type EmployeeDocumentRecord = { id?: number, no_npwp?: string, no_asuransi?: string, no_jamsostek?: string, no_bpjs_kesehatan?: string, no_bpjs_ketenagakerjaan?: string, no_dplk?: string }
+type EmployeeHealthRecord = { id?: number, tinggi_badan?: number, berat_badan?: number, kacamata?: boolean, alergi?: string, cacat_bicara?: boolean, cacat_pendengaran?: boolean, cacat_penglihatan?: boolean, cacat_anggota_badan?: boolean, cacat_lain?: boolean, cacat_penjelasan?: string }
+type LeaveBalanceRecord = { id?: number, tahun?: number, jatah_cuti_baru?: number | string, jatah_cuti_lama?: number | string, terpakai_baru?: number | string, sisa_baru?: number | string, terpakai_lama?: number | string, sisa_lama?: number | string }
+type EmployeeRecord = {
+  id?: number
+  nik?: string
+  nama?: string
+  email?: string
+  no_telp?: string
+  no_hp?: string
+  status?: string
+  company_id?: number | null
+  employee_type_id?: number | null
+  tgl_masuk?: string | null
+  tgl_resign?: string | null
+  photo?: string | null
+  employeePersonal?: EmployeePersonalRecord[]
+  educations?: Education[]
+  employee_emergency_contacts?: EmergencyContact[]
+  empleyeeChild?: Child[]
+  employeePosition?: Position[]
+  employeeDocument?: EmployeeDocumentRecord[]
+  employeeHealth?: EmployeeHealthRecord[]
+}
+
 const props = defineProps<{ employeeId: number | null }>()
-const emit = defineEmits<{ (e: 'close'): void, (e: 'saved'): void }>()
+const emit = defineEmits<{ (e: 'close' | 'saved'): void }>()
 const api = useApi()
 const toast = useToast()
 const open = defineModel<boolean>('open', { default: false })
 
 const loading = ref(false)
 const activeTab = ref('basic')
-const employee = ref<any>(null)
+const employee = ref<EmployeeRecord | null>(null)
 
 // Form states
 const basicForm = reactive({ nama: '', email: '', no_telp: '', no_hp: '', status: 'active', company_id: null as number | null, employee_type_id: null as number | null, tgl_masuk: '', tgl_resign: '', photo: '' })
@@ -23,7 +49,7 @@ const children = ref<Child[]>([])
 const positions = ref<Position[]>([])
 const documentForm = reactive({ no_npwp: '', no_asuransi: '', no_jamsostek: '', no_bpjs_kesehatan: '', no_bpjs_ketenagakerjaan: '', no_dplk: '' })
 const healthForm = reactive({ tinggi_badan: 0, berat_badan: 0, kacamata: false, alergi: '', cacat_bicara: false, cacat_pendengaran: false, cacat_penglihatan: false, cacat_anggota_badan: false, cacat_lain: false, cacat_penjelasan: '' })
-const leaveBalances = ref<any[]>([])
+const leaveBalances = ref<LeaveBalanceRecord[]>([])
 const linkedUser = ref<{ id: number, name: string, email: string } | null>(null)
 const unlinkedUsers = ref<{ id: number, name: string, email: string }[]>([])
 const selectedUserId = ref<number | undefined>(undefined)
@@ -36,10 +62,15 @@ const religions = ref<{ id: number, nama_agama: string }[]>([])
 const bloodTypes = ref<{ id: number, kode: string }[]>([])
 const maritalStatuses = ref<{ id: number, kode: string, nama: string }[]>([])
 
-function toDateStr(val: any): string {
+function toDateStr(val: unknown): string {
   if (!val) return ''
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10)
-  try { return new Date(val).toISOString().slice(0, 10) } catch { return '' }
+  if (typeof val !== 'string' && typeof val !== 'number' && !(val instanceof Date)) return ''
+  try {
+    return new Date(val).toISOString().slice(0, 10)
+  } catch {
+    return ''
+  }
 }
 
 const tabs = [
@@ -113,8 +144,8 @@ async function loadEmployee() {
     }
     educations.value = e.educations ?? []
     emergencyContacts.value = e.employee_emergency_contacts ?? []
-    children.value = (e.empleyeeChild ?? []).map((c: any) => ({ ...c, tanggal_lahir: toDateStr(c.tanggal_lahir) }))
-    positions.value = (e.employeePosition ?? []).map((p: any) => ({ ...p, tanggal_mulai: toDateStr(p.tanggal_mulai), tanggal_selesai: toDateStr(p.tanggal_selesai) }))
+    children.value = (e.empleyeeChild ?? []).map((c: Child) => ({ ...c, tanggal_lahir: toDateStr(c.tanggal_lahir) }))
+    positions.value = (e.employeePosition ?? []).map((p: Position) => ({ ...p, tanggal_mulai: toDateStr(p.tanggal_mulai), tanggal_selesai: toDateStr(p.tanggal_selesai) }))
 
     const doc = e.employeeDocument?.[0]
     if (doc) {
@@ -158,7 +189,9 @@ async function loadEmployee() {
   } finally { loading.value = false }
 }
 
-watch(open, (val) => { if (val) loadEmployee() })
+watch(open, (val) => {
+  if (val) loadEmployee()
+})
 
 async function saveBasic() {
   if (!employee.value) return
@@ -852,19 +885,19 @@ async function saveChildren() {
                       <UInput v-model="lb.jatah_cuti_baru" type="number" class="w-full" />
                     </UFormField>
                     <UFormField label="Terpakai Baru">
-                      <UInput :model-value="lb.terpakai_baru ?? 0" disabled class="w-full" />
+                      <UInput :model-value="String(lb.terpakai_baru ?? 0)" disabled class="w-full" />
                     </UFormField>
                     <UFormField label="Sisa Baru">
-                      <UInput :model-value="lb.sisa_baru ?? 0" disabled class="w-full" />
+                      <UInput :model-value="String(lb.sisa_baru ?? 0)" disabled class="w-full" />
                     </UFormField>
                     <UFormField label="Jatah Cuti Lama">
                       <UInput v-model="lb.jatah_cuti_lama" type="number" class="w-full" />
                     </UFormField>
                     <UFormField label="Terpakai Lama">
-                      <UInput :model-value="lb.terpakai_lama ?? 0" disabled class="w-full" />
+                      <UInput :model-value="String(lb.terpakai_lama ?? 0)" disabled class="w-full" />
                     </UFormField>
                     <UFormField label="Sisa Lama">
-                      <UInput :model-value="lb.sisa_lama ?? 0" disabled class="w-full" />
+                      <UInput :model-value="String(lb.sisa_lama ?? 0)" disabled class="w-full" />
                     </UFormField>
                   </div>
                 </div>

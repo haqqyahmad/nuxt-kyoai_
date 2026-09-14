@@ -38,6 +38,22 @@ const state = reactive({
   phone: ''
 })
 
+type PatientFormData = {
+  branchId: number
+  firstName: string
+  middleName?: string
+  lastName: string
+  gender?: string
+  idType?: string
+  idNumber?: string
+  email?: string
+  dob?: string
+  maritalStatus?: string
+  phone?: string
+  message?: string
+  name?: string
+}
+
 const genderOptions = [
   { label: 'Laki-laki', value: 'MALE' },
   { label: 'Perempuan', value: 'FEMALE' }
@@ -56,7 +72,7 @@ const maritalOptions = [
 ]
 
 // ✅ submit dipisah (ini yang dipanggil BaseFormModal)
-async function submit(data: any) {
+async function submit(data: PatientFormData) {
   try {
     data.message = 'Patient'
     data.name = `${data.firstName} ${data.middleName} ${data.lastName}`
@@ -67,7 +83,7 @@ async function submit(data: any) {
     })
 
     emit('created')
-  } catch (err: any) {
+  } catch (err) {
     handleError(toast, err)
     throw err // 🔥 penting biar Base tau error
   }

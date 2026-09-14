@@ -93,31 +93,6 @@ const dayValues: DayValue[] = [
   'saturday'
 ]
 
-const staffColumnWidth = computed(() => {
-  if (props.viewMode === 'month') return 150
-  if (props.viewMode === 'day') return 160
-
-  return 180
-})
-
-const dayColumnMinWidth = computed(() => {
-  if (props.viewMode === 'day') return 220
-  if (props.viewMode === 'month') return 90
-
-  return 128
-})
-
-const calendarMinWidth = computed(() => {
-  if (props.viewMode === 'day') return '420px'
-  if (props.viewMode === 'month') return '3000px'
-
-  return '1080px'
-})
-
-const gridStyle = computed(() => ({
-  gridTemplateColumns: `${staffColumnWidth.value}px repeat(${days.value.length}, minmax(${dayColumnMinWidth.value}px, 1fr))`
-}))
-
 function normalizeDate(value: Date | string) {
   return value instanceof Date ? new Date(value) : new Date(value)
 }
@@ -348,10 +323,6 @@ const weeks = computed(() => {
   }
 
   return chunks
-})
-
-const hasEmployees = computed(() => {
-  return employees.value.length > 0
 })
 </script>
 

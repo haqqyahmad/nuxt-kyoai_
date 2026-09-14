@@ -1,6 +1,6 @@
 <!-- app/components/questionnaire/Builder/QuestionCard.vue -->
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import type { Question } from '~/types/questionnaire'
 
@@ -22,7 +22,7 @@ const props = defineProps<{
   questions: Question[]
 }>()
 
-const { duplicateQuestion, removeQuestion } = useQuestionnaireStore()
+const { duplicateQuestion, removeQuestion, updateQuestion } = useQuestionnaireStore()
 
 /**
  * =====================================================
@@ -66,7 +66,59 @@ const questionTypes = [
  * =====================================================
  */
 function toggleEdit() {
-  props.question.isEditing = !props.question.isEditing
+  updateQuestion(props.sectionId, props.question.id, {
+    isEditing: !props.question.isEditing
+  })
+}
+
+/**
+ * =====================================================
+ * EDITABLE MODELS
+ * =====================================================
+ */
+const questionTextModel = computed({
+  get: () => props.question.questionText,
+  set: (value: string) => {
+    updateQuestion(props.sectionId, props.question.id, {
+      questionText: value
+    })
+  }
+})
+
+const questionDescriptionModel = computed({
+  get: () => props.question.questionDescription ?? '',
+  set: (value: string) => {
+    updateQuestion(props.sectionId, props.question.id, {
+      questionDescription: value
+    })
+  }
+})
+
+const questionTypeModel = computed({
+  get: () => props.question.questionType,
+  set: (value: Question['questionType']) => {
+    updateQuestion(props.sectionId, props.question.id, {
+      questionType: value
+    })
+  }
+})
+
+const isRequiredModel = computed({
+  get: () => props.question.isRequired,
+  set: (value: boolean) => {
+    updateQuestion(props.sectionId, props.question.id, {
+      isRequired: value
+    })
+  }
+})
+
+function addConditional() {
+  updateQuestion(props.sectionId, props.question.id, {
+    conditional: {
+      parentQuestionId: '',
+      showIfOptionIds: []
+    }
+  })
 }
 
 /**
@@ -94,14 +146,10 @@ watch(
      * reset options
      */
     if (!['radio', 'checkbox', 'select'].includes(type)) {
-      props.question.options = []
-    }
-
-    /**
-     * reset conditional
-     */
-    if (!['radio', 'checkbox', 'select'].includes(type)) {
-      props.question.conditional = undefined
+      updateQuestion(props.sectionId, props.question.id, {
+        options: [],
+        conditional: undefined
+      })
     }
   }
 )
@@ -128,7 +176,7 @@ watch(
               </label>
 
               <UInput
-                v-model="question.questionText"
+                v-model="questionTextModel"
                 placeholder="Enter question title"
                 size="lg"
                 class="w-full"
@@ -142,7 +190,7 @@ watch(
               </label>
 
               <UTextarea
-                v-model="question.questionDescription"
+                v-model="questionDescriptionModel"
                 placeholder="Optional description"
                 :rows="3"
                 autoresize
@@ -161,7 +209,7 @@ watch(
                 </label>
 
                 <USelect
-                  v-model="question.questionType"
+                  v-model="questionTypeModel"
                   :items="questionTypes"
                   value-key="value"
                   option-attribute="label"
@@ -183,7 +231,7 @@ watch(
                   </p>
                 </div>
 
-                <USwitch v-model="question.isRequired" />
+                <USwitch v-model="isRequiredModel" />
               </div>
             </div>
 
@@ -195,12 +243,7 @@ watch(
                 variant="soft"
                 color="neutral"
                 size="sm"
-                @click="
-                  question.conditional = {
-                    parentQuestionId: '',
-                    showIfOptionIds: []
-                  }
-                "
+                @click="addConditional"
               >
                 Add Conditional Logic
               </UButton>

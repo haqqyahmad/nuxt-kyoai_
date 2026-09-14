@@ -30,7 +30,7 @@ async function submit(data: typeof state) {
       addressBranch: data.addressBranch
     })
     emit('created')
-  } catch (err: any) {
+  } catch (err) {
     handleError(toast, err)
     throw err
   }

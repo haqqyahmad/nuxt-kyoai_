@@ -517,7 +517,6 @@ const activeRoomSession = computed(() => {
   if (!roomSession.value?.id || roomSession.value.endedAt) return null
   return roomSession.value as RoomSession
 })
-const canEnterRoom = computed(() => Boolean(assignment.value?.roomId) && !activeRoomSession.value)
 
 const currentUserId = computed(() => user.value?.id ?? null)
 const canForceEndOthers = computed(() => permissions.value.includes('room:update'))
@@ -602,7 +601,7 @@ const {
     if (!isWaitingModalOpen.value || !effectiveWaitingRoomTypeId.value) return []
     const status = waitingStatusFilter.value === 'ALL' ? undefined : waitingStatusFilter.value
 
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       status,
       limit: 100,
       page: 1,
@@ -1007,58 +1006,6 @@ function getQueueBadgeColor(status: string): 'primary' | 'secondary' | 'success'
   return 'neutral'
 }
 
-function buildStatusBadge(
-  status: string,
-  sampleCollections: Array<{ status: string }>,
-  stageItems: RoomQueueItem['stageItems']
-): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
-  const terminal = ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT']
-  if (terminal.includes(status)) {
-    return { label: getItemStatusLabel(status), color: getQueueBadgeColor(status) }
-  }
-
-  const stages = stageItems ?? []
-  const isLabFlow = stages.some(stage => ['COLLECT', 'RECEIVE', 'EXAM'].includes(stage.stage?.code ?? ''))
-  if (!isLabFlow) {
-    return { label: getItemStatusLabel(status), color: getQueueBadgeColor(status) }
-  }
-
-  const build = (label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral') => ({ label, color })
-
-  const sampleStatuses = (sampleCollections ?? []).map(s => s.status)
-  const hasPending = sampleStatuses.some(s => s === 'PENDING')
-  const hasCollected = sampleStatuses.some(s => s === 'COLLECTED')
-  const hasReceived = sampleStatuses.some(s => s === 'RECEIVED')
-  const hasRejected = sampleStatuses.some(s => s === 'REJECTED' || s === 'RESCHEDULED')
-  const allReceived = sampleStatuses.length > 0 && sampleStatuses.every(s => s === 'RECEIVED')
-
-  // First active stage (not finished), for lab flow means COLLECT → RECEIVE → EXAM.
-  const active = stages.find(s =>
-    !['LOCKED', 'DONE', 'SKIPPED', 'RESCHEDULED'].includes(s.status)
-    && ['COLLECT', 'RECEIVE', 'EXAM'].includes(s.stage?.code ?? '')
-  )
-  const stageCode = active?.stage?.code
-
-  // Always highlight if there is a problematic sample (needs recollection / revisit).
-  if (hasRejected && !hasCollected && !hasReceived) {
-    return build('Sample needs recollection', 'error')
-  }
-
-  switch (stageCode) {
-    case 'COLLECT':
-      if (hasPending) return build('Waiting for Sample Collection', 'warning')
-      if (hasCollected) return build('Collected, waiting for Lab receipt', 'info')
-      return build('Waiting for Sample Collection', 'warning')
-    case 'RECEIVE':
-      if (allReceived) return build('Sample Received by Lab', 'success')
-      return build('Waiting for Lab Receipt', 'info')
-    case 'EXAM':
-      return build('Waiting for Lab Processing', 'warning')
-    default:
-      return build(getItemStatusLabel(status), getQueueBadgeColor(status))
-  }
-}
-
 // Patient process status in ROOM (not sample status).
 // Priority: item action (reject/reschedule/retest) → done → in-progress item → in-room → called → waiting.
 function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' } {
@@ -1329,19 +1276,6 @@ function getRoomSessionLabel() {
     return activeRoomSession.value.roomType.name
   }
   return 'Room session inactive'
-}
-
-function openEnterRoomModal() {
-  if (!assignment.value?.roomId) {
-    toast.add({
-      title: 'No room assignment',
-      description: 'No room assignment available to enter room.',
-      color: 'warning'
-    })
-    return
-  }
-
-  isEnterRoomModalOpen.value = true
 }
 
 async function handleEnterRoom() {

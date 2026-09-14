@@ -13,6 +13,18 @@ type StructuredResult = DetailResult & {
   doctorExam?: { rendererKey?: string | null } | null
 }
 
+type AuditEntry = {
+  id?: number
+  entity?: string
+  action?: string
+  actorId?: number | null
+  actorName?: string | null
+  actorRole?: string | null
+  notes?: string | null
+  createdAt?: string
+  payloadAfter?: Record<string, { from: unknown, to: unknown }> | null
+}
+
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
@@ -23,7 +35,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 
 const auditLoading = ref(false)
-const auditEntries = ref<any[]>([])
+const auditEntries = ref<AuditEntry[]>([])
 
 async function loadAudit() {
   if (!examId.value) return
@@ -55,7 +67,7 @@ const isDoctorTestResult = computed(() => Boolean(result.value?.doctorExam)
 const examId = computed(() => getQueryValue(route.query.examId))
 const roomTypeId = computed(() => getQueryValue(route.query.roomTypeId))
 
-const patient = computed(() => (result.value as any)?.patient ?? null)
+const patient = computed(() => result.value?.patient ?? null)
 const patientName = computed(() =>
   [patient.value?.firstName, patient.value?.middleName, patient.value?.lastName]
     .filter(Boolean)
@@ -72,7 +84,7 @@ const patientAge = computed(() => {
   const dob = patient.value?.dob
   if (!dob) return '-'
   const birth = new Date(dob)
-  const ref = (result.value as any)?.checkinAt ? new Date((result.value as any).checkinAt) : new Date()
+  const ref = result.value?.checkinAt ? new Date(result.value.checkinAt) : new Date()
   if (Number.isNaN(birth.getTime())) return '-'
   let age = ref.getFullYear() - birth.getFullYear()
   if (ref.getMonth() < birth.getMonth() || (ref.getMonth() === birth.getMonth() && ref.getDate() < birth.getDate())) age--

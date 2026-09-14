@@ -671,7 +671,7 @@ async function submitAddPermission() {
     if (existing) {
       permissionId = existing.id
     } else {
-      const res = await api.post('/settings/permissions', { name })
+      await api.post('/settings/permissions', { name })
       await refreshPermissions()
       const created = permissionsData.value.find(p => p.name === name)
       if (!created) throw new Error('Gagal membuat permission')

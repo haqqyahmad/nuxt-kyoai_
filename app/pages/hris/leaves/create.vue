@@ -21,7 +21,7 @@ const { user: currentUser } = await useCurrentUser()
 
 const loading = ref(false)
 
-const employeeId = computed(() => (currentUser.value as any)?.employee?.id ?? null)
+const employeeId = computed(() => (currentUser.value as { employee?: { id?: number } } | null)?.employee?.id ?? null)
 
 const form = reactive<CreateLeavePayload>({
   employee_id: employeeId.value,

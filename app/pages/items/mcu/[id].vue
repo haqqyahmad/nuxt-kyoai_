@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
-import type { RendererKey } from '~/types/physical'
 import ItemSampleManager from '~/components/item/itemSampleManager.vue'
 
 const route = useRoute()
@@ -11,22 +10,6 @@ const itemId = computed(() => String(route.params.id || ''))
 const activeTab = ref<'overview' | 'template' | 'sample'>('overview')
 
 type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
-
-type ItemGroup = {
-  id: string
-  name: string
-  code?: string | null
-  parent?: {
-    id: string
-    name: string
-    code?: string | null
-    parent?: {
-      id: string
-      name: string
-      code?: string | null
-    } | null
-  } | null
-}
 
 type ItemInputan = {
   id: string
@@ -55,42 +38,6 @@ type ItemInputan = {
       value: string
       sortOrder: number
     } | null
-  }>
-}
-
-type ItemDetail = {
-  id: string
-  code: string
-  name: string
-  resultTiming?: 'inline' | 'deferred'
-  rendererKey?: RendererKey | null
-  externalResult?: boolean
-  externalProcessSlaDays?: number | null
-  isActive: boolean
-  description?: string | null
-  createdAt?: string
-  updatedAt?: string
-  department?: {
-    id: string
-    code: string
-    name: string
-  } | null
-  roomType?: {
-    id: string
-    code: string
-    name: string
-  } | null
-  group?: ItemGroup | null
-  inputans?: ItemInputan[]
-  sampleTypes?: Array<{
-    id: string
-    isPrimary: boolean
-    sortOrder: number
-    sampleType: {
-      id: string
-      code: string
-      name: string
-    }
   }>
 }
 

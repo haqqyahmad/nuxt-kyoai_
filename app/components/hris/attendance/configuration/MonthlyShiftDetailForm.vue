@@ -39,6 +39,10 @@ type WeekForm = {
   shiftDescription?: string | null
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const props = defineProps<{
   template: MonthTemplate | null
 }>()
@@ -212,12 +216,12 @@ async function saveChanges() {
     })
 
     emit('refresh')
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Monthly shift template gagal diperbarui.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Monthly shift template gagal diperbarui.',
       color: 'error'
     })
   } finally {

@@ -18,7 +18,7 @@ type EmployeeItem = {
   nik: string
   nama: string
   status: string
-  educations?: any[]
+  educations?: unknown[]
 }
 
 type EmployeesResponse = {

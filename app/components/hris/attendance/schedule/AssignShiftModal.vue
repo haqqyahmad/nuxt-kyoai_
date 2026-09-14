@@ -48,6 +48,10 @@ type WeekDateRange = {
   endDate: string
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const emit = defineEmits<{
   refresh: []
 }>()
@@ -95,29 +99,12 @@ const monthItems = [
   { label: 'December', value: 12 }
 ]
 
-const selectedEmployee = computed(() => {
-  return employees.value.find(employee => employee.value === form.employeeId)
-})
-
 const selectedShift = computed(() => {
   return shiftOptions.value.find(shift => shift.value === form.shiftTemplateId)
 })
 
 const selectedMonthTemplate = computed(() => {
   return monthTemplates.value.find(template => template.value === form.monthTemplateId)
-})
-
-const selectedMonthLabel = computed(() => {
-  return monthItems.find(month => month.value === Number(form.month))?.label ?? '-'
-})
-
-const selectedDateRange = computed(() => {
-  if (!form.month || !form.year) return '-'
-
-  const start = new Date(Number(form.year), Number(form.month) - 1, 1)
-  const end = new Date(Number(form.year), Number(form.month), 0)
-
-  return `${formatDisplayDate(start)} - ${formatDisplayDate(end)}`
 })
 
 const weekDateRanges = computed<WeekDateRange[]>(() => {
@@ -236,10 +223,6 @@ function resetForm() {
 
   employeeSearch.value = ''
   useMonthlyTemplate.value = false
-}
-
-function toIsoDateTime(date: string) {
-  return new Date(`${date}T00:00:00.000Z`).toISOString()
 }
 
 function getMonthlyStartDate() {
@@ -393,12 +376,12 @@ async function submit() {
     emit('refresh')
     open.value = false
     resetForm()
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Generate shift gagal.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Generate shift gagal.',
       color: 'error'
     })
   } finally {

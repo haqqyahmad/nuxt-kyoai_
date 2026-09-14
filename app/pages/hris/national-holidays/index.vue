@@ -41,7 +41,7 @@ function syncSelectedHoliday() {
 
 async function fetchHolidays() {
   try {
-    const response: any = await api('/hris/national-holidays', {
+    const response = await api('/hris/national-holidays', {
       method: 'GET'
     })
 
@@ -53,12 +53,14 @@ async function fetchHolidays() {
           is_active: Boolean(item.is_active)
         }))
       : []
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
+
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal mengambil data national holidays.',
+      description: message || 'Gagal mengambil data national holidays.',
       color: 'error'
     })
   }

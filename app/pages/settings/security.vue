@@ -55,10 +55,12 @@ async function onSubmit(event: FormSubmitEvent<PasswordSchema>) {
 
     password.current = ''
     password.new = ''
-  } catch (error: any) {
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Password gagal diubah',
+      description: message || 'Password gagal diubah',
       color: 'error'
     })
   } finally {

@@ -84,7 +84,7 @@ async function deleteSelectedRows() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) =>
+      selectedRows.map(row =>
         api.delete(`/medical/service-types/${row.original.id}`)
       )
     )

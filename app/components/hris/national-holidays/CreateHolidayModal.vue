@@ -9,6 +9,10 @@ const emit = defineEmits<{
   created: []
 }>()
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const api = useApi()
 const toast = useToast()
 
@@ -83,12 +87,12 @@ async function submit() {
 
     open.value = false
     resetForm()
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'National holiday gagal dibuat.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'National holiday gagal dibuat.',
       color: 'error'
     })
   } finally {

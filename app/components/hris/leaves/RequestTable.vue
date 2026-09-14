@@ -107,32 +107,6 @@ async function loadLeaveRequests() {
   }
 }
 
-async function approveLeaveRequest(id: number) {
-  approvingId.value = id
-
-  try {
-    await api.post(`/hris/leave/requests/${id}/approve`)
-
-    toast.add({
-      title: 'Berhasil',
-      description: 'Permohonan cuti berhasil disetujui.',
-      color: 'success'
-    })
-
-    await loadLeaveRequests()
-  } catch (error) {
-    console.error(error)
-
-    toast.add({
-      title: 'Gagal',
-      description: 'Gagal menyetujui permohonan cuti.',
-      color: 'error'
-    })
-  } finally {
-    approvingId.value = null
-  }
-}
-
 async function bulkApproveSelected() {
   if (!selectedIds.value.length) {
     toast.add({

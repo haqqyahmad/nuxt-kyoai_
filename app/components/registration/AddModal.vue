@@ -20,11 +20,26 @@ const state = reactive({
   branchId: ''
 })
 
+type PatientRecord = {
+  id: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  idType?: string
+  idNumber?: string
+  gender?: string
+  dob?: string
+  maritalStatus?: string
+  email?: string
+  phone?: string
+  branchId?: string
+}
+
 // State untuk selected patient
-const selectedPatientData = ref<any>(null)
+const selectedPatientData = ref<PatientRecord | null>(null)
 
 // State untuk semua data patient
-const allPatients = ref<any[]>([])
+const allPatients = ref<PatientRecord[]>([])
 const isLoadingPatients = ref(false)
 
 // Branch options untuk pendaftaran
@@ -87,8 +102,14 @@ function clearSelection() {
   state.patientId = ''
 }
 
+type RegistrationFormData = {
+  patientId: string
+  branchId: string
+  id?: string
+}
+
 // Submit form
-async function submit(data: any) {
+async function submit(data: RegistrationFormData) {
   try {
     if (!selectedPatientData.value) {
       throw new Error('Silakan pilih pasien terlebih dahulu')
@@ -106,14 +127,15 @@ async function submit(data: any) {
     // Reset form setelah sukses
     clearSelection()
     state.branchId = ''
-  } catch (err: any) {
+  } catch (err) {
     handleError(toast, err)
     throw err
   }
 }
 
 // Fungsi untuk mendapatkan label branch
-function getBranchLabel(branchId: string) {
+function getBranchLabel(branchId?: string) {
+  if (!branchId) return '-'
   const branch = branchIdOptions.find(b => b.value === branchId)
   return branch ? branch.label : `Branch ${branchId}`
 }

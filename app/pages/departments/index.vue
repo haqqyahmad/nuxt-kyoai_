@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
-import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import type { Row, Table } from '@tanstack/table-core'
@@ -40,24 +39,37 @@ const selectedDeleteId = ref<number | null>(null)
 const form = reactive({ kode_department: '', nama_department: '', description: '', status: true })
 
 function resetForm() {
-  form.kode_department = ''; form.nama_department = ''; form.description = ''; form.status = true
+  form.kode_department = ''
+  form.nama_department = ''
+  form.description = ''
+  form.status = true
 }
 
-function openAddModal() { resetForm(); isAddModalOpen.value = true }
+function openAddModal() {
+  resetForm()
+  isAddModalOpen.value = true
+}
 
 function openEditModal(row: Department) {
-  form.kode_department = row.kode_department; form.nama_department = row.nama_department
-  form.description = row.description ?? ''; form.status = row.status
-  selectedEditData.value = row; isEditModalOpen.value = true
+  form.kode_department = row.kode_department
+  form.nama_department = row.nama_department
+  form.description = row.description ?? ''
+  form.status = row.status
+  selectedEditData.value = row
+  isEditModalOpen.value = true
 }
 
-function openDeleteModal(id: number) { selectedDeleteId.value = id; isDeleteModalOpen.value = true }
+function openDeleteModal(id: number) {
+  selectedDeleteId.value = id
+  isDeleteModalOpen.value = true
+}
 
 async function handleCreate() {
   try {
     await api.post('/master/departments', { ...form })
     toast.add({ title: 'Berhasil', description: 'Department berhasil ditambahkan', color: 'success' })
-    isAddModalOpen.value = false; await refresh()
+    isAddModalOpen.value = false
+    await refresh()
   } catch { toast.add({ title: 'Gagal', description: 'Gagal menambahkan department', color: 'error' }) }
 }
 
@@ -66,7 +78,8 @@ async function handleUpdate() {
   try {
     await api.put(`/master/departments/${selectedEditData.value.id}`, { ...form })
     toast.add({ title: 'Berhasil', description: 'Department berhasil diperbarui', color: 'success' })
-    isEditModalOpen.value = false; await refresh()
+    isEditModalOpen.value = false
+    await refresh()
   } catch { toast.add({ title: 'Gagal', description: 'Gagal memperbarui department', color: 'error' }) }
 }
 
@@ -75,7 +88,9 @@ async function handleDelete() {
   try {
     await api.delete(`/master/departments/${selectedDeleteId.value}`)
     toast.add({ title: 'Berhasil', description: 'Department berhasil dihapus', color: 'success' })
-    selectedDeleteId.value = null; isDeleteModalOpen.value = false; await refresh()
+    selectedDeleteId.value = null
+    isDeleteModalOpen.value = false
+    await refresh()
   } catch { toast.add({ title: 'Gagal', description: 'Gagal menghapus department', color: 'error' }) }
 }
 
@@ -83,10 +98,17 @@ const table = useTemplateRef<{ tableApi: Table<Department> }>('table')
 const currentPage = ref(1)
 const currentPageSize = computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
-  set: (v: number) => { table.value?.tableApi?.setPageSize(v); currentPage.value = 1 }
+  set: (v: number) => {
+    table.value?.tableApi?.setPageSize(v)
+    currentPage.value = 1
+  }
 })
-watch(() => table.value?.tableApi?.getState().pagination.pageIndex, (idx) => { currentPage.value = (idx ?? 0) + 1 }, { immediate: true })
-watch(currentPage, (page) => { table.value?.tableApi?.setPageIndex(page - 1) })
+watch(() => table.value?.tableApi?.getState().pagination.pageIndex, (idx) => {
+  currentPage.value = (idx ?? 0) + 1
+}, { immediate: true })
+watch(currentPage, (page) => {
+  table.value?.tableApi?.setPageIndex(page - 1)
+})
 
 function getRowItems(row: Row<Department>) {
   return [
@@ -98,11 +120,68 @@ function getRowItems(row: Row<Department>) {
 }
 
 const columns: TableColumn<Department>[] = [
-  { id: 'select', header: ({ table }) => h(UCheckbox, { 'modelValue': table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(), 'onUpdate:modelValue': (v: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!v) }), cell: ({ row }) => h(UCheckbox, { 'modelValue': row.getIsSelected(), 'onUpdate:modelValue': (v: boolean | 'indeterminate') => row.toggleSelected(!!v) }) },
-  { accessorKey: 'kode_department', enableSorting: true, header: ({ column }) => { const s = column.getIsSorted(); return h(UButton, { color: 'neutral', variant: 'ghost', label: 'Code', icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down', class: '-mx-2.5', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc') }) }, cell: ({ row }) => h('span', { class: 'font-medium text-highlighted' }, row.getValue('kode_department')) },
-  { accessorKey: 'nama_department', enableSorting: true, header: ({ column }) => { const s = column.getIsSorted(); return h(UButton, { color: 'neutral', variant: 'ghost', label: 'Name', icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down', class: '-mx-2.5', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc') }) }, cell: ({ row }) => h('span', { class: 'font-medium' }, row.getValue('nama_department')) },
+  {
+    id: 'select',
+    header: ({ table }) =>
+      h(UCheckbox, {
+        'modelValue': table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
+        'onUpdate:modelValue': (v: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!v)
+      }),
+    cell: ({ row }) =>
+      h(UCheckbox, {
+        'modelValue': row.getIsSelected(),
+        'onUpdate:modelValue': (v: boolean | 'indeterminate') => row.toggleSelected(!!v)
+      })
+  },
+  {
+    accessorKey: 'kode_department',
+    enableSorting: true,
+    header: ({ column }) => {
+      const s = column.getIsSorted()
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Code',
+        icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => h('span', { class: 'font-medium text-highlighted' }, row.getValue('kode_department'))
+  },
+  {
+    accessorKey: 'nama_department',
+    enableSorting: true,
+    header: ({ column }) => {
+      const s = column.getIsSorted()
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Name',
+        icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => h('span', { class: 'font-medium' }, row.getValue('nama_department'))
+  },
   { accessorKey: 'description', header: 'Description', cell: ({ row }) => h('span', { class: 'text-sm text-muted' }, row.getValue('description') || '-') },
-  { accessorKey: 'status', enableSorting: true, header: ({ column }) => { const s = column.getIsSorted(); return h(UButton, { color: 'neutral', variant: 'ghost', label: 'Status', icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down', class: '-mx-2.5', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc') }) }, cell: ({ row }) => h(UBadge, { label: row.getValue('status') ? 'Active' : 'Inactive', color: row.getValue('status') ? 'success' : 'neutral', variant: 'subtle' }) },
+  {
+    accessorKey: 'status',
+    enableSorting: true,
+    header: ({ column }) => {
+      const s = column.getIsSorted()
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Status',
+        icon: s ? s === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    },
+    cell: ({ row }) => h(UBadge, { label: row.getValue('status') ? 'Active' : 'Inactive', color: row.getValue('status') ? 'success' : 'neutral', variant: 'subtle' })
+  },
   {
     accessorKey: 'created_at',
     header: ({ column }) => {
@@ -124,7 +203,11 @@ const columns: TableColumn<Department>[] = [
     cell: ({ row }) => {
       const val = row.getValue('created_at')
       if (!val) return '-'
-      try { return new Date(val as string).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch { return '-' }
+      try {
+        return new Date(val as string).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      } catch {
+        return '-'
+      }
     }
   },
   { id: 'actions', cell: ({ row }) => h('div', { class: 'text-right' }, h(UDropdownMenu, { content: { align: 'end' }, items: getRowItems(row) }, () => h(UButton, { icon: 'i-lucide-ellipsis-vertical', color: 'neutral', variant: 'ghost' }))) }

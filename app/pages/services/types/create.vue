@@ -353,10 +353,12 @@ async function submit() {
     })
 
     router.push('/packages')
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: message ?? 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {

@@ -34,14 +34,26 @@ type Workflow = {
   steps: Step[]
 }
 
-const { data: workflows, pending, refresh, error: wfError } = await useAsyncData<Workflow[]>(
+type UserOption = {
+  id: number | string
+  name: string
+}
+
+type RoleOption = {
+  id: number | string
+  name: string
+}
+
+const { data: workflows, pending, refresh } = await useAsyncData<Workflow[]>(
   'result-workflow-list',
   async () => {
     try {
       const res = await api.get('/settings/result-workflow')
       return res.data?.data ?? res.data ?? []
-    } catch (err: any) {
-      toast.add({ title: 'Gagal muat workflow', description: err?.response?.data?.message || err?.message || '403 Forbidden', color: 'error' })
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }, message?: string }
+
+      toast.add({ title: 'Gagal muat workflow', description: error?.response?.data?.message || error?.message || '403 Forbidden', color: 'error' })
       return []
     }
   },
@@ -54,20 +66,22 @@ const { data: departmentsData, error: deptError } = await useAsyncData<Departmen
     try {
       const res = await api.get('/settings/result-workflow/departments')
       return res.data?.data ?? res.data ?? []
-    } catch (err: any) {
-      toast.add({ title: 'Gagal muat departemen', description: err?.response?.data?.message || err?.message || '403 Forbidden', color: 'error' })
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }, message?: string }
+
+      toast.add({ title: 'Gagal muat departemen', description: error?.response?.data?.message || error?.message || '403 Forbidden', color: 'error' })
       return []
     }
   },
   { default: () => [] }
 )
 
-const { data: usersData } = await useAsyncData<any[]>('result-workflow-users', async () => {
+const { data: usersData } = await useAsyncData<UserOption[]>('result-workflow-users', async () => {
   const res = await api.get('/users', { params: { limit: 200 } })
   return res.data?.data?.data ?? res.data?.data ?? res.data ?? []
 }, { default: () => [] })
 
-const { data: rolesData } = await useAsyncData<any[]>('result-workflow-roles', async () => {
+const { data: rolesData } = await useAsyncData<RoleOption[]>('result-workflow-roles', async () => {
   const res = await api.get('/settings/roles')
   return res.data?.data ?? res.data ?? []
 }, { default: () => [] })
@@ -93,10 +107,10 @@ const activeDeptWorkflows = computed(() =>
 )
 
 const userOptions = computed(() =>
-  (usersData.value ?? []).map((u: any) => ({ label: u.name || String(u.id), value: String(u.id) }))
+  (usersData.value ?? []).map(u => ({ label: u.name || String(u.id), value: String(u.id) }))
 )
 const roleOptions = computed(() =>
-  (rolesData.value ?? []).map((r: any) => ({ label: r.name, value: String(r.id) }))
+  (rolesData.value ?? []).map(r => ({ label: r.name, value: String(r.id) }))
 )
 const roleNameById = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
@@ -165,8 +179,10 @@ async function saveWorkflow() {
     toast.add({ title: 'Tersimpan', description: 'Workflow approval diperbarui', color: 'success' })
     editOpen.value = false
     await refresh()
-  } catch (err: any) {
-    toast.add({ title: 'Gagal simpan', description: err?.response?.data?.message || err?.message || 'Terjadi kesalahan', color: 'error' })
+  } catch (err) {
+    const error = err as { response?: { data?: { message?: string } }, message?: string }
+
+    toast.add({ title: 'Gagal simpan', description: error?.response?.data?.message || error?.message || 'Terjadi kesalahan', color: 'error' })
   } finally {
     saving.value = false
   }
@@ -176,7 +192,10 @@ const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
   {
     accessorKey: 'department',
     header: 'Department',
-    cell: ({ row }) => { const d = row.original.department; return `${d.name} (${d.code})` }
+    cell: ({ row }) => {
+      const d = row.original.department
+      return `${d.name} (${d.code})`
+    }
   },
   {
     accessorKey: 'steps',

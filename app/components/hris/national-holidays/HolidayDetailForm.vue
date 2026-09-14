@@ -11,6 +11,10 @@ type NationalHoliday = {
   updated_at?: string
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const props = defineProps<{
   holiday: NationalHoliday | null
 }>()
@@ -110,12 +114,12 @@ async function saveChanges() {
     })
 
     emit('refresh')
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'National holiday gagal diperbarui.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'National holiday gagal diperbarui.',
       color: 'error'
     })
   } finally {
@@ -145,12 +149,12 @@ async function deleteHoliday() {
     })
 
     emit('refresh')
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'National holiday gagal dihapus.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'National holiday gagal dihapus.',
       color: 'error'
     })
   } finally {

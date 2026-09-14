@@ -407,10 +407,12 @@ async function loadPaketForEdit() {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(paketItem => paketItem.item)
       .filter((item, index, array) => array.findIndex(current => current.id === item.id) === index)
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Gagal memuat paket',
+      description: message ?? 'Gagal memuat paket',
       color: 'error'
     })
     router.push('/services/packages')
@@ -434,7 +436,7 @@ async function fetchSourcePakets() {
       : Array.isArray(payload?.data)
         ? payload.data
         : []
-    sourcePakets.value = list.map((p: any) => ({
+    sourcePakets.value = list.map((p: { id: string, name: string }) => ({
       id: p.id,
       name: p.name
     }))
@@ -470,10 +472,12 @@ async function applySourcePaket(id: string) {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(paketItem => paketItem.item)
       .filter((item, index, array) => array.findIndex(current => current.id === item.id) === index)
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Gagal memuat paket sumber',
+      description: message ?? 'Gagal memuat paket sumber',
       color: 'error'
     })
   } finally {
@@ -597,10 +601,12 @@ async function submit() {
         ? `/services/packages/${paketId.value}`
         : '/services/packages'
     )
-  } catch (err: any) {
+  } catch (err) {
+    const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: message ?? 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {

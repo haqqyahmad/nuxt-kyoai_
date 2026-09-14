@@ -3,6 +3,7 @@ import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
+import type { Row } from '@tanstack/table-core'
 import { USelect } from '#components'
 
 const UButton = resolveComponent('UButton')
@@ -89,7 +90,7 @@ async function deleteRegistrationTemp(id: string) {
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus patient',
@@ -113,7 +114,7 @@ async function deleteSelectedRegistrations() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) =>
+      selectedRows.map((row: Row<TempRegist>) =>
         api.delete(`/registration-temp/${row.original.id}`)
       )
     )
@@ -126,7 +127,7 @@ async function deleteSelectedRegistrations() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus data',

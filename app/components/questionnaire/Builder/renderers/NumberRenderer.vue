@@ -1,7 +1,7 @@
 <!-- app/components/questionnaire/Builder/renderers/NumberRenderer.vue -->
 <script setup lang="ts">
 defineProps<{
-  question?: any
+  question?: unknown
 }>()
 </script>
 

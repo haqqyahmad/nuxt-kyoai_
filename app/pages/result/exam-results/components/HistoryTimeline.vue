@@ -41,7 +41,9 @@ const allExpanded = ref(false)
 function toggleAll() {
   allExpanded.value = !allExpanded.value
   if (allExpanded.value) {
-    filteredEntries.value.forEach((e) => { if (e.id != null) expandedIds.value.add(e.id) })
+    filteredEntries.value.forEach((e) => {
+      if (e.id != null) expandedIds.value.add(e.id)
+    })
   } else {
     expandedIds.value.clear()
   }

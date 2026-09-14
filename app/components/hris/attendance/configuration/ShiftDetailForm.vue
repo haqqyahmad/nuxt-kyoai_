@@ -26,6 +26,10 @@ type WorkingHour = {
   days: number[]
 }
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const props = defineProps<{
   shift: ShiftTemplate | null
 }>()
@@ -278,12 +282,12 @@ async function saveChanges() {
     })
 
     emit('refresh')
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Shift gagal diperbarui.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Shift gagal diperbarui.',
       color: 'error'
     })
   } finally {

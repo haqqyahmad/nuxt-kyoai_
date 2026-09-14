@@ -3,7 +3,7 @@
 import { h, resolveComponent, computed, ref } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
-import type { Row, Table } from '@tanstack/table-core'
+import type { Row, Table, Column } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
@@ -22,7 +22,7 @@ type SampleType = {
   isActive: boolean
   createdAt: string
   updatedAt: string
-  items: any[]
+  items: unknown[]
 }
 
 const {
@@ -112,7 +112,7 @@ async function deleteSelectedSamples() {
   }
 }
 
-function sortableHeader(label: string, column: any) {
+function sortableHeader(label: string, column: Column<SampleType>) {
   const isSorted = column.getIsSorted()
   return h(UButton, {
     color: 'neutral',

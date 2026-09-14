@@ -4,6 +4,10 @@ const emit = defineEmits<{
   success: []
 }>()
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const open = defineModel<boolean>('open', {
   default: false
 })
@@ -56,10 +60,10 @@ async function submit() {
 
     emit('success')
     open.value = false
-  } catch (error: any) {
+  } catch (error) {
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal menambahkan service type',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal menambahkan service type',
       color: 'error'
     })
   } finally {

@@ -41,7 +41,36 @@ type Patient = {
 
 }
 
-function mapPatient(item: any): Patient & { id_reg: string } {
+type PatientApiPatient = {
+  id: string
+  patientCode: string
+  patientName: string
+  firstName: string
+  middleName?: string
+  lastName: string
+  gender: Patient['gender']
+  idType: Patient['idType']
+  idNumber: string
+  phone?: string
+  dob: string
+  maritalStatus?: Patient['maritalStatus']
+}
+
+type PatientApiItem = {
+  id_reg: string
+  statusRegistration?: string
+  examDate: string
+  createdAt: string
+  serviceType?: string
+  priorityRegist?: string
+  canCheckout?: boolean
+  checkoutDone?: boolean
+  rescheduleVisitDate?: string | null
+  company?: { customerName?: string } | null
+  patient: PatientApiPatient
+}
+
+function mapPatient(item: PatientApiItem): Patient & { id_reg: string } {
   return {
     id: item.patient?.id,
     patientCode: item.patient?.patientCode,
@@ -144,7 +173,7 @@ async function deletePatient(id: string) {
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus patient',
@@ -168,7 +197,7 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`))
+      selectedRows.map((row: Row<Patient>) => api.delete(`/patient/${row.original.id}`))
     )
 
     toast.add({
@@ -179,7 +208,7 @@ async function deleteSelectedPatients() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus data',

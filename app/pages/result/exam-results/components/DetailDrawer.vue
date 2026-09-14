@@ -208,9 +208,9 @@ async function fetchAllAudit() {
   try {
     // Officer view (groupBy exam): result.id = examId, item id is in result.items.
     // External doctor view (groupBy item): result.id = examItemId.
-    const examId = props.result.exam?.id ?? (props.result as any).examId ?? null
-    const examItemIds = (props.result as any).items?.length
-      ? (props.result as any).items.map((it: any) => it.id)
+    const examId = props.result.exam?.id ?? (props.result as { examId?: string | null }).examId ?? null
+    const examItemIds = props.result.items?.length
+      ? props.result.items.map(item => item.id)
       : [props.result.id]
 
     const [roomLogs, externalLogs, examLogs] = await Promise.all([
@@ -270,7 +270,7 @@ const departmentApproveBlockedReason = computed<string | null>(() => {
   const r = props.result
   if (r?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return null
   if (r.departmentCanApprove === false) return r.departmentApproveDisableReason || 'You do not have permission to approve this step'
-  if (Number(r.exam?.resultSubmittedBy) != null && Number(r.exam?.resultSubmittedBy) === Number(currentUser.value?.id)) {
+  if (r.exam?.resultSubmittedBy != null && Number(r.exam.resultSubmittedBy) === Number(currentUser.value?.id)) {
     return 'The same inputter/submitter cannot approve (four-eyes).'
   }
   return null
@@ -350,29 +350,6 @@ async function startExternalProcessing() {
     externalStarting.value = false
   }
 }
-
-const slaDays = computed(() => props.result?.exam?.externalProcessSlaDays ?? 3)
-const slaDeadline = computed(() => {
-  const assignedAt = props.result?.exam?.externalAssignedAt
-  if (!assignedAt) return null
-  const deadline = new Date(assignedAt)
-  deadline.setDate(deadline.getDate() + (slaDays.value || 0))
-  return deadline
-})
-const slaOverdue = computed(() => {
-  if (props.result?.exam?.externalStatus !== 'ASSIGNED') return false
-  if (!slaDeadline.value) return false
-  return new Date() > slaDeadline.value
-})
-const slaRemainingLabel = computed(() => {
-  if (!slaDeadline.value) return ''
-  const ms = slaDeadline.value.getTime() - Date.now()
-  if (ms <= 0) return 'deadline exceeded'
-  const hours = Math.floor(ms / 3600000)
-  const days = Math.floor(hours / 24)
-  if (days > 0) return `${days} days ${hours % 24} hours remaining`
-  return `${hours} hours remaining`
-})
 
 const resultStatusOptions = [
   { label: 'Not Ready (NOT_READY)', value: 'NOT_READY' },
@@ -519,7 +496,7 @@ loadExternalDoctors()
 
 function getErrorMessage(error: unknown, fallback = 'An error occurred'): string {
   if (error && typeof error === 'object' && 'data' in error) {
-    const data = (error as any).data
+    const data = (error as { data?: { message?: unknown } }).data
     if (data?.message)
       return typeof data.message === 'string' ? data.message : JSON.stringify(data.message)
   }
@@ -543,9 +520,9 @@ function gradingColor(grading?: string | null): BadgeColor {
 
 // Computed map of external results by inputanId for easy template access
 const externalResultsMap = computed(() => {
-  const map = new Map<string, any>()
+  const map = new Map<string, NonNullable<NonNullable<ExamResultDetail['exam']>['results']>[number]>()
   if (props.result?.exam?.results) {
-    for (const r of props.result?.exam?.results) {
+    for (const r of props.result.exam.results) {
       map.set(r.inputanId, r)
     }
   }
@@ -564,8 +541,8 @@ function sortedOpsis(inputan: ExamInput): ExamInputOption[] {
   )
 }
 
-function getOptionLabel(inputan: ExamInput, value: string) {
-  return sortedOpsis(inputan).find(o => o.value === value)?.label ?? value
+function getOptionLabel(inputan: ExamInput, value?: string | null) {
+  return sortedOpsis(inputan).find(o => o.value === value)?.label ?? value ?? '-'
 }
 
 function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
@@ -932,10 +909,6 @@ function isInputanVisibleForGender(inputan: ExamInput): boolean {
 const visibleInputans = computed(() =>
   (props.result?.item?.inputans ?? []).filter(isInputanVisibleForGender)
 )
-
-function getMatchedNormalRange(inputan: ExamInput) {
-  return getPatientMatchedDisplayNormalRanges(inputan)[0] || null
-}
 
 function getDraftText(value: unknown) {
   return String(value ?? '').trim()

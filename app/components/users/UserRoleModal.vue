@@ -23,6 +23,14 @@ type User = {
   email: string
 }
 
+type UserRoleItem = {
+  roleId: number
+}
+
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const props = defineProps<{
   user: User | null
 }>()
@@ -80,7 +88,7 @@ async function fetchUserRoles() {
     const data = res.data.data
 
     if (Array.isArray(data)) {
-      selectedRoleIds.value = data.map((ur: any) => ur.roleId)
+      selectedRoleIds.value = data.map((ur: UserRoleItem) => ur.roleId)
     } else if (data?.roleId) {
       selectedRoleIds.value = [data.roleId]
     }
@@ -142,10 +150,10 @@ async function assignRole() {
 
     open.value = false
     emit('updated')
-  } catch (err: any) {
+  } catch (err) {
     toast.add({
       title: 'Gagal assign role',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: (err as ApiErrorBody)?.response?.data?.message ?? 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {

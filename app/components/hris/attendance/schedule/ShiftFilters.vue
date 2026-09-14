@@ -10,6 +10,12 @@ type EmployeeOption = {
   value: number
 }
 
+type EmployeeApiItem = {
+  id: number
+  name?: string
+  nama?: string
+}
+
 type DateRange = {
   start: CalendarDate | undefined
   end: CalendarDate | undefined
@@ -50,7 +56,7 @@ async function loadEmployees(search = '') {
   loadingEmployee.value = true
 
   try {
-    const response = await api.get<{ data: any[] }>('/hris/employees', {
+    const response = await api.get<{ data: EmployeeApiItem[] }>('/hris/employees', {
       params: { search }
     })
 

@@ -25,6 +25,10 @@ const emit = defineEmits<{
   (e: 'updated'): void
 }>()
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const api = useApi()
 const toast = useToast()
 
@@ -104,10 +108,10 @@ async function savePermissions() {
     toast.add({ title: 'Permissions berhasil disimpan', color: 'success' })
     open.value = false
     emit('updated')
-  } catch (err: any) {
+  } catch (err) {
     toast.add({
       title: 'Gagal menyimpan permissions',
-      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      description: (err as ApiErrorBody)?.response?.data?.message ?? 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {

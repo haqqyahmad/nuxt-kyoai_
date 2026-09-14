@@ -595,6 +595,13 @@ function printQueueTicket() {
   }
 }
 
+type StatusHistoryPayload = {
+  statusRegistration?: {
+    from?: string
+    to?: string
+  }
+}
+
 type StatusHistoryItem = {
   id: string
   action: string
@@ -603,8 +610,8 @@ type StatusHistoryItem = {
   actorId?: number | null
   actorRole?: string | null
   actorName?: string | null
-  payloadBefore?: Record<string, any> | null
-  payloadAfter?: Record<string, any> | null
+  payloadBefore?: StatusHistoryPayload | null
+  payloadAfter?: StatusHistoryPayload | null
 }
 
 const statusHistory = ref<StatusHistoryItem[]>([])
@@ -2697,7 +2704,7 @@ watch(
               Pilih tanggal datang ulang pasien untuk item yang di-reschedule:
             </p>
             <div
-              v-for="(item, idx) in rescheduleDraft"
+              v-for="item in rescheduleDraft"
               :key="item.roomExamItemId"
               class="flex flex-col gap-2 rounded-lg border border-default p-3"
             >

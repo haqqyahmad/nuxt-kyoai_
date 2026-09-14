@@ -54,7 +54,7 @@ async function deletePatient(id: string) {
     })
 
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus patient',
@@ -78,7 +78,7 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: any) => api.delete(`/patient/${row.original.id}`))
+      selectedRows.map((row: Row<Patient>) => api.delete(`/patient/${row.original.id}`))
     )
 
     toast.add({
@@ -89,7 +89,7 @@ async function deleteSelectedPatients() {
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch (err) {
+  } catch {
     toast.add({
       title: 'Gagal',
       description: 'Gagal menghapus data',

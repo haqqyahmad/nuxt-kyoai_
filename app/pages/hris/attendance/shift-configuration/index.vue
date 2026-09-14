@@ -119,19 +119,21 @@ function syncSelectedItem() {
 
 async function fetchShifts() {
   try {
-    const response: any = await api('/hris/shift/templates', {
+    const response = await api('/hris/shift/templates', {
       method: 'GET'
     })
 
     const data = response?.data?.data || response?.data || response || []
 
     shifts.value = Array.isArray(data) ? data : []
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
+
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal mengambil data shift.',
+      description: message || 'Gagal mengambil data shift.',
       color: 'error'
     })
   }
@@ -139,19 +141,21 @@ async function fetchShifts() {
 
 async function fetchMonthTemplates() {
   try {
-    const response: any = await api('/hris/shift/month-templates', {
+    const response = await api('/hris/shift/month-templates', {
       method: 'GET'
     })
 
     const data = response?.data?.data || response?.data || response || []
 
     monthTemplates.value = Array.isArray(data) ? data : []
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
+
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal mengambil data monthly shift.',
+      description: message || 'Gagal mengambil data monthly shift.',
       color: 'error'
     })
   }

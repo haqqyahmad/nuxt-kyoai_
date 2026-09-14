@@ -79,11 +79,13 @@ async function handleSubmit(payload: RoomForm) {
 
     isFormOpen.value = false
     selectedRoom.value = null
-  } catch (error: any) {
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
       description:
-        error?.response?.data?.message
+        message
         || 'Terjadi kesalahan saat menyimpan ruangan',
       color: 'error'
     })
@@ -108,11 +110,13 @@ async function handleDelete() {
 
     selectedDeleteId.value = null
     isDeleteOpen.value = false
-  } catch (error: any) {
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
       description:
-        error?.response?.data?.message
+        message
         || 'Terjadi kesalahan saat menghapus ruangan',
       color: 'error'
     })

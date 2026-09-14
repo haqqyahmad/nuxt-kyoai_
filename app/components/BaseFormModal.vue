@@ -1,14 +1,14 @@
 <!-- app/components/BaseFormModal.vue -->
 <script setup lang="ts">
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type { FormSchema, FormSubmitEvent } from '@nuxt/ui'
 import { handleSuccessGeneral } from '~/utils/handlers'
 
 const props = defineProps<{
   title: string
   description?: string
-  schema: any
-  state: any
-  submit: (data: any) => Promise<void>
+  schema: FormSchema
+  state: Record<string, unknown>
+  submit(data: Record<string, unknown>): Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -20,7 +20,7 @@ const loading = ref(false)
 
 const toast = useToast()
 
-async function onSubmit(event: FormSubmitEvent<any>) {
+async function onSubmit(event: FormSubmitEvent<Record<string, unknown>>) {
   if (loading.value) return
 
   loading.value = true
@@ -29,16 +29,17 @@ async function onSubmit(event: FormSubmitEvent<any>) {
 
     handleSuccessGeneral(
       toast,
-      event.data?.name ?? 'Data',
-      event.data?.message ?? 'data'
+      String(event.data?.name ?? 'Data'),
+      String(event.data?.message ?? 'data')
     )
 
     open.value = false
     emit('success')
-  } catch (err: any) {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
     toast.add({
       title: 'Error',
-      description: err?.message || 'Terjadi kesalahan',
+      description: message || 'Terjadi kesalahan',
       color: 'error'
     })
   } finally {

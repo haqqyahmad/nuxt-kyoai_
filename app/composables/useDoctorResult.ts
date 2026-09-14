@@ -223,7 +223,7 @@ export function useDoctorResult(examId: string) {
       await api.post(`/mcu/exams/${examId}/doctor-result/group/${groupId}`, { grade, comment })
       return true
     } catch (err) {
-      delete groupGrades.value[groupId]
+      Reflect.deleteProperty(groupGrades.value, groupId)
       toast.add({
         title: 'Failed to save group grade',
         description: getErrorMessage(err, 'Failed to save group grade'),
@@ -235,7 +235,7 @@ export function useDoctorResult(examId: string) {
 
   async function clearGroupGrade(groupId: string) {
     const prev = groupGrades.value[groupId]
-    delete groupGrades.value[groupId]
+    Reflect.deleteProperty(groupGrades.value, groupId)
     try {
       await api.delete(`/mcu/exams/${examId}/doctor-result/group/${groupId}`)
       return true

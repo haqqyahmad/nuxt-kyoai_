@@ -96,7 +96,7 @@ async function loadUsers() {
     const res = await api.get('/users', { params: { limit: 500 } })
     const payload = res.data?.data ?? res.data ?? []
     const rows = Array.isArray(payload) ? payload : []
-    userNameMap.value = Object.fromEntries(rows.map((user: any) => [Number(user.id), user.name || user.email || `User #${user.id}`]))
+    userNameMap.value = Object.fromEntries(rows.map((user: { id: number, name?: string | null, email?: string | null }) => [Number(user.id), user.name || user.email || `User #${user.id}`]))
   } catch {
     userNameMap.value = {}
   }
@@ -176,17 +176,6 @@ function getResultStatusColor(s: string): 'success' | 'warning' | 'info' | 'erro
   if (s === 'DRAFT') return 'warning'
   if (s === 'REJECTED') return 'error'
   return 'neutral'
-}
-
-function getTimingLabel(t?: string | null) {
-  if (t === 'deferred') return 'Deferred'
-  if (t === 'inline') return 'Inline'
-  return '-'
-}
-
-function getTimingColor(t?: string | null) {
-  if (t === 'deferred') return 'warning' as const
-  return 'info' as const
 }
 
 function getEarliestStart(ei: ExamItem) {

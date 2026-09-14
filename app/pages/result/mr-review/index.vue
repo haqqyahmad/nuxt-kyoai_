@@ -11,11 +11,9 @@ import {
 const UButton = resolveComponent('UButton')
 const UBadge = resolveComponent('UBadge')
 const UIcon = resolveComponent('UIcon')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
 
 definePageMeta({ title: 'MR Review' })
 
-const toast = useToast()
 const router = useRouter()
 const { list, totalItems, loading, loadList } = useMedicalReport()
 
@@ -64,18 +62,6 @@ function statusColor(status?: string) {
 
 function statusLabel(status?: string) {
   return MR_STATUS_LABEL[status ?? ''] ?? status ?? '-'
-}
-
-function canVerify(status?: string) {
-  return status === 'DOCTOR_APPROVED' || status === 'MR_REVIEW'
-}
-
-function canReturn(status?: string) {
-  return ['DOCTOR_APPROVED', 'MR_REVIEW', 'MR_VERIFIED', 'READY_TO_RELEASE'].includes(status ?? '')
-}
-
-function canRelease(status?: string) {
-  return status === 'MR_VERIFIED' || status === 'READY_TO_RELEASE'
 }
 
 function openDetail(report: MedicalReportListItem) {
@@ -146,7 +132,10 @@ const columns: TableColumn<MedicalReportListItem>[] = [
 ]
 
 watch(currentPage, () => loadList({ status: currentStatusParam(), page: currentPage.value, limit: pageSize.value }))
-watch([statusFilter], () => { currentPage.value = 1; loadList({ status: currentStatusParam(), page: 1, limit: pageSize.value }) })
+watch([statusFilter], () => {
+  currentPage.value = 1
+  loadList({ status: currentStatusParam(), page: 1, limit: pageSize.value })
+})
 
 onMounted(() => loadList({ page: 1, limit: pageSize.value }))
 </script>

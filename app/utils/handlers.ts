@@ -1,5 +1,12 @@
 // utils/handlers.ts
-export const showErrors = (toast: any, message: string) => {
+type ToastApi = ReturnType<typeof useToast>
+
+type ErrorLike = {
+  response?: { data?: { message?: string } }
+  message?: string
+}
+
+export const showErrors = (toast: ToastApi, message: string) => {
   toast.add({
     title: 'Failed',
     description: message,
@@ -7,16 +14,17 @@ export const showErrors = (toast: any, message: string) => {
   })
 }
 
-export const handleError = (toast: any, err: any) => {
+export const handleError = (toast: ToastApi, err: unknown) => {
+  const error = err as ErrorLike
   const message
-    = err?.response?.data?.message
-      || err?.message
+    = error?.response?.data?.message
+      || error?.message
       || 'Failed to add user'
 
   showErrors(toast, message)
 }
 
-export const handleSuccessGeneral = (toast: any, name: string, message: string) => {
+export const handleSuccessGeneral = (toast: ToastApi, name: string, message: string) => {
   toast.add({
     title: 'Success',
     description: `New ${message} ${name} added`,
@@ -24,7 +32,7 @@ export const handleSuccessGeneral = (toast: any, name: string, message: string) 
   })
 }
 
-export const handleSuccess = (toast: any, name: string) => {
+export const handleSuccess = (toast: ToastApi, name: string) => {
   toast.add({
     title: 'Success',
     description: `New user ${name} added`,

@@ -9,6 +9,10 @@ const emit = defineEmits<{
   saved: []
 }>()
 
+type ApiErrorBody = {
+  response?: { data?: { message?: string } }
+}
+
 const api = useApi()
 const toast = useToast()
 
@@ -153,12 +157,12 @@ async function submit() {
     emit('saved')
     open.value = false
     resetForm()
-  } catch (error: any) {
+  } catch (error) {
     console.error(error)
 
     toast.add({
       title: 'Gagal',
-      description: error?.response?.data?.message || 'Gagal mengubah attendance value.',
+      description: (error as ApiErrorBody)?.response?.data?.message || 'Gagal mengubah attendance value.',
       color: 'error'
     })
   } finally {
