@@ -115,7 +115,7 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         { label: 'Room Assignment', to: '/rooms/assignments' },
         { label: 'Room Queue', to: '/rooms/queue' },
-        { label: 'Sample Collection', to: '/rooms/sample-collection' },
+        { label: 'Sample Collection', to: '/rooms/sample-collection', permission: 'sample:collect' },
         { label: 'Queue Search', icon: 'i-lucide-scan-barcode', to: '/queue-search' }
       ]
     },
@@ -167,7 +167,7 @@ export function buildMenuTree(): MenuItem[] {
       label: 'Lab',
       icon: 'i-lucide-flask-conical',
       children: [
-        { label: 'Sample Receive', to: '/rooms/sample-reception' }
+        { label: 'Sample Receive', to: '/rooms/sample-reception', permission: 'sample:receive' }
       ]
     },
     {

@@ -1,7 +1,7 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment } from '~/constants/menu'
+import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
@@ -225,312 +225,62 @@ const updateMenuState = (menuName: string, isOpen: boolean) => {
   menuOpenState.value[menuName] = isOpen
 }
 
-const links = computed<NavigationMenuItem[][]>(() => [
-  filterSidebarItems([
-    {
-      label: 'Dashboard',
-      icon: 'i-lucide-house',
-      to: '/'
-    },
-    {
-      label: 'Master Data',
-      icon: 'i-lucide-hard-drive',
-      type: 'trigger',
-      // Gunakan activeOpenMenu untuk kontrol defaultOpen
-      open: menuOpenState.value['Master Data'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Master Data', val),
-      children: [
-        {
-          label: 'Branches',
-          to: '/branches'
-        },
-        {
-          label: 'Customers',
-          to: '/customer'
-        },
-        {
-          label: 'Departments',
-          type: 'trigger',
-          open: menuOpenState.value['Departments'],
-          onUpdateOpen: (val: boolean) => updateMenuState('Departments', val),
-          children: [
-            {
-              label: 'Medical',
-              icon: 'i-lucide-stethoscope',
-              to: '/departments/medical'
-            },
-            {
-              label: 'Non Medical',
-              icon: 'i-lucide-building',
-              to: '/departments'
-            }
-          ]
-        },
-        {
-          label: 'Patients',
-          to: '/patients'
-        },
-        {
-          label: 'Users',
-          to: '/users'
-        }
-      ]
-    },
-    {
-      label: 'Medical',
-      icon: 'i-lucide-briefcase-medical',
-      type: 'trigger',
-      // Gunakan activeOpenMenu untuk kontrol defaultOpen
-      open: menuOpenState.value['Medical'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Medical', val),
-      children: [
-        {
-          label: 'Items',
-          type: 'trigger',
-          open: menuOpenState.value['Items'],
-          onUpdateOpen: (val: boolean) => updateMenuState('Items', val),
-          children: [
-            {
-              label: 'List Items',
-              to: '/items/mcu'
-            },
-            {
-              label: 'Master Group',
-              to: '/items/groups'
-            },
-            {
-              label: 'Sample Types',
-              to: '/items/sample-types'
-            }
-          ]
-        },
-        {
-          label: 'Master Grade',
-          icon: 'i-lucide-clipboard-list',
-          to: '/medical/master-grading'
-        },
-        {
-          label: 'Questionnaire',
-          to: '/questionnaire'
-        },
-        {
-          label: 'Rooms',
-          to: '/rooms'
-        },
-        {
-          label: 'Room Types',
-          to: '/rooms/types'
-        },
-        {
-          label: 'Services',
-          to: '/services'
-        }
-      ]
-    },
-    {
-      label: 'Examination',
-      icon: 'i-lucide-stethoscope',
-      type: 'trigger',
-      // Gunakan activeOpenMenu untuk kontrol defaultOpen
-      open: menuOpenState.value['Examination'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Examination', val),
-      children: [
-        {
-          label: 'Room Assignment',
-          to: '/rooms/assignments'
-        },
-        {
-          label: 'Room Queue',
-          to: '/rooms/queue'
-        },
-        ...(permissions.value.includes('sample:collect')
-          ? [{ label: 'Sample Collection', to: '/rooms/sample-collection' }]
-          : []),
-        {
-          label: 'Queue Search',
-          icon: 'i-lucide-scan-barcode',
-          to: '/queue-search'
-        }
-      ]
-    },
-    {
-      label: 'Results',
-      icon: 'i-lucide-file-check-2',
-      type: 'trigger',
-      open: menuOpenState.value['Results'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Results', val),
-      children: [
-        ...(isExternalDoctor.value ? [{ label: 'Pekerjaan Dokter Luar', to: '/result/exam-results', active: true }] : []),
-        {
-          label: 'Hasil Exam Lab',
-          to: '/result/exam-results?department=lab',
-          active: activeResultDepartment.value === 'lab',
-          resultDepartmentCode: 'LAB'
-        },
-        {
-          label: 'Hasil Exam Radiology',
-          to: '/result/exam-results?department=radiology',
-          active: activeResultDepartment.value === 'radiology',
-          resultDepartmentCode: 'RAD'
-        },
-        {
-          label: 'Hasil Exam Nurse',
-          to: '/result/exam-results?department=nurse',
-          active: activeResultDepartment.value === 'nurse',
-          resultDepartmentCode: 'NURSE'
-        },
-        {
-          label: 'Hasil Exam Dokter',
-          to: '/result/exam-results?department=dokter',
-          active: activeResultDepartment.value === 'dokter',
-          resultDepartmentCode: 'DOK'
-        },
-        {
-          label: 'Hasil Exam Dental',
-          to: '/result/exam-results?department=dental',
-          active: activeResultDepartment.value === 'dental',
-          resultDepartmentCode: 'DENTAL'
-        },
-        {
-          label: 'Doctor Result MCU',
-          to: '/result/doctor-result',
-          active: route.path.startsWith('/result/doctor-result')
-        },
-        {
-          label: 'MR Review',
-          to: '/result/mr-review',
-          active: route.path.startsWith('/result/mr-review')
-        },
-        {
-          label: 'Status Examination',
-          icon: 'i-lucide-activity',
-          to: '/result/exam-status',
-          active: route.path.startsWith('/result/exam-status')
-        }
-      ].filter((item) => {
-        if (isExternalDoctor.value) return !item.resultDepartmentCode
-        if (!item.resultDepartmentCode) return true
-        // Superadmin: akses sesuai departemen
-        if (canAccessAllResults.value) {
-          return canAccessResultDepartment(item.resultDepartmentCode)
-        }
-        // Role mapping / lain: jika result-access sudah diset, pakai itu; jika kosong fallback ke dept default
-        if (userDefaultDepartment.value) {
-          if (allowedResultDepartmentCodes.value.length > 0) {
-            return allowedResultDepartmentCodes.value.includes(item.resultDepartmentCode)
-          }
-          return item.resultDepartmentCode === userDefaultDepartment.value
-        }
-        return canAccessResultDepartment(item.resultDepartmentCode)
-      })
-    },
-    {
-      label: 'Lab',
-      icon: 'i-lucide-flask-conical',
-      type: 'trigger',
-      open: menuOpenState.value['Lab'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Lab', val),
-      children: permissions.value.includes('sample:receive')
-        ? [
-            {
-              label: 'Sample Receive',
-              to: '/rooms/sample-reception'
-            }
-          ]
-        : []
-    },
-    {
-      label: 'Front Office',
-      icon: 'i-lucide-users',
-      type: 'trigger',
-      open: menuOpenState.value['Front Office'],
-      onUpdateOpen: (val: boolean) => updateMenuState('Front Office', val),
-      children: [
-        {
-          label: 'Temp Registration',
-          to: '/front-office/registration-temp'
-        },
-        {
-          label: 'Patient Appointment',
-          to: '/front-office/registration-patient'
-        },
-        {
-          label: 'Hasil Questionnaire',
-          to: '/front-office/questionnaire-results'
-        }
-      ]
-    },
-    {
-      label: 'HRIS',
-      icon: 'i-lucide-file-user',
-      type: 'trigger',
-      open: menuOpenState.value['HRIS'],
-      onUpdateOpen: (val: boolean) => updateMenuState('HRIS', val),
-      children: [
-        {
-          label: 'Dashboard HRIS',
-          to: '/hris'
-        },
-        {
-          label: 'Employees',
-          to: '/hris/employees'
-        },
-        // {
-        //   label: 'Shift Management',
-        //   to: '/hris/shifts'
-        // },
-        {
-          label: 'Attendance',
-          type: 'trigger',
-          open: menuOpenState.value['Attendance'],
-          onUpdateOpen: (val: boolean) => updateMenuState('Attendance', val),
-          children: [
-            {
-              label: 'Dashboard Attendance',
-              to: '/hris/attendance'
-            },
-            {
-              label: 'Attendance Analytics',
-              to: '/hris/attendance/analytics'
-            },
-            {
-              label: 'Attendance Report',
-              to: '/hris/attendance/tracking'
-            },
-            {
-              label: 'Shift Configuration',
-              to: '/hris/attendance/shift-configuration'
-            },
-            {
-              label: 'Shift Schedule',
-              to: '/hris/attendance/shift-schedule'
-            }
-          ]
-        },
-        {
-          label: 'National Holidays',
-          to: '/hris/national-holidays'
-        },
-        {
-          label: 'Leave Management',
-          to: '/hris/leaves'
-        },
-        {
-          label: 'Reimbursement',
-          to: '/hris/reimbursement'
-        },
-        {
-          label: 'Recruitment',
-          to: '/hris/recruitment'
-        }
-      ]
-    },
-    {
-      label: 'Settings',
-      icon: 'i-lucide-settings',
-      to: '/settings'
+type SidebarItem = NavigationMenuItem & {
+  permission?: string
+  resultDepartmentCode?: string
+}
+
+function canAccessResultDeptForMenu(code?: string) {
+  if (!code) return true
+  if (isExternalDoctor.value) return false
+  if (canAccessAllResults.value) return canAccessResultDepartment(code)
+  if (userDefaultDepartment.value) {
+    if (allowedResultDepartmentCodes.value.length > 0) {
+      return allowedResultDepartmentCodes.value.includes(code)
     }
-  ]),
+    return code === userDefaultDepartment.value
+  }
+  return canAccessResultDepartment(code)
+}
+
+function buildNavItems(items: SidebarItem[]): NavigationMenuItem[] {
+  return items.reduce<NavigationMenuItem[]>((acc, item) => {
+    if (item.permission && !permissions.value.includes(item.permission)) return acc
+    if (item.resultDepartmentCode && !canAccessResultDeptForMenu(item.resultDepartmentCode)) return acc
+
+    const nav = { ...item } as SidebarItem
+
+    if (Array.isArray(item.children) && item.children.length > 0) {
+      nav.type = 'trigger'
+      nav.open = menuOpenState.value[String(item.label)]
+      nav.onUpdateOpen = (val: boolean) => updateMenuState(String(item.label), val)
+
+      let children = buildNavItems(item.children as SidebarItem[])
+
+      if (isExternalDoctor.value && item.label === 'Results') {
+        children = [
+          { label: 'Pekerjaan Dokter Luar', to: '/result/exam-results', active: true },
+          ...children
+        ]
+      }
+
+      if (children.length === 0) return acc
+      nav.children = children
+    } else if (item.resultDepartmentCode) {
+      nav.active = activeResultDepartment.value === item.resultDepartmentCode.toLowerCase()
+    } else if (typeof item.to === 'string') {
+      const to = item.to
+      nav.active = ['/result/doctor-result', '/result/mr-review', '/result/exam-status']
+        .some(prefix => to.startsWith(prefix) && route.path.startsWith(prefix))
+    }
+
+    acc.push(nav)
+    return acc
+  }, [])
+}
+
+const links = computed<NavigationMenuItem[][]>(() => [
+  filterSidebarItems(buildNavItems(buildMenuTree() as SidebarItem[])),
   []
 ])
 
@@ -540,7 +290,7 @@ const fullWidthWorkState = useState<boolean>('queue-work-full', () => false)
 
 const hideNavigationForExternalDoctor = computed(() => {
   if (!isExternalDoctor.value) return false
-  return /^\/rooms\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path)
+  return /^\/result\/exam-results\/[A-Za-z0-9_-]+$/.test(route.path)
 })
 
 const hideSidebar = computed(() => {
@@ -560,19 +310,6 @@ const groups = computed(() => [
     id: 'links',
     label: 'Go to',
     items: links.value.flat()
-  },
-  {
-    id: 'code',
-    label: 'Code',
-    items: [
-      {
-        id: 'source',
-        label: 'View page source',
-        icon: 'i-simple-icons-github',
-        to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === '/' ? '/index' : route.path}.vue`,
-        target: '_blank'
-      }
-    ]
   }
 ])
 
