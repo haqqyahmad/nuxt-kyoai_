@@ -1,0 +1,64 @@
+{
+    "docs": [
+        {
+            "name": "Renal Function.RENL-00003.UA-BFDecrease",
+            "owner": "Administrator",
+            "creation": "2025-01-02 10:32:20.931704",
+            "modified": "2025-07-25 14:17:04.597992",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 19,
+            "item_group": "Renal Function",
+            "item_code": "RENL-00003",
+            "item_name": "Uric acid",
+            "test_name": "",
+            "increase_decrease": "Increase",
+            "grade": "BF",
+            "description": "Hyperuricemia, avoid purin rich food and alcoholic beverages. Drink a lot of mineral water at least 2 litres/day. Reexamination after two weeks.",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Renal Function.RENL-00003.UA-BFDecrease",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::RENL-00003": "Uric acid"
+    }
+}

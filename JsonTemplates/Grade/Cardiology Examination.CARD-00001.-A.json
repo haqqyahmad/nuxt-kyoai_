@@ -1,0 +1,64 @@
+{
+    "docs": [
+        {
+            "name": "Cardiology Examination.CARD-00001.-A",
+            "owner": "Administrator",
+            "creation": "2024-10-24 14:13:52.590273",
+            "modified": "2025-03-11 17:17:04.858462",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 59,
+            "item_group": "Cardiology Examination",
+            "item_code": "CARD-00001",
+            "item_name": "ECG",
+            "increase_decrease": "",
+            "grade": "A",
+            "grade_on_report": "A",
+            "description": "Normal Finding",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Cardiology Examination.CARD-00001.-A",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::CARD-00001": "ECG"
+    }
+}

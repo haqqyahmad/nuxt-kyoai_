@@ -1,0 +1,64 @@
+{
+    "docs": [
+        {
+            "name": "Eye Examination.EYEE-00004.-C",
+            "owner": "Administrator",
+            "creation": "2024-10-28 11:42:25.420862",
+            "modified": "2025-03-10 15:04:31.304819",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 2,
+            "item_group": "Eye Examination",
+            "item_code": "EYEE-00004",
+            "item_name": "Fundus Test",
+            "increase_decrease": "",
+            "grade": "C",
+            "grade_on_report": "C",
+            "description": "Observed abnormality during funduscopy. Ophthalmologist consultation is recommended for further evaluation.",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Eye Examination.EYEE-00004.-C",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::EYEE-00004": "Fundus Test"
+    }
+}

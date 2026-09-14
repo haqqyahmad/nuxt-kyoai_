@@ -1,0 +1,65 @@
+{
+    "docs": [
+        {
+            "name": "Hematology.HEMA-00018.WBC-BFDecrease",
+            "owner": "Administrator",
+            "creation": "2024-10-15 21:04:15.048829",
+            "modified": "2025-03-11 17:16:42.372867",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 7,
+            "item_group": "Hematology",
+            "item_code": "HEMA-00018",
+            "item_name": "Hematology + Diff.count",
+            "test_name": "WBC",
+            "increase_decrease": "Decrease",
+            "grade": "BF",
+            "grade_on_report": "BF",
+            "description": "Leucopenia, repeat examination in after 1 month is recommended for follow up.",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Hematology.HEMA-00018.WBC-BFDecrease",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::HEMA-00018": "Hematology + Diff.count"
+    }
+}

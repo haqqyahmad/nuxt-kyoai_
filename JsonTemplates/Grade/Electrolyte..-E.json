@@ -1,0 +1,57 @@
+{
+    "docs": [
+        {
+            "name": "Electrolyte..-E",
+            "owner": "Administrator",
+            "creation": "2025-01-02 17:29:40.885970",
+            "modified": "2025-01-02 17:31:35.048057",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 0,
+            "item_group": "Lipid Profile",
+            "grade": "D",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Electrolyte..-E",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {}
+}

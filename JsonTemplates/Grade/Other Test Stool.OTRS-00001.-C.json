@@ -1,0 +1,63 @@
+{
+    "docs": [
+        {
+            "name": "Other Test Stool.OTRS-00001.-C",
+            "owner": "Administrator",
+            "creation": "2025-07-25 14:41:16.378796",
+            "modified": "2025-07-25 14:41:16.378796",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 0,
+            "item_group": "Other Test Stool",
+            "item_code": "OTRS-00001",
+            "item_name": "Occult Blood in Stool",
+            "grade": "C",
+            "grade_on_report": "C",
+            "description": "Stool occult blood test is positive. Consult to Gastroenterologist for further evaluation.",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Other Test Stool.OTRS-00001.-C",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::OTRS-00001": "Occult Blood in Stool"
+    }
+}

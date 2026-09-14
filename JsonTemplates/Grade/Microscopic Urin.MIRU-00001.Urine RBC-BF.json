@@ -1,0 +1,64 @@
+{
+    "docs": [
+        {
+            "name": "Microscopic Urin.MIRU-00001.Urine RBC-BF",
+            "owner": "Administrator",
+            "creation": "2025-03-25 14:40:36.198164",
+            "modified": "2025-03-25 14:40:36.198164",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 0,
+            "item_group": "Microscopic Urin",
+            "item_code": "MIRU-00001",
+            "item_name": "Microscopic Urin Lengkap",
+            "test_name": "Urine RBC",
+            "grade": "BF",
+            "grade_on_report": "BF",
+            "description": "Hematuria, Repeat test is recommended. Drink at least 2 litres of mineral water per day.",
+            "doctype": "MCU Grade"
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "MCU Grade",
+        "name": "Microscopic Urin.MIRU-00001.Urine RBC-BF",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 0,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::MIRU-00001": "Microscopic Urin Lengkap"
+    }
+}
