@@ -1,7 +1,20 @@
 // composables/useUser.ts  ← pindah ke sini
+type UserProfile = {
+  id?: string
+  name?: string
+  email?: string
+  avatar?: string | null
+}
+
+type UserResponse = {
+  data?: {
+    data?: UserProfile
+  }
+}
+
 export const useUser = () => {
   const api = useApi()
-  const user = useState<unknown>('user', () => null)
+  const user = useState<UserResponse | null>('user', () => null)
 
   const registerUser = async (payload: {
     name: string

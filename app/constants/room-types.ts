@@ -1,4 +1,4 @@
-import type { ServiceType } from '~/types/room'
+import type { ExamType, ServiceType } from '~/types/room'
 
 export const serviceTypeOptions: Array<{
   label: string
@@ -42,7 +42,10 @@ export const serviceTypeOptions: Array<{
   }
 ]
 
-export const serviceTypeBadgeColor: Record<ServiceType, string> = {
+export const serviceTypeBadgeColor: Record<
+  ServiceType,
+  'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+> = {
   Laboratorium: 'error',
   VitaminInjection: 'primary',
   Pharmacy: 'success',

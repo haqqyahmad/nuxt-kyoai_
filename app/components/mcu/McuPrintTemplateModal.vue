@@ -93,8 +93,9 @@ async function loadTemplate() {
   }
 }
 
-function useVersion(version: { id: string, version: number }) {
-  api.get(`/mcu/print-templates/versions/${version.id}`, { params: { name: templateKey.value } }).then((res) => {
+function useVersion(id: string | undefined) {
+  if (!id) return
+  api.get(`/mcu/print-templates/versions/${id}`, { params: { name: templateKey.value } }).then((res) => {
     const row = res.data?.data ?? res.data
     if (row?.html) template.value = row.html
     localStorage.removeItem(draftKey())

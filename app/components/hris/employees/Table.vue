@@ -149,7 +149,7 @@ function getStatusColor(status?: string) {
                 variant="soft"
                 icon="i-lucide-edit"
                 size="sm"
-                @click="emit('edit', employee.id)"
+                @click="emit('edit', Number(employee.id))"
               >
                 Edit
               </UButton>

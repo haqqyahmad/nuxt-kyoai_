@@ -14,16 +14,17 @@ const props = defineProps<{
     id: string
     code: string
     name: string
-    resultTiming: 'inline' | 'deferred'
+    resultTiming?: 'inline' | 'deferred'
     rendererKey?: RendererKey | null
     externalResult?: boolean
+    externalProcessSlaDays?: number | null
     requiresAttachmentForDone?: boolean
-    departmentId: string | null
-    roomTypeId: string
-    groupId: string | null
-    price: number
-    description: string | null
-    isActive: boolean
+    departmentId?: string | null
+    roomTypeId?: string
+    groupId?: string | null
+    price?: number
+    description?: string | null
+    isActive?: boolean
   } | null
 }>()
 
@@ -158,17 +159,17 @@ watch(() => props.item, (item) => {
   if (item) {
     form.code = item.code
     form.name = item.name
-    form.resultTiming = item.resultTiming
+    form.resultTiming = item.resultTiming ?? 'inline'
     form.rendererKey = item.rendererKey ?? 'GENERIC'
     form.externalResult = Boolean(item.externalResult)
     form.externalProcessSlaDays = item.externalProcessSlaDays ?? 3
     form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
     form.departmentId = item.departmentId || ''
-    form.roomTypeId = item.roomTypeId
+    form.roomTypeId = item.roomTypeId ?? ''
     form.groupId = item.groupId || ''
     form.price = item.price || 0
     form.description = item.description || ''
-    form.isActive = item.isActive
+    form.isActive = item.isActive ?? true
     // For edit mode, item is already created
     createdItemId.value = item.id
     itemCreated.value = true
@@ -191,9 +192,10 @@ const selectedSubgroup = computed(() =>
 )
 
 const subgroupOptions = computed(() => {
-  if (!selectedRootGroup.value) return []
+  const root = selectedRootGroup.value
+  if (!root) return []
   return groups.value
-    .filter(group => group.parentId === selectedRootGroup.value.id)
+    .filter(group => group.parentId === root.id)
     .slice()
     .sort(sortBySequence)
 })
@@ -307,16 +309,16 @@ watch(open, (val) => {
       const item = props.item
       form.code = item.code
       form.name = item.name
-      form.resultTiming = item.resultTiming
+      form.resultTiming = item.resultTiming ?? 'inline'
       form.rendererKey = item.rendererKey ?? 'GENERIC'
       form.externalResult = Boolean(item.externalResult)
       form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
       form.departmentId = item.departmentId || ''
-      form.roomTypeId = item.roomTypeId
+      form.roomTypeId = item.roomTypeId ?? ''
       form.groupId = item.groupId || ''
       form.price = item.price || 0
       form.description = item.description || ''
-      form.isActive = item.isActive
+      form.isActive = item.isActive ?? true
       createdItemId.value = item.id
       itemCreated.value = true
       activeTab.value = 'info'
@@ -388,7 +390,7 @@ watch(() => activeTab.value, async (newTab) => {
 })
 
 // Handle tab click - for template tab, ensure item is created
-function handleTabClick(tab: { key: string, disabled: boolean }) {
+function handleTabClick(tab: { key: string, disabled?: boolean }) {
   if (tab.disabled) return
   if (tab.key === 'template' && !itemCreated.value) {
     ensureItemCreated()

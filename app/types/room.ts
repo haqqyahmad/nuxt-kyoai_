@@ -48,6 +48,7 @@ export type Room = {
   roomTypeId: string
   code: string
   name: string
+  type?: string
   staffCapacity: number
   isActive: boolean
   createdAt: string
@@ -61,7 +62,7 @@ export type RoomState = 'ACTIVE' | 'INACTIVE'
 export type RoomForm = {
   code: string
   name: string
-  roomTypeId: string | null
+  roomTypeId: string | undefined
   staffCapacity: number | null
   isActive: boolean
   stageIds?: string[]
@@ -76,7 +77,7 @@ export type RoomTypeOption = {
 export type RoomTypeForm = {
   code: string
   name: string
-  serviceType: ServiceType | null
+  serviceType: ServiceType | undefined
   tierMode?: 'STRICT' | 'FREE' | null
   tierOrder: number | null
   isActive: boolean

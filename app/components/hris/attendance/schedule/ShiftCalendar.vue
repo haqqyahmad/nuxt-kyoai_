@@ -53,7 +53,7 @@ type CalendarEmployee = {
   name: string
   department: string
   avatar: string
-  shifts: (FinalShiftItem | null)[]
+  shifts: FinalShiftItem[]
 }
 
 type CalendarDay = {
@@ -155,7 +155,7 @@ const days = computed<CalendarDay[]>(() => {
         label: selectedDate.toLocaleString('en-US', { weekday: 'short' }),
         date: selectedDate.getDate(),
         fullDate: new Date(selectedDate),
-        value: dayValues[dayNumber],
+        value: dayValues[dayNumber] ?? 'sunday',
         weekend: dayNumber === 0 || dayNumber === 6
       }
     ]
@@ -174,7 +174,7 @@ const days = computed<CalendarDay[]>(() => {
         label: date.toLocaleString('en-US', { weekday: 'short' }),
         date: date.getDate(),
         fullDate: date,
-        value: dayValues[dayNumber],
+        value: dayValues[dayNumber] ?? 'sunday',
         weekend: dayNumber === 0 || dayNumber === 6
       }
     })
@@ -192,7 +192,7 @@ const days = computed<CalendarDay[]>(() => {
       label: date.toLocaleString('en-US', { weekday: 'short' }),
       date: date.getDate(),
       fullDate: date,
-      value: dayValues[dayNumber],
+      value: dayValues[dayNumber] ?? 'sunday',
       weekend: dayNumber === 0 || dayNumber === 6
     }
   })
@@ -227,11 +227,9 @@ const employees = computed<CalendarEmployee[]>(() => {
 
   const grouped = response.data.reduce<Record<number, FinalShiftItem[]>>(
     (result, item) => {
-      if (!result[item.employee_id]) {
-        result[item.employee_id] = []
-      }
+      const employeeShifts = (result[item.employee_id] ??= [])
 
-      result[item.employee_id].push(item)
+      employeeShifts.push(item)
 
       return result
     },
@@ -249,9 +247,9 @@ const employees = computed<CalendarEmployee[]>(() => {
         name,
         department,
         avatar: getAvatarName(name),
-        shifts: days.value.map(day =>
-          getShiftItemForDate(shiftItems, day.fullDate)
-        )
+        shifts: days.value
+          .map(day => getShiftItemForDate(shiftItems, day.fullDate))
+          .filter((item): item is FinalShiftItem => item != null)
       }
     })
     .filter((employee) => {
@@ -328,7 +326,7 @@ const weeks = computed(() => {
   }
 
   // Ambil hari pertama bulan
-  const firstDay = monthDays[0].fullDate.getDay()
+  const firstDay = monthDays[0]?.fullDate.getDay() ?? 0
   // Minggu = 0, Senin = 1, dst
 
   // Tambahkan slot kosong di depan

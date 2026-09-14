@@ -23,11 +23,7 @@ function shouldShowQuestion(question: Question) {
     return true
   }
 
-  // Support both old format (showIfOptionId) and new format (showIfOptionIds)
-  const allShowIfOptionIds = [
-    ...(question.conditional.showIfOptionIds || []),
-    ...(question.conditional.showIfOptionId ? [question.conditional.showIfOptionId] : [])
-  ]
+  const allShowIfOptionIds = question.conditional.showIfOptionIds ?? []
 
   if (allShowIfOptionIds.length === 0) {
     return true

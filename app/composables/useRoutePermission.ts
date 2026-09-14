@@ -32,7 +32,8 @@ export function useRoutePermission() {
 
     const candidates = new Set<string>()
     candidates.add(parts.join('-'))
-    candidates.add(parts[parts.length - 1])
+    const last = parts[parts.length - 1]
+    if (last) candidates.add(last)
     if (parts.length >= 2) {
       candidates.add(parts.slice(-2).reverse().join('-'))
     }

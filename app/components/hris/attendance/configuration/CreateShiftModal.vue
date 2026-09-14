@@ -128,8 +128,8 @@ function getPreviewDay(dayOfWeek: number) {
 function calculateHours(startTime?: string | null, endTime?: string | null) {
   if (!startTime || !endTime) return 0
 
-  const [startHour, startMinute] = startTime.split(':').map(Number)
-  const [endHour, endMinute] = endTime.split(':').map(Number)
+  const [startHour = 0, startMinute = 0] = startTime.split(':').map(Number)
+  const [endHour = 0, endMinute = 0] = endTime.split(':').map(Number)
 
   const startTotal = startHour * 60 + startMinute
   const endTotal = endHour * 60 + endMinute

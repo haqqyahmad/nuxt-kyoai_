@@ -20,7 +20,7 @@ type ShiftTemplateDay = {
 type ShiftOption = {
   label: string
   value: number
-  description?: string | null
+  description?: string
   days: ShiftTemplateDay[]
 }
 
@@ -38,7 +38,7 @@ type MonthTemplateWeek = {
 type MonthTemplateOption = {
   label: string
   value: number
-  description?: string | null
+  description?: string
   weeks: MonthTemplateWeek[]
 }
 
@@ -297,7 +297,7 @@ async function loadShiftTemplates() {
       .map(item => ({
         label: item.name,
         value: item.id,
-        description: item.description || '',
+        description: item.description ?? undefined,
         days: item.shiftTemplateDays || []
       }))
   } catch (error) {
@@ -327,7 +327,7 @@ async function loadMonthTemplates() {
       .map(item => ({
         label: item.name,
         value: item.id,
-        description: item.description || '',
+        description: item.description ?? undefined,
         weeks: item.weeks || []
       }))
   } catch (error) {

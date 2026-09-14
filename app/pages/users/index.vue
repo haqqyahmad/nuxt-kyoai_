@@ -4,7 +4,7 @@ import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { useClipboard } from '@vueuse/core'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Row } from '@tanstack/table-core'
+import type { Row, Table } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -303,7 +303,7 @@ const columns: TableColumn<User>[] = [
   }
 ]
 
-const table = useTemplateRef('table')
+const table = useTemplateRef<{ tableApi: Table<User> }>('table')
 
 const email = computed({
   get: (): string => {

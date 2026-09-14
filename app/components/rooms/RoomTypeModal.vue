@@ -22,7 +22,7 @@ const open = defineModel<boolean>('open', {
 const form = reactive<RoomTypeForm & { tierMode: 'STRICT' | 'FREE' }>({
   code: '',
   name: '',
-  serviceType: null,
+  serviceType: undefined,
   tierMode: 'STRICT',
   tierOrder: 1,
   isActive: true
@@ -43,14 +43,14 @@ const description = computed(() =>
 const isValid = computed(() =>
   form.code.trim()
   && form.name.trim()
-  && form.serviceType !== null
+  && form.serviceType !== undefined
   && (form.tierMode === 'FREE' || Number(form.tierOrder || 0) >= 1)
 )
 
 function resetForm() {
   form.code = ''
   form.name = ''
-  form.serviceType = null
+  form.serviceType = undefined
   form.tierMode = 'STRICT'
   form.tierOrder = 1
   form.isActive = true

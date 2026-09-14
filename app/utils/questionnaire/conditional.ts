@@ -22,5 +22,5 @@ export function shouldShowQuestion(
     return answer.some((val: string) => showIfOptionIds.includes(val))
   }
 
-  return showIfOptionIds.includes(answer)
+  return typeof answer === 'string' && showIfOptionIds.includes(answer)
 }

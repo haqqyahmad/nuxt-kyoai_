@@ -8,6 +8,7 @@ import type {
   ApiResponse,
   AttendanceHistoryItem,
   AttendanceStatus,
+  LeaveBalance,
   LeaveDetail,
   LeaveStatus,
   LeaveType
@@ -145,7 +146,17 @@ async function fetchLeaveBalance(employeeId: number) {
     return {
       entitlement_days: 0,
       used_days: 0,
-      remaining_days: 0
+      remaining_days: 0,
+
+      new_entitlement_days: 0,
+      new_used_days: 0,
+      new_remaining_days: 0,
+
+      old_entitlement_days: 0,
+      old_used_days: 0,
+      old_remaining_days: 0,
+
+      expired_at: null
     }
   }
 
@@ -157,7 +168,7 @@ async function fetchLeaveBalance(employeeId: number) {
 }
 
 function getMonthRange(date: string) {
-  const [year, month] = date.split('-').map(Number)
+  const [year = 0, month = 1] = date.split('-').map(Number)
   const lastDay = new Date(year, month, 0).getDate()
 
   return {

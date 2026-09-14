@@ -57,17 +57,17 @@ const SERVICE_TYPES = [
   { value: "Dental",             label: "Gigi",              icon: "i-lucide-smile"          },
 ] as const;
 
-const PAYMENT_TYPES = [
+const PAYMENT_TYPES: Array<{ value: string; label: string }> = [
   { value: "Personal",      label: "Personal"        },
   { value: "Insurance",     label: "Asuransi"        },
   { value: "BillToCompany", label: "Bill to Company" },
-] as const;
+];
 
-const PRIORITY_TYPES = [
+const PRIORITY_TYPES: Array<{ value: string; label: string }> = [
   { value: "Normal",   label: "Normal"    },
   { value: "VIP",      label: "VIP"       },
   { value: "Emergency", label: "Emergency" },
-] as const;
+];
 
 // ─────────────────────────────────────────────
 // Branch
@@ -136,6 +136,12 @@ const newPatient = ref({
 
 let debounce:  ReturnType<typeof setTimeout>;
 let requestId = 0;
+
+const closePatientDrop = () => {
+  window.setTimeout(() => {
+    patientDropOpen.value = false;
+  }, 200);
+};
 
 watch(patientSearch, (val) => {
   clearTimeout(debounce);
@@ -396,7 +402,7 @@ async function submit() {
                     :disabled="!!selectedPatient"
                     placeholder="Cari nama, nomor ID, atau kode pasien..."
                     @focus="patientDropOpen = true"
-                    @blur="setTimeout(() => (patientDropOpen = false), 200)"
+                    @blur="closePatientDrop"
                   />
 
                   <!-- Dropdown: pasien terbaru / hasil pencarian -->

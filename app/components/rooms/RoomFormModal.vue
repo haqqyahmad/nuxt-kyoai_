@@ -27,7 +27,7 @@ const open = defineModel<boolean>('open', {
 const form = reactive<RoomForm>({
   code: '',
   name: '',
-  roomTypeId: null,
+  roomTypeId: undefined,
   staffCapacity: null,
   isActive: true,
   stageIds: []
@@ -51,7 +51,7 @@ const description = computed(() =>
 const isValid = computed(() =>
   form.code.trim()
   && form.name.trim()
-  && form.roomTypeId !== null
+  && form.roomTypeId !== undefined
 )
 
 async function loadStages(roomTypeId: string) {
@@ -76,7 +76,7 @@ async function loadStages(roomTypeId: string) {
 function resetForm() {
   form.code = ''
   form.name = ''
-  form.roomTypeId = null
+  form.roomTypeId = undefined
   form.staffCapacity = null
   form.isActive = true
   form.stageIds = []
@@ -231,7 +231,7 @@ function submit() {
                 placeholder="Pilih stage"
                 class="w-full"
               >
-                <template #label>
+                <template #default>
                   <template v-if="form.stageIds && form.stageIds.length">
                     <span>{{ form.stageIds.length }} stage dipilih</span>
                   </template>

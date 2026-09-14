@@ -3,7 +3,7 @@
 import { h, resolveComponent, computed, ref } from "vue";
 import { upperFirst } from "scule";
 import type { TableColumn, DropdownMenuItem } from "@nuxt/ui";
-import type { Row } from "@tanstack/table-core";
+import type { Row, Table } from "@tanstack/table-core";
 import { getPaginationRowModel } from "@tanstack/table-core";
 
 const UButton = resolveComponent("UButton");
@@ -40,7 +40,7 @@ const columnFilters = ref([{ id: "name", value: "" }]);
 const columnVisibility = ref({});
 const rowSelection = ref({});
 
-const table = useTemplateRef("table");
+const table = useTemplateRef<{ tableApi: Table<SampleType> }>("table");
 
 const selectedDeleteId = ref<string | null>(null);
 const isDeleteModalOpen = ref(false);

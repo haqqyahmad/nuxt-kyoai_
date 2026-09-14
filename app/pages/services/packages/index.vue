@@ -3,7 +3,7 @@ import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Row } from '@tanstack/table-core'
+import type { Row, Table } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -290,7 +290,7 @@ const columns: TableColumn<PaketRow>[] = [
   }
 ]
 
-const table = useTemplateRef('table')
+const table = useTemplateRef<{ tableApi: Table<PaketRow> }>('table')
 
 const searchQuery = computed({
   get: (): string => {

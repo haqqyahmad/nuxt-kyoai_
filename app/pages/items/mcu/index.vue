@@ -3,12 +3,11 @@
 import { h, resolveComponent, computed, ref } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
-import type { Row } from '@tanstack/table-core'
+import type { Row, Table } from '@tanstack/table-core'
 import { getPaginationRowModel } from '@tanstack/table-core'
 import ItemsAddModal from '~/components/item/ItemsAddModal.vue'
 import ItemExamTemplateModal from '~/components/item/itemExamTemplateModal.vue'
 import type { RendererKey } from '~/types/physical'
-import type { ItemDetail } from './[id].vue'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -192,7 +191,7 @@ const isAddModalOpen = ref(false)
 
 // ─── Filter by Room Type ─────────────────────────────────────────────────────────
 const roomTypeFilter = ref<string>('all')
-const roomTypes = computed(() => {
+const roomTypes = computed<Array<{ id: string, code: string, name: string }>>(() => {
   const map = new Map<string, { id: string, code: string, name: string }>()
   for (const item of data.value) {
     if (item.roomType?.id && !map.has(item.roomType.id)) {
@@ -525,7 +524,7 @@ async function submitImportPreview() {
   }
 }
 
-const table = useTemplateRef('table')
+const table = useTemplateRef<{ tableApi: Table<Item> }>('table')
 
 const selectedDeleteId = ref<string | null>(null)
 const isDeleteModalOpen = ref(false)
@@ -595,7 +594,7 @@ async function deleteSelectedItems() {
 }
 
 // ─── Edit Item ──────────────────────────────────────────────────────────────────
-function editItem(item: ItemDetail) {
+function editItem(item: Item) {
   editItemData.value = item
   isEditModalOpen.value = true
 }

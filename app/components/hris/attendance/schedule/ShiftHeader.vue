@@ -1,6 +1,8 @@
 <!-- app/components/hris/attendance/schedule/ShiftHeader.vue -->
 
 <script setup lang="ts">
+import { CalendarDate, type DateValue } from '@internationalized/date'
+
 type ViewMode = 'day' | 'week' | 'month'
 
 const selectedDate = defineModel<Date | string>('selectedDate', {
@@ -45,6 +47,25 @@ function getWeekRange(date: Date) {
 
   return `${formatDate(start)} - ${formatDate(end)}`
 }
+
+function toCalendarDate(value: Date | string) {
+  const date = normalizeDate(value)
+
+  return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate())
+}
+
+function fromCalendarDate(value: DateValue) {
+  return new Date(value.year, value.month - 1, value.day)
+}
+
+const calendarDate = computed<DateValue | undefined>({
+  get: () => toCalendarDate(selectedDate.value),
+  set: (value) => {
+    if (value) {
+      selectedDate.value = fromCalendarDate(value)
+    }
+  }
+})
 
 const currentDate = computed(() => {
   return normalizeDate(selectedDate.value)
@@ -109,7 +130,7 @@ function goToday() {
     <template #content>
       <div class="p-2">
         <UCalendar
-          v-model="selectedDate"
+          v-model="calendarDate"
         />
       </div>
     </template>

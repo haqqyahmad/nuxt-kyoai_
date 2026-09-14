@@ -42,7 +42,7 @@ const cards = [
     value: '42',
     icon: 'i-lucide-calendar-days',
     badge: 'Hari ini',
-    color: 'neutral'
+    color: 'primary'
   },
   {
     title: 'Karyawan Baru',

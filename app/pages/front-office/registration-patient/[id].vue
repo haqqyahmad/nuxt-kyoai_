@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { examTypeBadgeColor } from '~/constants/room-types'
+import type { ExamType } from '~/types/room'
 import { printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
@@ -656,7 +657,11 @@ const canUndoCheckin = computed(
   () => checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
 )
 
-const examType = computed(() => reg.value?.examType ?? (isMCU.value ? 'MCU' : 'RAWAT_JALAN'))
+const examType = computed<ExamType>(() => {
+  const value = reg.value?.examType
+  if (value === 'MCU' || value === 'RAWAT_JALAN') return value
+  return isMCU.value ? 'MCU' : 'RAWAT_JALAN'
+})
 
 const checkinModalOpen = ref(false)
 const checkinLoading = ref(false)

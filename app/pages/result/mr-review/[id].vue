@@ -381,13 +381,13 @@ onMounted(loadAll)
               <div v-if="returnItems.length === 0" class="text-sm text-muted">Tidak ada item gradable untuk dipilih.</div>
               <div v-else class="max-h-72 space-y-1.5 overflow-y-auto rounded border p-2">
                 <div
-                  v-for="(item, idx) in returnItems"
+                  v-for="item in returnItems"
                   :key="item.inputanId"
                   class="flex items-start gap-2 rounded border p-2"
                 >
                   <input
                     :id="`ret-${item.inputanId}`"
-                    v-model="returnItems[idx].checked"
+                    v-model="item.checked"
                     type="checkbox"
                     class="mt-1 size-4"
                   />
@@ -396,8 +396,8 @@ onMounted(loadAll)
                       {{ item.label }}
                     </label>
                     <UInput
-                      v-if="returnItems[idx].checked"
-                      v-model="returnItems[idx].note"
+                      v-if="item.checked"
+                      v-model="item.note"
                       placeholder="Catatan untuk item ini (opsional)"
                       size="sm"
                       class="mt-1"

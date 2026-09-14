@@ -29,7 +29,7 @@ type MonthTemplate = {
 type ShiftOption = {
   label: string
   value: string
-  description?: string | null
+  description?: string
 }
 
 type WeekForm = {
@@ -165,7 +165,7 @@ async function loadShiftTemplates() {
       .map(item => ({
         label: item.name,
         value: String(item.id),
-        description: item.description || ''
+        description: item.description ?? undefined
       }))
 
     form.weeks.forEach(syncWeekLabelFromOption)

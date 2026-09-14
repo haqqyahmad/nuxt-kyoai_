@@ -618,7 +618,7 @@ function hasOtherOption(inputan: ExamInput) {
 function isOtherSelected(inputan: ExamInput) {
   const selected = getInputDraft(inputan.id).valueSelected
   const option = (inputan.opsis || []).find((o) => o.value === selected)
-  return Boolean(option && optionRequiresDetail(option)) || /\(Text\)$/i.test(selected)
+  return Boolean(option && optionRequiresDetail(option)) || /\(Text\)$/i.test(selected ?? '')
 }
 
 function getExternalExamItemId() {
@@ -2088,7 +2088,7 @@ onBeforeUnmount(() => {
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span v-if="getVisibleNormalRanges(inputan).length"
                     >Normal:
-                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat) }}</span
+                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat ?? undefined) }}</span
                   ><span v-else>Normal: not available</span
                   ><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
@@ -2742,10 +2742,10 @@ onBeforeUnmount(() => {
                                 <p
                                   class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
                                 >
-                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat) }}
+                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat ?? undefined) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
-                                  {{ formatRangeCriteria(range, inputan.numberFormat) }}
+                                  {{ formatRangeCriteria(range, inputan.numberFormat ?? undefined) }}
                                 </p>
                               </div>
                             </div>
@@ -2958,10 +2958,10 @@ onBeforeUnmount(() => {
                                 <p
                                   class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
                                 >
-                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat) }}
+                                  {{ formatNormalRange(range, inputan.uom, inputan.numberFormat ?? undefined) }}
                                 </p>
                                 <p class="mt-0.5 text-[11px] text-muted">
-                                  {{ formatRangeCriteria(range, inputan.numberFormat) }}
+                                  {{ formatRangeCriteria(range, inputan.numberFormat ?? undefined) }}
                                 </p>
                               </div>
                             </div>

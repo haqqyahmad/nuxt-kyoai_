@@ -5,7 +5,7 @@ type LeaveType = 'ANNUAL' | 'SICK' | 'SPECIAL' | 'MATERNITY'
 
 type CreateLeavePayload = {
   employee_id: number | null
-  leave_type: LeaveType | null
+  leave_type: LeaveType | undefined
   start_date: string
   end_date: string
   special_reason: string
@@ -25,7 +25,7 @@ const employeeId = computed(() => (currentUser.value as any)?.employee?.id ?? nu
 
 const form = reactive<CreateLeavePayload>({
   employee_id: employeeId.value,
-  leave_type: null,
+  leave_type: undefined,
   start_date: '',
   end_date: '',
   special_reason: '',

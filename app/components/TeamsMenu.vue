@@ -50,8 +50,9 @@ const teams = computed(() => {
 const selectedTeam = ref<{ label: string, avatar: { src?: string, alt?: string } } | null>(null)
 
 watchEffect(() => {
-  if (!selectedTeam.value && teams.value.length) {
-    selectedTeam.value = teams.value[0]
+  const firstTeam = teams.value[0]
+  if (!selectedTeam.value && firstTeam) {
+    selectedTeam.value = firstTeam
   }
 })
 

@@ -101,7 +101,9 @@ const SERVICE_LABEL: Record<string, string> = {
   Dental: 'Gigi'
 }
 
-const STATUS_COLOR: Record<string, string> = {
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+
+const STATUS_COLOR: Record<string, BadgeColor> = {
   Open: 'success',
   Checkin: 'info',
   CheckOut: 'neutral',
@@ -110,7 +112,7 @@ const STATUS_COLOR: Record<string, string> = {
   Cancel: 'error'
 }
 
-const PRIORITY_COLOR: Record<string, string> = {
+const PRIORITY_COLOR: Record<string, BadgeColor> = {
   Normal: 'neutral',
   VIP: 'warning',
   Emergency: 'error'

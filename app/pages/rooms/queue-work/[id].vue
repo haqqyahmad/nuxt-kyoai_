@@ -22,6 +22,8 @@ type Patient = {
   photoUrl?: string | null
 }
 
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+
 type QueueStageItem = {
   id: string
   stageId: string
@@ -173,6 +175,7 @@ type SelectedNormalRange = NonNullable<ExamInput['nilaiNormalSel']>[number]
 type RoomExamItem = {
   id: string
   status: string
+  createdAt?: string | null
   notes?: string | null
   operationalStatus?: string
   blockedReason?: string | null
@@ -203,6 +206,7 @@ type RoomExamItem = {
     rendererKey?: string | null
     resultStatus?: 'NOT_READY' | 'READY' | 'DRAFT' | 'SUBMITTED' | 'RETURNED'
     workStatus?: string
+    examId?: string | null
     exam?: {
       id: string
       status: string
@@ -381,7 +385,7 @@ function formatDate(dateString?: string | null) {
   }).format(new Date(dateString))
 }
 
-function getStatusColor(status: string) {
+function getStatusColor(status: string): BadgeColor {
   if (status === 'DONE') return 'success'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
@@ -909,7 +913,11 @@ const isDrawerOpen = ref(false)
 const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
   'erp-kyoai:queue-work:input-columns',
   { columns: 2 },
-  value => ({ columns: (value?.columns === 1 || value?.columns === 2) ? value.columns : 2 })
+  value => {
+    if (!value || typeof value !== 'object' || !('columns' in value)) return null
+    const columns = value.columns
+    return { columns: columns === 1 || columns === 2 ? columns : 2 }
+  }
 )
 const inputColumnsCount = toRef(inputColumns, 'columns') as Ref<1 | 2>
 
@@ -1169,7 +1177,7 @@ function getOperationalStatusLabel(item: RoomExamItem) {
   return getStatusLabel(item.status)
 }
 
-function getOperationalStatusColor(item: RoomExamItem) {
+function getOperationalStatusColor(item: RoomExamItem): BadgeColor {
   const sampleStatus = getSampleCollectionStatus(item)
 
   if (item.operationalStatus === 'WAITING_SAMPLE') return 'warning'
@@ -1578,7 +1586,7 @@ function buildResultsPayload(item: RoomExamItem) {
 
     if (inputan.inputType === 'selected') {
       if (!getDraftText(draft.valueSelected)) return null
-      const detail = selectedOptionRequiresDetail(inputan, draft.valueSelected)
+      const detail = selectedOptionRequiresDetail(inputan, draft.valueSelected ?? '')
         ? getDraftText(draft.valueString)
         : ''
       return detail

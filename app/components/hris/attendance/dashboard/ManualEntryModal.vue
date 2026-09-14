@@ -7,6 +7,8 @@ const open = defineModel<boolean>('open', {
   default: false
 })
 
+const api = useApi()
+
 const employees = [
   'Alex Rivera',
   'Sarah Chen',
@@ -58,6 +60,13 @@ const form = reactive({
   notes: ''
 })
 
+const selectedStatus = computed({
+  get: () => form.status || undefined,
+  set: (value: AttendanceStatus | undefined) => {
+    form.status = value ?? ''
+  }
+})
+
 const isTimeRequired = computed(() =>
   form.status === 'Present'
   || form.status === 'Late'
@@ -75,8 +84,8 @@ const totalHours = computed(() => {
     return '0h 0m'
   }
 
-  const [inHour, inMinute] = form.clockIn.split(':').map(Number)
-  const [outHour, outMinute] = form.clockOut.split(':').map(Number)
+  const [inHour = 0, inMinute = 0] = form.clockIn.split(':').map(Number)
+  const [outHour = 0, outMinute = 0] = form.clockOut.split(':').map(Number)
 
   const inTotal = inHour * 60 + inMinute
   const outTotal = outHour * 60 + outMinute
@@ -123,7 +132,7 @@ function resetForm() {
   form.notes = ''
 }
 
-function submit() {
+async function submit() {
   if (!canSave.value) return
 
   await api.post('/hris/attendance/manual', {
@@ -192,7 +201,7 @@ function submit() {
 
         <UFormField label="Status" required>
           <USelect
-            v-model="form.status"
+            v-model="selectedStatus"
             :items="statuses"
             placeholder="Select status"
             class="w-full"

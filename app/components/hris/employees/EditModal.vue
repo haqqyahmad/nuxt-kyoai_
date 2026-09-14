@@ -1,8 +1,8 @@
 <script setup lang="ts">
-type Education = { id?: number, employee_id?: number, education_level_id?: number, nama_sekolah: string, jurusan?: string, tahun_masuk?: number, tahun_lulus?: number, ipk?: number | null }
+type Education = { id?: number, employee_id?: number, education_level_id?: number, nama_sekolah: string, jurusan?: string, tahun_masuk?: number, tahun_lulus?: number, ipk?: number }
 type EmergencyContact = { id?: number, employee_id?: number, nama: string, hubungan: string, telepon: string, alamat?: string }
 type Child = { id?: number, employee_id?: number, nama: string, jenis_kelamin: string, tempat_lahir?: string, tanggal_lahir?: string, pendidikan?: string, pekerjaan?: string }
-type Position = { id?: number, employee_id?: number, department_id?: number, section_id?: number, company_id?: number, branch_id?: number, position_id?: number, golongan_id?: number, grade_id?: number, tanggal_mulai?: string, tanggal_selesai?: string | null, is_primary?: boolean }
+type Position = { id?: number, employee_id?: number, department_id?: number, section_id?: number, company_id?: number, branch_id?: number, position_id?: number, golongan_id?: number, grade_id?: number, tanggal_mulai?: string, tanggal_selesai?: string, is_primary?: boolean }
 
 const props = defineProps<{ employeeId: number | null }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>()
@@ -26,7 +26,7 @@ const healthForm = reactive({ tinggi_badan: 0, berat_badan: 0, kacamata: false, 
 const leaveBalances = ref<any[]>([])
 const linkedUser = ref<{ id: number, name: string, email: string } | null>(null)
 const unlinkedUsers = ref<{ id: number, name: string, email: string }[]>([])
-const selectedUserId = ref<number | null>(null)
+const selectedUserId = ref<number | undefined>(undefined)
 const departments = ref<{ id: number, nama: string }[]>([])
 const sections = ref<{ id: number, nama: string }[]>([])
 
@@ -470,7 +470,7 @@ async function saveChildren() {
               <div v-else-if="activeTab === 'education'" class="space-y-4">
                 <div class="flex items-center justify-between">
                   <h3 class="text-base font-semibold">Pendidikan</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="educations.push({ education_level_id: undefined as any, nama_sekolah: '', jurusan: '', tahun_masuk: undefined as any, tahun_lulus: undefined as any, ipk: null })" />
+                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="educations.push({ education_level_id: undefined as any, nama_sekolah: '', jurusan: '', tahun_masuk: undefined as any, tahun_lulus: undefined as any, ipk: undefined })" />
                 </div>
                 <template v-for="(edu, i) in educations" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />
@@ -610,7 +610,7 @@ async function saveChildren() {
               <div v-else-if="activeTab === 'position'" class="space-y-4">
                 <div class="flex items-center justify-between">
                   <h3 class="text-base font-semibold">Posisi / Jabatan</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="positions.push({ department_id: undefined as any, section_id: undefined as any, company_id: undefined as any, branch_id: undefined as any, position_id: undefined as any, golongan_id: undefined as any, grade_id: undefined as any, tanggal_mulai: '', tanggal_selesai: null, is_primary: false })" />
+                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="positions.push({ department_id: undefined as any, section_id: undefined as any, company_id: undefined as any, branch_id: undefined as any, position_id: undefined as any, golongan_id: undefined as any, grade_id: undefined as any, tanggal_mulai: '', tanggal_selesai: undefined, is_primary: false })" />
                 </div>
                 <template v-for="(pos, i) in positions" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />

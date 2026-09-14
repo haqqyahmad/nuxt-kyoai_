@@ -117,6 +117,7 @@ function toMinutes(value: string | null) {
 
   const [hour, minute] = time.split(':').map(Number)
 
+  if (hour === undefined || minute === undefined) return null
   if (Number.isNaN(hour) || Number.isNaN(minute)) return null
 
   return hour * 60 + minute
@@ -446,7 +447,7 @@ const rows = computed<TableRow[]>(() => {
               </td>
               <td
                 class="border border-default p-2 text-center font-semibold"
-                :class="row.pc > 0 ? 'bg-orange-500/10 text-orange-500' : 'text-muted'"
+                :class="(row.pc ?? 0) > 0 ? 'bg-orange-500/10 text-orange-500' : 'text-muted'"
               >
                 {{ row.pc }}
               </td>

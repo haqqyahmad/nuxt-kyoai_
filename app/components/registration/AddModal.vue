@@ -151,8 +151,8 @@ onMounted(() => {
           class="w-full"
           @update:model-value="onPatientChange"
         >
-          <template #empty>
-            <div class="text-center py-4 text-gray-500">
+          <template #content-bottom>
+            <div v-if="patientOptions.length === 0" class="text-center py-4 text-gray-500">
               <UIcon name="i-lucide-users" class="mx-auto text-2xl mb-1" />
               <p class="text-sm">
                 Tidak ada data pasien
@@ -211,7 +211,7 @@ onMounted(() => {
           <UButton
             size="xs"
             variant="ghost"
-            color="red"
+            color="error"
             icon="i-lucide-x"
             @click="clearSelection"
           />

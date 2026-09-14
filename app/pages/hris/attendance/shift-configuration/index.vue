@@ -92,18 +92,22 @@ function syncSelectedItem() {
     return
   }
 
-  if (shifts.value.length) {
+  const firstShift = shifts.value[0]
+
+  if (firstShift) {
     selectedItem.value = {
-      id: shifts.value[0].id,
+      id: firstShift.id,
       type: 'shift'
     }
 
     return
   }
 
-  if (monthTemplates.value.length) {
+  const firstMonthTemplate = monthTemplates.value[0]
+
+  if (firstMonthTemplate) {
     selectedItem.value = {
-      id: monthTemplates.value[0].id,
+      id: firstMonthTemplate.id,
       type: 'month'
     }
 
@@ -171,9 +175,11 @@ async function refreshPage() {
       const lastTemplate
         = monthTemplates.value[monthTemplates.value.length - 1]
 
-      selectedItem.value = {
-        id: lastTemplate.id,
-        type: 'month'
+      if (lastTemplate) {
+        selectedItem.value = {
+          id: lastTemplate.id,
+          type: 'month'
+        }
       }
     }
   } finally {

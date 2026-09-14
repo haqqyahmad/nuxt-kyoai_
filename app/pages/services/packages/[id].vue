@@ -177,7 +177,7 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
               color="neutral"
               variant="outline"
               :loading="pending"
-              @click="refresh"
+              @click="() => refresh()"
             >
               Refresh
             </UButton>
@@ -423,54 +423,6 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
       </div>
     </template>
   </UDashboardPanel>
-
-  <UModal
-    v-model:open="editModalOpen"
-    title="Edit Paket MCU"
-  >
-    <template #body>
-      <div class="space-y-4">
-        <UFormField label="Nama Paket">
-          <UInput
-            v-model="editName"
-            placeholder="Nama paket"
-          />
-        </UFormField>
-
-        <UFormField label="Status">
-          <USelect
-            v-model="editIsActive"
-            :items="[
-              { label: 'Active', value: true },
-              { label: 'Inactive', value: false }
-            ]"
-          />
-        </UFormField>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          @click="editModalOpen = false"
-        >
-          Batal
-        </UButton>
-
-        <UButton
-          color="primary"
-          icon="i-lucide-save"
-          :loading="editSubmitting"
-          :disabled="!editName.trim()"
-          @click="submitEditPaket"
-        >
-          Simpan
-        </UButton>
-      </div>
-    </template>
-  </UModal>
 
   <BaseDeleteModal
     v-model:open="isDeleteModalOpen"

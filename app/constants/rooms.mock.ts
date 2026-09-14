@@ -1,7 +1,6 @@
 // app/constants/rooms.mock.ts
-import type { Room } from '~/types/room'
 
-export const mockRooms: Room[] = [
+export const mockRooms = [
   {
     id: '1',
     code: 'R-001',

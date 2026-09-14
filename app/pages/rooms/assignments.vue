@@ -245,8 +245,8 @@ const assignmentModeLabel = computed(() => {
 
 function createBatchRow(): RoomAssignmentBatchRow {
   return {
-    userId: null,
-    roomId: null,
+    userId: '',
+    roomId: '',
     notes: ''
   }
 }
@@ -387,7 +387,7 @@ async function submitBatchAssignment() {
     .map(row => ({
       userId: Number(row.userId),
       roomId: String(row.roomId),
-      notes: row.notes.trim() || null
+      notes: row.notes.trim() || ''
     }))
 
   if (!batchForm.assignedDate || !assignmentsPayload.length) {
@@ -406,7 +406,7 @@ async function submitBatchAssignment() {
       assignments: assignmentsPayload
     })
 
-    const summary = result?.data?.summary || result?.summary
+    const summary = result?.data?.summary
 
     toast.add({
       title: 'Berhasil',
@@ -723,7 +723,7 @@ onMounted(async () => {
                 variant="soft"
                 size="sm"
                 :loading="activeSessionsPending"
-                @click="refreshActiveSessions"
+                @click="() => refreshActiveSessions()"
               >
                 Refresh
               </UButton>

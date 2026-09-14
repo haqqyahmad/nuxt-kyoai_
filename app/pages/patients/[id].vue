@@ -46,6 +46,15 @@ type Patient = {
   photoUrl?: string;
 };
 
+type PatientForm = Omit<
+  Partial<Patient>,
+  "policyNumber" | "policyExpDate"
+> & {
+  policyNumber?: string;
+  policyExpDate?: string;
+  updatedAt?: string;
+};
+
 const { data: patient, refresh } = await useAsyncData(
   `patient-${route.params.id}`,
   () => api.get(`/patient/${route.params.id}`).then((res) => res.data.data),
@@ -73,8 +82,8 @@ const cameraVideoEl = ref<HTMLVideoElement | null>(null);
 const cameraStarting = ref(false);
 const cameraSaving = ref(false);
 const cameraError = ref("");
-const editForm = ref<Partial<Patient>>({
-  gender: "",
+const editForm = ref<PatientForm>({
+  gender: undefined,
   maritalStatus: "",
   idType: "",
   bloodTypeId: null,
@@ -153,6 +162,8 @@ const startEditing = () => {
       idType: normalizeValue(patient.value.idType),
       bloodTypeId: patient.value.bloodTypeId ?? null,
       dob: formatDateForInput(patient.value.dob),
+      policyNumber: patient.value.policyNumber ?? undefined,
+      policyExpDate: patient.value.policyExpDate ?? undefined,
     };
 
     photoPreview.value = patient.value.photoUrl || null;

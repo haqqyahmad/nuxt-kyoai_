@@ -7,7 +7,7 @@ const open = defineModel<boolean>('open', {
 
 const emit = defineEmits<{
   submit: [payload: {
-    employee_id: number | null
+    employee_id: number | undefined
     date: string
     checkin_time: string
     checkout_time: string
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const form = reactive({
-  employee_id: null as number | null,
+  employee_id: undefined as number | undefined,
   date: new Date().toISOString().slice(0, 10),
   checkin_time: '08:00',
   checkout_time: '17:00',

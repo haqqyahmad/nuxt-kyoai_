@@ -121,7 +121,7 @@ const contactTypeOptions = [
 const defaultContactForm = (): Partial<Contact> => ({
   type: "EMAIL",
   value: "",
-  isPrimary: 0,
+  isPrimary: false,
 });
 
 const openAddContact = () => {
@@ -617,7 +617,7 @@ const deleteAddress = async (id: string) => {
         <UFormField label="Kontak Utama">
           <USwitch
             :model-value="!!editingContact.isPrimary"
-            @update:model-value="(val) => editingContact && (editingContact.isPrimary = val ? 1 : 0)"
+            @update:model-value="(val) => editingContact && (editingContact.isPrimary = Boolean(val))"
           />
           <span class="ml-2 text-sm text-muted">
             {{ editingContact.isPrimary ? 'Ya, jadikan kontak utama' : 'Bukan kontak utama' }}

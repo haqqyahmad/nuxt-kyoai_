@@ -11,18 +11,18 @@ type EmployeeOption = {
 }
 
 type DateRange = {
-  start: CalendarDate | null
-  end: CalendarDate | null
+  start: CalendarDate | undefined
+  end: CalendarDate | undefined
 }
 
-const employeeId = defineModel<number | null>('employeeId', {
-  default: null
+const employeeId = defineModel<number | undefined>('employeeId', {
+  default: undefined
 })
 
 const dateRange = defineModel<DateRange>('dateRange', {
   default: () => ({
-    start: null,
-    end: null
+    start: undefined,
+    end: undefined
   })
 })
 

@@ -144,7 +144,7 @@ const submit = async () => {
     v-model:open="isOpen"
     title="Tambah Customer"
     description="Isi informasi customer baru. Kontak dan alamat bersifat opsional."
-    :ui="{ container: 'max-w-2xl' }"
+    :ui="{ content: 'max-w-2xl' }"
   >
     <template #body>
       <div class="space-y-6">

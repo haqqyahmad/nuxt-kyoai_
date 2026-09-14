@@ -1,20 +1,7 @@
 <!-- app/components/hris/attendance/schedule/ShiftSummary.vue -->
 
 <script setup lang="ts">
-type FinalShiftStatus = 'active' | 'off'
-
-type FinalShiftItem = {
-  date: string
-  start_time: string | null
-  end_time: string | null
-  status: FinalShiftStatus
-}
-
-type FinalShiftResponse = {
-  success: boolean
-  message: string
-  data: FinalShiftItem[]
-}
+import type { FinalShiftResponse } from '~/types/hris-shift'
 
 const props = defineProps<{
   finalShiftResponse?: FinalShiftResponse
@@ -25,6 +12,13 @@ function getMinutesBetween(startTime: string | null, endTime: string | null) {
 
   const [startHour, startMinute] = startTime.split(':').map(Number)
   const [endHour, endMinute] = endTime.split(':').map(Number)
+
+  if (
+    startHour === undefined
+    || startMinute === undefined
+    || endHour === undefined
+    || endMinute === undefined
+  ) return 0
 
   const startTotal = startHour * 60 + startMinute
   let endTotal = endHour * 60 + endMinute

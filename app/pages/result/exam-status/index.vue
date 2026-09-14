@@ -87,7 +87,7 @@ function openStatus(idReg: string) {
             color="neutral"
             variant="soft"
             :loading="pending"
-            @click="refresh"
+            @click="() => refresh()"
           >
             Refresh
           </UButton>

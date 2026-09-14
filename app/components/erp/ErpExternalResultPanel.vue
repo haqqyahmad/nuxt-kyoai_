@@ -31,7 +31,7 @@ const toast = useToast()
 const doctors = ref<Doctor[]>([])
 const loadingDoctors = ref(false)
 const doctorsError = ref('')
-const doctorSelection = ref<number | Doctor>()
+const doctorSelection = ref<number | undefined>()
 const pdf = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const action = ref<'assign' | 'cancel' | 'upload' | 'open' | null>(null)
@@ -47,10 +47,7 @@ const doctorName = computed(() =>
   || doctors.value.find(item => item.id === props.assignment?.assignedExternalUserId)?.name
   || 'Dokter luar terpilih'
 )
-const selectedDoctorId = computed(() => {
-  const value = doctorSelection.value
-  return typeof value === 'number' ? value : value?.id
-})
+const selectedDoctorId = computed(() => doctorSelection.value)
 const canAssign = computed(() => !props.disabled && !action.value && Boolean(selectedDoctorId.value))
 
 watch(() => props.assignment?.assignedExternalUserId, (value) => {

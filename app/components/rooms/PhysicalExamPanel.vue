@@ -220,10 +220,11 @@ watch(() => props.disabled, (val, prev) => {
                 <UCheckbox v-model="finding.value" :disabled="!editable" :label="finding.label" />
                 <UInput
                   v-if="finding.value && finding.detail_required_when === 'YES'"
-                  v-model="finding.detail"
+                  :model-value="finding.detail ?? undefined"
                   class="mt-2 w-full"
                   :disabled="!editable"
                   :placeholder="`${finding.label} detail (wajib)`"
+                  @update:model-value="finding.detail = $event ?? null"
                 />
               </div>
             </div>

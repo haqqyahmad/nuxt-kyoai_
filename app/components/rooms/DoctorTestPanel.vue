@@ -2,7 +2,7 @@
 type TestOption = { value: string, label: string, description?: string }
 type TestFinding = { code: string, name: string, value?: boolean, grade?: string, detail?: string }
 type TestConfig = { code: string, name: string, inputType: 'SINGLE_SELECT' | 'NORMAL_ABNORMAL' | 'RECTAL_FINDINGS', normalLabel?: string, options?: TestOption[], defaultValue?: { findings?: TestFinding[] } }
-type TestData = { value?: string, normal?: boolean, detail?: string | null, findings?: TestFinding[] }
+type TestData = { value?: string, normal?: boolean, detail?: string, findings?: TestFinding[] }
 const props = defineProps<{ examId: string, examItemId: string, disabled?: boolean }>()
 const emit = defineEmits<{ saved: [], submitted: [] }>()
 const api = useApi()
@@ -22,7 +22,7 @@ const editable = computed(() => !props.disabled && status.value !== 'SUBMITTED')
 const save = async (submit = false) => {
   saving.value = true
   try {
-    const body = { rendererKey: config.value?.code, data: data.value, physicianComment: null }
+    const body = { rendererKey: config.value?.code, data: { ...data.value, detail: data.value.detail ?? null }, physicianComment: null }
     await api.post(`/mcu/exams/${props.examId}/doctor-exams/${props.examItemId}`, body)
     if (submit) {
       const res = await api.post(`/mcu/exams/${props.examId}/doctor-exams/${props.examItemId}/submit`, body)
@@ -76,7 +76,7 @@ onMounted(load)
 
     <div v-else-if="config?.inputType === 'NORMAL_ABNORMAL'" class="space-y-3">
       <div class="flex gap-2">
-        <UButton :disabled="!editable" :color="data.normal ? 'success' : 'neutral'" @click="data.normal = true; data.detail = null">
+        <UButton :disabled="!editable" :color="data.normal ? 'success' : 'neutral'" @click="data.normal = true; data.detail = undefined">
           {{ config.normalLabel }}
         </UButton>
         <UButton :disabled="!editable" :color="data.normal === false ? 'warning' : 'neutral'" @click="data.normal = false">
@@ -102,7 +102,7 @@ onMounted(load)
       </div>
       <template v-if="data.normal === false">
         <div
-          v-for="finding in (data.findings || config.defaultValue.findings)"
+          v-for="finding in (data.findings || config.defaultValue?.findings || [])"
           :key="finding.code"
           class="rounded-lg border border-default p-3"
         >

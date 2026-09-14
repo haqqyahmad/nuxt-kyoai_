@@ -10,6 +10,8 @@ const toast = useToast()
 const itemId = computed(() => String(route.params.id || ''))
 const activeTab = ref<'overview' | 'template' | 'sample'>('overview')
 
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+
 type ItemGroup = {
   id: string
   name: string
@@ -122,7 +124,7 @@ const inputTypeLabel: Record<string, string> = {
   calculated: 'Calculated'
 }
 
-const inputTypeColor: Record<string, string> = {
+const inputTypeColor: Record<string, BadgeColor> = {
   number: 'info',
   string: 'neutral',
   selected: 'secondary',
@@ -134,7 +136,7 @@ const resultTimingLabel: Record<string, string> = {
   deferred: 'Deferred'
 }
 
-const resultTimingColor: Record<string, string> = {
+const resultTimingColor: Record<string, BadgeColor> = {
   inline: 'success',
   deferred: 'warning'
 }

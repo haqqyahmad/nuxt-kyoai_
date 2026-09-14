@@ -128,14 +128,22 @@ function removeRow(key: number) {
 function moveUp(idx: number) {
   if (idx === 0) return
   const arr = draft.value
-  ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
+  const current = arr[idx]
+  const previous = arr[idx - 1]
+  if (!current || !previous) return
+  arr[idx - 1] = current
+  arr[idx] = previous
   recalcSortOrder()
 }
 
 function moveDown(idx: number) {
   if (idx === draft.value.length - 1) return
   const arr = draft.value
-  ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
+  const current = arr[idx]
+  const next = arr[idx + 1]
+  if (!current || !next) return
+  arr[idx] = next
+  arr[idx + 1] = current
   recalcSortOrder()
 }
 

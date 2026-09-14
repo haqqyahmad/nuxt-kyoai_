@@ -3,7 +3,7 @@ import { h, resolveComponent } from 'vue'
 import { upperFirst } from 'scule'
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Row } from '@tanstack/table-core'
+import type { Row, Table } from '@tanstack/table-core'
 
 const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
@@ -79,7 +79,7 @@ async function handleDelete() {
   } catch { toast.add({ title: 'Gagal', description: 'Gagal menghapus department', color: 'error' }) }
 }
 
-const table = useTemplateRef('table')
+const table = useTemplateRef<{ tableApi: Table<Department> }>('table')
 const currentPage = ref(1)
 const currentPageSize = computed({
   get: () => table.value?.tableApi?.getState().pagination.pageSize || 10,
@@ -147,7 +147,7 @@ const columns: TableColumn<Department>[] = [
       <div class="space-y-4 p-4 sm:p-6">
         <div class="flex items-center gap-3">
           <UInput
-            v-model="columnFilters[0].value"
+            v-model="columnFilters[0]!.value"
             class="max-w-sm"
             icon="i-lucide-search"
             placeholder="Search department..."

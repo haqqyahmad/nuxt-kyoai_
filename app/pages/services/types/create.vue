@@ -847,10 +847,10 @@ async function submit() {
                   icon="i-lucide-building-2"
                   class="w-full"
                   :portal="true"
+                  :ui="{ content: 'z-[99999]' }"
                   :content="{
                     side: 'bottom',
-                    sideOffset: 6,
-                    class: 'z-[99999]'
+                    sideOffset: 6
                   }"
                 />
 
@@ -861,10 +861,10 @@ async function submit() {
                   icon="i-lucide-folder"
                   class="w-full"
                   :portal="true"
+                  :ui="{ content: 'z-[99999]' }"
                   :content="{
                     side: 'bottom',
-                    sideOffset: 6,
-                    class: 'z-[99999]'
+                    sideOffset: 6
                   }"
                 />
               </div>

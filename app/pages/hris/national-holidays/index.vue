@@ -6,7 +6,7 @@ type NationalHoliday = {
   date: string
   name: string
   description: string | null
-  is_active: boolean | number
+  is_active: boolean
   created_at?: string
   updated_at?: string
 }
@@ -47,7 +47,12 @@ async function fetchHolidays() {
 
     const data = response?.data?.data || response?.data || response || []
 
-    holidays.value = Array.isArray(data) ? data : []
+    holidays.value = Array.isArray(data)
+      ? data.map((item: NationalHoliday) => ({
+          ...item,
+          is_active: Boolean(item.is_active)
+        }))
+      : []
   } catch (error: any) {
     console.error(error)
 

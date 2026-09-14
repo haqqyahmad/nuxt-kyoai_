@@ -94,16 +94,19 @@ function selectItem(id: number, type: 'shift' | 'month') {
 function selectTab(tab: 'shift' | 'month') {
   activeTab.value = tab
 
-  if (tab === 'shift' && props.shifts.length) {
+  const firstShift = props.shifts[0]
+  const firstMonthTemplate = props.monthTemplates?.[0]
+
+  if (tab === 'shift' && firstShift) {
     selected.value = {
-      id: props.shifts[0].id,
+      id: firstShift.id,
       type: 'shift'
     }
   }
 
-  if (tab === 'month' && props.monthTemplates?.length) {
+  if (tab === 'month' && firstMonthTemplate) {
     selected.value = {
-      id: props.monthTemplates[0].id,
+      id: firstMonthTemplate.id,
       type: 'month'
     }
   }

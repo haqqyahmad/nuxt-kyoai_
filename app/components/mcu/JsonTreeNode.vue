@@ -35,12 +35,15 @@ function relayCopy(path: string, value: JsonValue) {
   emit('copy', path, value)
 }
 
-const valueClass = computed(() => ({
-  string: 'text-emerald-600 dark:text-emerald-400',
-  number: 'text-blue-600 dark:text-blue-400',
-  boolean: 'text-violet-600 dark:text-violet-400',
-  null: 'text-rose-500 italic'
-}[type.value] ?? 'text-muted'))
+const valueClass = computed(() => {
+  const classes: Record<string, string> = {
+    string: 'text-emerald-600 dark:text-emerald-400',
+    number: 'text-blue-600 dark:text-blue-400',
+    boolean: 'text-violet-600 dark:text-violet-400',
+    null: 'text-rose-500 italic'
+  }
+  return classes[type.value] ?? 'text-muted'
+})
 </script>
 
 <template>

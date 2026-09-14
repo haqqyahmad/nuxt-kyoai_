@@ -1,20 +1,27 @@
 import { useColorMode, useAppConfig } from '#imports'
 import { useSafeLocalStorageState } from './useSafeLocalStorageState'
 
+type ThemePreference = {
+  mode: 'light' | 'dark' | 'system'
+  primary: string
+  neutral: string
+}
+
 export const useTheme = () => {
   const colorMode = useColorMode()
   const appConfig = useAppConfig()
 
-  const stored = useSafeLocalStorageState('theme-preference', {
+  const stored = useSafeLocalStorageState<ThemePreference>('theme-preference', {
     mode: 'system',
     primary: 'blue',
     neutral: 'slate',
   }, (v) => {
     if (v && typeof v === 'object') {
+      const pref = v as Record<string, unknown>
       return {
-        mode: v.mode as 'light' | 'dark' | 'system',
-        primary: v.primary as string,
-        neutral: v.neutral as string,
+        mode: pref.mode as ThemePreference['mode'],
+        primary: pref.primary as string,
+        neutral: pref.neutral as string,
       }
     }
     return null

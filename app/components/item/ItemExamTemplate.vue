@@ -42,10 +42,10 @@ type Inputan = {
   label: string
   inputType: InputType
   numberFormat: NumberFormat
-  uom: string | null
+  uom: string | undefined
   sortOrder: number
   allowBlank: boolean
-  formula: string | null
+  formula: string | undefined
   nilaiNormalNumber: NilaiNormalNum[]
   opsis: Opsi[]
   nilaiNormalSel: NilaiNormalSel[]
@@ -120,7 +120,7 @@ function mapInputanFromApi(inp: any): Inputan {
     uom: inp.uom ?? '',
     sortOrder: inp.sortOrder,
     allowBlank: inp.allowBlank,
-    formula: inp.formula?.formula ?? null,
+    formula: inp.formula?.formula ?? undefined,
     nilaiNormalNumber: inp.nilaiNormalNum ?? [],
     opsis: inp.opsis ?? [],
     nilaiNormalSel: (inp.nilaiNormalSel ?? []).map((n: any) => ({
@@ -218,7 +218,7 @@ function addInputan() {
     uom:               '',
     sortOrder:         inputans.value.length + 1,
     allowBlank:        false,
-    formula:           null,
+    formula:           undefined,
     nilaiNormalNumber: [],
     opsis:             [],
     nilaiNormalSel:    [],
@@ -245,7 +245,7 @@ function onTypeChange(inp: Inputan) {
   inp.nilaiNormalNumber = []
   inp.opsis             = []
   inp.nilaiNormalSel    = []
-  inp.formula           = null
+  inp.formula           = undefined
   configTab.value = inp.inputType === 'selected' ? 'selektif' : 'range'
 }
 
@@ -268,7 +268,7 @@ function removeOpsi(inp: Inputan, idx: number) {
   inp.opsis.splice(idx, 1)
   inp.opsis.forEach((o, i) => (o.sortOrder = i + 1))
   // bersihkan nilaiNormalSel yang mengacu opsi yang dihapus
-  if (removed.id) {
+  if (removed?.id) {
     inp.nilaiNormalSel = inp.nilaiNormalSel.filter((n) => n.opsiId !== removed.id)
   }
 }
@@ -352,13 +352,21 @@ function insertVar(inp: Inputan, label: string) {
 function moveUp(idx: number) {
   if (idx === 0) return
   const arr = inputans.value
-  ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
+  const current = arr[idx]
+  const previous = arr[idx - 1]
+  if (!current || !previous) return
+  arr[idx - 1] = current
+  arr[idx] = previous
   arr.forEach((inp, i) => (inp.sortOrder = i + 1))
 }
 function moveDown(idx: number) {
   const arr = inputans.value
   if (idx === arr.length - 1) return
-  ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
+  const current = arr[idx]
+  const next = arr[idx + 1]
+  if (!current || !next) return
+  arr[idx] = next
+  arr[idx + 1] = current
   arr.forEach((inp, i) => (inp.sortOrder = i + 1))
 }
 
@@ -374,7 +382,7 @@ function createSnapshot() {
       uom:       inp.uom || null,
       sortOrder: inp.sortOrder,
       allowBlank: inp.allowBlank,
-      formula:   inp.inputType === 'calculated' ? inp.formula : null,
+      formula:   inp.inputType === 'calculated' ? (inp.formula ?? null) : null,
       nilaiNormalNumber:
         inp.inputType === 'number' || inp.inputType === 'calculated'
           ? inp.nilaiNormalNumber : [],
@@ -420,7 +428,7 @@ async function save() {
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
 
-const TYPE_COLOR: Record<InputType, string> = {
+const TYPE_COLOR: Record<InputType, 'info' | 'warning' | 'secondary' | 'neutral'> = {
   number: 'info',
   calculated: 'warning',
   selected: 'secondary',

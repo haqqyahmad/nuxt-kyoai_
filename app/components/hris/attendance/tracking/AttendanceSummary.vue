@@ -37,6 +37,7 @@ function toMinutes(value?: string | null) {
 
   const [hour, minute] = time.split(':').map(Number)
 
+  if (hour === undefined || minute === undefined) return null
   if (Number.isNaN(hour) || Number.isNaN(minute)) return null
 
   return hour * 60 + minute

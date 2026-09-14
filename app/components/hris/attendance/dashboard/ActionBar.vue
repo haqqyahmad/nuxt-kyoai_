@@ -11,9 +11,9 @@ const df = new DateFormatter('id-ID', {
   dateStyle: 'medium'
 })
 
-const filters = reactive({
-  dateFrom: null as CalendarDate | null,
-  dateTo: null as CalendarDate | null,
+const filters = shallowReactive({
+  dateFrom: undefined as CalendarDate | undefined,
+  dateTo: undefined as CalendarDate | undefined,
   department: 'All Departments',
   status: 'All Statuses'
 })

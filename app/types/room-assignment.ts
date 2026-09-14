@@ -48,22 +48,28 @@ export type RoomAssignmentForm = {
   userId: number | null
   roomId: string | null
   assignedDate: string
-  notes: string
+  notes: string | null
 }
 
 export type RoomAssignmentSelfForm = {
   roomId: string | null
   assignedDate: string
-  notes: string
+  notes: string | null
 }
 
 export type RoomAssignmentBatchRow = {
-  userId: number | null
-  roomId: string | null
+  userId: string
+  roomId: string
+  notes: string
+}
+
+export type RoomAssignmentBatchPayloadRow = {
+  userId: number
+  roomId: string
   notes: string
 }
 
 export type RoomAssignmentBatchForm = {
   assignedDate: string
-  assignments: RoomAssignmentBatchRow[]
+  assignments: RoomAssignmentBatchPayloadRow[]
 }

@@ -1,24 +1,7 @@
 <!-- app/components/hris/attendance/schedule/ShiftCoverageCard.vue -->
 
 <script setup lang="ts">
-type FinalShiftStatus = 'active' | 'off'
-
-type FinalShiftItem = {
-  employee_id: number
-  employee_name?: string
-  department?: string
-  date: string
-  shift_name?: string | null
-  start_time: string | null
-  end_time: string | null
-  status: FinalShiftStatus
-}
-
-type FinalShiftResponse = {
-  success: boolean
-  message: string
-  data: FinalShiftItem[]
-}
+import type { FinalShiftResponse } from '~/types/hris-shift'
 
 const props = defineProps<{
   finalShiftResponse?: FinalShiftResponse

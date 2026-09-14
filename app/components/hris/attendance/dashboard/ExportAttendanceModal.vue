@@ -35,9 +35,9 @@ const exportFormats: ExportFormat[] = [
   'PDF'
 ]
 
-const form = reactive({
-  dateFrom: null as CalendarDate | null,
-  dateTo: null as CalendarDate | null,
+const form = shallowReactive({
+  dateFrom: undefined as CalendarDate | undefined,
+  dateTo: undefined as CalendarDate | undefined,
   department: 'All Departments',
   status: 'All Statuses',
   format: 'Excel' as ExportFormat,
