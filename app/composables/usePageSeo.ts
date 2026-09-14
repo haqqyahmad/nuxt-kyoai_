@@ -21,7 +21,7 @@ export function usePageSeo(override: PageSeoOverride = {}) {
   const route = useRoute()
 
   const seo = computed(() => {
-    const base = resolvePageSeo(route.path)
+    const base = resolvePageSeo(route.path, route.query)
     return {
       title: override.title ?? base.title,
       description: override.description ?? base.description

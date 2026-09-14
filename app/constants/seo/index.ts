@@ -3,7 +3,7 @@ import { buildMenuTree, type MenuItem } from '../menu'
 /**
  * SEO PAGE (AUTO)
  * Judul halaman di-resolve otomatis dari:
- *   1. label menu sidebar (constants/menu.ts)
+ *   1. label menu sidebar (path + query, mis. /result/exam-results?department=lab)
  *   2. humanisasi segmen path (id/uuid diabaikan)
  *   3. defaultSeo
  * Deskripsi otomatis memakai defaultSeo.description.
@@ -27,17 +27,30 @@ export function humanizeSeoTitle(segment: string): string {
     .replace(/\b\w/g, char => char.toUpperCase())
 }
 
-// path -> label dari menu sidebar
-function flattenMenuLabels(items: MenuItem[], acc: Record<string, string> = {}): Record<string, string> {
+export type MenuEntry = { path: string, query: string, label: string }
+
+function collectMenuEntries(items: MenuItem[], acc: MenuEntry[] = []): MenuEntry[] {
   for (const item of items) {
-    const to = typeof item.to === 'string' ? item.to.split('?')[0] : null
-    if (to && item.label) acc[to] = String(item.label)
-    if (Array.isArray(item.children)) flattenMenuLabels(item.children, acc)
+    if (typeof item.to === 'string') {
+      const [pathPart, queryPart = ''] = item.to.split('?')
+      if (pathPart && item.label) {
+        acc.push({ path: pathPart, query: queryPart, label: String(item.label) })
+      }
+    }
+    if (Array.isArray(item.children)) collectMenuEntries(item.children, acc)
   }
   return acc
 }
 
-export const menuLabelByPath: Record<string, string> = flattenMenuLabels(buildMenuTree())
+export const menuEntries: MenuEntry[] = collectMenuEntries(buildMenuTree())
+
+export const menuLabelByPath: Record<string, string> = menuEntries.reduce<Record<string, string>>(
+  (acc, entry) => {
+    acc[entry.path] = entry.label
+    return acc
+  },
+  {}
+)
 
 const isIdLikeSegment = (segment: string): boolean => {
   if (!segment) return true
@@ -48,23 +61,40 @@ const isIdLikeSegment = (segment: string): boolean => {
   return false
 }
 
+function queryMatches(entryQuery: string, query: Record<string, unknown>): boolean {
+  if (!entryQuery) return false
+  const params = new URLSearchParams(entryQuery)
+  for (const [key, value] of params.entries()) {
+    const current = query[key]
+    const currentValue = Array.isArray(current) ? String(current[0] ?? '') : String(current ?? '')
+    if (currentValue !== value) return false
+  }
+  return true
+}
+
 /**
- * Resolve SEO untuk path apa pun secara otomatis:
- *  1. label menu sidebar (exact)
- *  2. humanisasi segmen terakhir yang bermakna (bukan id/uuid)
- *  3. defaultSeo
+ * Resolve SEO untuk route apa pun:
+ *  1. label menu dengan path sama + query cocok (paling spesifik)
+ *  2. fallback label menu dengan path sama tanpa query
+ *  3. humanisasi segmen terakhir yang bermakna
+ *  4. defaultSeo
  */
-export function resolvePageSeo(path: string): PageSeo {
+export function resolvePageSeo(path: string, query: Record<string, unknown> = {}): PageSeo {
   const clean = (path || '/').replace(/\/+$/, '') || '/'
 
-  if (menuLabelByPath[clean]) {
-    return { title: menuLabelByPath[clean], description: defaultSeo.description }
+  const samePath = menuEntries.filter(entry => entry.path === clean)
+  if (samePath.length > 0) {
+    const withQuery = samePath.find(entry => queryMatches(entry.query, query))
+    const plain = samePath.find(entry => !entry.query)
+    const chosen = withQuery ?? plain ?? samePath[0]
+    if (chosen) {
+      return { title: chosen.label, description: defaultSeo.description }
+    }
   }
 
   const segments = clean.split('/').filter(Boolean)
   const meaningful = segments.filter(segment => !isIdLikeSegment(segment))
   const last = meaningful[meaningful.length - 1] ?? segments[segments.length - 1]
-
   if (last) {
     return { title: humanizeSeoTitle(last), description: defaultSeo.description }
   }
