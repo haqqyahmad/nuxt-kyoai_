@@ -172,19 +172,20 @@ const updateActiveMenu = () => {
     menuOpenState.value[key] = false
   })
 
-  // cari menu aktif
-  const activeMenu = Object.entries(menuGroups)
-    .sort((a, b) => {
-      const maxA = Math.max(...a[1].map(path => path.length))
-      const maxB = Math.max(...b[1].map(path => path.length))
+  // cari menu aktif = grup dengan path paling spesifik (terpanjang) yang cocok
+  let activeMenu: string | null = null
+  let bestLength = -1
 
-      return maxB - maxA
-    })
-    .find(([_, paths]) =>
-      paths.some(path =>
-        currentPath === path || currentPath.startsWith(`${path}/`)
-      )
-    )?.[0] || null
+  for (const [group, paths] of Object.entries(menuGroups)) {
+    for (const rawPath of paths) {
+      const path = rawPath.split('?')[0]
+      const matches = currentPath === path || currentPath.startsWith(`${path}/`)
+      if (matches && path.length > bestLength) {
+        bestLength = path.length
+        activeMenu = group
+      }
+    }
+  }
 
   activeOpenMenu.value = activeMenu
 
