@@ -43,7 +43,8 @@ const menuGroups: Record<string, string[]> = {
   'Examination': [
     '/rooms/assignments',
     '/rooms/queue',
-    '/rooms/sample-collection'
+    '/rooms/sample-collection',
+    '/queue-search'
   ],
   'Results': [
     '/result/exam-results',
@@ -344,7 +345,12 @@ const links = computed<NavigationMenuItem[][]>(() => [
         },
         ...(permissions.value.includes('sample:collect')
           ? [{ label: 'Sample Collection', to: '/rooms/sample-collection' }]
-          : [])
+          : []),
+        {
+          label: 'Queue Search',
+          icon: 'i-lucide-scan-barcode',
+          to: '/queue-search'
+        }
       ]
     },
     {

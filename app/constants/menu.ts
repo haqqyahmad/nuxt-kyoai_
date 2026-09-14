@@ -28,7 +28,12 @@ export const frontOfficeAllowedRoutes: string[] = [
   '/settings/notifications'
 ]
 
+export const queueSearchAllowedRoutes: string[] = [
+  '/queue-search'
+]
+
 export function getAllowedRoutes(roleName: string): string[] {
+  if (roleName === 'queue-search') return queueSearchAllowedRoutes
   if (roleName === 'front-office') return frontOfficeAllowedRoutes
   return restrictedAllowedRoutes
 }
@@ -45,7 +50,8 @@ export const restrictedRoles: string[] = [
   'dokter',
   'dokter-gigi',
   'nurse',
-  'front-office'
+  'front-office',
+  'queue-search'
 ]
 
 export const externalRoles: string[] = [
@@ -109,7 +115,8 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         { label: 'Room Assignment', to: '/rooms/assignments' },
         { label: 'Room Queue', to: '/rooms/queue' },
-        { label: 'Sample Collection', to: '/rooms/sample-collection' }
+        { label: 'Sample Collection', to: '/rooms/sample-collection' },
+        { label: 'Queue Search', icon: 'i-lucide-scan-barcode', to: '/queue-search' }
       ]
     },
     {
