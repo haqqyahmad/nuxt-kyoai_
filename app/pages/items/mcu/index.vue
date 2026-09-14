@@ -651,7 +651,7 @@ async function openMealConfigGlobal() {
     const selectedList = Array.isArray(selectedPayload) ? selectedPayload : (selectedPayload?.data ?? [])
 
     mealConfigItems.value = selectedList as Item[]
-    selectedMealItemIds.value = []
+    selectedMealItemIds.value = (selectedList as Item[]).map(item => item.id)
 
     const cfgRes = await cfgPromise
     const cfg = cfgRes.data?.data ?? null
