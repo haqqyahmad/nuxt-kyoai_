@@ -95,6 +95,8 @@ const quickActions = [
       <div class="space-y-6">
         <HomeStats />
 
+        <HomeCharts />
+
         <div>
           <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
             Aksi Cepat
