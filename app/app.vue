@@ -1,6 +1,6 @@
 <!-- app/app.vue -->
 <script setup lang="ts">
-import { defaultSeo, pageSeo } from '~/constants/seo'
+import { defaultSeo, resolvePageSeo } from '~/constants/seo'
 
 const route = useRoute()
 const colorMode = useColorMode()
@@ -23,9 +23,19 @@ useHead({
 })
 
 /**
- * AUTO SEO
+ * AUTO SEO (dinamis)
+ * Prioritas: definePageMeta({ seo / title / description }) -> pageSeo -> menu -> humanisasi -> default
  */
-const seo = computed(() => pageSeo[route.path] || defaultSeo)
+type SeoMeta = { title?: string, description?: string }
+
+const seo = computed<SeoMeta>(() => {
+  const meta = route.meta as SeoMeta & { seo?: SeoMeta }
+  const base = resolvePageSeo(route.path)
+  return {
+    title: meta.seo?.title ?? meta.title ?? base.title,
+    description: meta.seo?.description ?? meta.description ?? base.description
+  }
+})
 
 useSeoMeta({
   title: () => seo.value.title,
