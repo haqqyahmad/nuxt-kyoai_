@@ -27,6 +27,14 @@ type Item = {
   externalResult?: boolean
   requiresAttachmentForDone?: boolean
   mealPrerequisite?: boolean
+  sampleTypes?: Array<{
+    sampleTypeId: string
+    sampleType?: {
+      id: string
+      code?: string | null
+      name?: string | null
+    } | null
+  }>
   departmentId?: string | null
   roomTypeId?: string
   groupId?: string | null
@@ -600,13 +608,33 @@ const selectedMealItemIds = ref<string[]>([])
 const mealConfigItems = ref<Item[]>([])
 const mealSearchTerm = ref<string>('')
 const loadingMealItems = ref(false)
+const mealSampleFilter = ref<string>('')
+const mealSampleTypes = ref<Array<{ id: string, code?: string | null, name?: string | null }>>([])
 
 const mealItemOptions = computed(() =>
-  mealConfigItems.value.map(item => ({
-    label: `${item.code} - ${item.name}`,
-    value: item.id
-  }))
+  mealConfigItems.value
+    .filter(item =>
+      !mealSampleFilter.value
+      || (item.sampleTypes ?? []).some(s => s.sampleTypeId === mealSampleFilter.value)
+    )
+    .map(item => ({
+      label: `${item.code} - ${item.name}`,
+      value: item.id
+    }))
 )
+
+const mealSampleOptions = computed(() => [
+  { label: 'Semua sample', value: '' },
+  ...mealSampleTypes.value.map(sample => ({
+    label: sample.name || sample.code || '-',
+    value: sample.id
+  }))
+])
+
+function selectAllFilteredMealItems() {
+  const ids = mealItemOptions.value.map(option => option.value)
+  selectedMealItemIds.value = [...new Set([...selectedMealItemIds.value, ...ids])]
+}
 
 const selectedMealItemNames = computed(() =>
   selectedMealItemIds.value
@@ -614,10 +642,10 @@ const selectedMealItemNames = computed(() =>
     .filter(Boolean) as string[]
 )
 
-async function loadMealItems(search = '') {
+async function loadMealItems(search = '', limit = 50) {
   loadingMealItems.value = true
   try {
-    const res = await api.get('/mcu/items', { params: { search, limit: 50 } })
+    const res = await api.get('/mcu/items', { params: { search, limit } })
     const payload = res.data?.data ?? res.data
     const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
 
@@ -636,15 +664,29 @@ async function loadMealItems(search = '') {
   }
 }
 
+async function loadMealSampleTypes() {
+  if (mealSampleTypes.value.length) return
+  try {
+    const res = await api.get('/medical/exams/sample-types', { params: { isActive: true, limit: 100 } })
+    const payload = res.data?.data ?? res.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    mealSampleTypes.value = list as Array<{ id: string, code?: string | null, name?: string | null }>
+  } catch {
+    mealSampleTypes.value = []
+  }
+}
+
 async function openMealConfigGlobal() {
   mealConfigItems.value = []
   selectedMealItemIds.value = []
   mealDurationValue.value = null
   mealSearchTerm.value = ''
+  mealSampleFilter.value = ''
   isMealConfigOpen.value = true
 
   try {
     const cfgPromise = api.get('/master/app-config/meal_duration_minutes')
+    const samplesPromise = loadMealSampleTypes()
     const selectedRes = await api.get('/mcu/items', { params: { mealPrerequisite: true, limit: 100 } })
 
     const selectedPayload = selectedRes.data?.data ?? selectedRes.data
@@ -657,8 +699,7 @@ async function openMealConfigGlobal() {
     const cfg = cfgRes.data?.data ?? null
     mealDurationValue.value = cfg?.value ? Number(cfg.value) : null
 
-    // Load first batch of items for initial display
-    await loadMealItems('')
+    await Promise.all([loadMealItems('', 500), samplesPromise])
   } catch (error: unknown) {
     mealConfigItems.value = []
     const err = error as { response?: { data?: { message?: string } } }
@@ -1231,6 +1272,29 @@ watch(currentPage, (page) => {
                   placeholder="15"
                   class="max-w-xs"
                 />
+              </UFormField>
+
+              <UFormField
+                label="Filter Item by Sample"
+                description="Pilih sample untuk memfilter item, lalu pilih semuanya sebagai Prerequisite Meal."
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <USelect
+                    v-model="mealSampleFilter"
+                    :items="mealSampleOptions"
+                    icon="i-lucide-test-tube-diagonal"
+                    class="w-60"
+                  />
+                  <UButton
+                    icon="i-lucide-check-check"
+                    color="warning"
+                    variant="soft"
+                    :disabled="!mealItemOptions.length"
+                    @click="selectAllFilteredMealItems"
+                  >
+                    Pilih semua ({{ mealItemOptions.length }})
+                  </UButton>
+                </div>
               </UFormField>
 
               <UFormField
