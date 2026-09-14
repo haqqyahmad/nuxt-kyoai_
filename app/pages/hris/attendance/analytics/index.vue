@@ -4,10 +4,6 @@ useSeoMeta({
   description: 'Analytics attendance HRIS.'
 })
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 const openDetail = ref(false)
 </script>
 

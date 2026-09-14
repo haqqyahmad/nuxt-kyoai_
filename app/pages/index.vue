@@ -9,9 +9,6 @@ useSeoMeta({
   description: 'Ringkasan data dan aktivitas sistem.'
 })
 
-definePageMeta({
-  middleware: 'auth'
-})
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const items = [

@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import type { RoomAssignmentBatchRow, RoomAssignmentRecord } from '~/types/room-assignment'
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 const toast = useToast()
 const api = useApi()
 

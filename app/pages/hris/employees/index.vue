@@ -1,10 +1,6 @@
 <!-- pages/hris/employees/index.vue -->
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: 'auth'
-})
-
 const api = useApi()
 const toast = useToast()
 

@@ -3,8 +3,7 @@ const route = useRoute()
 const api = useApi()
 
 definePageMeta({
-  layout: false,
-  middleware: 'auth'
+  layout: false
 })
 
 type ExamItem = {

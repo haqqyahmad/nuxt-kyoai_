@@ -2,10 +2,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const items = [

@@ -3,8 +3,7 @@ const api = useApi()
 const toast = useToast()
 
 definePageMeta({
-  layout: false,
-  middleware: 'auth'
+  layout: false
 })
 
 const serviceNumber = ref('')

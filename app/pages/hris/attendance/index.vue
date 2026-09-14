@@ -4,10 +4,6 @@ useSeoMeta({
   description: 'Dashboard attendance management HRIS.'
 })
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 const openManualEntry = ref(false)
 const openExport = ref(false)
 </script>

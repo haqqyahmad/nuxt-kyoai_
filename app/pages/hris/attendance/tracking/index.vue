@@ -6,10 +6,6 @@ useSeoMeta({
   description: 'Detail attendance record HRIS.'
 })
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 type AttendanceRow = {
   employee_id: string | number
   date: string
