@@ -1378,7 +1378,7 @@ watch(currentPage, (page) => {
                       Bersihkan
                     </UButton>
                   </div>
-                  <div class="flex flex-wrap gap-1.5">
+                  <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
                     <UBadge
                       v-for="item in selectedMealItems"
                       :key="item.value"
