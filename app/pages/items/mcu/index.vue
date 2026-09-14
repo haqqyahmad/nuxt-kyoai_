@@ -608,13 +608,13 @@ const selectedMealItemIds = ref<string[]>([])
 const mealConfigItems = ref<Item[]>([])
 const mealSearchTerm = ref<string>('')
 const loadingMealItems = ref(false)
-const mealSampleFilter = ref<string>('')
+const mealSampleFilter = ref<string[]>([])
 
 const mealItemOptions = computed(() =>
   mealConfigItems.value
     .filter(item =>
-      !mealSampleFilter.value
-      || (item.sampleTypes ?? []).some(s => s.sampleTypeId === mealSampleFilter.value)
+      !mealSampleFilter.value.length
+      || (item.sampleTypes ?? []).some(s => mealSampleFilter.value.includes(s.sampleTypeId))
     )
     .map(item => ({
       label: `${item.code} - ${item.name}`,
@@ -684,7 +684,7 @@ async function openMealConfigGlobal() {
   selectedMealItemIds.value = []
   mealDurationValue.value = null
   mealSearchTerm.value = ''
-  mealSampleFilter.value = ''
+  mealSampleFilter.value = []
   isMealConfigOpen.value = true
 
   try {
@@ -1288,16 +1288,17 @@ watch(currentPage, (page) => {
                       value-key="value"
                       label-key="label"
                       icon="i-lucide-test-tube-diagonal"
+                      multiple
                       placeholder="Semua sample"
-                      class="w-60"
+                      class="w-72"
                     />
                     <UButton
-                      v-if="mealSampleFilter"
+                      v-if="mealSampleFilter.length"
                       icon="i-lucide-x"
                       size="sm"
                       color="neutral"
                       variant="ghost"
-                      @click="mealSampleFilter = ''"
+                      @click="mealSampleFilter = []"
                     >
                       Reset filter
                     </UButton>
