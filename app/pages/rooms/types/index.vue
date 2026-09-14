@@ -32,7 +32,7 @@ const deleteStageModalOpen = computed({
   get: () => Boolean(deletingStageId.value),
   set: (value: boolean) => {
     if (!value) deletingStageId.value = null
-  },
+  }
 })
 const deletingStageRoomTypeId = ref<string | null>(null)
 
@@ -274,7 +274,8 @@ async function handleDeleteStage() {
       color: 'error'
     })
   }
-}</script>
+}
+</script>
 
 <template>
   <UDashboardPanel id="room-types">

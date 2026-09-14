@@ -35,8 +35,8 @@ type ItemInputan = {
   uom?: string | null
   sortOrder: number
   allowBlank: boolean
-  opsis?: Array<{ id: string; label: string; value: string; sortOrder: number }>
-  formula?: { id: string; formula: string } | null
+  opsis?: Array<{ id: string, label: string, value: string, sortOrder: number }>
+  formula?: { id: string, formula: string } | null
   nilaiNormalNum?: Array<{
     id: string
     sex?: 'MALE' | 'FEMALE' | null
@@ -301,8 +301,12 @@ async function handleReload() {
 
       <div v-else-if="!item" class="py-16 text-center">
         <UIcon name="i-lucide-circle-alert" class="size-10 text-muted mx-auto mb-3" />
-        <p class="font-medium">Item tidak ditemukan</p>
-        <p class="text-sm text-muted mt-1">Data item yang diminta tidak tersedia.</p>
+        <p class="font-medium">
+          Item tidak ditemukan
+        </p>
+        <p class="text-sm text-muted mt-1">
+          Data item yang diminta tidak tersedia.
+        </p>
       </div>
 
       <div v-else class="space-y-6">
@@ -342,39 +346,53 @@ async function handleReload() {
                 :key="card.label"
                 class="rounded-xl border border-default bg-elevated/30 px-4 py-3"
               >
-                <p class="text-xs text-muted">{{ card.label }}</p>
-                <p class="mt-1 text-sm font-semibold">{{ card.value }}</p>
+                <p class="text-xs text-muted">
+                  {{ card.label }}
+                </p>
+                <p class="mt-1 text-sm font-semibold">
+                  {{ card.value }}
+                </p>
               </div>
             </div>
           </div>
 
           <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">Department</p>
+              <p class="text-xs text-muted">
+                Department
+              </p>
               <p class="mt-1 text-sm font-medium">
                 {{ item.department?.name ?? '-' }}
               </p>
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">Group / Subgroup</p>
+              <p class="text-xs text-muted">
+                Group / Subgroup
+              </p>
               <p class="mt-1 text-sm font-medium">
                 {{ groupBreadcrumb }}
               </p>
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">Created</p>
+              <p class="text-xs text-muted">
+                Created
+              </p>
               <p class="mt-1 text-sm font-medium">
                 {{ formatDate(item.createdAt) }}
               </p>
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">Updated</p>
+              <p class="text-xs text-muted">
+                Updated
+              </p>
               <p class="mt-1 text-sm font-medium">
                 {{ formatDate(item.updatedAt) }}
               </p>
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">Result Timing</p>
+              <p class="text-xs text-muted">
+                Result Timing
+              </p>
               <UBadge
                 class="mt-1"
                 :label="resultTimingLabel[item.resultTiming ?? 'inline']"
@@ -383,7 +401,9 @@ async function handleReload() {
               />
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">External Result</p>
+              <p class="text-xs text-muted">
+                External Result
+              </p>
               <UBadge
                 class="mt-1"
                 :label="item.externalResult ? 'Yes (dokter luar)' : 'No'"
@@ -392,7 +412,9 @@ async function handleReload() {
               />
             </div>
             <div class="rounded-xl border border-default bg-background px-4 py-3">
-              <p class="text-xs text-muted">SLA Proses Dokter Luar</p>
+              <p class="text-xs text-muted">
+                SLA Proses Dokter Luar
+              </p>
               <p class="mt-1 text-sm font-semibold">
                 {{ item.externalProcessSlaDays ?? 3 }} hari
               </p>
@@ -400,7 +422,9 @@ async function handleReload() {
           </div>
 
           <div v-if="item.description" class="mt-5 rounded-xl border border-default bg-background p-4">
-            <p class="text-xs uppercase tracking-wide text-muted">Description</p>
+            <p class="text-xs uppercase tracking-wide text-muted">
+              Description
+            </p>
             <p class="mt-2 text-sm leading-6 text-default">
               {{ item.description }}
             </p>
@@ -410,7 +434,9 @@ async function handleReload() {
         <UCard>
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default pb-4">
             <div>
-              <h2 class="text-base font-semibold">Detail Konfigurasi</h2>
+              <h2 class="text-base font-semibold">
+                Detail Konfigurasi
+              </h2>
               <p class="text-sm text-muted">
                 Inputan, template exam, dan sample requirement untuk item ini.
               </p>
@@ -448,7 +474,9 @@ async function handleReload() {
             <div v-if="activeTab === 'overview'" class="space-y-5">
               <div class="grid gap-4 md:grid-cols-2">
                 <div class="rounded-xl border border-default bg-elevated/20 p-4">
-                  <p class="text-sm font-medium mb-3">Inputan</p>
+                  <p class="text-sm font-medium mb-3">
+                    Inputan
+                  </p>
                   <div v-if="!item.inputans?.length" class="text-sm text-muted">
                     Belum ada inputan.
                   </div>
@@ -460,7 +488,9 @@ async function handleReload() {
                     >
                       <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="min-w-0">
-                          <p class="text-sm font-semibold leading-5">{{ inputan.label }}</p>
+                          <p class="text-sm font-semibold leading-5">
+                            {{ inputan.label }}
+                          </p>
                           <p class="text-xs text-muted mt-1">
                             Urutan {{ inputan.sortOrder }} · {{ inputTypeLabel[inputan.inputType] ?? inputan.inputType }}
                           </p>
@@ -552,7 +582,9 @@ async function handleReload() {
                 </div>
 
                 <div class="rounded-xl border border-default bg-elevated/20 p-4">
-                  <p class="text-sm font-medium mb-3">Sample Requirement</p>
+                  <p class="text-sm font-medium mb-3">
+                    Sample Requirement
+                  </p>
                   <div v-if="!item.sampleTypes?.length" class="text-sm text-muted">
                     Belum ada sample type.
                   </div>

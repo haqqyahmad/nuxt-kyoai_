@@ -1,13 +1,13 @@
 // Medical Report (MR Review) — types contract dengan BE `/medical-reports`
 
-export type MedicalReportStatus =
-  | 'DOCTOR_REVIEW'
-  | 'DOCTOR_APPROVED'
-  | 'MR_REVIEW'
-  | 'MR_RETURNED_TO_DOCTOR'
-  | 'MR_VERIFIED'
-  | 'READY_TO_RELEASE'
-  | 'RELEASED'
+export type MedicalReportStatus
+  = | 'DOCTOR_REVIEW'
+    | 'DOCTOR_APPROVED'
+    | 'MR_REVIEW'
+    | 'MR_RETURNED_TO_DOCTOR'
+    | 'MR_VERIFIED'
+    | 'READY_TO_RELEASE'
+    | 'RELEASED'
 
 export type MedicalReportListItem = {
   id: string

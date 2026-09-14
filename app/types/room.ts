@@ -1,20 +1,20 @@
 // app/types/room.ts
 export type RoomStatus = 'ACTIVE' | 'INACTIVE'
 
-export type ServiceType =
-  | 'Laboratorium'
-  | 'VitaminInjection'
-  | 'Pharmacy'
-  | 'Antigen'
-  | 'PCR'
-  | 'Vaccine'
-  | 'DoctorConsultation'
-  | 'MCU'
-  | 'Dental'
+export type ServiceType
+  = | 'Laboratorium'
+    | 'VitaminInjection'
+    | 'Pharmacy'
+    | 'Antigen'
+    | 'PCR'
+    | 'Vaccine'
+    | 'DoctorConsultation'
+    | 'MCU'
+    | 'Dental'
 
-export type ExamType =
-  | 'MCU'
-  | 'RAWAT_JALAN'
+export type ExamType
+  = | 'MCU'
+    | 'RAWAT_JALAN'
 
 export type RoomTypeStage = {
   id: string

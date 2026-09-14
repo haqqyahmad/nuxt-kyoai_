@@ -133,8 +133,8 @@ async function submitReturnDept() {
 }
 
 // [AUDIT] History actions
-type AuditGrade = { inputanId: string; label?: string | null; grade?: string | null; comment?: string | null; source?: string | null }
-type AuditItem = { inputanId: string; label?: string | null; note?: string | null; itemCode?: string | null; department?: string | null }
+type AuditGrade = { inputanId: string, label?: string | null, grade?: string | null, comment?: string | null, source?: string | null }
+type AuditItem = { inputanId: string, label?: string | null, note?: string | null, itemCode?: string | null, department?: string | null }
 type AuditAction = {
   action: string
   reason: string | null
@@ -984,9 +984,17 @@ onBeforeUnmount(() => {
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <UIcon name="i-lucide-history" class="size-4 text-primary" />
-                      <h3 class="text-sm font-semibold">History</h3>
+                      <h3 class="text-sm font-semibold">
+                        History
+                      </h3>
                     </div>
-                    <UBadge v-if="revisionCount" label="revision" :color="'error'" variant="soft" size="xs">
+                    <UBadge
+                      v-if="revisionCount"
+                      label="revision"
+                      :color="'error'"
+                      variant="soft"
+                      size="xs"
+                    >
                       {{ revisionCount }}× return
                     </UBadge>
                   </div>
@@ -1000,7 +1008,12 @@ onBeforeUnmount(() => {
                     <!-- Row header -->
                     <div class="flex items-center gap-2">
                       <UIcon :name="actionIcon(act.action)" :class="`size-3.5 text-${actionColor(act.action)}`" />
-                      <UBadge :label="formatActionLabel(act.action)" :color="actionColor(act.action)" variant="subtle" size="xs" />
+                      <UBadge
+                        :label="formatActionLabel(act.action)"
+                        :color="actionColor(act.action)"
+                        variant="subtle"
+                        size="xs"
+                      />
                       <span class="text-muted">{{ new Date(act.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
                       <span v-if="act.actorId" class="text-muted">· User #{{ act.actorId }}</span>
                     </div>
@@ -1012,12 +1025,21 @@ onBeforeUnmount(() => {
                         <span>Fitness: <strong class="text-default">{{ act.payload?.fitnessLevel ?? '-' }}</strong></span>
                         <span v-if="act.payload?.totalItems">{{ act.payload.totalGraded }}/{{ act.payload.totalItems }} graded</span>
                       </div>
-                      <p v-if="act.payload?.finalComment" class="text-muted">{{ act.payload.finalComment }}</p>
+                      <p v-if="act.payload?.finalComment" class="text-muted">
+                        {{ act.payload.finalComment }}
+                      </p>
                       <div v-if="(act.payload?.grades?.length ?? 0) > 0" class="mt-1 rounded bg-elevated/40 p-1.5">
-                        <p class="mb-1 font-semibold text-muted">Grade per item:</p>
+                        <p class="mb-1 font-semibold text-muted">
+                          Grade per item:
+                        </p>
                         <div class="space-y-0.5">
                           <div v-for="g in act.payload!.grades!.filter(g => g.grade)" :key="g.inputanId" class="flex items-center gap-1.5">
-                            <UBadge :label="g.grade!" color="primary" variant="soft" size="xs" />
+                            <UBadge
+                              :label="g.grade!"
+                              color="primary"
+                              variant="soft"
+                              size="xs"
+                            />
                             <span class="font-medium">{{ g.label ?? g.inputanId.slice(0, 8) }}</span>
                             <span v-if="g.comment" class="text-muted">— {{ g.comment }}</span>
                             <span v-if="g.source === 'department'" class="ml-auto text-muted">dept</span>
@@ -1028,9 +1050,13 @@ onBeforeUnmount(() => {
 
                     <!-- RETURN detail -->
                     <div v-if="act.action === 'RETURN'" class="mt-1.5 space-y-1">
-                      <p class="text-muted"><strong>Reason:</strong> {{ act.reason ?? '-' }}</p>
+                      <p class="text-muted">
+                        <strong>Reason:</strong> {{ act.reason ?? '-' }}
+                      </p>
                       <div v-if="(act.payload?.items?.length ?? 0) > 0" class="mt-1 rounded bg-error/5 p-1.5">
-                        <p class="mb-1 font-semibold text-error">Items to review:</p>
+                        <p class="mb-1 font-semibold text-error">
+                          Items to review:
+                        </p>
                         <div class="space-y-0.5">
                           <div v-for="item in act.payload!.items!" :key="item.inputanId" class="flex items-start gap-1.5">
                             <span>•</span>
@@ -1070,7 +1096,7 @@ onBeforeUnmount(() => {
                   class="rounded border p-2"
                 >
                   <label class="flex items-center gap-2 text-sm font-medium">
-                    <input v-model="item.checked" type="checkbox" class="size-4" />
+                    <input v-model="item.checked" type="checkbox" class="size-4">
                     {{ item.label }}
                   </label>
                   <UInput
@@ -1087,7 +1113,13 @@ onBeforeUnmount(() => {
           <template #footer>
             <div class="flex justify-end gap-2">
               <UButton label="Cancel" variant="outline" @click="showReturnDeptModal = false" />
-              <UButton label="Return" color="warning" :loading="submitting" :disabled="!returnDeptReason.trim() || !returnDeptItems.some(i => i.checked)" @click="submitReturnDept" />
+              <UButton
+                label="Return"
+                color="warning"
+                :loading="submitting"
+                :disabled="!returnDeptReason.trim() || !returnDeptItems.some(i => i.checked)"
+                @click="submitReturnDept"
+              />
             </div>
           </template>
         </UModal>

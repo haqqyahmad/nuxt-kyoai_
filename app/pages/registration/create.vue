@@ -1,284 +1,283 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'default' });
+definePageMeta({ layout: 'default' })
 
-const api    = useApi();
-const toast  = useToast();
-const router = useRouter();
+const api = useApi()
+const toast = useToast()
+const router = useRouter()
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 type Branch = {
-  id: string;
-  branchId: string;
-  nameBranch: string;
-  addressBranch?: string;
-};
+  id: string
+  branchId: string
+  nameBranch: string
+  addressBranch?: string
+}
 
 type Patient = {
-  id: string;
-  PatientId: string;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  gender: "MALE" | "FEMALE";
-  idType: string;
-  idNumber: string;
-  phone?: string;
-  email?: string;
-  dob?: string;
+  id: string
+  PatientId: string
+  firstName: string
+  middleName?: string
+  lastName: string
+  gender: 'MALE' | 'FEMALE'
+  idType: string
+  idNumber: string
+  phone?: string
+  email?: string
+  dob?: string
   histories?: {
-    id: string;
-    companyName: string;
-    position?: string;
-    startDate?: string;
-    endDate?: string | null;
-  }[];
-};
+    id: string
+    companyName: string
+    position?: string
+    startDate?: string
+    endDate?: string | null
+  }[]
+}
 
 type Company = {
-  id: number;
-  codeCostumer: string;
-  customerName: string;
-};
+  id: number
+  codeCostumer: string
+  customerName: string
+}
 
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
 const SERVICE_TYPES = [
-  { value: "Laboratorium",       label: "Laboratorium",      icon: "i-lucide-flask-conical"  },
-  { value: "DoctorConsultation", label: "Konsultasi Dokter", icon: "i-lucide-stethoscope"    },
-  { value: "MCU",                label: "MCU",               icon: "i-lucide-clipboard-list" },
-  { value: "Vaccine",            label: "Vaksin",            icon: "i-lucide-syringe"        },
-  { value: "Antigen",            label: "Antigen",           icon: "i-lucide-microscope"     },
-  { value: "PCR",                label: "PCR",               icon: "i-lucide-dna"            },
-  { value: "VitaminInjection",   label: "Vitamin Injection", icon: "i-lucide-pill"           },
-  { value: "Pharmacy",           label: "Farmasi",           icon: "i-lucide-tablets"        },
-  { value: "Dental",             label: "Gigi",              icon: "i-lucide-smile"          },
-] as const;
+  { value: 'Laboratorium', label: 'Laboratorium', icon: 'i-lucide-flask-conical' },
+  { value: 'DoctorConsultation', label: 'Konsultasi Dokter', icon: 'i-lucide-stethoscope' },
+  { value: 'MCU', label: 'MCU', icon: 'i-lucide-clipboard-list' },
+  { value: 'Vaccine', label: 'Vaksin', icon: 'i-lucide-syringe' },
+  { value: 'Antigen', label: 'Antigen', icon: 'i-lucide-microscope' },
+  { value: 'PCR', label: 'PCR', icon: 'i-lucide-dna' },
+  { value: 'VitaminInjection', label: 'Vitamin Injection', icon: 'i-lucide-pill' },
+  { value: 'Pharmacy', label: 'Farmasi', icon: 'i-lucide-tablets' },
+  { value: 'Dental', label: 'Gigi', icon: 'i-lucide-smile' }
+] as const
 
-const PAYMENT_TYPES: Array<{ value: string; label: string }> = [
-  { value: "Personal",      label: "Personal"        },
-  { value: "Insurance",     label: "Asuransi"        },
-  { value: "BillToCompany", label: "Bill to Company" },
-];
+const PAYMENT_TYPES: Array<{ value: string, label: string }> = [
+  { value: 'Personal', label: 'Personal' },
+  { value: 'Insurance', label: 'Asuransi' },
+  { value: 'BillToCompany', label: 'Bill to Company' }
+]
 
-const PRIORITY_TYPES: Array<{ value: string; label: string }> = [
-  { value: "Normal",   label: "Normal"    },
-  { value: "VIP",      label: "VIP"       },
-  { value: "Emergency", label: "Emergency" },
-];
+const PRIORITY_TYPES: Array<{ value: string, label: string }> = [
+  { value: 'Normal', label: 'Normal' },
+  { value: 'VIP', label: 'VIP' },
+  { value: 'Emergency', label: 'Emergency' }
+]
 
 // ─────────────────────────────────────────────
 // Branch
 // ─────────────────────────────────────────────
-const selectedBranch  = ref<Branch | null>(null);
-const branchModalOpen = ref(false);
-const branchSearch    = ref("");
+const selectedBranch = ref<Branch | null>(null)
+const branchModalOpen = ref(false)
+const branchSearch = ref('')
 
 const { data: branches } = await useAsyncData(
-  "branches",
-  () => api.get("/branch").then((r) => r.data.data as Branch[]),
-);
+  'branches',
+  () => api.get('/branch').then(r => r.data.data as Branch[])
+)
 
 const filteredBranches = computed(() => {
-  const q = branchSearch.value.toLowerCase();
-  if (!q) return branches.value ?? [];
+  const q = branchSearch.value.toLowerCase()
+  if (!q) return branches.value ?? []
   return (branches.value ?? []).filter(
-    (b) =>
-      b.nameBranch.toLowerCase().includes(q) ||
-      b.branchId.toLowerCase().includes(q),
-  );
-});
+    b =>
+      b.nameBranch.toLowerCase().includes(q)
+      || b.branchId.toLowerCase().includes(q)
+  )
+})
 
 function openBranchModal() {
-  branchSearch.value    = "";
-  branchModalOpen.value = true;
+  branchSearch.value = ''
+  branchModalOpen.value = true
 }
 
 function selectBranch(b: Branch) {
-  selectedBranch.value  = b;
-  branchModalOpen.value = false;
+  selectedBranch.value = b
+  branchModalOpen.value = false
 }
 
 // ─────────────────────────────────────────────
 // Patient
 // ─────────────────────────────────────────────
-const patientSearch   = ref("");
-const patientResults  = ref<Patient[]>([]);
-const patientPending  = ref(false);
-const selectedPatient = ref<Patient | null>(null);
-const isNewPatient    = ref(false);
-const patientDropOpen = ref(false);
+const patientSearch = ref('')
+const patientResults = ref<Patient[]>([])
+const patientPending = ref(false)
+const selectedPatient = ref<Patient | null>(null)
+const isNewPatient = ref(false)
+const patientDropOpen = ref(false)
 
 const { data: initialPatients } = await useAsyncData(
-  "patients-initial",
-  () => api.get("/patient", { params: { limit: 6 } }).then((r) => r.data.data as Patient[]),
-);
+  'patients-initial',
+  () => api.get('/patient', { params: { limit: 6 } }).then(r => r.data.data as Patient[])
+)
 
 const displayedPatients = computed(() =>
   patientSearch.value.length >= 2
     ? patientResults.value
-    : (initialPatients.value ?? []),
-);
+    : (initialPatients.value ?? [])
+)
 
 const newPatient = ref({
-  firstName:  "",
-  middleName: "",
-  lastName:   "",
-  gender:     "MALE" as "MALE" | "FEMALE",
-  idType:     "KTP",
-  idNumber:   "",
-  phone:      "",
-  email:      "",
-  dob:        "",
-});
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  gender: 'MALE' as 'MALE' | 'FEMALE',
+  idType: 'KTP',
+  idNumber: '',
+  phone: '',
+  email: '',
+  dob: ''
+})
 
-let debounce:  ReturnType<typeof setTimeout>;
-let requestId = 0;
+let debounce: ReturnType<typeof setTimeout>
+let requestId = 0
 
 const closePatientDrop = () => {
   window.setTimeout(() => {
-    patientDropOpen.value = false;
-  }, 200);
-};
+    patientDropOpen.value = false
+  }, 200)
+}
 
 watch(patientSearch, (val) => {
-  clearTimeout(debounce);
+  clearTimeout(debounce)
 
   if (selectedPatient.value || !val || val.length < 2) {
-    patientResults.value = [];
-    patientPending.value = false;
-    return;
+    patientResults.value = []
+    patientPending.value = false
+    return
   }
 
-  const currentId      = ++requestId;
-  patientPending.value = true;
+  const currentId = ++requestId
+  patientPending.value = true
 
   debounce = setTimeout(async () => {
     try {
-      const res = await api.get("/patient", { params: { search: val } });
-      if (currentId === requestId) patientResults.value = res.data.data ?? [];
+      const res = await api.get('/patient', { params: { search: val } })
+      if (currentId === requestId) patientResults.value = res.data.data ?? []
     } catch {
-      if (currentId === requestId) patientResults.value = [];
+      if (currentId === requestId) patientResults.value = []
     } finally {
-      if (currentId === requestId) patientPending.value = false;
+      if (currentId === requestId) patientPending.value = false
     }
-  }, 350);
-});
+  }, 350)
+})
 
 function fullName(p: Patient) {
-  return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" ");
+  return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ')
 }
 
 function selectPatient(p: Patient) {
-  selectedPatient.value = p;
-  isNewPatient.value    = false;
-  patientSearch.value   = fullName(p);
-  patientResults.value  = [];
-  patientDropOpen.value = false;
+  selectedPatient.value = p
+  isNewPatient.value = false
+  patientSearch.value = fullName(p)
+  patientResults.value = []
+  patientDropOpen.value = false
 }
 
 function clearPatient() {
-  selectedPatient.value = null;
-  isNewPatient.value    = false;
-  patientSearch.value   = "";
-  patientResults.value  = [];
+  selectedPatient.value = null
+  isNewPatient.value = false
+  patientSearch.value = ''
+  patientResults.value = []
 }
 
 function useNewPatient() {
-  isNewPatient.value    = true;
-  selectedPatient.value = null;
-  patientResults.value  = [];
-  patientDropOpen.value = false;
+  isNewPatient.value = true
+  selectedPatient.value = null
+  patientResults.value = []
+  patientDropOpen.value = false
 }
 
 const activeCompany = computed(() => {
-  if (!selectedPatient.value?.histories?.length) return null;
+  if (!selectedPatient.value?.histories?.length) return null
   return (
-    selectedPatient.value.histories.find((h) => !h.endDate) ??
-    selectedPatient.value.histories.at(-1) ??
-    null
-  );
-});
+    selectedPatient.value.histories.find(h => !h.endDate)
+    ?? selectedPatient.value.histories.at(-1)
+    ?? null
+  )
+})
 
 // ─────────────────────────────────────────────
 // Registration Form
 // ─────────────────────────────────────────────
-const selectedService = ref("");
+const selectedService = ref('')
 
 const { data: companies, pending: companiesPending } = await useAsyncData(
-  "companies",
-  () => api.get("/customer").then((r) => r.data.data as Company[]),
-);
+  'companies',
+  () => api.get('/customer').then(r => r.data.data as Company[])
+)
 
 const regForm = ref({
-  companyId:        "",
-  paymentType:      "Personal",
-  priorityRegist:   "Normal",
-  examDate:         new Date().toISOString().slice(0, 10),
-  scheduleDateExam: new Date().toISOString().slice(0, 10),
-});
+  companyId: '',
+  paymentType: 'Personal',
+  priorityRegist: 'Normal',
+  examDate: new Date().toISOString().slice(0, 10),
+  scheduleDateExam: new Date().toISOString().slice(0, 10)
+})
 
 // ─────────────────────────────────────────────
 // Submit
 // ─────────────────────────────────────────────
-const submitting = ref(false);
+const submitting = ref(false)
 
 const canSubmit = computed(() => {
-  const hasPatient =
-    !!selectedPatient.value ||
-    (isNewPatient.value && !!newPatient.value.firstName && !!newPatient.value.idNumber);
+  const hasPatient
+    = !!selectedPatient.value
+      || (isNewPatient.value && !!newPatient.value.firstName && !!newPatient.value.idNumber)
 
   return (
-    !!selectedBranch.value &&
-    hasPatient &&
-    !!selectedService.value &&
-    !!regForm.value.companyId &&
-    !!regForm.value.examDate
-  );
-});
+    !!selectedBranch.value
+    && hasPatient
+    && !!selectedService.value
+    && !!regForm.value.companyId
+    && !!regForm.value.examDate
+  )
+})
 
 async function submit() {
-  if (!canSubmit.value || submitting.value) return;
-  submitting.value = true;
+  if (!canSubmit.value || submitting.value) return
+  submitting.value = true
 
   try {
-    let patientId = selectedPatient.value?.id;
+    let patientId = selectedPatient.value?.id
 
     if (isNewPatient.value) {
-      const res = await api.post("/patient", { ...newPatient.value });
-      patientId  = res.data.data.id;
+      const res = await api.post('/patient', { ...newPatient.value })
+      patientId = res.data.data.id
     }
 
-    await api.post("/registration", {
+    await api.post('/registration', {
       patientId,
-      branchId:         selectedBranch.value!.branchId,
-      companyId:        String(regForm.value.companyId),
-      serviceType:      selectedService.value,
-      paymentType:      regForm.value.paymentType,
-      priorityRegist:   regForm.value.priorityRegist,
-      examDate:         regForm.value.examDate,
-      scheduleDateExam: regForm.value.scheduleDateExam,
-    });
+      branchId: selectedBranch.value!.branchId,
+      companyId: String(regForm.value.companyId),
+      serviceType: selectedService.value,
+      paymentType: regForm.value.paymentType,
+      priorityRegist: regForm.value.priorityRegist,
+      examDate: regForm.value.examDate,
+      scheduleDateExam: regForm.value.scheduleDateExam
+    })
 
-    toast.add({ title: "Berhasil", description: "Registrasi berhasil dibuat", color: "success" });
-    router.push("/front-office/registration-patient");
+    toast.add({ title: 'Berhasil', description: 'Registrasi berhasil dibuat', color: 'success' })
+    router.push('/front-office/registration-patient')
   } catch (err: any) {
     toast.add({
-      title:       "Gagal",
-      description: err?.response?.data?.message ?? "Terjadi kesalahan",
-      color:       "error",
-    });
+      title: 'Gagal',
+      description: err?.response?.data?.message ?? 'Terjadi kesalahan',
+      color: 'error'
+    })
   } finally {
-    submitting.value = false;
+    submitting.value = false
   }
 }
 </script>
 
 <template>
   <UDashboardPanel id="registration-create">
-
     <!-- ── Header ── -->
     <template #header>
       <UDashboardNavbar title="Buat Registrasi Baru">
@@ -307,25 +306,24 @@ async function submit() {
     <!-- ── Body ── -->
     <template #body>
       <div class="max-w-5xl mx-auto py-6 px-4 space-y-5">
-
         <!--
           Grid 2 kolom — pakai minmax(0, 1fr) agar lebar kolom tidak
           terpengaruh oleh konten di dalamnya (mencegah layout shift)
         -->
         <div class="grid gap-5" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-
           <!-- ══════════════════════════════
                KOLOM KIRI
           ══════════════════════════════ -->
           <div class="space-y-5 min-w-0">
-
             <!-- ── Cabang ── -->
             <div class="rounded-xl border border-default">
               <div class="px-4 py-3 bg-elevated border-b border-default flex items-center gap-2">
                 <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
                   <UIcon name="i-lucide-building-2" class="text-primary text-xs" />
                 </div>
-                <h3 class="text-sm font-semibold">Cabang</h3>
+                <h3 class="text-sm font-semibold">
+                  Cabang
+                </h3>
                 <UBadge
                   v-if="selectedBranch"
                   :label="selectedBranch.branchId"
@@ -347,8 +345,12 @@ async function submit() {
                     <UIcon name="i-lucide-building-2" class="text-muted group-hover:text-primary transition-colors" />
                   </div>
                   <div class="text-left flex-1">
-                    <p class="text-sm font-medium">Pilih Cabang</p>
-                    <p class="text-xs text-muted">Klik untuk memilih cabang tujuan</p>
+                    <p class="text-sm font-medium">
+                      Pilih Cabang
+                    </p>
+                    <p class="text-xs text-muted">
+                      Klik untuk memilih cabang tujuan
+                    </p>
                   </div>
                   <UIcon name="i-lucide-chevron-right" class="text-muted group-hover:text-primary transition-colors" />
                 </button>
@@ -362,7 +364,9 @@ async function submit() {
                     <UIcon name="i-lucide-building-2" class="text-primary" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold truncate">{{ selectedBranch.nameBranch }}</p>
+                    <p class="text-sm font-semibold truncate">
+                      {{ selectedBranch.nameBranch }}
+                    </p>
                     <p class="text-xs text-muted flex items-center gap-1">
                       <UIcon name="i-lucide-map-pin" class="text-xs" />
                       {{ selectedBranch.branchId }}
@@ -386,13 +390,28 @@ async function submit() {
                 <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
                   <UIcon name="i-lucide-user" class="text-primary text-xs" />
                 </div>
-                <h3 class="text-sm font-semibold">Pasien</h3>
-                <UBadge v-if="isNewPatient"        label="Baru"     color="warning" variant="subtle" size="xs" class="ml-auto" />
-                <UBadge v-else-if="selectedPatient" label="Terpilih" color="success" variant="subtle" size="xs" class="ml-auto" />
+                <h3 class="text-sm font-semibold">
+                  Pasien
+                </h3>
+                <UBadge
+                  v-if="isNewPatient"
+                  label="Baru"
+                  color="warning"
+                  variant="subtle"
+                  size="xs"
+                  class="ml-auto"
+                />
+                <UBadge
+                  v-else-if="selectedPatient"
+                  label="Terpilih"
+                  color="success"
+                  variant="subtle"
+                  size="xs"
+                  class="ml-auto"
+                />
               </div>
 
               <div class="p-4 space-y-3">
-
                 <!-- Search box -->
                 <div v-if="!isNewPatient" class="relative">
                   <UInput
@@ -427,10 +446,19 @@ async function submit() {
                         {{ p.firstName.charAt(0).toUpperCase() }}
                       </div>
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium truncate">{{ fullName(p) }}</p>
-                        <p class="text-xs text-muted">{{ p.idType }}: {{ p.idNumber }}</p>
+                        <p class="text-sm font-medium truncate">
+                          {{ fullName(p) }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ p.idType }}: {{ p.idNumber }}
+                        </p>
                       </div>
-                      <UBadge :label="p.PatientId" color="neutral" variant="subtle" size="xs" />
+                      <UBadge
+                        :label="p.PatientId"
+                        color="neutral"
+                        variant="subtle"
+                        size="xs"
+                      />
                     </button>
 
                     <div class="px-3 py-2 border-t border-default">
@@ -471,8 +499,12 @@ async function submit() {
                       {{ selectedPatient.firstName.charAt(0).toUpperCase() }}
                     </div>
                     <div>
-                      <p class="text-sm font-semibold leading-none">{{ fullName(selectedPatient) }}</p>
-                      <p class="text-xs text-muted">{{ selectedPatient.PatientId }}</p>
+                      <p class="text-sm font-semibold leading-none">
+                        {{ fullName(selectedPatient) }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ selectedPatient.PatientId }}
+                      </p>
                     </div>
                     <UButton
                       size="xs"
@@ -488,13 +520,28 @@ async function submit() {
                   <div class="p-3 space-y-2">
                     <div class="grid grid-cols-3 gap-2">
                       <UFormField label="First Name">
-                        <UInput :model-value="selectedPatient.firstName" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.firstName"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                       <UFormField label="Middle Name">
-                        <UInput :model-value="selectedPatient.middleName ?? '-'" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.middleName ?? '-'"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                       <UFormField label="Last Name">
-                        <UInput :model-value="selectedPatient.lastName" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.lastName"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -515,16 +562,36 @@ async function submit() {
                         />
                       </UFormField>
                       <UFormField label="Tipe ID">
-                        <UInput :model-value="selectedPatient.idType" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.idType"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                       <UFormField label="Nomor ID">
-                        <UInput :model-value="selectedPatient.idNumber" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.idNumber"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                       <UFormField label="No. HP">
-                        <UInput :model-value="selectedPatient.phone ?? '-'" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.phone ?? '-'"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                       <UFormField label="Email">
-                        <UInput :model-value="selectedPatient.email ?? '-'" size="sm" disabled class="w-full opacity-90" />
+                        <UInput
+                          :model-value="selectedPatient.email ?? '-'"
+                          size="sm"
+                          disabled
+                          class="w-full opacity-90"
+                        />
                       </UFormField>
                     </div>
                   </div>
@@ -549,13 +616,28 @@ async function submit() {
 
                   <div class="grid grid-cols-3 gap-2">
                     <UFormField label="First Name *">
-                      <UInput v-model="newPatient.firstName" size="sm" placeholder="Budi" class="w-full" />
+                      <UInput
+                        v-model="newPatient.firstName"
+                        size="sm"
+                        placeholder="Budi"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Middle">
-                      <UInput v-model="newPatient.middleName" size="sm" placeholder="-" class="w-full" />
+                      <UInput
+                        v-model="newPatient.middleName"
+                        size="sm"
+                        placeholder="-"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Last Name">
-                      <UInput v-model="newPatient.lastName" size="sm" placeholder="Santoso" class="w-full" />
+                      <UInput
+                        v-model="newPatient.lastName"
+                        size="sm"
+                        placeholder="Santoso"
+                        class="w-full"
+                      />
                     </UFormField>
                   </div>
 
@@ -565,14 +647,19 @@ async function submit() {
                         v-model="newPatient.gender"
                         size="sm"
                         :items="[
-                          { label: 'Laki-laki', value: 'MALE'   },
-                          { label: 'Perempuan', value: 'FEMALE' },
+                          { label: 'Laki-laki', value: 'MALE' },
+                          { label: 'Perempuan', value: 'FEMALE' }
                         ]"
                         class="w-full"
                       />
                     </UFormField>
                     <UFormField label="Tgl Lahir">
-                      <UInput v-model="newPatient.dob" type="date" size="sm" class="w-full" />
+                      <UInput
+                        v-model="newPatient.dob"
+                        type="date"
+                        size="sm"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Tipe ID">
                       <USelect
@@ -583,13 +670,29 @@ async function submit() {
                       />
                     </UFormField>
                     <UFormField label="Nomor ID *">
-                      <UInput v-model="newPatient.idNumber" size="sm" placeholder="Nomor identitas" class="w-full" />
+                      <UInput
+                        v-model="newPatient.idNumber"
+                        size="sm"
+                        placeholder="Nomor identitas"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="No. HP">
-                      <UInput v-model="newPatient.phone" size="sm" placeholder="08xxx" class="w-full" />
+                      <UInput
+                        v-model="newPatient.phone"
+                        size="sm"
+                        placeholder="08xxx"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Email">
-                      <UInput v-model="newPatient.email" type="email" size="sm" placeholder="email@..." class="w-full" />
+                      <UInput
+                        v-model="newPatient.email"
+                        type="email"
+                        size="sm"
+                        placeholder="email@..."
+                        class="w-full"
+                      />
                     </UFormField>
                   </div>
                 </div>
@@ -604,7 +707,6 @@ async function submit() {
                     Tambah pasien baru tanpa pencarian
                   </button>
                 </div>
-
               </div>
             </div>
           </div>
@@ -613,14 +715,15 @@ async function submit() {
                KOLOM KANAN
           ══════════════════════════════ -->
           <div class="space-y-5 min-w-0">
-
             <!-- ── Jenis Layanan ── -->
             <div class="rounded-xl border border-default overflow-hidden">
               <div class="px-4 py-3 bg-elevated border-b border-default flex items-center gap-2">
                 <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
                   <UIcon name="i-lucide-stethoscope" class="text-primary text-xs" />
                 </div>
-                <h3 class="text-sm font-semibold">Jenis Layanan</h3>
+                <h3 class="text-sm font-semibold">
+                  Jenis Layanan
+                </h3>
                 <UBadge
                   v-if="selectedService"
                   :label="SERVICE_TYPES.find((s) => s.value === selectedService)?.label ?? ''"
@@ -662,7 +765,9 @@ async function submit() {
                 <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
                   <UIcon name="i-lucide-clipboard" class="text-primary text-xs" />
                 </div>
-                <h3 class="text-sm font-semibold">Data Registrasi</h3>
+                <h3 class="text-sm font-semibold">
+                  Data Registrasi
+                </h3>
               </div>
 
               <div class="p-4 space-y-4">
@@ -672,7 +777,7 @@ async function submit() {
                     :loading="companiesPending"
                     :items="(companies ?? []).map((c) => ({
                       label: `${c.codeCostumer} – ${c.customerName}`,
-                      value: String(c.id),
+                      value: String(c.id)
                     }))"
                     placeholder="Pilih perusahaan..."
                     class="w-full"
@@ -693,7 +798,6 @@ async function submit() {
                 </UFormField>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -731,7 +835,6 @@ async function submit() {
             </UButton>
           </div>
         </div>
-
       </div>
     </template>
   </UDashboardPanel>
@@ -757,8 +860,12 @@ async function submit() {
             <div class="px-5 pt-5 pb-3">
               <div class="flex items-start justify-between mb-3">
                 <div>
-                  <h2 class="text-[15px] font-semibold tracking-tight leading-snug">Pilih Cabang</h2>
-                  <p class="text-xs text-muted mt-0.5">Cabang tujuan registrasi pasien</p>
+                  <h2 class="text-[15px] font-semibold tracking-tight leading-snug">
+                    Pilih Cabang
+                  </h2>
+                  <p class="text-xs text-muted mt-0.5">
+                    Cabang tujuan registrasi pasien
+                  </p>
                 </div>
                 <button
                   class="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-default hover:bg-elevated transition-all"
@@ -781,7 +888,7 @@ async function submit() {
                   placeholder="Ketik nama atau kode cabang..."
                   autofocus
                   class="w-full pl-8 pr-3 py-1.5 text-sm bg-elevated rounded-lg outline-none border border-transparent focus:border-primary/40 focus:bg-background transition-all placeholder:text-muted/60"
-                />
+                >
               </div>
             </div>
 
@@ -813,7 +920,9 @@ async function submit() {
                     </p>
                     <p class="text-[11px] text-muted truncate leading-tight mt-px">
                       {{ b.branchId }}
-                      <template v-if="b.addressBranch">&middot; {{ b.addressBranch }}</template>
+                      <template v-if="b.addressBranch">
+                        &middot; {{ b.addressBranch }}
+                      </template>
                     </p>
                   </div>
 
@@ -827,8 +936,12 @@ async function submit() {
 
               <!-- Empty state -->
               <div v-else class="py-8 text-center">
-                <p class="text-sm text-muted">Tidak ada hasil</p>
-                <p class="text-xs text-muted/50 mt-1">Coba kata kunci lain</p>
+                <p class="text-sm text-muted">
+                  Tidak ada hasil
+                </p>
+                <p class="text-xs text-muted/50 mt-1">
+                  Coba kata kunci lain
+                </p>
               </div>
             </div>
 
@@ -836,7 +949,9 @@ async function submit() {
 
             <!-- Footer -->
             <div class="px-5 py-3 flex items-center justify-between">
-              <p class="text-[11px] text-muted/60">{{ filteredBranches.length }} cabang tersedia</p>
+              <p class="text-[11px] text-muted/60">
+                {{ filteredBranches.length }} cabang tersedia
+              </p>
               <button
                 class="text-xs text-muted hover:text-default transition-colors"
                 @click="branchModalOpen = false"

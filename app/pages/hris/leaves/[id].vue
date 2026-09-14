@@ -223,8 +223,6 @@ async function fetchLeaveDetail() {
         mappedLeave.employee.id,
         mappedLeave.start_date
       )
-
-
     } catch (error) {
       console.error(error)
 
@@ -234,8 +232,6 @@ async function fetchLeaveDetail() {
         color: 'warning'
       })
     }
-
-
 
     leave.value = mappedLeave
     adminNotes.value = mappedLeave.admin_notes || ''

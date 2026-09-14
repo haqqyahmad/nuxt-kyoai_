@@ -768,7 +768,7 @@ const allSamplesCollected = computed(() => {
     if (['COLLECTED', 'RECEIVED'].includes(collection.status)) return true
     // Sample PENDING/REJECTED utk item yang pasien tolak (REFUSED) dianggap final.
     if (collection.items?.length) {
-      return collection.items.every((si) => refusedItemIds.value.has(si.itemId))
+      return collection.items.every(si => refusedItemIds.value.has(si.itemId))
     }
     return false
   })
@@ -882,7 +882,7 @@ const nonDentalItems = computed(() => roomExamItems.value.filter(item => !isDent
 const allPhysicalNoAbnormality = computed<boolean>(() => {
   const physicalItems = roomExamItems.value.filter(isPhysicalExamItem)
   if (!physicalItems.length) return false
-  return physicalItems.every(item => {
+  return physicalItems.every((item) => {
     // Item harus sudah disubmit/selesai
     if (!isExamResultSubmitted(item) && item.status !== 'DONE') return false
     // Semua baris hasil harus normal (tidak ada flag abnormal/out-of-range)
@@ -913,7 +913,7 @@ const isDrawerOpen = ref(false)
 const inputColumns = useSafeLocalStorageState<{ columns: 1 | 2 }>(
   'erp-kyoai:queue-work:input-columns',
   { columns: 2 },
-  value => {
+  (value) => {
     if (!value || typeof value !== 'object' || !('columns' in value)) return null
     const columns = value.columns
     return { columns: columns === 1 || columns === 2 ? columns : 2 }
@@ -2060,7 +2060,7 @@ async function handleSubmitItemAction() {
                     :src="patientPhotoUrl"
                     alt="Foto pasien"
                     class="h-full w-full object-cover"
-                  />
+                  >
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
                 </button>
               </div>
@@ -2865,7 +2865,7 @@ async function handleSubmitItemAction() {
           :src="patientPhotoUrl"
           alt="Foto pasien"
           class="max-h-[70vh] w-auto rounded-xl border border-default"
-        />
+        >
       </div>
     </template>
     <template #footer>

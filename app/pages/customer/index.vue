@@ -22,9 +22,6 @@ const { data: customers, refresh } = await useAsyncData('customers', () =>
 
 const data = computed(() => customers.value?.data ?? customers.value ?? [])
 
-
-
-
 /* ─────────────────────────────────────────
    TABLE STATE
 ───────────────────────────────────────── */

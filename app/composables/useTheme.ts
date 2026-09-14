@@ -14,14 +14,14 @@ export const useTheme = () => {
   const stored = useSafeLocalStorageState<ThemePreference>('theme-preference', {
     mode: 'system',
     primary: 'blue',
-    neutral: 'slate',
+    neutral: 'slate'
   }, (v) => {
     if (v && typeof v === 'object') {
       const pref = v as Record<string, unknown>
       return {
         mode: pref.mode as ThemePreference['mode'],
         primary: pref.primary as string,
-        neutral: pref.neutral as string,
+        neutral: pref.neutral as string
       }
     }
     return null
@@ -66,6 +66,6 @@ export const useTheme = () => {
     setTheme,
     setPrimaryColor,
     setNeutralColor,
-    toggleTheme,
+    toggleTheme
   }
 }

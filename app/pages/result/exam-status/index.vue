@@ -123,12 +123,24 @@ function openStatus(idReg: string) {
             <table class="min-w-full border-separate border-spacing-0">
               <thead>
                 <tr class="bg-muted/30">
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Registrasi</th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Pasien</th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Exam Date</th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Service</th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Status</th>
-                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Aksi</th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Registrasi
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Pasien
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Exam Date
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Service
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Status
+                  </th>
+                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -154,7 +166,12 @@ function openStatus(idReg: string) {
                     {{ formatDate(row.examDate) }}
                   </td>
                   <td class="border-b border-default px-4 py-3">
-                    <UBadge :label="row.serviceType || '-'" color="primary" variant="soft" size="sm" />
+                    <UBadge
+                      :label="row.serviceType || '-'"
+                      color="primary"
+                      variant="soft"
+                      size="sm"
+                    />
                   </td>
                   <td class="border-b border-default px-4 py-3">
                     <UBadge

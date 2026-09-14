@@ -71,11 +71,9 @@ async function loadShiftSchedule() {
   }
 }
 
-
 onMounted(() => {
   loadShiftSchedule()
 })
-
 
 watch(
   () => [
@@ -89,8 +87,6 @@ watch(
     deep: true
   }
 )
-
-
 
 function formatDate(date: Date) {
   return date.toISOString().split('T')[0]
@@ -140,8 +136,6 @@ function getDateRange() {
     end_date: formatDate(end)
   }
 }
-
-
 </script>
 
 <template>
@@ -159,19 +153,29 @@ function getDateRange() {
         <div class="w-full max-w-none">
           <div class="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
             <div class="min-w-0 space-y-6">
-              <HrisAttendanceScheduleShiftHeader v-model:selected-date="selectedDate" v-model:view-mode="viewMode"
-                @assign="openAssignModal = true" />
+              <HrisAttendanceScheduleShiftHeader
+                v-model:selected-date="selectedDate"
+                v-model:view-mode="viewMode"
+                @assign="openAssignModal = true"
+              />
 
-              <HrisAttendanceScheduleShiftFilters v-model:department="filters.department"
-                v-model:shift-type="filters.shiftType" />
+              <HrisAttendanceScheduleShiftFilters
+                v-model:department="filters.department"
+                v-model:shift-type="filters.shiftType"
+              />
 
               <div v-if="loading" class="rounded-xl border border-default p-6 text-center text-sm text-muted">
                 Loading shift schedule...
               </div>
 
-              <HrisAttendanceScheduleShiftCalendar v-else :final-shift-response="finalShiftResponse"
-                :selected-date="selectedDate" :view-mode="viewMode" :department-filter="filters.department"
-                :shift-filter="filters.shiftType" />
+              <HrisAttendanceScheduleShiftCalendar
+                v-else
+                :final-shift-response="finalShiftResponse"
+                :selected-date="selectedDate"
+                :view-mode="viewMode"
+                :department-filter="filters.department"
+                :shift-filter="filters.shiftType"
+              />
             </div>
 
             <aside class="min-w-0">

@@ -5,7 +5,7 @@ type Child = { id?: number, employee_id?: number, nama: string, jenis_kelamin: s
 type Position = { id?: number, employee_id?: number, department_id?: number, section_id?: number, company_id?: number, branch_id?: number, position_id?: number, golongan_id?: number, grade_id?: number, tanggal_mulai?: string, tanggal_selesai?: string, is_primary?: boolean }
 
 const props = defineProps<{ employeeId: number | null }>()
-const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>()
+const emit = defineEmits<{ (e: 'close'): void, (e: 'saved'): void }>()
 const api = useApi()
 const toast = useToast()
 const open = defineModel<boolean>('open', { default: false })
@@ -52,7 +52,7 @@ const tabs = [
   { id: 'position', label: 'Position', icon: 'i-lucide-briefcase' },
   { id: 'document', label: 'Document', icon: 'i-lucide-file-text' },
   { id: 'health', label: 'Health', icon: 'i-lucide-heart-pulse' },
-  { id: 'leave', label: 'Leave Balance', icon: 'i-lucide-coins' },
+  { id: 'leave', label: 'Leave Balance', icon: 'i-lucide-coins' }
 ]
 
 async function loadMasterData() {
@@ -61,7 +61,7 @@ async function loadMasterData() {
       api.get('/hris/education-level'),
       api.get('/master/religions'),
       api.get('/master/blood-types'),
-      api.get('/master/marital-statuses'),
+      api.get('/master/marital-statuses')
     ])
     educationLevels.value = eduRes.data.data ?? []
     religions.value = relRes.data.data ?? []
@@ -70,7 +70,7 @@ async function loadMasterData() {
 
     const [deptRes, sectRes] = await Promise.all([
       api.get('/master/departments').catch(() => ({ data: { data: [] } })),
-      api.get('/master/sections').catch(() => ({ data: { data: [] } })),
+      api.get('/master/sections').catch(() => ({ data: { data: [] } }))
     ])
     departments.value = deptRes.data.data ?? []
     sections.value = sectRes.data.data ?? []
@@ -173,7 +173,7 @@ async function saveBasic() {
       employee_type_id: basicForm.employee_type_id ?? undefined,
       tgl_masuk: basicForm.tgl_masuk || undefined,
       tgl_resign: basicForm.tgl_resign || undefined,
-      photo: basicForm.photo || undefined,
+      photo: basicForm.photo || undefined
     })
     toast.add({ title: 'Berhasil', description: 'Data dasar diperbarui', color: 'success' })
     emit('saved')
@@ -264,14 +264,14 @@ async function saveLeaveBalances() {
       if (lb.id) {
         await api.put(`/hris/employee-leave-balance/${lb.id}`, {
           jatah_cuti_baru: Number(lb.jatah_cuti_baru),
-          jatah_cuti_lama: Number(lb.jatah_cuti_lama) || undefined,
+          jatah_cuti_lama: Number(lb.jatah_cuti_lama) || undefined
         })
       } else {
         await api.post('/hris/employee-leave-balance', {
           employee_id: employee.value.id,
           tahun: Number(lb.tahun) || new Date().getFullYear(),
           jatah_cuti_baru: Number(lb.jatah_cuti_baru),
-          jatah_cuti_lama: Number(lb.jatah_cuti_lama) || undefined,
+          jatah_cuti_lama: Number(lb.jatah_cuti_lama) || undefined
         })
       }
     }
@@ -316,7 +316,7 @@ async function savePositions() {
         grade_id: pos.grade_id ? Number(pos.grade_id) : undefined,
         is_primary: pos.is_primary ?? false,
         tanggal_mulai: pos.tanggal_mulai || undefined,
-        tanggal_selesai: pos.tanggal_selesai || null,
+        tanggal_selesai: pos.tanggal_selesai || null
       }
       if (pos.id) {
         await api.put(`/hris/employee-positions/${pos.id}`, payload)
@@ -352,18 +352,31 @@ async function saveChildren() {
       <div class="flex h-[90dvh] flex-col overflow-hidden rounded-xl border border-default bg-elevated shadow-xl">
         <div class="flex items-start justify-between gap-3 border-b border-default px-6 py-4">
           <div>
-            <h2 class="text-lg font-semibold">Edit Employee</h2>
-            <p class="text-sm text-muted">{{ employee?.nik }} - {{ employee?.nama }}</p>
+            <h2 class="text-lg font-semibold">
+              Edit Employee
+            </h2>
+            <p class="text-sm text-muted">
+              {{ employee?.nik }} - {{ employee?.nama }}
+            </p>
           </div>
-          <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="open = false" />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            @click="open = false"
+          />
         </div>
 
         <div class="flex min-h-0 flex-1">
           <div class="w-48 shrink-0 border-r border-default p-2 space-y-1">
-            <button v-for="tab in tabs" :key="tab.id" type="button"
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              type="button"
               class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition"
               :class="activeTab === tab.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted hover:bg-elevated'"
-              @click="activeTab = tab.id">
+              @click="activeTab = tab.id"
+            >
               <UIcon :name="tab.icon" class="size-4" />
               {{ tab.label }}
             </button>
@@ -378,55 +391,116 @@ async function saveChildren() {
               <!-- BASIC -->
               <div v-if="activeTab === 'basic'" class="space-y-6">
                 <div>
-                  <h3 class="text-base font-semibold">Informasi Dasar</h3>
-                  <p class="text-sm text-muted">Data utama employee.</p>
+                  <h3 class="text-base font-semibold">
+                    Informasi Dasar
+                  </h3>
+                  <p class="text-sm text-muted">
+                    Data utama employee.
+                  </p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <UFormField label="NIK"><UInput :model-value="employee.nik" disabled class="w-full" /></UFormField>
-                  <UFormField label="Nama" required><UInput v-model="basicForm.nama" class="w-full" /></UFormField>
-                  <UFormField label="Email"><UInput v-model="basicForm.email" type="email" class="w-full" /></UFormField>
-                  <UFormField label="No. Telepon"><UInput v-model="basicForm.no_telp" class="w-full" /></UFormField>
-                  <UFormField label="No. HP"><UInput v-model="basicForm.no_hp" class="w-full" /></UFormField>
+                  <UFormField label="NIK">
+                    <UInput :model-value="employee.nik" disabled class="w-full" />
+                  </UFormField>
+                  <UFormField label="Nama" required>
+                    <UInput v-model="basicForm.nama" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Email">
+                    <UInput v-model="basicForm.email" type="email" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. Telepon">
+                    <UInput v-model="basicForm.no_telp" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. HP">
+                    <UInput v-model="basicForm.no_hp" class="w-full" />
+                  </UFormField>
                   <UFormField label="Status">
                     <USelect v-model="basicForm.status" :items="['active', 'inactive']" class="w-full" />
                   </UFormField>
-                  <UFormField label="Company ID"><UInput v-model="basicForm.company_id" type="number" class="w-full" /></UFormField>
-                  <UFormField label="Employee Type ID"><UInput v-model="basicForm.employee_type_id" type="number" class="w-full" /></UFormField>
-                  <UFormField label="Tgl Masuk"><UInput v-model="basicForm.tgl_masuk" type="date" class="w-full" /></UFormField>
-                  <UFormField label="Tgl Resign"><UInput v-model="basicForm.tgl_resign" type="date" class="w-full" /></UFormField>
-                  <UFormField label="Photo URL" class="md:col-span-2"><UInput v-model="basicForm.photo" class="w-full" placeholder="URL foto" /></UFormField>
+                  <UFormField label="Company ID">
+                    <UInput v-model="basicForm.company_id" type="number" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Employee Type ID">
+                    <UInput v-model="basicForm.employee_type_id" type="number" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Tgl Masuk">
+                    <UInput v-model="basicForm.tgl_masuk" type="date" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Tgl Resign">
+                    <UInput v-model="basicForm.tgl_resign" type="date" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Photo URL" class="md:col-span-2">
+                    <UInput v-model="basicForm.photo" class="w-full" placeholder="URL foto" />
+                  </UFormField>
                 </div>
                 <div class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Basic" color="primary" @click="saveBasic" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Basic"
+                    color="primary"
+                    @click="saveBasic"
+                  />
                 </div>
               </div>
 
               <!-- USER -->
               <div v-else-if="activeTab === 'user'" class="space-y-6">
                 <div>
-                  <h3 class="text-base font-semibold">Link User Account</h3>
-                  <p class="text-sm text-muted">Hubungkan employee ini dengan user account login.</p>
+                  <h3 class="text-base font-semibold">
+                    Link User Account
+                  </h3>
+                  <p class="text-sm text-muted">
+                    Hubungkan employee ini dengan user account login.
+                  </p>
                 </div>
 
                 <div v-if="linkedUser" class="rounded-xl border border-default p-4 space-y-3">
-                  <h4 class="font-medium">User Terhubung</h4>
+                  <h4 class="font-medium">
+                    User Terhubung
+                  </h4>
                   <div class="flex items-center gap-3">
                     <UAvatar :text="linkedUser.name.charAt(0)" size="sm" />
                     <div>
-                      <p class="font-medium">{{ linkedUser.name }}</p>
-                      <p class="text-sm text-muted">{{ linkedUser.email }}</p>
+                      <p class="font-medium">
+                        {{ linkedUser.name }}
+                      </p>
+                      <p class="text-sm text-muted">
+                        {{ linkedUser.email }}
+                      </p>
                     </div>
                   </div>
-                  <UButton label="Unlink" color="error" variant="soft" size="sm" icon="i-lucide-unlink" @click="unlinkUser" />
+                  <UButton
+                    label="Unlink"
+                    color="error"
+                    variant="soft"
+                    size="sm"
+                    icon="i-lucide-unlink"
+                    @click="unlinkUser"
+                  />
                 </div>
 
                 <div v-else class="space-y-4">
-                  <p class="text-sm text-muted">Belum ada user terhubung. Pilih user untuk di-link:</p>
+                  <p class="text-sm text-muted">
+                    Belum ada user terhubung. Pilih user untuk di-link:
+                  </p>
                   <UFormField label="Pilih User">
-                    <USelect v-model="selectedUserId" :items="unlinkedUsers.map(u => ({ label: `${u.name} (${u.email})`, value: u.id }))" value-key="value" label-key="label" placeholder="Pilih user" class="w-full" />
+                    <USelect
+                      v-model="selectedUserId"
+                      :items="unlinkedUsers.map(u => ({ label: `${u.name} (${u.email})`, value: u.id }))"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Pilih user"
+                      class="w-full"
+                    />
                   </UFormField>
                   <div class="flex justify-end">
-                    <UButton icon="i-lucide-link" label="Link User" color="primary" :disabled="!selectedUserId" @click="linkToUser" />
+                    <UButton
+                      icon="i-lucide-link"
+                      label="Link User"
+                      color="primary"
+                      :disabled="!selectedUserId"
+                      @click="linkToUser"
+                    />
                   </div>
                 </div>
               </div>
@@ -434,142 +508,306 @@ async function saveChildren() {
               <!-- PERSONAL -->
               <div v-else-if="activeTab === 'personal'" class="space-y-6">
                 <div>
-                  <h3 class="text-base font-semibold">Data Personal</h3>
-                  <p class="text-sm text-muted">Informasi pribadi employee.</p>
+                  <h3 class="text-base font-semibold">
+                    Data Personal
+                  </h3>
+                  <p class="text-sm text-muted">
+                    Informasi pribadi employee.
+                  </p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <UFormField label="No. KTP"><UInput v-model="personalForm.no_ktp" class="w-full" /></UFormField>
-                  <UFormField label="No. KK"><UInput v-model="personalForm.no_kk" class="w-full" /></UFormField>
-                  <UFormField label="Tempat Lahir"><UInput v-model="personalForm.tempat_lahir" class="w-full" /></UFormField>
-                  <UFormField label="Tanggal Lahir"><UInput v-model="personalForm.tanggal_lahir" type="date" class="w-full" /></UFormField>
+                  <UFormField label="No. KTP">
+                    <UInput v-model="personalForm.no_ktp" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. KK">
+                    <UInput v-model="personalForm.no_kk" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Tempat Lahir">
+                    <UInput v-model="personalForm.tempat_lahir" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Tanggal Lahir">
+                    <UInput v-model="personalForm.tanggal_lahir" type="date" class="w-full" />
+                  </UFormField>
                   <UFormField label="Jenis Kelamin">
                     <USelect v-model="personalForm.jenis_kelamin" :items="['Laki-laki', 'Perempuan']" class="w-full" />
                   </UFormField>
-                  <UFormField label="Nama Ibu Kandung"><UInput v-model="personalForm.nama_ibu_kandung" class="w-full" /></UFormField>
-                  <UFormField label="Alamat KTP"><UInput v-model="personalForm.alamat_ktp" class="w-full" /></UFormField>
-                  <UFormField label="Alamat Domisili"><UInput v-model="personalForm.alamat_domisili" class="w-full" /></UFormField>
-                  <UFormField label="Tanggal Abis KTP"><UInput v-model="personalForm.tanggal_abis_ktp" type="date" class="w-full" /></UFormField>
+                  <UFormField label="Nama Ibu Kandung">
+                    <UInput v-model="personalForm.nama_ibu_kandung" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Alamat KTP">
+                    <UInput v-model="personalForm.alamat_ktp" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Alamat Domisili">
+                    <UInput v-model="personalForm.alamat_domisili" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Tanggal Abis KTP">
+                    <UInput v-model="personalForm.tanggal_abis_ktp" type="date" class="w-full" />
+                  </UFormField>
                   <template v-if="personalForm.agama_id !== undefined">
                     <UFormField label="Agama">
-                      <USelect v-model="personalForm.agama_id" :items="[{id: null, nama_agama: '-'}, ...religions]" value-key="id" label-key="nama_agama" class="w-full" />
+                      <USelect
+                        v-model="personalForm.agama_id"
+                        :items="[{ id: null, nama_agama: '-' }, ...religions]"
+                        value-key="id"
+                        label-key="nama_agama"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Gol. Darah">
-                      <USelect v-model="personalForm.blood_type_id" :items="[{id: null, kode: '-'}, ...bloodTypes]" value-key="id" label-key="kode" class="w-full" />
+                      <USelect
+                        v-model="personalForm.blood_type_id"
+                        :items="[{ id: null, kode: '-' }, ...bloodTypes]"
+                        value-key="id"
+                        label-key="kode"
+                        class="w-full"
+                      />
                     </UFormField>
                     <UFormField label="Status Nikah">
-                      <USelect v-model="personalForm.marital_status_id" :items="[{id: null, nama: '-'}, ...maritalStatuses]" value-key="id" label-key="nama" class="w-full" />
+                      <USelect
+                        v-model="personalForm.marital_status_id"
+                        :items="[{ id: null, nama: '-' }, ...maritalStatuses]"
+                        value-key="id"
+                        label-key="nama"
+                        class="w-full"
+                      />
                     </UFormField>
                   </template>
                 </div>
                 <div class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Personal" color="primary" @click="savePersonal" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Personal"
+                    color="primary"
+                    @click="savePersonal"
+                  />
                 </div>
               </div>
 
               <!-- EDUCATION -->
               <div v-else-if="activeTab === 'education'" class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-base font-semibold">Pendidikan</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="educations.push({ education_level_id: undefined as any, nama_sekolah: '', jurusan: '', tahun_masuk: undefined as any, tahun_lulus: undefined as any, ipk: undefined })" />
+                  <h3 class="text-base font-semibold">
+                    Pendidikan
+                  </h3>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    label="Add"
+                    @click="educations.push({ education_level_id: undefined as any, nama_sekolah: '', jurusan: '', tahun_masuk: undefined as any, tahun_lulus: undefined as any, ipk: undefined })"
+                  />
                 </div>
                 <template v-for="(edu, i) in educations" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />
                   <div class="rounded-xl border border-default p-4 space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                       <UFormField label="Jenjang">
-                        <USelect v-model="edu.education_level_id" :items="educationLevels" value-key="id" label-key="nama" placeholder="Pilih jenjang" class="w-full" />
+                        <USelect
+                          v-model="edu.education_level_id"
+                          :items="educationLevels"
+                          value-key="id"
+                          label-key="nama"
+                          placeholder="Pilih jenjang"
+                          class="w-full"
+                        />
                       </UFormField>
-                      <UFormField label="Sekolah"><UInput v-model="edu.nama_sekolah" class="w-full" /></UFormField>
-                      <UFormField label="Jurusan"><UInput v-model="edu.jurusan" class="w-full" /></UFormField>
-                      <UFormField label="Tahun Masuk"><UInput v-model="edu.tahun_masuk" type="number" class="w-full" /></UFormField>
-                      <UFormField label="Tahun Lulus"><UInput v-model="edu.tahun_lulus" type="number" class="w-full" /></UFormField>
-                      <UFormField label="IPK"><UInput v-model="edu.ipk" type="number" step="0.01" class="w-full" /></UFormField>
+                      <UFormField label="Sekolah">
+                        <UInput v-model="edu.nama_sekolah" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Jurusan">
+                        <UInput v-model="edu.jurusan" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tahun Masuk">
+                        <UInput v-model="edu.tahun_masuk" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tahun Lulus">
+                        <UInput v-model="edu.tahun_lulus" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="IPK">
+                        <UInput
+                          v-model="edu.ipk"
+                          type="number"
+                          step="0.01"
+                          class="w-full"
+                        />
+                      </UFormField>
                     </div>
                   </div>
                 </template>
-                <p v-if="!educations.length" class="text-sm text-muted">Belum ada data pendidikan. Klik Add untuk menambah.</p>
+                <p v-if="!educations.length" class="text-sm text-muted">
+                  Belum ada data pendidikan. Klik Add untuk menambah.
+                </p>
                 <div v-if="educations.length" class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Education" color="primary" @click="saveEducation" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Education"
+                    color="primary"
+                    @click="saveEducation"
+                  />
                 </div>
               </div>
 
               <!-- EMERGENCY -->
               <div v-else-if="activeTab === 'contact'" class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-base font-semibold">Kontak Darurat</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="emergencyContacts.push({ nama: '', hubungan: '', telepon: '', alamat: '' })" />
+                  <h3 class="text-base font-semibold">
+                    Kontak Darurat
+                  </h3>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    label="Add"
+                    @click="emergencyContacts.push({ nama: '', hubungan: '', telepon: '', alamat: '' })"
+                  />
                 </div>
                 <template v-for="(c, i) in emergencyContacts" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />
                   <div class="rounded-xl border border-default p-4 space-y-3">
                     <div class="grid grid-cols-2 gap-3">
-                      <UFormField label="Nama"><UInput v-model="c.nama" class="w-full" /></UFormField>
-                      <UFormField label="Hubungan"><UInput v-model="c.hubungan" class="w-full" /></UFormField>
-                      <UFormField label="Telepon"><UInput v-model="c.telepon" class="w-full" /></UFormField>
-                      <UFormField label="Alamat"><UInput v-model="c.alamat" class="w-full" /></UFormField>
+                      <UFormField label="Nama">
+                        <UInput v-model="c.nama" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Hubungan">
+                        <UInput v-model="c.hubungan" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Telepon">
+                        <UInput v-model="c.telepon" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Alamat">
+                        <UInput v-model="c.alamat" class="w-full" />
+                      </UFormField>
                     </div>
                   </div>
                 </template>
-                <p v-if="!emergencyContacts.length" class="text-sm text-muted">Belum ada kontak darurat. Klik Add untuk menambah.</p>
+                <p v-if="!emergencyContacts.length" class="text-sm text-muted">
+                  Belum ada kontak darurat. Klik Add untuk menambah.
+                </p>
                 <div v-if="emergencyContacts.length" class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Emergency" color="primary" @click="saveEmergencyContacts" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Emergency"
+                    color="primary"
+                    @click="saveEmergencyContacts"
+                  />
                 </div>
               </div>
 
               <!-- CHILDREN -->
               <div v-else-if="activeTab === 'children'" class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-base font-semibold">Anak</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="children.push({ nama: '', jenis_kelamin: 'Laki-laki', tempat_lahir: '', tanggal_lahir: '', pendidikan: '', pekerjaan: '' })" />
+                  <h3 class="text-base font-semibold">
+                    Anak
+                  </h3>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    label="Add"
+                    @click="children.push({ nama: '', jenis_kelamin: 'Laki-laki', tempat_lahir: '', tanggal_lahir: '', pendidikan: '', pekerjaan: '' })"
+                  />
                 </div>
                 <template v-for="(child, i) in children" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />
                   <div class="rounded-xl border border-default p-4 space-y-3">
                     <div class="grid grid-cols-2 gap-3">
-                      <UFormField label="Nama"><UInput v-model="child.nama" class="w-full" /></UFormField>
-                      <UFormField label="Jenis Kelamin"><USelect v-model="child.jenis_kelamin" :items="['Laki-laki', 'Perempuan']" class="w-full" /></UFormField>
-                      <UFormField label="Tempat Lahir"><UInput v-model="child.tempat_lahir" class="w-full" /></UFormField>
-                      <UFormField label="Tanggal Lahir"><UInput v-model="child.tanggal_lahir" type="date" class="w-full" /></UFormField>
-                      <UFormField label="Pendidikan"><UInput v-model="child.pendidikan" class="w-full" /></UFormField>
-                      <UFormField label="Pekerjaan"><UInput v-model="child.pekerjaan" class="w-full" /></UFormField>
+                      <UFormField label="Nama">
+                        <UInput v-model="child.nama" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Jenis Kelamin">
+                        <USelect v-model="child.jenis_kelamin" :items="['Laki-laki', 'Perempuan']" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tempat Lahir">
+                        <UInput v-model="child.tempat_lahir" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tanggal Lahir">
+                        <UInput v-model="child.tanggal_lahir" type="date" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Pendidikan">
+                        <UInput v-model="child.pendidikan" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Pekerjaan">
+                        <UInput v-model="child.pekerjaan" class="w-full" />
+                      </UFormField>
                     </div>
                   </div>
                 </template>
-                <p v-if="!children.length" class="text-sm text-muted">Belum ada data anak. Klik Add untuk menambah.</p>
+                <p v-if="!children.length" class="text-sm text-muted">
+                  Belum ada data anak. Klik Add untuk menambah.
+                </p>
                 <div v-if="children.length" class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Children" color="primary" @click="saveChildren" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Children"
+                    color="primary"
+                    @click="saveChildren"
+                  />
                 </div>
               </div>
 
               <!-- DOCUMENT -->
               <div v-else-if="activeTab === 'document'" class="space-y-6">
                 <div>
-                  <h3 class="text-base font-semibold">Dokumen</h3>
-                  <p class="text-sm text-muted">Nomor-nomor dokumen employee.</p>
+                  <h3 class="text-base font-semibold">
+                    Dokumen
+                  </h3>
+                  <p class="text-sm text-muted">
+                    Nomor-nomor dokumen employee.
+                  </p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <UFormField label="No. NPWP"><UInput v-model="documentForm.no_npwp" class="w-full" /></UFormField>
-                  <UFormField label="No. Asuransi"><UInput v-model="documentForm.no_asuransi" class="w-full" /></UFormField>
-                  <UFormField label="No. Jamsostek"><UInput v-model="documentForm.no_jamsostek" class="w-full" /></UFormField>
-                  <UFormField label="No. BPJS Kesehatan"><UInput v-model="documentForm.no_bpjs_kesehatan" class="w-full" /></UFormField>
-                  <UFormField label="No. BPJS Ketenagakerjaan"><UInput v-model="documentForm.no_bpjs_ketenagakerjaan" class="w-full" /></UFormField>
-                  <UFormField label="No. DPLK"><UInput v-model="documentForm.no_dplk" class="w-full" /></UFormField>
+                  <UFormField label="No. NPWP">
+                    <UInput v-model="documentForm.no_npwp" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. Asuransi">
+                    <UInput v-model="documentForm.no_asuransi" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. Jamsostek">
+                    <UInput v-model="documentForm.no_jamsostek" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. BPJS Kesehatan">
+                    <UInput v-model="documentForm.no_bpjs_kesehatan" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. BPJS Ketenagakerjaan">
+                    <UInput v-model="documentForm.no_bpjs_ketenagakerjaan" class="w-full" />
+                  </UFormField>
+                  <UFormField label="No. DPLK">
+                    <UInput v-model="documentForm.no_dplk" class="w-full" />
+                  </UFormField>
                 </div>
                 <div class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Document" color="primary" @click="saveDocument" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Document"
+                    color="primary"
+                    @click="saveDocument"
+                  />
                 </div>
               </div>
 
               <!-- HEALTH -->
               <div v-else-if="activeTab === 'health'" class="space-y-4 max-w-xl">
-                <h3 class="text-base font-semibold">Kesehatan</h3>
+                <h3 class="text-base font-semibold">
+                  Kesehatan
+                </h3>
                 <div class="grid grid-cols-2 gap-4">
-                  <UFormField label="Tinggi Badan (cm)"><UInput v-model="healthForm.tinggi_badan" type="number" class="w-full" /></UFormField>
-                  <UFormField label="Berat Badan (kg)"><UInput v-model="healthForm.berat_badan" type="number" class="w-full" /></UFormField>
+                  <UFormField label="Tinggi Badan (cm)">
+                    <UInput v-model="healthForm.tinggi_badan" type="number" class="w-full" />
+                  </UFormField>
+                  <UFormField label="Berat Badan (kg)">
+                    <UInput v-model="healthForm.berat_badan" type="number" class="w-full" />
+                  </UFormField>
                 </div>
                 <UCheckbox v-model="healthForm.kacamata" label="Menggunakan Kacamata" />
-                <UFormField label="Alergi"><UInput v-model="healthForm.alergi" class="w-full" /></UFormField>
-                <p class="text-sm font-medium">Cacat Fisik</p>
+                <UFormField label="Alergi">
+                  <UInput v-model="healthForm.alergi" class="w-full" />
+                </UFormField>
+                <p class="text-sm font-medium">
+                  Cacat Fisik
+                </p>
                 <div class="grid grid-cols-2 gap-3">
                   <UCheckbox v-model="healthForm.cacat_bicara" label="Bicara" />
                   <UCheckbox v-model="healthForm.cacat_pendengaran" label="Pendengaran" />
@@ -577,65 +815,146 @@ async function saveChildren() {
                   <UCheckbox v-model="healthForm.cacat_anggota_badan" label="Anggota Badan" />
                   <UCheckbox v-model="healthForm.cacat_lain" label="Lainnya" />
                 </div>
-                <UFormField label="Penjelasan Cacat"><UInput v-model="healthForm.cacat_penjelasan" class="w-full" /></UFormField>
+                <UFormField label="Penjelasan Cacat">
+                  <UInput v-model="healthForm.cacat_penjelasan" class="w-full" />
+                </UFormField>
                 <div class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Health" color="primary" @click="saveHealth" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Health"
+                    color="primary"
+                    @click="saveHealth"
+                  />
                 </div>
               </div>
 
               <!-- LEAVE BALANCE -->
               <div v-else-if="activeTab === 'leave'" class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-base font-semibold">Saldo Cuti</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="leaveBalances.push({ tahun: new Date().getFullYear(), jatah_cuti_baru: 0, jatah_cuti_lama: 0, terpakai_baru: 0, sisa_baru: 0, terpakai_lama: 0, sisa_lama: 0 })" />
+                  <h3 class="text-base font-semibold">
+                    Saldo Cuti
+                  </h3>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    label="Add"
+                    @click="leaveBalances.push({ tahun: new Date().getFullYear(), jatah_cuti_baru: 0, jatah_cuti_lama: 0, terpakai_baru: 0, sisa_baru: 0, terpakai_lama: 0, sisa_lama: 0 })"
+                  />
                 </div>
                 <div v-for="(lb, i) in leaveBalances" :key="i" class="rounded-xl border border-default p-4">
                   <div class="grid grid-cols-2 gap-3">
-                    <UFormField label="Tahun"><UInput v-model="lb.tahun" type="number" class="w-full" /></UFormField>
-                    <UFormField label="Jatah Cuti Baru"><UInput v-model="lb.jatah_cuti_baru" type="number" class="w-full" /></UFormField>
-                    <UFormField label="Terpakai Baru"><UInput :model-value="lb.terpakai_baru ?? 0" disabled class="w-full" /></UFormField>
-                    <UFormField label="Sisa Baru"><UInput :model-value="lb.sisa_baru ?? 0" disabled class="w-full" /></UFormField>
-                    <UFormField label="Jatah Cuti Lama"><UInput v-model="lb.jatah_cuti_lama" type="number" class="w-full" /></UFormField>
-                    <UFormField label="Terpakai Lama"><UInput :model-value="lb.terpakai_lama ?? 0" disabled class="w-full" /></UFormField>
-                    <UFormField label="Sisa Lama"><UInput :model-value="lb.sisa_lama ?? 0" disabled class="w-full" /></UFormField>
+                    <UFormField label="Tahun">
+                      <UInput v-model="lb.tahun" type="number" class="w-full" />
+                    </UFormField>
+                    <UFormField label="Jatah Cuti Baru">
+                      <UInput v-model="lb.jatah_cuti_baru" type="number" class="w-full" />
+                    </UFormField>
+                    <UFormField label="Terpakai Baru">
+                      <UInput :model-value="lb.terpakai_baru ?? 0" disabled class="w-full" />
+                    </UFormField>
+                    <UFormField label="Sisa Baru">
+                      <UInput :model-value="lb.sisa_baru ?? 0" disabled class="w-full" />
+                    </UFormField>
+                    <UFormField label="Jatah Cuti Lama">
+                      <UInput v-model="lb.jatah_cuti_lama" type="number" class="w-full" />
+                    </UFormField>
+                    <UFormField label="Terpakai Lama">
+                      <UInput :model-value="lb.terpakai_lama ?? 0" disabled class="w-full" />
+                    </UFormField>
+                    <UFormField label="Sisa Lama">
+                      <UInput :model-value="lb.sisa_lama ?? 0" disabled class="w-full" />
+                    </UFormField>
                   </div>
                 </div>
-                <p v-if="!leaveBalances.length" class="text-sm text-muted">Belum ada data saldo cuti. Klik Add untuk menambah.</p>
+                <p v-if="!leaveBalances.length" class="text-sm text-muted">
+                  Belum ada data saldo cuti. Klik Add untuk menambah.
+                </p>
                 <div v-if="leaveBalances.length" class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Leave Balance" color="primary" @click="saveLeaveBalances" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Leave Balance"
+                    color="primary"
+                    @click="saveLeaveBalances"
+                  />
                 </div>
               </div>
 
               <!-- POSITION -->
               <div v-else-if="activeTab === 'position'" class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <h3 class="text-base font-semibold">Posisi / Jabatan</h3>
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" label="Add" @click="positions.push({ department_id: undefined as any, section_id: undefined as any, company_id: undefined as any, branch_id: undefined as any, position_id: undefined as any, golongan_id: undefined as any, grade_id: undefined as any, tanggal_mulai: '', tanggal_selesai: undefined, is_primary: false })" />
+                  <h3 class="text-base font-semibold">
+                    Posisi / Jabatan
+                  </h3>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    label="Add"
+                    @click="positions.push({ department_id: undefined as any, section_id: undefined as any, company_id: undefined as any, branch_id: undefined as any, position_id: undefined as any, golongan_id: undefined as any, grade_id: undefined as any, tanggal_mulai: '', tanggal_selesai: undefined, is_primary: false })"
+                  />
                 </div>
                 <template v-for="(pos, i) in positions" :key="i">
                   <div v-if="i > 0" class="border-t border-default my-2" />
                   <div class="rounded-xl border border-default p-4 space-y-3">
                     <div class="grid grid-cols-2 gap-3">
-                      <UFormField label="Company ID"><UInput v-model="pos.company_id" type="number" class="w-full" /></UFormField>
-                      <UFormField label="Branch ID"><UInput v-model="pos.branch_id" type="number" class="w-full" /></UFormField>
+                      <UFormField label="Company ID">
+                        <UInput v-model="pos.company_id" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Branch ID">
+                        <UInput v-model="pos.branch_id" type="number" class="w-full" />
+                      </UFormField>
                       <UFormField label="Department">
-                        <USelect v-model="pos.department_id" :items="departments" value-key="id" label-key="nama" placeholder="Pilih department" class="w-full" />
+                        <USelect
+                          v-model="pos.department_id"
+                          :items="departments"
+                          value-key="id"
+                          label-key="nama"
+                          placeholder="Pilih department"
+                          class="w-full"
+                        />
                       </UFormField>
                       <UFormField label="Section">
-                        <USelect v-model="pos.section_id" :items="sections" value-key="id" label-key="nama" placeholder="Pilih section" class="w-full" />
+                        <USelect
+                          v-model="pos.section_id"
+                          :items="sections"
+                          value-key="id"
+                          label-key="nama"
+                          placeholder="Pilih section"
+                          class="w-full"
+                        />
                       </UFormField>
-                      <UFormField label="Position ID"><UInput v-model="pos.position_id" type="number" class="w-full" /></UFormField>
-                      <UFormField label="Golongan ID"><UInput v-model="pos.golongan_id" type="number" class="w-full" /></UFormField>
-                      <UFormField label="Grade ID"><UInput v-model="pos.grade_id" type="number" class="w-full" /></UFormField>
-                      <UFormField label="Tanggal Mulai"><UInput v-model="pos.tanggal_mulai" type="date" class="w-full" /></UFormField>
-                      <UFormField label="Tanggal Selesai"><UInput v-model="pos.tanggal_selesai" type="date" class="w-full" /></UFormField>
+                      <UFormField label="Position ID">
+                        <UInput v-model="pos.position_id" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Golongan ID">
+                        <UInput v-model="pos.golongan_id" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Grade ID">
+                        <UInput v-model="pos.grade_id" type="number" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tanggal Mulai">
+                        <UInput v-model="pos.tanggal_mulai" type="date" class="w-full" />
+                      </UFormField>
+                      <UFormField label="Tanggal Selesai">
+                        <UInput v-model="pos.tanggal_selesai" type="date" class="w-full" />
+                      </UFormField>
                     </div>
                     <UCheckbox v-model="pos.is_primary" label="Primary" />
                   </div>
                 </template>
-                <p v-if="!positions.length" class="text-sm text-muted">Belum ada data posisi. Klik Add untuk menambah.</p>
+                <p v-if="!positions.length" class="text-sm text-muted">
+                  Belum ada data posisi. Klik Add untuk menambah.
+                </p>
                 <div v-if="positions.length" class="flex justify-end border-t border-default pt-4">
-                  <UButton icon="i-lucide-save" label="Save Position" color="primary" @click="savePositions" />
+                  <UButton
+                    icon="i-lucide-save"
+                    label="Save Position"
+                    color="primary"
+                    @click="savePositions"
+                  />
                 </div>
               </div>
             </template>
@@ -643,7 +962,9 @@ async function saveChildren() {
         </div>
 
         <div class="flex justify-end gap-2 border-t border-default px-6 py-4">
-          <UButton color="neutral" variant="soft" @click="open = false">Close</UButton>
+          <UButton color="neutral" variant="soft" @click="open = false">
+            Close
+          </UButton>
         </div>
       </div>
     </template>

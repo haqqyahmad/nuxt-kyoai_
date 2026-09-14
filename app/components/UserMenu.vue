@@ -1,13 +1,13 @@
 <!-- app/components/UserMenu.vue -->
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
+
+import { useTheme } from '~/composables/useTheme'
 // duplicate import removed
 
 defineProps<{
   collapsed?: boolean
 }>()
-
-import { useTheme } from '~/composables/useTheme'
 
 const { colorMode, setTheme, setPrimaryColor, setNeutralColor } = useTheme()
 const appConfig = useAppConfig()
@@ -102,10 +102,10 @@ const items = computed<DropdownMenuItem[][]>(() => [
             slot: 'chip',
             checked: appConfig.ui.colors.primary === color,
             type: 'checkbox',
-onSelect: (e) => {
-                e.preventDefault()
-                setPrimaryColor(color)
-              }
+            onSelect: (e) => {
+              e.preventDefault()
+              setPrimaryColor(color)
+            }
           }))
         },
         {
@@ -125,10 +125,10 @@ onSelect: (e) => {
             slot: 'chip',
             type: 'checkbox',
             checked: appConfig.ui.colors.neutral === color,
-onSelect: (e) => {
-                e.preventDefault()
-                setNeutralColor(color)
-              }
+            onSelect: (e) => {
+              e.preventDefault()
+              setNeutralColor(color)
+            }
           }))
         }
       ]

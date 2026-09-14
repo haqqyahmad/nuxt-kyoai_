@@ -4,6 +4,7 @@ import type {
   DoctorResultItem,
   GradeRule
 } from '~/types/doctor-result'
+
 function getErrorMessage(error: unknown, fallback: string): string {
   const err = error as { response?: { data?: { message?: string } }, message?: string }
   return err?.response?.data?.message || err?.message || fallback
@@ -34,7 +35,7 @@ export function useDoctorResult(examId: string) {
   const gradeRules = ref<Record<string, GradeRule[]>>({}) // cache: "condition:label" -> rules
 
   // [F] grade per group: groupId -> { grade, comment }
-  const groupGrades = ref<Record<string, { grade: string; comment: string }>>({})
+  const groupGrades = ref<Record<string, { grade: string, comment: string }>>({})
 
   const finalGrade = ref('')
   const fitnessLevel = ref('')
@@ -68,18 +69,18 @@ export function useDoctorResult(examId: string) {
 
   const pendingGroups = computed(() =>
     allGroups.value.filter(g =>
-      g.showInDoctorResult !== false &&
-      g.groupId &&
-      g.isAbnormal &&
-      !groupGrades.value[g.groupId]?.grade
+      g.showInDoctorResult !== false
+      && g.groupId
+      && g.isAbnormal
+      && !groupGrades.value[g.groupId]?.grade
     )
   )
 
   const canSubmit = computed(() =>
-    pendingCount.value === 0 &&
-    pendingGroups.value.length === 0 &&
-    Boolean(finalGrade.value) &&
-    Boolean(fitnessLevel.value)
+    pendingCount.value === 0
+    && pendingGroups.value.length === 0
+    && Boolean(finalGrade.value)
+    && Boolean(fitnessLevel.value)
   )
 
   // ── load ────────────────────────────────────────────────────────────

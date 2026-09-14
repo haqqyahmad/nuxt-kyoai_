@@ -30,7 +30,7 @@ const processedRoles = ref<Set<number>>(new Set())
 const isProcessing = ref(false)
 
 const roleData = computed(() => {
-  return props.roles.map(role => {
+  return props.roles.map((role) => {
     const roleName = role.name.toLowerCase()
     const recommended = props.recommendedPermissions[roleName] || []
     const currentPermissions = role.permissions.map(p => p.permission.name)

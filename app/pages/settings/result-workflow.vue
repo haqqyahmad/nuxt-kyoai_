@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { h, resolveComponent } from 'vue'
+import { ref, computed, h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 
 definePageMeta({ title: 'Workflow Approval Hasil' })
@@ -88,7 +87,7 @@ const activeDeptWorkflows = computed(() =>
       return {
         department: d,
         workflow: wf ?? null,
-        steps: wf?.steps ?? [{ stepOrder: 1, label: 'Approve Hasil' }],
+        steps: wf?.steps ?? [{ stepOrder: 1, label: 'Approve Hasil' }]
       }
     })
 )
@@ -112,7 +111,7 @@ const userNameById = computed<Record<string, string>>(() => {
 function reviewerLabel(s: Step): string {
   if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}`
   const roles = (s.reviewerRoleIds?.length ? s.reviewerRoleIds : s.reviewerRoleId ? [Number(s.reviewerRoleId)] : [])
-  if (roles.length) return `role: ${roles.map((rid) => roleNameById.value[String(rid)] ?? rid).join(', ')}`
+  if (roles.length) return `role: ${roles.map(rid => roleNameById.value[String(rid)] ?? rid).join(', ')}`
   return 'anyone'
 }
 
@@ -127,11 +126,11 @@ function openEdit(department: Department) {
   editDeptId.value = department.id
   editDeptName.value = department.name
   const wf = workflowsByDept.value[department.id]
-  editSteps.value = (wf?.steps?.length ? wf.steps : [{ stepOrder: 1, label: 'Approve Hasil' }]).map((s) => ({
+  editSteps.value = (wf?.steps?.length ? wf.steps : [{ stepOrder: 1, label: 'Approve Hasil' }]).map(s => ({
     ...s,
     reviewerUserId: s.reviewerUserId ?? null,
     reviewerRoleId: s.reviewerRoleId ?? null,
-    reviewerRoleIds: s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : []),
+    reviewerRoleIds: s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : [])
   }))
   editOpen.value = true
 }
@@ -155,12 +154,12 @@ async function saveWorkflow() {
   saving.value = true
   try {
     const payload = {
-      steps: editSteps.value.map((s) => ({
+      steps: editSteps.value.map(s => ({
         label: s.label,
         reviewerUserId: s.reviewerUserId ? Number(s.reviewerUserId) : null,
         reviewerRoleId: s.reviewerRoleId ? String(s.reviewerRoleId) : null,
-        reviewerRoleIds: (s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : [])),
-      })),
+        reviewerRoleIds: (s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : []))
+      }))
     }
     await api.put(`/settings/result-workflow/${editDeptId.value}`, payload)
     toast.add({ title: 'Tersimpan', description: 'Workflow approval diperbarui', color: 'success' })
@@ -173,7 +172,7 @@ async function saveWorkflow() {
   }
 }
 
-const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
+const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
   {
     accessorKey: 'department',
     header: 'Department',
@@ -187,8 +186,8 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
       const labels = steps.map((s, i) => `${i + 1}. ${s.label}`).join(' → ')
       return h('div', { class: 'flex flex-col gap-1' }, [
         h('span', { class: 'text-sm' }, labels),
-        steps.some((s) => s.reviewerUserId || s.reviewerRoleId)
-          ? h('span', { class: 'text-xs text-muted' }, steps.map((s) => reviewerLabel(s)).join(' / '))
+        steps.some(s => s.reviewerUserId || s.reviewerRoleId)
+          ? h('span', { class: 'text-xs text-muted' }, steps.map(s => reviewerLabel(s)).join(' / '))
           : null
       ])
     }
@@ -215,10 +214,21 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
       <template #header>
         <div class="flex w-full flex-wrap items-center justify-between gap-2">
           <div class="space-y-0.5">
-            <h1 class="text-xl font-bold">Workflow Approval Departemen</h1>
-            <p class="text-sm text-muted">Atur langkah approval hasil per departemen. Reviewer (opsional) bisa dibatasi ke user/role tertentu. Inputter tidak bisa approve step pertama (four-eyes).</p>
+            <h1 class="text-xl font-bold">
+              Workflow Approval Departemen
+            </h1>
+            <p class="text-sm text-muted">
+              Atur langkah approval hasil per departemen. Reviewer (opsional) bisa dibatasi ke user/role tertentu. Inputter tidak bisa approve step pertama (four-eyes).
+            </p>
           </div>
-          <UButton icon="i-lucide-refresh-cw" variant="outline" :loading="pending" @click="refresh()">Refresh</UButton>
+          <UButton
+            icon="i-lucide-refresh-cw"
+            variant="outline"
+            :loading="pending"
+            @click="refresh()"
+          >
+            Refresh
+          </UButton>
         </div>
       </template>
       <template #default>
@@ -226,7 +236,9 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-workflow" class="size-5 text-primary" />
-              <h2 class="font-semibold">Daftar Workflow</h2>
+              <h2 class="font-semibold">
+                Daftar Workflow
+              </h2>
             </div>
           </template>
           <UTable :data="activeDeptWorkflows" :columns="columns" :loading="pending" />
@@ -241,42 +253,62 @@ const columns: TableColumn<{ department: Department; steps: Step[] }>[] = [
     </UPageCard>
 
     <UModal v-model:open="editOpen" title="Atur Workflow" :description="'Department: ' + editDeptName">
-        <template #body>
-          <div class="space-y-4">
-            <div v-if="editSteps.length === 0" class="text-sm text-muted">Belum ada step. Tambahkan step approval.</div>
-            <div v-for="(step, idx) in editSteps" :key="idx" class="flex flex-col gap-2 rounded border p-3">
-              <div class="flex items-center gap-2">
-                <span class="flex size-7 items-center justify-center rounded-full bg-elevated text-xs font-bold">{{ idx + 1 }}</span>
-                <UInput v-model="step.label" placeholder="Label step (mis. Approve Hasil)" class="flex-1" />
-                <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="removeStep(idx)" />
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <USelect
-                  :model-value="step.reviewerUserId != null ? String(step.reviewerUserId) : undefined"
-                  :items="userOptions"
-                  placeholder="Reviewer (user)"
-                  clearable
-                  @update:model-value="(v: string | null) => { step.reviewerUserId = v ? Number(v) : null }"
-                />
-                <USelect
-                  multiple
-                  :model-value="(step.reviewerRoleIds ?? []).map(String)"
-                  :items="roleOptions"
-                  placeholder="Role (bisa banyak)"
-                  clearable
-                  @update:model-value="(v: string[] | null) => { step.reviewerRoleIds = (v ?? []).map(Number); step.reviewerRoleId = (v?.[0]) || null }"
-                />
-              </div>
+      <template #body>
+        <div class="space-y-4">
+          <div v-if="editSteps.length === 0" class="text-sm text-muted">
+            Belum ada step. Tambahkan step approval.
+          </div>
+          <div v-for="(step, idx) in editSteps" :key="idx" class="flex flex-col gap-2 rounded border p-3">
+            <div class="flex items-center gap-2">
+              <span class="flex size-7 items-center justify-center rounded-full bg-elevated text-xs font-bold">{{ idx + 1 }}</span>
+              <UInput v-model="step.label" placeholder="Label step (mis. Approve Hasil)" class="flex-1" />
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="removeStep(idx)"
+              />
             </div>
-            <UButton label="Tambah Step" icon="i-lucide-plus" variant="outline" size="sm" @click="addStep" />
+            <div class="grid grid-cols-2 gap-2">
+              <USelect
+                :model-value="step.reviewerUserId != null ? String(step.reviewerUserId) : undefined"
+                :items="userOptions"
+                placeholder="Reviewer (user)"
+                clearable
+                @update:model-value="(v: string | null) => { step.reviewerUserId = v ? Number(v) : null }"
+              />
+              <USelect
+                multiple
+                :model-value="(step.reviewerRoleIds ?? []).map(String)"
+                :items="roleOptions"
+                placeholder="Role (bisa banyak)"
+                clearable
+                @update:model-value="(v: string[] | null) => { step.reviewerRoleIds = (v ?? []).map(Number); step.reviewerRoleId = (v?.[0]) || null }"
+              />
+            </div>
           </div>
-        </template>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton label="Batal" variant="outline" @click="editOpen = false" />
-            <UButton label="Simpan" color="primary" :loading="saving" :disabled="editSteps.length === 0" @click="saveWorkflow" />
-          </div>
-        </template>
-      </UModal>
+          <UButton
+            label="Tambah Step"
+            icon="i-lucide-plus"
+            variant="outline"
+            size="sm"
+            @click="addStep"
+          />
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton label="Batal" variant="outline" @click="editOpen = false" />
+          <UButton
+            label="Simpan"
+            color="primary"
+            :loading="saving"
+            :disabled="editSteps.length === 0"
+            @click="saveWorkflow"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

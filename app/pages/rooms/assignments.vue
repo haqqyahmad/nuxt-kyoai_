@@ -486,22 +486,22 @@ async function submitSelfAssignment() {
       color: 'success'
     })
 
-      await refreshMyAssignment()
+    await refreshMyAssignment()
 
-      // [SELF-ASSIGN] aktifkan sesi room otomatis utk room yang dipilih,
-      // lalu arahkan ke /rooms/queue agar langsung bisa ambil pasien.
-      try {
-        await enterRoomSession({ roomId: selfForm.roomId })
-      } catch (error: unknown) {
-        toast.add({
-          title: 'Sesi room belum aktif',
-          description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
-          color: 'warning'
-        })
-      }
-
-      await navigateTo('/rooms/queue')
+    // [SELF-ASSIGN] aktifkan sesi room otomatis utk room yang dipilih,
+    // lalu arahkan ke /rooms/queue agar langsung bisa ambil pasien.
+    try {
+      await enterRoomSession({ roomId: selfForm.roomId })
     } catch (error: unknown) {
+      toast.add({
+        title: 'Sesi room belum aktif',
+        description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
+        color: 'warning'
+      })
+    }
+
+    await navigateTo('/rooms/queue')
+  } catch (error: unknown) {
     toast.add({
       title: 'Gagal',
       description: getErrorMessage(error, 'Gagal membuat self assignment'),
@@ -1030,164 +1030,164 @@ onMounted(async () => {
 
           <template v-else>
             <UCard>
-            <template #header>
-              <div>
-                <h2 class="text-lg font-semibold text-highlighted">
-                  Self Assignment
-                </h2>
-                <p class="text-sm text-muted">
-                  Pilih room yang diizinkan untuk tugas hari ini
-                </p>
-              </div>
-            </template>
+              <template #header>
+                <div>
+                  <h2 class="text-lg font-semibold text-highlighted">
+                    Self Assignment
+                  </h2>
+                  <p class="text-sm text-muted">
+                    Pilih room yang diizinkan untuk tugas hari ini
+                  </p>
+                </div>
+              </template>
 
-            <form
-              class="grid gap-4 md:grid-cols-2"
-              @submit.prevent="submitSelfAssignment"
-            >
-              <UFormField
-                label="Tanggal"
-                required
+              <form
+                class="grid gap-4 md:grid-cols-2"
+                @submit.prevent="submitSelfAssignment"
               >
-                <UInput
-                  v-model="selfForm.assignedDate"
-                  type="date"
-                  class="w-full"
-                />
-              </UFormField>
+                <UFormField
+                  label="Tanggal"
+                  required
+                >
+                  <UInput
+                    v-model="selfForm.assignedDate"
+                    type="date"
+                    class="w-full"
+                  />
+                </UFormField>
 
-              <UFormField label="Petugas">
-                <UInput
-                  :model-value="currentUser?.name || 'Current user'"
-                  disabled
-                  class="w-full"
-                />
-              </UFormField>
+                <UFormField label="Petugas">
+                  <UInput
+                    :model-value="currentUser?.name || 'Current user'"
+                    disabled
+                    class="w-full"
+                  />
+                </UFormField>
 
-              <UFormField
-                label="Room"
-                required
-                class="md:col-span-2"
+                <UFormField
+                  label="Room"
+                  required
+                  class="md:col-span-2"
+                >
+                  <USelect
+                    v-model="selfForm.roomId"
+                    :items="selfRoomOptions"
+                    placeholder="Pilih room yang diizinkan"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Preview Room Type">
+                  <UInput
+                    :model-value="selectedSelfRoomTypeName"
+                    disabled
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField class="md:col-span-2">
+                  <template #label>
+                    Notes
+                  </template>
+                  <UTextarea
+                    v-model="selfForm.notes"
+                    :rows="3"
+                    placeholder="Catatan self assignment"
+                  />
+                </UFormField>
+
+                <div class="md:col-span-2 flex justify-end gap-2 border-t border-default pt-4">
+                  <UButton
+                    type="button"
+                    color="neutral"
+                    variant="soft"
+                    @click="selfForm.roomId = ''"
+                  >
+                    Reset
+                  </UButton>
+
+                  <UButton
+                    type="submit"
+                    :loading="selfSaving"
+                    icon="i-lucide-user-check"
+                  >
+                    Simpan Assignment
+                  </UButton>
+                </div>
+              </form>
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
+                  <h2 class="text-lg font-semibold text-highlighted">
+                    Assignment Saya
+                  </h2>
+                  <p class="text-sm text-muted">
+                    Status assignment aktif milik kamu hari ini
+                  </p>
+                </div>
+              </template>
+
+              <div
+                v-if="myAssignmentPending"
+                class="space-y-3"
               >
-                <USelect
-                  v-model="selfForm.roomId"
-                  :items="selfRoomOptions"
-                  placeholder="Pilih room yang diizinkan"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Preview Room Type">
-                <UInput
-                  :model-value="selectedSelfRoomTypeName"
-                  disabled
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField class="md:col-span-2">
-                <template #label>
-                  Notes
-                </template>
-                <UTextarea
-                  v-model="selfForm.notes"
-                  :rows="3"
-                  placeholder="Catatan self assignment"
-                />
-              </UFormField>
-
-              <div class="md:col-span-2 flex justify-end gap-2 border-t border-default pt-4">
-                <UButton
-                  type="button"
-                  color="neutral"
-                  variant="soft"
-                  @click="selfForm.roomId = ''"
-                >
-                  Reset
-                </UButton>
-
-                <UButton
-                  type="submit"
-                  :loading="selfSaving"
-                  icon="i-lucide-user-check"
-                >
-                  Simpan Assignment
-                </UButton>
-              </div>
-            </form>
-          </UCard>
-
-          <UCard>
-            <template #header>
-              <div>
-                <h2 class="text-lg font-semibold text-highlighted">
-                  Assignment Saya
-                </h2>
-                <p class="text-sm text-muted">
-                  Status assignment aktif milik kamu hari ini
-                </p>
-              </div>
-            </template>
-
-            <div
-              v-if="myAssignmentPending"
-              class="space-y-3"
-            >
-              <USkeleton class="h-24 rounded-xl" />
-              <USkeleton class="h-24 rounded-xl" />
-            </div>
-
-            <div
-              v-else-if="myAssignment"
-              class="space-y-3"
-            >
-              <div class="rounded-xl border border-default p-4">
-                <p class="text-xs text-muted">
-                  Assignment Source
-                </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ myAssignment.assignmentSource || 'PIC' }}
-                </p>
+                <USkeleton class="h-24 rounded-xl" />
+                <USkeleton class="h-24 rounded-xl" />
               </div>
 
-              <div class="rounded-xl border border-default p-4">
-                <p class="text-xs text-muted">
-                  Room
-                </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ myAssignment.room?.code || '-' }} - {{ myAssignment.room?.name || '-' }}
-                </p>
+              <div
+                v-else-if="myAssignment"
+                class="space-y-3"
+              >
+                <div class="rounded-xl border border-default p-4">
+                  <p class="text-xs text-muted">
+                    Assignment Source
+                  </p>
+                  <p class="mt-1 font-medium text-highlighted">
+                    {{ myAssignment.assignmentSource || 'PIC' }}
+                  </p>
+                </div>
+
+                <div class="rounded-xl border border-default p-4">
+                  <p class="text-xs text-muted">
+                    Room
+                  </p>
+                  <p class="mt-1 font-medium text-highlighted">
+                    {{ myAssignment.room?.code || '-' }} - {{ myAssignment.room?.name || '-' }}
+                  </p>
+                </div>
+
+                <div class="rounded-xl border border-default p-4">
+                  <p class="text-xs text-muted">
+                    Room Type
+                  </p>
+                  <p class="mt-1 font-medium text-highlighted">
+                    {{ myAssignment.roomType?.code || '-' }} - {{ myAssignment.roomType?.name || '-' }}
+                  </p>
+                </div>
+
+                <div class="rounded-xl border border-default p-4">
+                  <p class="text-xs text-muted">
+                    Status Sesi
+                  </p>
+                  <p
+                    class="mt-1 font-medium"
+                    :class="activeSession ? 'text-success' : 'text-muted'"
+                  >
+                    {{ activeSession ? 'Aktif - sedang di room' : 'Tidak aktif' }}
+                  </p>
+                </div>
               </div>
 
-              <div class="rounded-xl border border-default p-4">
-                <p class="text-xs text-muted">
-                  Room Type
-                </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ myAssignment.roomType?.code || '-' }} - {{ myAssignment.roomType?.name || '-' }}
-                </p>
+              <div
+                v-else
+                class="rounded-xl border border-dashed border-default p-6 text-sm text-muted"
+              >
+                Belum ada assignment hari ini. Silakan pilih room yang diizinkan.
               </div>
-
-              <div class="rounded-xl border border-default p-4">
-                <p class="text-xs text-muted">
-                  Status Sesi
-                </p>
-                <p
-                  class="mt-1 font-medium"
-                  :class="activeSession ? 'text-success' : 'text-muted'"
-                >
-                  {{ activeSession ? 'Aktif - sedang di room' : 'Tidak aktif' }}
-                </p>
-              </div>
-            </div>
-
-            <div
-              v-else
-              class="rounded-xl border border-dashed border-default p-6 text-sm text-muted"
-            >
-              Belum ada assignment hari ini. Silakan pilih room yang diizinkan.
-            </div>
-          </UCard>
+            </UCard>
           </template>
         </div>
 

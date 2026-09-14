@@ -146,7 +146,7 @@ function getStatusLabel(s: string) {
     PENDING: 'Menunggu',
     SKIPPED: 'Skip',
     RESCHEDULED: 'Reschedule',
-    REFUSED: 'Ditolak',
+    REFUSED: 'Ditolak'
   }
   return map[s] ?? s
 }
@@ -165,7 +165,7 @@ function getResultStatusLabel(s: string) {
     DRAFT: 'Draft',
     SUBMITTED: 'Tersubmit',
     APPROVED: 'Disetujui',
-    REJECTED: 'Ditolak',
+    REJECTED: 'Ditolak'
   }
   return map[s] ?? s
 }
@@ -366,32 +366,61 @@ const overallStats = computed(() => {
             <!-- Overall Stats -->
             <div class="grid grid-cols-3 gap-3">
               <div class="text-center rounded-lg border border-default bg-muted/20 px-4 py-2">
-                <p class="text-2xl font-bold text-highlighted">{{ overallStats.done }}</p>
-                <p class="text-[10px] font-medium uppercase text-muted">Selesai</p>
+                <p class="text-2xl font-bold text-highlighted">
+                  {{ overallStats.done }}
+                </p>
+                <p class="text-[10px] font-medium uppercase text-muted">
+                  Selesai
+                </p>
               </div>
               <div class="text-center rounded-lg border border-default bg-muted/20 px-4 py-2">
-                <p class="text-2xl font-bold text-warning">{{ overallStats.inProgress }}</p>
-                <p class="text-[10px] font-medium uppercase text-muted">Dikerjakan</p>
+                <p class="text-2xl font-bold text-warning">
+                  {{ overallStats.inProgress }}
+                </p>
+                <p class="text-[10px] font-medium uppercase text-muted">
+                  Dikerjakan
+                </p>
               </div>
               <div class="text-center rounded-lg border border-default bg-muted/20 px-4 py-2">
-                <p class="text-2xl font-bold text-muted">{{ overallStats.pending }}</p>
-                <p class="text-[10px] font-medium uppercase text-muted">Menunggu</p>
+                <p class="text-2xl font-bold text-muted">
+                  {{ overallStats.pending }}
+                </p>
+                <p class="text-[10px] font-medium uppercase text-muted">
+                  Menunggu
+                </p>
               </div>
             </div>
           </div>
 
           <div class="mt-4 flex flex-wrap gap-2 border-t border-default pt-3">
             <UBadge :label="`Total ${overallStats.total} item`" color="neutral" variant="subtle" />
-            <UBadge :label="`Inline: ${overallStats.inline}`" color="info" variant="soft" size="sm" />
-            <UBadge :label="`Deferred: ${overallStats.deferred}`" color="warning" variant="soft" size="sm" />
-            <UBadge :label="`Tersubmit: ${overallStats.submitted}`" color="success" variant="soft" size="sm" />
+            <UBadge
+              :label="`Inline: ${overallStats.inline}`"
+              color="info"
+              variant="soft"
+              size="sm"
+            />
+            <UBadge
+              :label="`Deferred: ${overallStats.deferred}`"
+              color="warning"
+              variant="soft"
+              size="sm"
+            />
+            <UBadge
+              :label="`Tersubmit: ${overallStats.submitted}`"
+              color="success"
+              variant="soft"
+              size="sm"
+            />
           </div>
         </div>
 
         <!-- Empty State -->
         <div v-if="!examItems.length" class="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-default p-8 text-center">
           <UIcon name="i-lucide-clipboard-list" class="mb-2 size-8 text-muted" />
-          <p class="text-sm font-medium text-highlighted">Belum ada item pemeriksaan</p>
+          <p class="text-sm font-medium text-highlighted">
+            Belum ada item pemeriksaan
+          </p>
         </div>
 
         <!-- Per Department -->
@@ -401,7 +430,9 @@ const overallStats = computed(() => {
           class="rounded-xl border border-default bg-default overflow-hidden"
         >
           <div class="px-5 py-4 border-b border-default bg-muted/10">
-            <h3 class="font-semibold text-highlighted">{{ dept.deptName }}</h3>
+            <h3 class="font-semibold text-highlighted">
+              {{ dept.deptName }}
+            </h3>
             <p class="text-xs text-muted">
               {{ dept.inlineItems.length + dept.deferredItems.length }} item
               · {{ dept.inlineItems.filter(ei => getExamItemStatus(ei) === 'DONE').length + dept.deferredItems.filter(ei => getExamItemStatus(ei) === 'DONE').length }} selesai
@@ -424,7 +455,9 @@ const overallStats = computed(() => {
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                      <p class="text-lg font-bold text-highlighted">{{ ei.item.name }}</p>
+                      <p class="text-lg font-bold text-highlighted">
+                        {{ ei.item.name }}
+                      </p>
                       <UBadge
                         :label="getStatusLabel(getExamItemStatus(ei))"
                         :color="getStatusColor(getExamItemStatus(ei))"
@@ -497,8 +530,15 @@ const overallStats = computed(() => {
                   <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div class="min-w-0">
                       <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-xl font-extrabold text-highlighted">{{ ei.item.name }}</p>
-                        <UBadge label="Deferred" color="warning" variant="soft" size="sm" />
+                        <p class="text-xl font-extrabold text-highlighted">
+                          {{ ei.item.name }}
+                        </p>
+                        <UBadge
+                          label="Deferred"
+                          color="warning"
+                          variant="soft"
+                          size="sm"
+                        />
                         <UBadge
                           :label="getStatusLabel(getExamItemStatus(ei))"
                           :color="getStatusColor(getExamItemStatus(ei))"
@@ -544,25 +584,45 @@ const overallStats = computed(() => {
 
                   <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div class="rounded-xl border border-default bg-default p-3">
-                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">Mulai dikerjakan</p>
-                      <p class="mt-1 text-sm font-bold text-highlighted">{{ formatDateTime(getEarliestStart(ei) || ei.workStartedAt) }}</p>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        Mulai dikerjakan
+                      </p>
+                      <p class="mt-1 text-sm font-bold text-highlighted">
+                        {{ formatDateTime(getEarliestStart(ei) || ei.workStartedAt) }}
+                      </p>
                     </div>
                     <div class="rounded-xl border border-default bg-default p-3">
-                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">Selesai pemeriksaan</p>
-                      <p class="mt-1 text-sm font-bold text-highlighted">{{ formatDateTime(getWorkDoneAt(ei)) }}</p>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        Selesai pemeriksaan
+                      </p>
+                      <p class="mt-1 text-sm font-bold text-highlighted">
+                        {{ formatDateTime(getWorkDoneAt(ei)) }}
+                      </p>
                       <p v-if="formatDuration(getEarliestStart(ei) || ei.workStartedAt, getWorkDoneAt(ei))" class="mt-1 text-xs text-primary">
                         Durasi {{ formatDuration(getEarliestStart(ei) || ei.workStartedAt, getWorkDoneAt(ei)) }}
                       </p>
                     </div>
                     <div class="rounded-xl border border-default bg-default p-3">
-                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">Hasil dikirim</p>
-                      <p class="mt-1 text-sm font-bold text-highlighted">{{ formatDateTime(ei.resultSubmittedAt) }}</p>
-                      <p class="mt-1 text-xs text-muted">Oleh: {{ getUserName(ei.resultSubmittedBy) }}</p>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        Hasil dikirim
+                      </p>
+                      <p class="mt-1 text-sm font-bold text-highlighted">
+                        {{ formatDateTime(ei.resultSubmittedAt) }}
+                      </p>
+                      <p class="mt-1 text-xs text-muted">
+                        Oleh: {{ getUserName(ei.resultSubmittedBy) }}
+                      </p>
                     </div>
                     <div class="rounded-xl border border-default bg-default p-3">
-                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">Diproses / final</p>
-                      <p class="mt-1 text-sm font-bold text-highlighted">{{ getResultStatusLabel(ei.resultStatus) }}</p>
-                      <p v-if="ei.templateSnapshotAt" class="mt-1 text-xs text-muted">Snapshot {{ formatDateTime(ei.templateSnapshotAt) }}</p>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        Diproses / final
+                      </p>
+                      <p class="mt-1 text-sm font-bold text-highlighted">
+                        {{ getResultStatusLabel(ei.resultStatus) }}
+                      </p>
+                      <p v-if="ei.templateSnapshotAt" class="mt-1 text-xs text-muted">
+                        Snapshot {{ formatDateTime(ei.templateSnapshotAt) }}
+                      </p>
                     </div>
                   </div>
                 </div>

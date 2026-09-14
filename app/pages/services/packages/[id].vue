@@ -204,8 +204,12 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
 
         <div v-else-if="showEmptyState" class="rounded-2xl border border-dashed border-default py-16 text-center">
           <UIcon name="i-lucide-package-x" class="mx-auto text-4xl text-muted" />
-          <p class="mt-3 text-sm font-medium">Data paket tidak ditemukan</p>
-          <p class="text-xs text-muted mt-1">Periksa kembali paket yang dipilih atau refresh daftar paket</p>
+          <p class="mt-3 text-sm font-medium">
+            Data paket tidak ditemukan
+          </p>
+          <p class="text-xs text-muted mt-1">
+            Periksa kembali paket yang dipilih atau refresh daftar paket
+          </p>
         </div>
 
         <template v-else>
@@ -242,17 +246,27 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-5">
                 <div class="rounded-xl border border-default bg-elevated p-4">
-                  <p class="text-xs text-muted">Total Item</p>
-                  <p class="mt-1 text-2xl font-bold">{{ totalItems }}</p>
+                  <p class="text-xs text-muted">
+                    Total Item
+                  </p>
+                  <p class="mt-1 text-2xl font-bold">
+                    {{ totalItems }}
+                  </p>
                 </div>
 
                 <div class="rounded-xl border border-default bg-elevated p-4">
-                  <p class="text-xs text-muted">Total Inputan</p>
-                  <p class="mt-1 text-2xl font-bold">{{ totalInputans }}</p>
+                  <p class="text-xs text-muted">
+                    Total Inputan
+                  </p>
+                  <p class="mt-1 text-2xl font-bold">
+                    {{ totalInputans }}
+                  </p>
                 </div>
 
                 <div class="rounded-xl border border-default bg-elevated p-4">
-                  <p class="text-xs text-muted">Created</p>
+                  <p class="text-xs text-muted">
+                    Created
+                  </p>
                   <p class="mt-1 text-sm font-medium">
                     {{ paket?.createdAt ? new Date(paket.createdAt).toLocaleString('id-ID') : '-' }}
                   </p>
@@ -287,44 +301,44 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
             </div>
           </div>
 
-            <div class="rounded-2xl border border-default bg-background overflow-hidden">
-              <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-                <div>
-                  <h3 class="font-semibold flex items-center gap-2">
-                    <UIcon name="i-lucide-clipboard-list" class="text-primary" />
-                    Item dalam Paket
-                  </h3>
-                  <p class="text-xs text-muted mt-1">
-                    {{ totalItems }} item pemeriksaan terdaftar di paket ini
-                  </p>
-                </div>
-
-                <UBadge
-                  :label="`${totalInputans} inputan`"
-                  color="neutral"
-                  variant="subtle"
-                />
-              </div>
-
-              <div class="px-5 py-3 border-b border-default bg-elevated/40 flex items-center justify-between gap-3">
-                <p class="text-xs text-muted">
-                  Untuk mengubah item di dalam paket, masuk ke form edit paket.
+          <div class="rounded-2xl border border-default bg-background overflow-hidden">
+            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
+              <div>
+                <h3 class="font-semibold flex items-center gap-2">
+                  <UIcon name="i-lucide-clipboard-list" class="text-primary" />
+                  Item dalam Paket
+                </h3>
+                <p class="text-xs text-muted mt-1">
+                  {{ totalItems }} item pemeriksaan terdaftar di paket ini
                 </p>
-
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="primary"
-                  variant="soft"
-                  size="sm"
-                  :to="editFormRoute"
-                >
-                  Edit Paket
-                </UButton>
               </div>
 
-              <div v-if="!paket?.paketItems.length" class="p-8 text-center text-sm text-muted">
-                Belum ada item di dalam paket
-              </div>
+              <UBadge
+                :label="`${totalInputans} inputan`"
+                color="neutral"
+                variant="subtle"
+              />
+            </div>
+
+            <div class="px-5 py-3 border-b border-default bg-elevated/40 flex items-center justify-between gap-3">
+              <p class="text-xs text-muted">
+                Untuk mengubah item di dalam paket, masuk ke form edit paket.
+              </p>
+
+              <UButton
+                icon="i-lucide-pencil"
+                color="primary"
+                variant="soft"
+                size="sm"
+                :to="editFormRoute"
+              >
+                Edit Paket
+              </UButton>
+            </div>
+
+            <div v-if="!paket?.paketItems.length" class="p-8 text-center text-sm text-muted">
+              Belum ada item di dalam paket
+            </div>
 
             <div v-else class="space-y-4 p-5">
               <div
@@ -351,7 +365,6 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
                       {{ paketItem.item?.code ?? '-' }}
                     </p>
                   </div>
-
                 </div>
 
                 <div class="overflow-x-auto">
@@ -379,7 +392,9 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
                         :key="inp.id"
                       >
                         <td class="px-4 py-2">
-                          <p class="text-sm font-medium">{{ inp.label }}</p>
+                          <p class="text-sm font-medium">
+                            {{ inp.label }}
+                          </p>
                           <p v-if="inp.formula" class="text-[11px] text-muted font-mono mt-0.5">
                             {{ inp.formula.formula }}
                           </p>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
+import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList } from '~/constants/menu'
+
 type Role = {
   id: number
   name: string
@@ -8,8 +10,6 @@ type Role = {
     permission: { name: string }
   }>
 }
-
-import { restrictedRoles as restrictedRolesList, externalRoles as externalRolesList } from '~/constants/menu'
 
 const props = defineProps<{
   open: boolean

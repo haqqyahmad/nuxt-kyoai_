@@ -234,7 +234,7 @@ const now = ref(Date.now())
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
 function syncMealProgression(rows: WaitingRow[]) {
-  const hasInProgress = rows.some(r => {
+  const hasInProgress = rows.some((r) => {
     const status = r.meal?.status ?? (r.meal as Record<string, unknown> | null)?.mealStatus
     return status === 'IN_PROGRESS'
   })

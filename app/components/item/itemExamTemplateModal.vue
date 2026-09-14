@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import ItemExamTemplate  from '~/components/item/ItemExamTemplate.vue'
+import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
 import ItemSampleManager from '~/components/item/itemSampleManager.vue'
 
 const props = defineProps<{
-  itemId:   string
+  itemId: string
   itemName: string
 }>()
 
@@ -11,7 +11,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const open    = defineModel<boolean>('open', { default: false })
+const open = defineModel<boolean>('open', { default: false })
 const activeTab = ref<'template' | 'sample'>('template')
 
 watch(open, (val) => {
@@ -19,8 +19,8 @@ watch(open, (val) => {
 })
 
 const tabs = [
-  { key: 'template', label: 'Template Exam',   icon: 'i-lucide-test-tube'          },
-  { key: 'sample',   label: 'Sample',         icon: 'i-lucide-test-tube-diagonal' },
+  { key: 'template', label: 'Template Exam', icon: 'i-lucide-test-tube' },
+  { key: 'sample', label: 'Sample', icon: 'i-lucide-test-tube-diagonal' }
 ]
 </script>
 
@@ -42,11 +42,20 @@ const tabs = [
                 <UIcon name="i-lucide-test-tube" class="size-5 text-primary" />
               </div>
               <div>
-                <h2 class="text-base font-semibold leading-tight">Konfigurasi Item</h2>
-                <p class="text-sm text-muted leading-tight mt-0.5">{{ props.itemName }}</p>
+                <h2 class="text-base font-semibold leading-tight">
+                  Konfigurasi Item
+                </h2>
+                <p class="text-sm text-muted leading-tight mt-0.5">
+                  {{ props.itemName }}
+                </p>
               </div>
             </div>
-            <UButton icon="i-lucide-x" color="neutral" variant="ghost" @click="open = false" />
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              @click="open = false"
+            />
           </div>
 
           <!-- Tabs -->
@@ -68,7 +77,6 @@ const tabs = [
 
         <!-- BODY -->
         <div class="overflow-y-auto h-full px-6 py-4">
-
           <!-- Tab: Template Exam -->
           <ItemExamTemplate
             v-if="activeTab === 'template'"
@@ -79,14 +87,17 @@ const tabs = [
             v-else-if="activeTab === 'sample'"
             :item-id="props.itemId"
           />
-
-
         </div>
 
         <!-- FOOTER -->
         <template #footer>
           <div class="flex justify-end">
-            <UButton color="neutral" variant="soft" icon="i-lucide-check" @click="open = false">
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-check"
+              @click="open = false"
+            >
               Tutup
             </UButton>
           </div>

@@ -753,7 +753,7 @@ function printModalAnswers() {
             to="/front-office/registration-temp"
           />
         </template>
-         <template #right>
+        <template #right>
           <div class="flex items-center gap-2">
             <UButton
               icon="i-lucide-printer"
@@ -935,11 +935,17 @@ function printModalAnswers() {
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Policy Number</p>
-                  <p class="font-medium">{{ reg.policyNumber ?? '-' }}</p>
+                  <p class="text-xs text-muted mb-1">
+                    Policy Number
+                  </p>
+                  <p class="font-medium">
+                    {{ reg.policyNumber ?? '-' }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+                  <p class="text-xs text-muted mb-1">
+                    Policy Exp. Date
+                  </p>
                   <p class="flex flex-wrap items-center gap-2 font-medium">
                     <span>{{ reg.policyExpDate ?? '-' }}</span>
                     <UBadge
@@ -1044,7 +1050,9 @@ function printModalAnswers() {
                   <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
                 </div>
                 <div v-else-if="!statusHistory.length" class="py-6 text-center">
-                  <p class="text-sm text-muted">Belum ada riwayat status.</p>
+                  <p class="text-sm text-muted">
+                    Belum ada riwayat status.
+                  </p>
                 </div>
                 <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
@@ -1062,7 +1070,9 @@ function printModalAnswers() {
                       </p>
                       <p v-if="item.actorName" class="text-xs text-muted mt-0.5 flex items-center gap-1">
                         <UIcon name="i-lucide-user" class="text-xs" />
-                        {{ item.actorName }}<template v-if="item.actorRole"> · {{ item.actorRole }}</template>
+                        {{ item.actorName }}<template v-if="item.actorRole">
+                          · {{ item.actorRole }}
+                        </template>
                       </p>
                     </div>
                   </div>
@@ -1313,7 +1323,14 @@ function printModalAnswers() {
                 </p>
                 <p class="text-xs text-muted">
                   RM: {{ selectedPatient.PatientId || '-' }}
-                  <UButton size="xs" variant="ghost" class="ml-2" @click="clearPatient">Ganti</UButton>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    class="ml-2"
+                    @click="clearPatient"
+                  >
+                    Ganti
+                  </UButton>
                 </p>
               </div>
             </div>

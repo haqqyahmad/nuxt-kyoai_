@@ -711,10 +711,22 @@ onMounted(() => {
             </template>
             <template #actions-cell="{ row }">
               <div class="flex flex-col gap-2 sm:flex-row">
-                <UButton icon="i-lucide-pencil" size="sm" color="neutral" variant="outline" @click="openEditGradeOption(row.original)">
+                <UButton
+                  icon="i-lucide-pencil"
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  @click="openEditGradeOption(row.original)"
+                >
                   Edit
                 </UButton>
-                <UButton icon="i-lucide-trash-2" size="sm" color="error" variant="subtle" @click="deleteGradeOption(row.original)">
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  color="error"
+                  variant="subtle"
+                  @click="deleteGradeOption(row.original)"
+                >
                   Hapus
                 </UButton>
               </div>
@@ -761,8 +773,12 @@ onMounted(() => {
             >
               <template #groupName-cell="{ row }">
                 <div class="min-w-0">
-                  <p class="font-semibold text-highlighted">{{ row.original.groupName }}</p>
-                  <p class="text-xs text-muted">{{ row.original.groupCode || '-' }}</p>
+                  <p class="font-semibold text-highlighted">
+                    {{ row.original.groupName }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ row.original.groupCode || '-' }}
+                  </p>
                 </div>
               </template>
               <template #department-cell="{ row }">
@@ -791,7 +807,13 @@ onMounted(() => {
                 </div>
               </template>
               <template #actions-cell="{ row }">
-                <UButton icon="i-lucide-settings-2" size="sm" color="neutral" variant="outline" @click="openGroupConfig(row.original)">
+                <UButton
+                  icon="i-lucide-settings-2"
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  @click="openGroupConfig(row.original)"
+                >
                   Atur Komentar
                 </UButton>
               </template>
@@ -1146,7 +1168,12 @@ onMounted(() => {
               </UFormField>
               <div class="grid grid-cols-2 gap-4">
                 <UFormField label="Urutan">
-                  <UInput v-model.number="gradeOptionForm.sortOrder" type="number" min="1" class="w-full" />
+                  <UInput
+                    v-model.number="gradeOptionForm.sortOrder"
+                    type="number"
+                    min="1"
+                    class="w-full"
+                  />
                 </UFormField>
                 <UFormField label="Status">
                   <USwitch v-model="gradeOptionForm.isActive" label="Aktif" />
@@ -1187,7 +1214,9 @@ onMounted(() => {
                 <USwitch v-model="editingGroupConfig!.showInDoctorResult" />
               </div>
               <div class="space-y-2">
-                <p class="text-xs font-semibold uppercase text-muted">Komentar per Grade</p>
+                <p class="text-xs font-semibold uppercase text-muted">
+                  Komentar per Grade
+                </p>
                 <div
                   v-for="opt in masterGradeOptions.filter(o => o.isActive)"
                   :key="opt.grade"

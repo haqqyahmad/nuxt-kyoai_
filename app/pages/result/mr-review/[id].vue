@@ -53,7 +53,7 @@ const showReturnModal = ref(false)
 const returnReason = ref('')
 const returnLoading = ref(false)
 
-const returnItems = ref<{ inputanId: string; label: string; note: string; checked: boolean }[]>([])
+const returnItems = ref<{ inputanId: string, label: string, note: string, checked: boolean }[]>([])
 
 function populateReturnItems() {
   const items = allItems.value
@@ -162,7 +162,12 @@ onMounted(loadAll)
           <UButton icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/result/mr-review')" />
         </template>
         <template #right>
-          <UButton icon="i-lucide-refresh-cw" variant="outline" :loading="loading || doctorResultLoading" @click="loadAll">
+          <UButton
+            icon="i-lucide-refresh-cw"
+            variant="outline"
+            :loading="loading || doctorResultLoading"
+            @click="loadAll"
+          >
             Refresh
           </UButton>
         </template>
@@ -179,14 +184,41 @@ onMounted(loadAll)
         <!-- Status bar -->
         <div class="flex items-center justify-between rounded-lg border p-4">
           <div class="flex items-center gap-3">
-            <UBadge :label="statusLabel(detail.status)" :color="statusColor(detail.status)" size="lg" variant="subtle" />
+            <UBadge
+              :label="statusLabel(detail.status)"
+              :color="statusColor(detail.status)"
+              size="lg"
+              variant="subtle"
+            />
             <span class="text-sm text-muted">Exam: <strong class="font-mono">{{ detail.examCode }}</strong></span>
             <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ detail.examStatus }}</span>
           </div>
           <div class="flex gap-2">
-            <UButton v-if="canVerify" :label="detail.status === 'DOCTOR_APPROVED' ? 'Mulai Review' : 'Verifikasi'" icon="i-lucide-check-circle" color="success" :loading="submitting" @click="handleVerify" />
-            <UButton v-if="canReturn" label="Return ke Dokter" icon="i-lucide-rotate-ccw" color="warning" variant="outline" :loading="submitting" @click="openReturnModal" />
-            <UButton v-if="canRelease" :label="detail.status === 'MR_VERIFIED' ? 'Siap Rilis' : 'Rilis'" icon="i-lucide-send" color="primary" :loading="submitting" @click="handleRelease" />
+            <UButton
+              v-if="canVerify"
+              :label="detail.status === 'DOCTOR_APPROVED' ? 'Mulai Review' : 'Verifikasi'"
+              icon="i-lucide-check-circle"
+              color="success"
+              :loading="submitting"
+              @click="handleVerify"
+            />
+            <UButton
+              v-if="canReturn"
+              label="Return ke Dokter"
+              icon="i-lucide-rotate-ccw"
+              color="warning"
+              variant="outline"
+              :loading="submitting"
+              @click="openReturnModal"
+            />
+            <UButton
+              v-if="canRelease"
+              :label="detail.status === 'MR_VERIFIED' ? 'Siap Rilis' : 'Rilis'"
+              icon="i-lucide-send"
+              color="primary"
+              :loading="submitting"
+              @click="handleRelease"
+            />
           </div>
         </div>
 
@@ -195,32 +227,50 @@ onMounted(loadAll)
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-user" class="size-5 text-primary" />
-              <h2 class="text-lg font-semibold">Informasi Pasien</h2>
+              <h2 class="text-lg font-semibold">
+                Informasi Pasien
+              </h2>
             </div>
           </template>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <div class="text-xs text-muted">Nama</div>
-              <div class="font-medium">{{ detail.patient?.name ?? '-' }}</div>
+              <div class="text-xs text-muted">
+                Nama
+              </div>
+              <div class="font-medium">
+                {{ detail.patient?.name ?? '-' }}
+              </div>
             </div>
             <div>
-              <div class="text-xs text-muted">Patient ID</div>
-              <div class="font-mono text-sm">{{ detail.patient?.PatientId ?? '-' }}</div>
+              <div class="text-xs text-muted">
+                Patient ID
+              </div>
+              <div class="font-mono text-sm">
+                {{ detail.patient?.PatientId ?? '-' }}
+              </div>
             </div>
             <div>
-              <div class="text-xs text-muted">Gender</div>
+              <div class="text-xs text-muted">
+                Gender
+              </div>
               <div>{{ detail.patient?.gender ?? '-' }}</div>
             </div>
             <div>
-              <div class="text-xs text-muted">Queue Code</div>
+              <div class="text-xs text-muted">
+                Queue Code
+              </div>
               <div>{{ detail.queueCode ?? '-' }}</div>
             </div>
             <div>
-              <div class="text-xs text-muted">Perusahaan</div>
+              <div class="text-xs text-muted">
+                Perusahaan
+              </div>
               <div>{{ detail.company ?? '-' }}</div>
             </div>
             <div>
-              <div class="text-xs text-muted">Exam Date</div>
+              <div class="text-xs text-muted">
+                Exam Date
+              </div>
               <div>{{ formatDate(detail.examDate) }}</div>
             </div>
           </div>
@@ -231,25 +281,41 @@ onMounted(loadAll)
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-stethoscope" class="size-5 text-primary" />
-              <h2 class="text-lg font-semibold">Grading Dokter</h2>
+              <h2 class="text-lg font-semibold">
+                Grading Dokter
+              </h2>
             </div>
           </template>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <div class="text-xs text-muted">Final Grade</div>
-              <div class="text-xl font-bold">{{ detail.meta?.finalGrade ?? '-' }}</div>
+              <div class="text-xs text-muted">
+                Final Grade
+              </div>
+              <div class="text-xl font-bold">
+                {{ detail.meta?.finalGrade ?? '-' }}
+              </div>
             </div>
             <div>
-              <div class="text-xs text-muted">Fitness Level</div>
+              <div class="text-xs text-muted">
+                Fitness Level
+              </div>
               <div>{{ detail.meta?.fitnessLevel ?? '-' }}</div>
             </div>
             <div>
-              <div class="text-xs text-muted">Final Comment</div>
-              <div class="text-sm">{{ detail.meta?.finalComment ?? '-' }}</div>
+              <div class="text-xs text-muted">
+                Final Comment
+              </div>
+              <div class="text-sm">
+                {{ detail.meta?.finalComment ?? '-' }}
+              </div>
             </div>
             <div>
-              <div class="text-xs text-muted">Internal Note</div>
-              <div class="text-sm text-muted">{{ detail.meta?.internalNote ?? '-' }}</div>
+              <div class="text-xs text-muted">
+                Internal Note
+              </div>
+              <div class="text-sm text-muted">
+                {{ detail.meta?.internalNote ?? '-' }}
+              </div>
             </div>
           </div>
         </UCard>
@@ -260,11 +326,17 @@ onMounted(loadAll)
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
                 <UIcon name="i-lucide-stethoscope" class="size-5 text-primary" />
-                <h2 class="text-lg font-semibold">Detail Doctor Result</h2>
+                <h2 class="text-lg font-semibold">
+                  Detail Doctor Result
+                </h2>
               </div>
               <div class="flex gap-2">
-                <UBadge color="info" variant="soft">{{ gradedCount }}/{{ totalGradable }} graded</UBadge>
-                <UBadge color="warning" variant="soft">{{ abnormalCount }} abnormal</UBadge>
+                <UBadge color="info" variant="soft">
+                  {{ gradedCount }}/{{ totalGradable }} graded
+                </UBadge>
+                <UBadge color="warning" variant="soft">
+                  {{ abnormalCount }} abnormal
+                </UBadge>
               </div>
             </div>
           </template>
@@ -277,43 +349,79 @@ onMounted(loadAll)
             <section v-for="dept in departments" :key="dept.departmentId" class="space-y-4">
               <div class="flex items-center justify-between border-b pb-2">
                 <div>
-                  <h3 class="font-semibold">{{ dept.departmentName }}</h3>
-                  <p class="text-xs text-muted">{{ dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) }} item</p>
+                  <h3 class="font-semibold">
+                    {{ dept.departmentName }}
+                  </h3>
+                  <p class="text-xs text-muted">
+                    {{ dept.groups.reduce((n, g) => n + (g.items?.length ?? 0), 0) }} item
+                  </p>
                 </div>
-                <UBadge color="neutral" variant="soft">{{ dept.departmentCode }}</UBadge>
+                <UBadge color="neutral" variant="soft">
+                  {{ dept.departmentCode }}
+                </UBadge>
               </div>
 
               <div v-for="group in dept.groups" :key="group.groupName" class="overflow-hidden rounded-lg border border-default/70">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b bg-elevated/40 px-4 py-3">
                   <div>
-                    <h4 class="font-semibold">{{ group.groupName }}</h4>
-                    <p class="text-xs text-muted">Grade Group: <strong>{{ groupGrade(group) }}</strong></p>
-                    <p v-if="group.comment" class="mt-1 text-sm">{{ group.comment }}</p>
+                    <h4 class="font-semibold">
+                      {{ group.groupName }}
+                    </h4>
+                    <p class="text-xs text-muted">
+                      Grade Group: <strong>{{ groupGrade(group) }}</strong>
+                    </p>
+                    <p v-if="group.comment" class="mt-1 text-sm">
+                      {{ group.comment }}
+                    </p>
                   </div>
-                  <UBadge v-if="group.isAbnormal" color="error" variant="soft">{{ group.abnormalCount }} abnormal</UBadge>
-                  <UBadge v-else color="success" variant="soft">Normal</UBadge>
+                  <UBadge v-if="group.isAbnormal" color="error" variant="soft">
+                    {{ group.abnormalCount }} abnormal
+                  </UBadge>
+                  <UBadge v-else color="success" variant="soft">
+                    Normal
+                  </UBadge>
                 </div>
 
                 <div class="overflow-x-auto">
                   <table class="w-full min-w-[960px] text-sm">
                     <thead class="bg-elevated/40 text-left text-xs uppercase text-muted">
                       <tr>
-                        <th class="px-4 py-3">Item</th>
-                        <th class="px-4 py-3">Result</th>
-                        <th class="px-4 py-3">Normal Range</th>
-                        <th class="px-4 py-3">Flag</th>
-                        <th class="px-4 py-3">Grade</th>
-                        <th class="px-4 py-3">Comment</th>
-                        <th class="px-4 py-3">Source</th>
+                        <th class="px-4 py-3">
+                          Item
+                        </th>
+                        <th class="px-4 py-3">
+                          Result
+                        </th>
+                        <th class="px-4 py-3">
+                          Normal Range
+                        </th>
+                        <th class="px-4 py-3">
+                          Flag
+                        </th>
+                        <th class="px-4 py-3">
+                          Grade
+                        </th>
+                        <th class="px-4 py-3">
+                          Comment
+                        </th>
+                        <th class="px-4 py-3">
+                          Source
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="item in group.items" :key="item.inputanId" class="border-t border-default align-top">
                         <td class="px-4 py-3">
-                          <div class="font-medium">{{ item.inputanLabel }}</div>
-                          <div class="text-xs text-muted">{{ item.inputanCode ?? '-' }}</div>
+                          <div class="font-medium">
+                            {{ item.inputanLabel }}
+                          </div>
+                          <div class="text-xs text-muted">
+                            {{ item.inputanCode ?? '-' }}
+                          </div>
                         </td>
-                        <td class="px-4 py-3 font-mono">{{ displayResult(item) }}</td>
+                        <td class="px-4 py-3 font-mono">
+                          {{ displayResult(item) }}
+                        </td>
                         <td class="px-4 py-3">
                           <span v-if="item.normalMin != null || item.normalMax != null">{{ item.normalMin ?? '-' }} - {{ item.normalMax ?? '-' }}</span>
                           <span v-else>-</span>
@@ -322,12 +430,19 @@ onMounted(loadAll)
                           <UBadge :label="flagLabel(item.flag)" :color="flagColor(item.flag)" variant="subtle" />
                         </td>
                         <td class="px-4 py-3">
-                          <UBadge v-if="item.grade" :label="item.grade" color="primary" variant="subtle" />
+                          <UBadge
+                            v-if="item.grade"
+                            :label="item.grade"
+                            color="primary"
+                            variant="subtle"
+                          />
                           <span v-else class="text-muted">-</span>
                         </td>
                         <td class="px-4 py-3">
                           <div>{{ item.comment ?? '-' }}</div>
-                          <div v-if="item.recommendation" class="mt-1 text-xs text-muted">{{ item.recommendation }}</div>
+                          <div v-if="item.recommendation" class="mt-1 text-xs text-muted">
+                            {{ item.recommendation }}
+                          </div>
                         </td>
                         <td class="px-4 py-3">
                           <UBadge :label="item.source" :color="item.locked ? 'neutral' : 'info'" variant="subtle" />
@@ -340,7 +455,9 @@ onMounted(loadAll)
             </section>
           </div>
 
-          <div v-else class="py-8 text-center text-sm text-muted">Detail Doctor Result tidak tersedia</div>
+          <div v-else class="py-8 text-center text-sm text-muted">
+            Detail Doctor Result tidak tersedia
+          </div>
         </UCard>
 
         <!-- Audit trail -->
@@ -348,16 +465,24 @@ onMounted(loadAll)
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-history" class="size-5 text-primary" />
-              <h2 class="text-lg font-semibold">Audit Trail</h2>
+              <h2 class="text-lg font-semibold">
+                Audit Trail
+              </h2>
             </div>
           </template>
-          <div v-if="detail.actions.length === 0" class="text-sm text-muted">Belum ada aksi</div>
+          <div v-if="detail.actions.length === 0" class="text-sm text-muted">
+            Belum ada aksi
+          </div>
           <div v-else class="space-y-2">
             <div v-for="(action, i) in detail.actions" :key="i" class="flex items-start gap-3 rounded border p-3">
               <UBadge :label="action.action" :color="action.action === 'VERIFY' ? 'success' : action.action === 'RETURN' ? 'warning' : action.action === 'RELEASE' ? 'primary' : 'neutral'" variant="subtle" />
               <div class="flex-1">
-                <div class="text-sm">{{ action.reason ?? '-' }}</div>
-                <div class="mt-1 text-xs text-muted">{{ formatDate(action.createdAt) }} · Actor #{{ action.actorId ?? '?' }}</div>
+                <div class="text-sm">
+                  {{ action.reason ?? '-' }}
+                </div>
+                <div class="mt-1 text-xs text-muted">
+                  {{ formatDate(action.createdAt) }} · Actor #{{ action.actorId ?? '?' }}
+                </div>
               </div>
             </div>
           </div>
@@ -365,7 +490,9 @@ onMounted(loadAll)
       </div>
 
       <!-- Error -->
-      <div v-else-if="!loading" class="py-20 text-center text-muted">Data tidak ditemukan</div>
+      <div v-else-if="!loading" class="py-20 text-center text-muted">
+        Data tidak ditemukan
+      </div>
 
       <!-- Return modal -->
       <UModal v-model:open="showReturnModal" title="Return ke Dokter" description="Alasan wajib diisi. Centang item yang perlu diperbaiki dan beri catatan.">
@@ -373,12 +500,19 @@ onMounted(loadAll)
           <div class="space-y-4">
             <div>
               <label class="mb-1 block text-xs font-semibold text-muted">Alasan Return</label>
-              <UTextarea v-model="returnReason" placeholder="Tulis alasan return..." :rows="3" class="w-full" />
+              <UTextarea
+                v-model="returnReason"
+                placeholder="Tulis alasan return..."
+                :rows="3"
+                class="w-full"
+              />
             </div>
 
             <div>
               <label class="mb-1 block text-xs font-semibold text-muted">Item yang Harus Diperbaiki</label>
-              <div v-if="returnItems.length === 0" class="text-sm text-muted">Tidak ada item gradable untuk dipilih.</div>
+              <div v-if="returnItems.length === 0" class="text-sm text-muted">
+                Tidak ada item gradable untuk dipilih.
+              </div>
               <div v-else class="max-h-72 space-y-1.5 overflow-y-auto rounded border p-2">
                 <div
                   v-for="item in returnItems"
@@ -390,7 +524,7 @@ onMounted(loadAll)
                     v-model="item.checked"
                     type="checkbox"
                     class="mt-1 size-4"
-                  />
+                  >
                   <div class="min-w-0 flex-1">
                     <label :for="`ret-${item.inputanId}`" class="block cursor-pointer text-sm font-medium">
                       {{ item.label }}
@@ -411,7 +545,13 @@ onMounted(loadAll)
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton label="Batal" variant="outline" @click="showReturnModal = false" />
-            <UButton label="Return" color="warning" :loading="returnLoading" :disabled="!returnReason.trim()" @click="handleReturn" />
+            <UButton
+              label="Return"
+              color="warning"
+              :loading="returnLoading"
+              :disabled="!returnReason.trim()"
+              @click="handleReturn"
+            />
           </div>
         </template>
       </UModal>

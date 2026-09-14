@@ -80,7 +80,7 @@ export function useMenuPreview() {
     // Filter Results berdasarkan role → department mapping
     const defaultDept = options.roleName ? roleDefaultDepartment[options.roleName.toLowerCase()] : null
 
-    return filtered.map(item => {
+    return filtered.map((item) => {
       // Lab menu: hanya tampilkan jika ada permission sample:receive
       if (item.label === 'Lab') {
         const hasSampleReceive = permissions.some(p => p.includes('sample:receive'))
@@ -105,7 +105,7 @@ export function useMenuPreview() {
       if (item.label === 'Results' && defaultDept) {
         return {
           ...item,
-          children: (item.children as NavigationMenuItem[]).filter(child => {
+          children: (item.children as NavigationMenuItem[]).filter((child) => {
             const code = (child as Record<string, unknown>).resultDepartmentCode
             return code === defaultDept
           })

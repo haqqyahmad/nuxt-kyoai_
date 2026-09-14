@@ -42,7 +42,6 @@ type Patient = {
 }
 
 function mapPatient(item: any): Patient & { id_reg: string } {
-
   return {
     id: item.patient?.id,
     patientCode: item.patient?.patientCode,

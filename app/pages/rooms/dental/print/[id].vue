@@ -51,7 +51,7 @@ const vital = computed(() => ({
   dob: data.value?.dob ? new Date(data.value.dob).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
   age: data.value?.age != null ? `${data.value.age} th` : '-',
   examDate: formatDate(data.value?.examDate ?? null),
-  queueNo: data.value?.queueCode ?? '-',
+  queueNo: data.value?.queueCode ?? '-'
 }))
 </script>
 
@@ -64,7 +64,9 @@ const vital = computed(() => ({
 
     <!-- Error -->
     <div v-else-if="error" class="flex min-h-screen items-center justify-center">
-      <p class="text-red-600">{{ error }}</p>
+      <p class="text-red-600">
+        {{ error }}
+      </p>
     </div>
 
     <!-- Content -->
@@ -73,7 +75,7 @@ const vital = computed(() => ({
         <!-- ═══════ HEADER ═══════ -->
         <header class="header">
           <div class="brand">
-            <img class="brand-logo" src="/logo.png" alt="Logo" />
+            <img class="brand-logo" src="/logo.png" alt="Logo">
             <div>
               <h1>DENTAL EXAMINATION REPORT</h1>
               <p>Medical Check-Up &bull; Dental Department</p>
@@ -88,20 +90,60 @@ const vital = computed(() => ({
 
         <!-- ═══════ PATIENT INFO ═══════ -->
         <section class="section">
-          <div class="section-title">Patient Information</div>
+          <div class="section-title">
+            Patient Information
+          </div>
           <div class="info-grid">
-            <div class="info-row"><div class="label">No. RM</div><div>:</div><div class="value">{{ vital.rm }}</div></div>
-            <div class="info-row"><div class="label">Queue No.</div><div>:</div><div class="value">{{ vital.queueNo }}</div></div>
-            <div class="info-row"><div class="label">Patient Name</div><div>:</div><div class="value">{{ vital.name }}</div></div>
-            <div class="info-row"><div class="label">Gender</div><div>:</div><div class="value">{{ vital.gender }}</div></div>
-            <div class="info-row"><div class="label">Date of Birth</div><div>:</div><div class="value">{{ vital.dob }} ({{ vital.age }})</div></div>
-            <div class="info-row"><div class="label">Examination</div><div>:</div><div class="value">Dental MCU</div></div>
+            <div class="info-row">
+              <div class="label">
+                No. RM
+              </div><div>:</div><div class="value">
+                {{ vital.rm }}
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="label">
+                Queue No.
+              </div><div>:</div><div class="value">
+                {{ vital.queueNo }}
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="label">
+                Patient Name
+              </div><div>:</div><div class="value">
+                {{ vital.name }}
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="label">
+                Gender
+              </div><div>:</div><div class="value">
+                {{ vital.gender }}
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="label">
+                Date of Birth
+              </div><div>:</div><div class="value">
+                {{ vital.dob }} ({{ vital.age }})
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="label">
+                Examination
+              </div><div>:</div><div class="value">
+                Dental MCU
+              </div>
+            </div>
           </div>
         </section>
 
         <!-- ═══════ CLINICAL FINDINGS ═══════ -->
         <section class="section">
-          <div class="section-title">Clinical Findings</div>
+          <div class="section-title">
+            Clinical Findings
+          </div>
           <div class="clinical-grid">
             <div class="clinical-card">
               <h3>Extra Oral</h3>
@@ -124,7 +166,9 @@ const vital = computed(() => ({
 
         <!-- ═══════ ODONTOGRAM ═══════ -->
         <section class="section">
-          <div class="section-title">Odontogram</div>
+          <div class="section-title">
+            Odontogram
+          </div>
           <div class="odontogram">
             <div class="odontogram-head">
               <span>Patient Right</span>
@@ -132,13 +176,15 @@ const vital = computed(() => ({
               <span>Patient Left</span>
             </div>
 
-            <img class="odontogram-img" src="/odontogram.png" alt="Odontogram FDI" />
+            <img class="odontogram-img" src="/odontogram.png" alt="Odontogram FDI">
           </div>
         </section>
 
         <!-- ═══════ DENTAL FINDINGS TABLE ═══════ -->
         <section class="section">
-          <div class="section-title">Dental Findings</div>
+          <div class="section-title">
+            Dental Findings
+          </div>
           <div v-if="data.findings?.length" class="findings-grid">
             <div v-for="finding in data.findings" :key="finding.toothNumber" class="finding-item">
               <span class="finding-tooth">{{ finding.toothNumber }}</span>
@@ -159,13 +205,18 @@ const vital = computed(() => ({
             <div class="note-card">
               <h3>Other Findings</h3>
               <ul>
-                <li v-for="v in (data.otherDental?.length ? data.otherDental : ['-']) " :key="v">{{ v }}</li>
+                <li v-for="v in (data.otherDental?.length ? data.otherDental : ['-']) " :key="v">
+                  {{ v }}
+                </li>
               </ul>
-              <p v-if="data.otherNote">{{ data.otherNote }}</p>
+              <p v-if="data.otherNote">
+                {{ data.otherNote }}
+              </p>
             </div>
             <div class="note-card">
               <h3>Final Grade &amp; Recommendation</h3>
-              <p><strong>{{ data.finalGrade ?? '-' }}</strong>
+              <p>
+                <strong>{{ data.finalGrade ?? '-' }}</strong>
                 <span v-if="data.finalGrade && gradeConfig[data.finalGrade]?.label" class="chip">{{ gradeConfig[data.finalGrade]?.label }}</span>
               </p>
               <p>{{ data.doctorComment || (data.finalGrade ? (gradeConfig[data.finalGrade]?.comment ?? '-') : '-') }}</p>
@@ -181,9 +232,13 @@ const vital = computed(() => ({
           </div>
           <div class="signature">
             <div>Jakarta, {{ formatDate(data.examDate) }}</div>
-            <div class="space"></div>
-            <div class="sig-name">{{ data.doctorName || 'Dokter Gigi' }}</div>
-            <div v-if="data.doctorSip" class="sig-sip">SIP: {{ data.doctorSip }}</div>
+            <div class="space" />
+            <div class="sig-name">
+              {{ data.doctorName || 'Dokter Gigi' }}
+            </div>
+            <div v-if="data.doctorSip" class="sig-sip">
+              SIP: {{ data.doctorSip }}
+            </div>
           </div>
         </footer>
       </div>

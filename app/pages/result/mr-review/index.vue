@@ -159,7 +159,12 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton icon="i-lucide-refresh-cw" variant="outline" :loading="loading" @click="loadList({ status: currentStatusParam(), page: currentPage, limit: pageSize })">
+          <UButton
+            icon="i-lucide-refresh-cw"
+            variant="outline"
+            :loading="loading"
+            @click="loadList({ status: currentStatusParam(), page: currentPage, limit: pageSize })"
+          >
             Refresh
           </UButton>
         </template>
@@ -171,35 +176,65 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
         <div>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-clipboard-check" class="size-6 text-primary" />
-            <h1 class="text-2xl font-bold">Medical Record Review</h1>
+            <h1 class="text-2xl font-bold">
+              Medical Record Review
+            </h1>
           </div>
-          <p class="mt-1 text-sm text-muted">Verifikasi, return, atau release report yang sudah disetujui dokter.</p>
+          <p class="mt-1 text-sm text-muted">
+            Verifikasi, return, atau release report yang sudah disetujui dokter.
+          </p>
         </div>
 
         <!-- Summary cards -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <UCard>
-            <div class="text-sm text-muted">Menunggu MR</div>
-            <div class="mt-1 text-2xl font-bold text-warning">{{ totalWaiting }}</div>
+            <div class="text-sm text-muted">
+              Menunggu MR
+            </div>
+            <div class="mt-1 text-2xl font-bold text-warning">
+              {{ totalWaiting }}
+            </div>
           </UCard>
           <UCard>
-            <div class="text-sm text-muted">Terverifikasi</div>
-            <div class="mt-1 text-2xl font-bold text-success">{{ totalVerified }}</div>
+            <div class="text-sm text-muted">
+              Terverifikasi
+            </div>
+            <div class="mt-1 text-2xl font-bold text-success">
+              {{ totalVerified }}
+            </div>
           </UCard>
           <UCard>
-            <div class="text-sm text-muted">Released</div>
-            <div class="mt-1 text-2xl font-bold text-primary">{{ totalReleased }}</div>
+            <div class="text-sm text-muted">
+              Released
+            </div>
+            <div class="mt-1 text-2xl font-bold text-primary">
+              {{ totalReleased }}
+            </div>
           </UCard>
           <UCard>
-            <div class="text-sm text-muted">Total</div>
-            <div class="mt-1 text-2xl font-bold">{{ totalItems }}</div>
+            <div class="text-sm text-muted">
+              Total
+            </div>
+            <div class="mt-1 text-2xl font-bold">
+              {{ totalItems }}
+            </div>
           </UCard>
         </div>
 
         <!-- Filters -->
         <div class="flex flex-wrap items-center gap-2">
-          <UInput v-model="search" placeholder="Cari pasien / exam code..." icon="i-lucide-search" class="w-64" />
-          <USelect v-model="statusFilter" :items="statusOptions" placeholder="Status" class="w-52" />
+          <UInput
+            v-model="search"
+            placeholder="Cari pasien / exam code..."
+            icon="i-lucide-search"
+            class="w-64"
+          />
+          <USelect
+            v-model="statusFilter"
+            :items="statusOptions"
+            placeholder="Status"
+            class="w-52"
+          />
         </div>
 
         <!-- Table -->
@@ -214,8 +249,20 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
         <div v-if="totalItems > pageSize" class="flex items-center justify-between">
           <span class="text-sm text-muted">Menampilkan {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalItems) }} dari {{ totalItems }}</span>
           <div class="flex gap-1">
-            <UButton label="Sebelumnya" variant="outline" size="xs" :disabled="currentPage <= 1" @click="currentPage--" />
-            <UButton label="Berikutnya" variant="outline" size="xs" :disabled="currentPage * pageSize >= totalItems" @click="currentPage++" />
+            <UButton
+              label="Sebelumnya"
+              variant="outline"
+              size="xs"
+              :disabled="currentPage <= 1"
+              @click="currentPage--"
+            />
+            <UButton
+              label="Berikutnya"
+              variant="outline"
+              size="xs"
+              :disabled="currentPage * pageSize >= totalItems"
+              @click="currentPage++"
+            />
           </div>
         </div>
       </div>

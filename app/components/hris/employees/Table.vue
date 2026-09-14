@@ -172,6 +172,5 @@ function getStatusColor(status?: string) {
         />
       </div>
     </template>
-
   </UCard>
 </template>

@@ -237,27 +237,53 @@ onMounted(() => {
         <UCard>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div>
-              <p class="text-xs text-muted">Patient Name</p>
-              <p class="mt-1 font-semibold text-highlighted">{{ patientName }}</p>
-              <p class="text-xs text-muted">{{ patient?.PatientId || '-' }}</p>
+              <p class="text-xs text-muted">
+                Patient Name
+              </p>
+              <p class="mt-1 font-semibold text-highlighted">
+                {{ patientName }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ patient?.PatientId || '-' }}
+              </p>
             </div>
             <div>
-              <p class="text-xs text-muted">Gender / Age</p>
-              <p class="mt-1 font-semibold">{{ patientGender }} · {{ patientAge }}</p>
-              <p class="text-xs text-muted">Born {{ patientDob }}</p>
+              <p class="text-xs text-muted">
+                Gender / Age
+              </p>
+              <p class="mt-1 font-semibold">
+                {{ patientGender }} · {{ patientAge }}
+              </p>
+              <p class="text-xs text-muted">
+                Born {{ patientDob }}
+              </p>
             </div>
             <div>
-              <p class="text-xs text-muted">Company / Package</p>
-              <p class="mt-1 font-semibold">{{ (result as any).company || '-' }}</p>
-              <p class="text-xs text-muted">{{ (result as any).packageName || '-' }}</p>
+              <p class="text-xs text-muted">
+                Company / Package
+              </p>
+              <p class="mt-1 font-semibold">
+                {{ (result as any).company || '-' }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ (result as any).packageName || '-' }}
+              </p>
             </div>
             <div>
-              <p class="text-xs text-muted">Examination</p>
-              <p class="mt-1 font-semibold">{{ (result as any).exam?.examCode || '-' }}</p>
-              <p class="text-xs text-muted">{{ (result as any).checkinAt ? new Date((result as any).checkinAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' }}</p>
+              <p class="text-xs text-muted">
+                Examination
+              </p>
+              <p class="mt-1 font-semibold">
+                {{ (result as any).exam?.examCode || '-' }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ (result as any).checkinAt ? new Date((result as any).checkinAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' }}
+              </p>
             </div>
             <div class="min-w-0">
-              <p class="text-xs text-muted">Reg No.</p>
+              <p class="text-xs text-muted">
+                Reg No.
+              </p>
               <p class="mt-1 truncate font-mono text-xs font-semibold text-highlighted" :title="(result as any).queueCode || '-'">
                 {{ (result as any).queueCode || '-' }}
               </p>

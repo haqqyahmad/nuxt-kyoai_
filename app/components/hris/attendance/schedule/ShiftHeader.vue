@@ -114,56 +114,53 @@ function goToday() {
 <template>
   <UCard>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    
-<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-  <!-- DATE PICKER -->
-  <UPopover>
-    <UButton
-      color="neutral"
-      variant="outline"
-      icon="i-lucide-calendar"
-      class="justify-start min-w-[240px]"
-    >
-      {{ title }}
-    </UButton>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <!-- DATE PICKER -->
+        <UPopover>
+          <UButton
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-calendar"
+            class="justify-start min-w-[240px]"
+          >
+            {{ title }}
+          </UButton>
 
-    <template #content>
-      <div class="p-2">
-        <UCalendar
-          v-model="calendarDate"
-        />
+          <template #content>
+            <div class="p-2">
+              <UCalendar
+                v-model="calendarDate"
+              />
+            </div>
+          </template>
+        </UPopover>
+
+        <!-- NAVIGATION -->
+        <div class="flex items-center gap-2">
+          <UButton
+            icon="i-lucide-chevron-left"
+            color="neutral"
+            variant="outline"
+            square
+            @click="goPrevious"
+          />
+
+          <UButton
+            icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="outline"
+            square
+            @click="goNext"
+          />
+
+          <UButton
+            label="Today"
+            color="neutral"
+            variant="outline"
+            @click="goToday"
+          />
+        </div>
       </div>
-    </template>
-  </UPopover>
-
-  <!-- NAVIGATION -->
-  <div class="flex items-center gap-2">
-    <UButton
-      icon="i-lucide-chevron-left"
-      color="neutral"
-      variant="outline"
-      square
-      @click="goPrevious"
-    />
-
-    <UButton
-      icon="i-lucide-chevron-right"
-      color="neutral"
-      variant="outline"
-      square
-      @click="goNext"
-    />
-
-    <UButton
-      label="Today"
-      color="neutral"
-      variant="outline"
-      @click="goToday"
-    />
-  </div>
-</div>
-
-
 
       <div class="flex flex-col gap-2 sm:flex-row">
         <UButtonGroup class="w-full sm:w-auto">

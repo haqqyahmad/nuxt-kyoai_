@@ -399,7 +399,13 @@ onMounted(load)
             </div>
           </template>
           <template #actions>
-            <UButton label="View All" size="sm" color="error" variant="outline" @click="statusFilter = 'needs_revision'" />
+            <UButton
+              label="View All"
+              size="sm"
+              color="error"
+              variant="outline"
+              @click="statusFilter = 'needs_revision'"
+            />
           </template>
         </UAlert>
 

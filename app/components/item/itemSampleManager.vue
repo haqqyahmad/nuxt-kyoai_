@@ -5,7 +5,7 @@ const props = defineProps<{
   itemId: string
 }>()
 
-const api  = useApi()
+const api = useApi()
 const toast = useToast()
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,17 +28,17 @@ type ItemSample = {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-const currentSamples  = ref<ItemSample[]>([])    // samples yang sudah tersimpan
-const allSampleTypes  = ref<SampleType[]>([])     // master list dari BE
-const loading         = ref(false)
-const saveLoading     = ref(false)
+const currentSamples = ref<ItemSample[]>([]) // samples yang sudah tersimpan
+const allSampleTypes = ref<SampleType[]>([]) // master list dari BE
+const loading = ref(false)
+const saveLoading = ref(false)
 
 // draft — apa yang ada di UI (belum tentu tersimpan)
 type DraftRow = {
   sampleTypeId: string
-  isPrimary:    boolean
-  sortOrder:    number
-  _key:         number
+  isPrimary: boolean
+  sortOrder: number
+  _key: number
 }
 
 const draft = ref<DraftRow[]>([])
@@ -48,18 +48,18 @@ let keyCounter = 0
 
 // sampleType yang belum dipilih di draft (untuk dropdown)
 const availableSampleTypes = computed(() => {
-  const picked = new Set(draft.value.map((d) => d.sampleTypeId))
-  return allSampleTypes.value.filter((s) => s.isActive && !picked.has(s.id))
+  const picked = new Set(draft.value.map(d => d.sampleTypeId))
+  return allSampleTypes.value.filter(s => s.isActive && !picked.has(s.id))
 })
 
 const isDirty = computed(() => {
   // bandingkan draft vs currentSamples
   const cur = currentSamples.value
-    .map((s) => ({ sampleTypeId: s.sampleTypeId, isPrimary: s.isPrimary, sortOrder: s.sortOrder }))
+    .map(s => ({ sampleTypeId: s.sampleTypeId, isPrimary: s.isPrimary, sortOrder: s.sortOrder }))
     .sort((a, b) => a.sortOrder - b.sortOrder)
 
   const drft = draft.value
-    .map((d) => ({ sampleTypeId: d.sampleTypeId, isPrimary: d.isPrimary, sortOrder: d.sortOrder }))
+    .map(d => ({ sampleTypeId: d.sampleTypeId, isPrimary: d.isPrimary, sortOrder: d.sortOrder }))
     .sort((a, b) => a.sortOrder - b.sortOrder)
 
   return JSON.stringify(cur) !== JSON.stringify(drft)
@@ -67,9 +67,9 @@ const isDirty = computed(() => {
 
 // label untuk dropdown
 const sampleTypeOptions = computed(() =>
-  availableSampleTypes.value.map((s) => ({
+  availableSampleTypes.value.map(s => ({
     label: `${s.name} (${s.code})`,
-    value: s.id,
+    value: s.id
   }))
 )
 
@@ -80,7 +80,7 @@ async function load() {
   try {
     const [itemRes, sampleRes] = await Promise.all([
       api.get(`/mcu/items/${props.itemId}`),
-      api.get('/medical/exams/sample-types?isActive=true&limit=100'),
+      api.get('/medical/exams/sample-types?isActive=true&limit=100')
     ])
 
     allSampleTypes.value = sampleRes.data.data ?? []
@@ -92,11 +92,11 @@ async function load() {
     // inisialisasi draft dari data tersimpan
     draft.value = raw
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((s) => ({
+      .map(s => ({
         sampleTypeId: s.sampleTypeId,
-        isPrimary:    s.isPrimary,
-        sortOrder:    s.sortOrder,
-        _key:         keyCounter++,
+        isPrimary: s.isPrimary,
+        sortOrder: s.sortOrder,
+        _key: keyCounter++
       }))
   } catch {
     toast.add({ title: 'Gagal', description: 'Gagal memuat data sample', color: 'error' })
@@ -112,14 +112,14 @@ watch(() => props.itemId, load, { immediate: true })
 function addRow() {
   draft.value.push({
     sampleTypeId: '',
-    isPrimary:    false,
-    sortOrder:    draft.value.length + 1,
-    _key:         keyCounter++,
+    isPrimary: false,
+    sortOrder: draft.value.length + 1,
+    _key: keyCounter++
   })
 }
 
 function removeRow(key: number) {
-  const idx = draft.value.findIndex((d) => d._key === key)
+  const idx = draft.value.findIndex(d => d._key === key)
   if (idx === -1) return
   draft.value.splice(idx, 1)
   recalcSortOrder()
@@ -161,11 +161,11 @@ function onPrimaryChange(key: number) {
 function resetDraft() {
   draft.value = currentSamples.value
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((s) => ({
+    .map(s => ({
       sampleTypeId: s.sampleTypeId,
-      isPrimary:    s.isPrimary,
-      sortOrder:    s.sortOrder,
-      _key:         keyCounter++,
+      isPrimary: s.isPrimary,
+      sortOrder: s.sortOrder,
+      _key: keyCounter++
     }))
 }
 
@@ -175,12 +175,12 @@ async function save() {
   if (saveLoading.value) return
 
   // validasi — semua row harus punya sampleTypeId
-  const invalid = draft.value.some((d) => !d.sampleTypeId)
+  const invalid = draft.value.some(d => !d.sampleTypeId)
   if (invalid) {
     toast.add({
       title: 'Validasi',
       description: 'Setiap baris harus memilih jenis sample.',
-      color: 'warning',
+      color: 'warning'
     })
     return
   }
@@ -190,11 +190,11 @@ async function save() {
     // PUT /mcu/sample-types/item/:itemId/samples
     // Body: { samples: [{ sampleTypeId, isPrimary, sortOrder }] }
     await api.put(`/medical/exams/sample-types/item/${props.itemId}/samples`, {
-      samples: draft.value.map((d) => ({
+      samples: draft.value.map(d => ({
         sampleTypeId: d.sampleTypeId,
-        isPrimary:    d.isPrimary,
-        sortOrder:    d.sortOrder,
-      })),
+        isPrimary: d.isPrimary,
+        sortOrder: d.sortOrder
+      }))
     })
 
     toast.add({ title: 'Berhasil', description: 'Sample item berhasil disimpan', color: 'success' })
@@ -203,7 +203,7 @@ async function save() {
     toast.add({
       title: 'Gagal',
       description: error?.response?.data?.message || 'Gagal menyimpan sample item',
-      color: 'error',
+      color: 'error'
     })
   } finally {
     saveLoading.value = false
@@ -213,29 +213,30 @@ async function save() {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSampleTypeName(id: string) {
-  return allSampleTypes.value.find((s) => s.id === id)?.name ?? '-'
+  return allSampleTypes.value.find(s => s.id === id)?.name ?? '-'
 }
 
 function getSampleTypeCode(id: string) {
-  return allSampleTypes.value.find((s) => s.id === id)?.code ?? ''
+  return allSampleTypes.value.find(s => s.id === id)?.code ?? ''
 }
 
 // opsi dropdown per row — includes yang sedang dipilih row ini
 function rowOptions(row: DraftRow) {
-  const picked = new Set(draft.value.filter((d) => d._key !== row._key).map((d) => d.sampleTypeId))
+  const picked = new Set(draft.value.filter(d => d._key !== row._key).map(d => d.sampleTypeId))
   return allSampleTypes.value
-    .filter((s) => s.isActive && !picked.has(s.id))
-    .map((s) => ({ label: `${s.name} (${s.code})`, value: s.id }))
+    .filter(s => s.isActive && !picked.has(s.id))
+    .map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))
 }
 </script>
 
 <template>
   <div class="space-y-4">
-
     <!-- Toolbar -->
     <div class="flex items-center justify-between border-b border-default pb-3">
       <div>
-        <p class="text-sm font-medium">Sample yang dibutuhkan</p>
+        <p class="text-sm font-medium">
+          Sample yang dibutuhkan
+        </p>
         <p class="text-xs text-muted mt-0.5">
           Item dengan sample akan otomatis melewati tahap
           <span class="font-medium text-primary">COLLECT → RECEIVE → EXAM</span>
@@ -284,7 +285,9 @@ function rowOptions(row: DraftRow) {
       class="flex flex-col items-center justify-center py-10 border border-dashed border-default rounded-lg text-center"
     >
       <UIcon name="i-lucide-test-tube-diagonal" class="size-8 text-muted mb-2" />
-      <p class="text-sm font-medium">Tidak ada sample</p>
+      <p class="text-sm font-medium">
+        Tidak ada sample
+      </p>
       <p class="text-xs text-muted mt-1">
         Item ini tidak membutuhkan sample — pasien langsung ke tahap pemeriksaan.
       </p>
@@ -301,13 +304,18 @@ function rowOptions(row: DraftRow) {
 
     <!-- Draft rows -->
     <div v-else class="space-y-2">
-
       <!-- Header kolom -->
       <div class="grid grid-cols-12 gap-2 px-3 text-xs font-medium text-muted uppercase tracking-wider">
         <div class="col-span-1" />
-        <div class="col-span-5">Jenis Sample</div>
-        <div class="col-span-3 text-center">Sample Utama</div>
-        <div class="col-span-2 text-center">Urutan</div>
+        <div class="col-span-5">
+          Jenis Sample
+        </div>
+        <div class="col-span-3 text-center">
+          Sample Utama
+        </div>
+        <div class="col-span-2 text-center">
+          Urutan
+        </div>
         <div class="col-span-1" />
       </div>
 
@@ -377,12 +385,13 @@ function rowOptions(row: DraftRow) {
           />
         </div>
       </div>
-
     </div>
 
     <!-- Info: sudah tersimpan -->
     <div v-if="currentSamples.length > 0 && !isDirty" class="space-y-1.5 pt-1">
-      <p class="text-xs font-medium text-muted uppercase tracking-wider px-1">Tersimpan di database</p>
+      <p class="text-xs font-medium text-muted uppercase tracking-wider px-1">
+        Tersimpan di database
+      </p>
       <div class="flex flex-wrap gap-2">
         <div
           v-for="s in currentSamples.sort((a, b) => a.sortOrder - b.sortOrder)"
@@ -398,7 +407,13 @@ function rowOptions(row: DraftRow) {
           />
           <span class="font-medium">{{ s.sampleType.name }}</span>
           <span class="font-mono opacity-60">({{ s.sampleType.code }})</span>
-          <UBadge v-if="s.isPrimary" label="Utama" color="primary" variant="subtle" size="xs" />
+          <UBadge
+            v-if="s.isPrimary"
+            label="Utama"
+            color="primary"
+            variant="subtle"
+            size="xs"
+          />
         </div>
       </div>
     </div>
@@ -412,6 +427,5 @@ function rowOptions(row: DraftRow) {
       title="Ada perubahan yang belum disimpan"
       description="Klik 'Simpan' untuk menyimpan konfigurasi sample."
     />
-
   </div>
 </template>

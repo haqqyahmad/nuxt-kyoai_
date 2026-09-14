@@ -36,7 +36,6 @@ async function loadEmployees() {
     const res = await api<EmployeesResponse>('/hris/employees')
 
     employees.value = res.data?.data || []
-
   } catch (error) {
     console.error(error)
 

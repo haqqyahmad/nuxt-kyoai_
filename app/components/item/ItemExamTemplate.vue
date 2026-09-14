@@ -23,7 +23,7 @@ type NilaiNormalNum = {
 
 // Pilihan dropdown — MstInputanOpsi
 type Opsi = {
-  id?: string        // ada setelah disimpan ke BE
+  id?: string // ada setelah disimpan ke BE
   label: string
   value: string
   sortOrder: number
@@ -34,7 +34,7 @@ type NilaiNormalSel = {
   id?: string
   sex: 'MALE' | 'FEMALE' | null
   ageMin: number
-  opsiId: string     // FK ke MstInputanOpsi.id — wajib ada (opsi sudah tersimpan)
+  opsiId: string // FK ke MstInputanOpsi.id — wajib ada (opsi sudah tersimpan)
 }
 
 type Inputan = {
@@ -52,14 +52,14 @@ type Inputan = {
   _key: number
 }
 
-const NUMBER_FORMAT_OPTIONS: Array<{ label: string; value: NumberFormat }> = [
+const NUMBER_FORMAT_OPTIONS: Array<{ label: string, value: NumberFormat }> = [
   { label: 'Auto (maks 2 desimal, buang nol)', value: 'auto' },
   { label: 'Integer (tanpa desimal)', value: 'integer' },
   { label: 'Fixed 1 desimal', value: 'fixed1' },
   { label: 'Fixed 3 desimal', value: 'fixed3' }
 ]
 
-const INPUT_TYPE_OPTIONS: Array<{ label: string; value: InputType }> = [
+const INPUT_TYPE_OPTIONS: Array<{ label: string, value: InputType }> = [
   { label: 'Angka (number)', value: 'number' },
   { label: 'Formula (calculated)', value: 'calculated' },
   { label: 'Pilihan (selected)', value: 'selected' },
@@ -68,31 +68,31 @@ const INPUT_TYPE_OPTIONS: Array<{ label: string; value: InputType }> = [
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-const inputans              = ref<Inputan[]>([])
-const loading               = ref(false)
-const saveLoading           = ref(false)
+const inputans = ref<Inputan[]>([])
+const loading = ref(false)
+const saveLoading = ref(false)
 const nilaiNormalSelLoading = ref(false)
-const selectedInputanKey    = ref<number | null>(null)
-const configTab             = ref<'range' | 'selektif'>('range')
+const selectedInputanKey = ref<number | null>(null)
+const configTab = ref<'range' | 'selektif'>('range')
 let keyCounter = 0
 
 // ─── Computed ────────────────────────────────────────────────────────────────
 
 const selectedInputan = computed(() =>
-  inputans.value.find((i) => i._key === selectedInputanKey.value) ?? null
+  inputans.value.find(i => i._key === selectedInputanKey.value) ?? null
 )
 
 const availableLabels = computed(() =>
   inputans.value
-    .filter((i) => i.inputType === 'number' && i._key !== selectedInputanKey.value)
-    .map((i) => i.label)
+    .filter(i => i.inputType === 'number' && i._key !== selectedInputanKey.value)
+    .map(i => i.label)
 )
 
 // Apakah semua opsi sudah punya id (sudah tersimpan ke BE)?
 const opsisAlreadySaved = computed(() => {
   const inp = selectedInputan.value
   if (!inp || inp.inputType !== 'selected') return false
-  return inp.opsis.length > 0 && inp.opsis.every((o) => !!o.id)
+  return inp.opsis.length > 0 && inp.opsis.every(o => !!o.id)
 })
 
 // Items untuk dropdown pilih opsi normal
@@ -100,15 +100,15 @@ const opsiSelectItems = computed(() => {
   const inp = selectedInputan.value
   if (!inp) return []
   return inp.opsis
-    .filter((o) => !!o.id)
-    .map((o) => ({ label: `${o.label} (${o.value})`, value: o.id as string }))
+    .filter(o => !!o.id)
+    .map(o => ({ label: `${o.label} (${o.value})`, value: o.id as string }))
 })
 
 function canPersistSelectedRules(inp: Inputan) {
   return inp.inputType === 'selected'
     && inp.opsis.length > 0
-    && inp.opsis.every((o) => !!o.id)
-    && inp.nilaiNormalSel.every((n) => !!n.opsiId)
+    && inp.opsis.every(o => !!o.id)
+    && inp.nilaiNormalSel.every(n => !!n.opsiId)
 }
 
 function mapInputanFromApi(inp: any): Inputan {
@@ -135,7 +135,7 @@ function mapInputanFromApi(inp: any): Inputan {
 
 function syncSelectionAfterLoad(preferredId?: string | null) {
   const preferred = preferredId
-    ? inputans.value.find((i) => i.id === preferredId) ?? null
+    ? inputans.value.find(i => i.id === preferredId) ?? null
     : null
 
   const fallback = preferred ?? inputans.value[0] ?? null
@@ -161,9 +161,9 @@ function handleShortcut(e: KeyboardEvent) {
     save()
   }
   if (
-    e.ctrlKey && e.key === 'Enter' &&
-    configTab.value === 'range' &&
-    selectedInputan.value
+    e.ctrlKey && e.key === 'Enter'
+    && configTab.value === 'range'
+    && selectedInputan.value
   ) {
     if ((e.target as HTMLElement)?.tagName === 'TEXTAREA') return
     e.preventDefault()
@@ -212,17 +212,17 @@ function selectInputan(inp: Inputan) {
 
 function addInputan() {
   const newInp: Inputan = {
-    label:             '',
-    inputType:         'number',
-    numberFormat:      'auto',
-    uom:               '',
-    sortOrder:         inputans.value.length + 1,
-    allowBlank:        false,
-    formula:           undefined,
+    label: '',
+    inputType: 'number',
+    numberFormat: 'auto',
+    uom: '',
+    sortOrder: inputans.value.length + 1,
+    allowBlank: false,
+    formula: undefined,
     nilaiNormalNumber: [],
-    opsis:             [],
-    nilaiNormalSel:    [],
-    _key:              keyCounter++
+    opsis: [],
+    nilaiNormalSel: [],
+    _key: keyCounter++
   }
   inputans.value.push(newInp)
   selectedInputanKey.value = newInp._key
@@ -230,7 +230,7 @@ function addInputan() {
 }
 
 function removeInputan(key: number) {
-  const idx = inputans.value.findIndex((i) => i._key === key)
+  const idx = inputans.value.findIndex(i => i._key === key)
   if (idx === -1) return
   inputans.value.splice(idx, 1)
   inputans.value.forEach((inp, i) => (inp.sortOrder = i + 1))
@@ -243,9 +243,9 @@ function removeInputan(key: number) {
 
 function onTypeChange(inp: Inputan) {
   inp.nilaiNormalNumber = []
-  inp.opsis             = []
-  inp.nilaiNormalSel    = []
-  inp.formula           = undefined
+  inp.opsis = []
+  inp.nilaiNormalSel = []
+  inp.formula = undefined
   configTab.value = inp.inputType === 'selected' ? 'selektif' : 'range'
 }
 
@@ -269,7 +269,7 @@ function removeOpsi(inp: Inputan, idx: number) {
   inp.opsis.forEach((o, i) => (o.sortOrder = i + 1))
   // bersihkan nilaiNormalSel yang mengacu opsi yang dihapus
   if (removed?.id) {
-    inp.nilaiNormalSel = inp.nilaiNormalSel.filter((n) => n.opsiId !== removed.id)
+    inp.nilaiNormalSel = inp.nilaiNormalSel.filter(n => n.opsiId !== removed.id)
   }
 }
 
@@ -300,7 +300,7 @@ async function saveNilaiNormalSel(inp: Inputan) {
     return
   }
 
-  const invalid = inp.nilaiNormalSel.some((n) => !n.opsiId)
+  const invalid = inp.nilaiNormalSel.some(n => !n.opsiId)
   if (invalid) {
     toast.add({
       title: 'Validasi',
@@ -315,8 +315,8 @@ async function saveNilaiNormalSel(inp: Inputan) {
     await api.put(
       `/mcu/items/${props.itemId}/inputan/${inp.id}/nilai-normal/selected`,
       {
-        rows: inp.nilaiNormalSel.map((n) => ({
-          sex:    n.sex,
+        rows: inp.nilaiNormalSel.map(n => ({
+          sex: n.sex,
           ageMin: n.ageMin,
           opsiId: n.opsiId
         }))
@@ -325,7 +325,7 @@ async function saveNilaiNormalSel(inp: Inputan) {
     toast.add({ title: 'Berhasil', description: 'Nilai normal pilihan berhasil disimpan', color: 'success' })
     const savedId = inp.id
     await loadInputans()
-    const found = inputans.value.find((i) => i.id === savedId)
+    const found = inputans.value.find(i => i.id === savedId)
     if (found) {
       selectedInputanKey.value = found._key
       configTab.value = 'selektif'
@@ -374,21 +374,22 @@ function moveDown(idx: number) {
 
 function createSnapshot() {
   return JSON.stringify(
-    inputans.value.map((inp) => ({
-      id:        inp.id,
-      label:     inp.label,
+    inputans.value.map(inp => ({
+      id: inp.id,
+      label: inp.label,
       inputType: inp.inputType,
       numberFormat: inp.numberFormat,
-      uom:       inp.uom || null,
+      uom: inp.uom || null,
       sortOrder: inp.sortOrder,
       allowBlank: inp.allowBlank,
-      formula:   inp.inputType === 'calculated' ? (inp.formula ?? null) : null,
+      formula: inp.inputType === 'calculated' ? (inp.formula ?? null) : null,
       nilaiNormalNumber:
         inp.inputType === 'number' || inp.inputType === 'calculated'
-          ? inp.nilaiNormalNumber : [],
-      opsis:               inp.inputType === 'selected' ? inp.opsis : [],
+          ? inp.nilaiNormalNumber
+          : [],
+      opsis: inp.inputType === 'selected' ? inp.opsis : [],
       nilaiNormalSelected: canPersistSelectedRules(inp)
-        ? inp.nilaiNormalSel.map((n) => ({
+        ? inp.nilaiNormalSel.map(n => ({
             sex: n.sex,
             ageMin: n.ageMin,
             opsiId: n.opsiId
@@ -456,11 +457,11 @@ function formatAgeRule(ageMin?: number | null) {
 function getAgeBadgeLabel(
   ageMin?: number | null,
   sex?: 'MALE' | 'FEMALE' | null,
-  rules?: Array<{ sex?: 'MALE' | 'FEMALE' | null; ageMin?: number | null }>,
+  rules?: Array<{ sex?: 'MALE' | 'FEMALE' | null, ageMin?: number | null }>
 ) {
   if (ageMin == null) return 'Usia mulai: -'
   if (ageMin <= 0) {
-    const sameSexRules = (rules || []).filter(rule => {
+    const sameSexRules = (rules || []).filter((rule) => {
       if (!sex || !rule.sex) return false
       return rule.sex === sex
     })
@@ -509,14 +510,14 @@ function formatNormalRuleSummary(range: NilaiNormalNum) {
   return {
     sex: formatSexLabel(range.sex),
     age: formatAgeRule(range.ageMin),
-    value: formatRangeValue(range.minValue, range.maxValue),
+    value: formatRangeValue(range.minValue, range.maxValue)
   }
 }
 
 function formatSelectedRuleSummary(range: NilaiNormalSel) {
   return {
     sex: formatSexLabel(range.sex),
-    age: formatAgeRule(range.ageMin),
+    age: formatAgeRule(range.ageMin)
   }
 }
 
@@ -524,20 +525,31 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
   if (minValue == null || maxValue == null) return false
   return Number(minValue) > Number(maxValue)
 }
-
 </script>
 
 <template>
   <div class="space-y-4 relative pb-10" tabindex="0">
-
     <!-- Toolbar -->
     <div class="sticky top-0 z-20 flex items-center justify-between border-b border-default bg-default/95 backdrop-blur px-4 py-2.5">
-      <p class="text-sm text-muted">{{ inputans.length }} komponen terdaftar</p>
+      <p class="text-sm text-muted">
+        {{ inputans.length }} komponen terdaftar
+      </p>
       <div class="flex gap-2">
-        <UButton icon="i-lucide-plus" size="sm" variant="soft" @click="addInputan">
+        <UButton
+          icon="i-lucide-plus"
+          size="sm"
+          variant="soft"
+          @click="addInputan"
+        >
           Tambah Komponen
         </UButton>
-        <UButton icon="i-lucide-save" size="sm" :loading="saveLoading" :disabled="inputans.length === 0" @click="save">
+        <UButton
+          icon="i-lucide-save"
+          size="sm"
+          :loading="saveLoading"
+          :disabled="inputans.length === 0"
+          @click="save"
+        >
           Simpan Template
           <UKbd value="Ctrl+S" class="ml-2" />
         </UButton>
@@ -550,21 +562,29 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
     </div>
 
     <!-- Empty -->
-    <div v-else-if="inputans.length === 0"
-      class="flex flex-col items-center justify-center py-12 border border-dashed border-default rounded-lg text-center">
+    <div
+      v-else-if="inputans.length === 0"
+      class="flex flex-col items-center justify-center py-12 border border-dashed border-default rounded-lg text-center"
+    >
       <UIcon name="i-lucide-test-tube-diagonal" class="size-10 text-muted mb-3" />
-      <p class="font-medium text-sm">Belum ada komponen</p>
-      <p class="text-xs text-muted mt-1">Klik "Tambah Komponen" untuk mulai mengkonfigurasi template exam</p>
+      <p class="font-medium text-sm">
+        Belum ada komponen
+      </p>
+      <p class="text-xs text-muted mt-1">
+        Klik "Tambah Komponen" untuk mulai mengkonfigurasi template exam
+      </p>
     </div>
 
     <!-- Main grid -->
     <div v-else class="grid grid-cols-12 gap-4">
-
       <!-- Left: list -->
       <div class="col-span-5 space-y-1.5">
-        <div class="text-xs font-semibold text-muted uppercase tracking-wider px-1 mb-2">Komponen Inputan</div>
+        <div class="text-xs font-semibold text-muted uppercase tracking-wider px-1 mb-2">
+          Komponen Inputan
+        </div>
         <div
-          v-for="(inp, idx) in inputans" :key="inp._key"
+          v-for="(inp, idx) in inputans"
+          :key="inp._key"
           class="flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all"
           :class="selectedInputanKey === inp._key
             ? 'border-primary bg-primary/5'
@@ -572,10 +592,24 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
           @click="selectInputan(inp)"
         >
           <div class="flex flex-col gap-0.5">
-            <UButton icon="i-lucide-chevron-up" size="xs" color="neutral" variant="ghost"
-              class="h-4 w-4" :disabled="idx === 0" @click.stop="moveUp(idx)" />
-            <UButton icon="i-lucide-chevron-down" size="xs" color="neutral" variant="ghost"
-              class="h-4 w-4" :disabled="idx === inputans.length - 1" @click.stop="moveDown(idx)" />
+            <UButton
+              icon="i-lucide-chevron-up"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              class="h-4 w-4"
+              :disabled="idx === 0"
+              @click.stop="moveUp(idx)"
+            />
+            <UButton
+              icon="i-lucide-chevron-down"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              class="h-4 w-4"
+              :disabled="idx === inputans.length - 1"
+              @click.stop="moveDown(idx)"
+            />
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
@@ -583,43 +617,68 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
               <span class="text-sm font-medium truncate">{{ inp.label || 'Tanpa nama' }}</span>
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">
-              <UBadge :label="TYPE_LABEL[inp.inputType]" :color="TYPE_COLOR[inp.inputType]" variant="subtle" size="xs" />
+              <UBadge
+                :label="TYPE_LABEL[inp.inputType]"
+                :color="TYPE_COLOR[inp.inputType]"
+                variant="subtle"
+                size="xs"
+              />
               <span v-if="inp.uom" class="text-xs text-muted">{{ inp.uom }}</span>
             </div>
           </div>
-          <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost"
-            @click.stop="removeInputan(inp._key)" />
+          <UButton
+            icon="i-lucide-trash-2"
+            size="xs"
+            color="error"
+            variant="ghost"
+            @click.stop="removeInputan(inp._key)"
+          />
         </div>
       </div>
 
       <!-- Right: config panel -->
       <div class="col-span-7 space-y-4">
-        <div v-if="!selectedInputan"
-          class="flex items-center justify-center h-40 border border-dashed border-default rounded-lg">
-          <p class="text-sm text-muted">Pilih komponen untuk konfigurasi</p>
+        <div
+          v-if="!selectedInputan"
+          class="flex items-center justify-center h-40 border border-dashed border-default rounded-lg"
+        >
+          <p class="text-sm text-muted">
+            Pilih komponen untuk konfigurasi
+          </p>
         </div>
 
         <template v-else>
-
           <!-- Detail -->
           <div class="border border-default rounded-lg p-4 space-y-3 bg-elevated/20">
-            <p class="text-xs font-semibold text-muted uppercase tracking-wider">Detail Komponen</p>
+            <p class="text-xs font-semibold text-muted uppercase tracking-wider">
+              Detail Komponen
+            </p>
             <div class="grid grid-cols-2 gap-3">
               <UFormField label="Label / Nama">
-                <UInput v-model="selectedInputan.label" placeholder="Contoh: Hemoglobin" size="sm" class="w-full" />
+                <UInput
+                  v-model="selectedInputan.label"
+                  placeholder="Contoh: Hemoglobin"
+                  size="sm"
+                  class="w-full"
+                />
               </UFormField>
               <UFormField label="Tipe Input">
                 <USelect
                   v-model="selectedInputan.inputType"
                   :items="INPUT_TYPE_OPTIONS"
-                  size="sm" class="w-full"
+                  size="sm"
+                  class="w-full"
                   @change="onTypeChange(selectedInputan)"
                 />
               </UFormField>
               <UFormField label="Satuan (UoM)">
-                <UInput v-model="selectedInputan.uom" placeholder="Contoh: g/dL, %, mm/jam"
-                  size="sm" class="w-full"
-                  :disabled="['selected','string'].includes(selectedInputan.inputType)" />
+                <UInput
+                  v-model="selectedInputan.uom"
+                  placeholder="Contoh: g/dL, %, mm/jam"
+                  size="sm"
+                  class="w-full"
+                  :disabled="['selected', 'string'].includes(selectedInputan.inputType)"
+                />
               </UFormField>
               <UFormField label="Opsi">
                 <div class="flex h-8 items-center">
@@ -627,49 +686,68 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                 </div>
               </UFormField>
               <UFormField
-                v-if="['number','calculated'].includes(selectedInputan.inputType)"
+                v-if="['number', 'calculated'].includes(selectedInputan.inputType)"
                 label="Format Angka"
                 :help="`Contoh: ${numberFormatExample(selectedInputan.numberFormat)}`"
               >
                 <USelect
                   v-model="selectedInputan.numberFormat"
                   :items="NUMBER_FORMAT_OPTIONS"
-                  size="sm" class="w-full"
+                  size="sm"
+                  class="w-full"
                 />
               </UFormField>
             </div>
             <!-- Formula -->
             <div v-if="selectedInputan.inputType === 'calculated'" class="space-y-2">
               <UFormField label="Formula">
-                <UInput v-model="selectedInputan.formula" placeholder="Contoh: {{Hb}} / {{Ht}} * 100"
-                  size="sm" class="w-full font-mono" />
+                <UInput
+                  v-model="selectedInputan.formula"
+                  placeholder="Contoh: {{Hb}} / {{Ht}} * 100"
+                  size="sm"
+                  class="w-full font-mono"
+                />
               </UFormField>
               <div v-if="availableLabels.length" class="flex flex-wrap gap-1">
-                <p class="w-full text-xs text-muted">Variabel tersedia:</p>
-                <UBadge v-for="lbl in availableLabels" :key="lbl" :label="`{{${lbl}}}`"
-                  color="primary" variant="soft" size="xs" class="cursor-pointer font-mono"
-                  @click="insertVar(selectedInputan, lbl)" />
+                <p class="w-full text-xs text-muted">
+                  Variabel tersedia:
+                </p>
+                <UBadge
+                  v-for="lbl in availableLabels"
+                  :key="lbl"
+                  :label="`{{${lbl}}}`"
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  class="cursor-pointer font-mono"
+                  @click="insertVar(selectedInputan, lbl)"
+                />
               </div>
             </div>
           </div>
 
           <!-- Tabs -->
-          <div v-if="['number','calculated','selected'].includes(selectedInputan.inputType)"
-            class="border border-default rounded-lg overflow-hidden">
-
+          <div
+            v-if="['number', 'calculated', 'selected'].includes(selectedInputan.inputType)"
+            class="border border-default rounded-lg overflow-hidden"
+          >
             <!-- Tab header -->
             <div class="flex border-b border-default bg-elevated/40">
               <button
-                v-if="['number','calculated'].includes(selectedInputan.inputType)"
+                v-if="['number', 'calculated'].includes(selectedInputan.inputType)"
                 class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
                 :class="configTab === 'range' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-default'"
                 @click="configTab = 'range'"
               >
                 <UIcon name="i-lucide-ruler" class="size-4" />
                 Range Nilai Normal
-                <UBadge v-if="selectedInputan.nilaiNormalNumber.length"
+                <UBadge
+                  v-if="selectedInputan.nilaiNormalNumber.length"
                   :label="String(selectedInputan.nilaiNormalNumber.length)"
-                  color="primary" variant="subtle" size="xs" />
+                  color="primary"
+                  variant="subtle"
+                  size="xs"
+                />
               </button>
 
               <button
@@ -680,9 +758,13 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
               >
                 <UIcon name="i-lucide-list-checks" class="size-4" />
                 Daftar Pilihan &amp; Nilai Normal
-                <UBadge v-if="selectedInputan.opsis.length"
+                <UBadge
+                  v-if="selectedInputan.opsis.length"
                   :label="String(selectedInputan.opsis.length)"
-                  color="secondary" variant="subtle" size="xs" />
+                  color="secondary"
+                  variant="subtle"
+                  size="xs"
+                />
               </button>
             </div>
 
@@ -692,7 +774,12 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                 <p class="text-sm font-medium">
                   Range untuk <span class="text-primary">{{ selectedInputan.label || '...' }}</span>
                 </p>
-                <UButton icon="i-lucide-plus" size="xs" variant="soft" @click="addRange(selectedInputan)">
+                <UButton
+                  icon="i-lucide-plus"
+                  size="xs"
+                  variant="soft"
+                  @click="addRange(selectedInputan)"
+                >
                   Tambah Aturan <UKbd value="ctrl+Enter" class="ml-2" />
                 </UButton>
               </div>
@@ -709,7 +796,9 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
               >
                 <div class="flex items-center justify-between gap-3 mb-4">
                   <div>
-                    <p class="text-sm font-semibold text-highlighted">Rule {{ ridx + 1 }}</p>
+                    <p class="text-sm font-semibold text-highlighted">
+                      Rule {{ ridx + 1 }}
+                    </p>
                   </div>
                   <UButton
                     icon="i-lucide-trash-2"
@@ -728,7 +817,7 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                       :items="[
                         { label: 'Pilih sex', value: null },
                         { label: 'Laki-laki', value: 'MALE' },
-                        { label: 'Perempuan', value: 'FEMALE' },
+                        { label: 'Perempuan', value: 'FEMALE' }
                       ]"
                       size="sm"
                       class="w-full"
@@ -736,18 +825,34 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                   </div>
                   <div class="md:col-span-3">
                     <label class="mb-1 block text-xs text-muted">Age Min</label>
-                    <UInput v-model="range.ageMin" type="number" min="0" size="sm" class="w-full" />
+                    <UInput
+                      v-model="range.ageMin"
+                      type="number"
+                      min="0"
+                      size="sm"
+                      class="w-full"
+                    />
                     <p class="mt-1 text-[11px] text-muted">
                       {{ getAgeBadgeLabel(range.ageMin, range.sex, selectedInputan.nilaiNormalNumber) }}
                     </p>
                   </div>
                   <div class="md:col-span-3">
                     <label class="mb-1 block text-xs text-muted">Normal Min</label>
-                    <UInput v-model="range.minValue" type="number" size="sm" class="w-full" />
+                    <UInput
+                      v-model="range.minValue"
+                      type="number"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                   <div class="md:col-span-3">
                     <label class="mb-1 block text-xs text-muted">Normal Max</label>
-                    <UInput v-model="range.maxValue" type="number" size="sm" class="w-full" />
+                    <UInput
+                      v-model="range.maxValue"
+                      type="number"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                 </div>
 
@@ -773,7 +878,6 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
 
             <!-- Tab: Daftar Pilihan + Nilai Normal Selected -->
             <div v-if="configTab === 'selektif'" class="divide-y divide-default">
-
               <!-- Bagian 1: Daftar Opsi -->
               <div class="p-4 space-y-3">
                 <div class="flex items-center justify-between">
@@ -786,8 +890,13 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                       sebelum mengatur nilai normal.
                     </p>
                   </div>
-                  <UButton icon="i-lucide-plus" size="xs" variant="soft" color="secondary"
-                    @click="addOpsi(selectedInputan)">
+                  <UButton
+                    icon="i-lucide-plus"
+                    size="xs"
+                    variant="soft"
+                    color="secondary"
+                    @click="addOpsi(selectedInputan)"
+                  >
                     Tambah Opsi
                   </UButton>
                 </div>
@@ -796,26 +905,44 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                   Belum ada pilihan. Tambahkan minimal 1 opsi.
                 </div>
 
-                <div v-for="(opsi, oidx) in selectedInputan.opsis" :key="oidx"
-                  class="grid grid-cols-12 gap-2 p-3 bg-elevated/30 border border-default rounded-lg items-end">
+                <div
+                  v-for="(opsi, oidx) in selectedInputan.opsis"
+                  :key="oidx"
+                  class="grid grid-cols-12 gap-2 p-3 bg-elevated/30 border border-default rounded-lg items-end"
+                >
                   <div class="col-span-1 flex items-center justify-center pb-1">
                     <span class="text-xs font-mono text-muted">{{ oidx + 1 }}</span>
                   </div>
                   <div class="col-span-5">
                     <label class="text-xs text-muted block mb-1">Label (tampil di UI)</label>
-                    <UInput v-model="opsi.label" placeholder="Contoh: Negatif" size="sm" class="w-full" />
+                    <UInput
+                      v-model="opsi.label"
+                      placeholder="Contoh: Negatif"
+                      size="sm"
+                      class="w-full"
+                    />
                   </div>
                   <div class="col-span-4">
                     <label class="text-xs text-muted block mb-1">Value (disimpan)</label>
-                    <UInput v-model="opsi.value" placeholder="Contoh: NEG" size="sm" class="w-full font-mono" />
+                    <UInput
+                      v-model="opsi.value"
+                      placeholder="Contoh: NEG"
+                      size="sm"
+                      class="w-full font-mono"
+                    />
                   </div>
                   <div class="col-span-2 flex items-end justify-end gap-1">
                     <!-- Indikator sudah tersimpan ke DB -->
                     <UTooltip v-if="opsi.id" text="Opsi sudah tersimpan">
                       <UIcon name="i-lucide-circle-check" class="size-4 text-success mb-2" />
                     </UTooltip>
-                    <UButton icon="i-lucide-trash-2" size="sm" color="error" variant="ghost"
-                      @click="removeOpsi(selectedInputan, oidx)" />
+                    <UButton
+                      icon="i-lucide-trash-2"
+                      size="sm"
+                      color="error"
+                      variant="ghost"
+                      @click="removeOpsi(selectedInputan, oidx)"
+                    />
                   </div>
                 </div>
               </div>
@@ -824,23 +951,34 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
               <div class="p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="text-sm font-medium">Nilai Normal Pilihan</p>
+                    <p class="text-sm font-medium">
+                      Nilai Normal Pilihan
+                    </p>
                     <p class="text-xs text-muted mt-0.5">
                       Tentukan opsi mana yang dianggap
-                        <span class="text-success font-medium">normal</span>
-                        per sex dan usia minimum.
-                      </p>
-                    </div>
+                      <span class="text-success font-medium">normal</span>
+                      per sex dan usia minimum.
+                    </p>
+                  </div>
                   <div class="flex gap-2">
-                    <UButton icon="i-lucide-plus" size="xs" variant="soft"
+                    <UButton
+                      icon="i-lucide-plus"
+                      size="xs"
+                      variant="soft"
                       :disabled="!opsisAlreadySaved"
-                      @click="addNilaiNormalSel(selectedInputan)">
+                      @click="addNilaiNormalSel(selectedInputan)"
+                    >
                       Tambah Aturan
                     </UButton>
-                    <UButton icon="i-lucide-save" size="xs" color="success" variant="soft"
+                    <UButton
+                      icon="i-lucide-save"
+                      size="xs"
+                      color="success"
+                      variant="soft"
                       :loading="nilaiNormalSelLoading"
                       :disabled="!opsisAlreadySaved || selectedInputan.nilaiNormalSel.length === 0"
-                      @click="saveNilaiNormalSel(selectedInputan)">
+                      @click="saveNilaiNormalSel(selectedInputan)"
+                    >
                       Simpan Nilai Normal
                     </UButton>
                   </div>
@@ -849,19 +987,25 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                 <!-- Peringatan opsi belum tersimpan -->
                 <UAlert
                   v-if="!opsisAlreadySaved && selectedInputan.opsis.length > 0"
-                  icon="i-lucide-info" color="warning" variant="soft"
+                  icon="i-lucide-info"
+                  color="warning"
+                  variant="soft"
                   title="Simpan template terlebih dahulu"
                   description="Klik 'Simpan Template' di atas agar opsi mendapat ID dari database, baru kemudian atur nilai normal."
                 />
                 <UAlert
                   v-else-if="selectedInputan.opsis.length === 0"
-                  icon="i-lucide-circle-alert" color="neutral" variant="soft"
+                  icon="i-lucide-circle-alert"
+                  color="neutral"
+                  variant="soft"
                   title="Tidak ada opsi"
                   description="Tambahkan opsi di bagian 'Daftar Pilihan' terlebih dahulu."
                 />
 
-                <div v-if="opsisAlreadySaved && selectedInputan.nilaiNormalSel.length === 0"
-                  class="text-center py-4 text-sm text-muted">
+                <div
+                  v-if="opsisAlreadySaved && selectedInputan.nilaiNormalSel.length === 0"
+                  class="text-center py-4 text-sm text-muted"
+                >
                   Belum ada aturan nilai normal pilihan
                 </div>
 
@@ -871,9 +1015,11 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                   class="rounded-2xl border border-default bg-elevated/20 p-4"
                 >
                   <div class="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <p class="text-sm font-semibold text-highlighted">Rule {{ nidx + 1 }}</p>
-                  </div>
+                    <div>
+                      <p class="text-sm font-semibold text-highlighted">
+                        Rule {{ nidx + 1 }}
+                      </p>
+                    </div>
                     <UButton
                       icon="i-lucide-trash-2"
                       size="sm"
@@ -891,19 +1037,25 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                         :items="[
                           { label: 'Pilih sex', value: null },
                           { label: 'Laki-laki', value: 'MALE' },
-                          { label: 'Perempuan', value: 'FEMALE' },
+                          { label: 'Perempuan', value: 'FEMALE' }
                         ]"
                         size="sm"
                         class="w-full"
                       />
                     </div>
-                  <div class="md:col-span-3">
-                    <label class="mb-1 block text-xs text-muted">Age Min</label>
-                    <UInput v-model="nn.ageMin" type="number" min="0" size="sm" class="w-full" />
-                    <p class="mt-1 text-[11px] text-muted">
-                      {{ getAgeBadgeLabel(nn.ageMin, nn.sex, selectedInputan.nilaiNormalSel) }}
-                    </p>
-                  </div>
+                    <div class="md:col-span-3">
+                      <label class="mb-1 block text-xs text-muted">Age Min</label>
+                      <UInput
+                        v-model="nn.ageMin"
+                        type="number"
+                        min="0"
+                        size="sm"
+                        class="w-full"
+                      />
+                      <p class="mt-1 text-[11px] text-muted">
+                        {{ getAgeBadgeLabel(nn.ageMin, nn.sex, selectedInputan.nilaiNormalSel) }}
+                      </p>
+                    </div>
                     <div class="md:col-span-6">
                       <label class="mb-1 block text-xs text-muted">Opsi yang Normal</label>
                       <USelect
@@ -933,7 +1085,6 @@ function isRangeValueInvalid(minValue?: number | null, maxValue?: number | null)
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </template>

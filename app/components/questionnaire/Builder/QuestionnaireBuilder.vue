@@ -322,33 +322,33 @@ function saveDescription() {
               class="text-sm sm:text-base text-muted cursor-text hover:text-default transition-colors whitespace-pre-line"
               @click="enableDescriptionEdit"
             >
-                {{ questionnaireDescription || "Click to add form description" }}
-              </p>
-            </Transition>
+              {{ questionnaireDescription || "Click to add form description" }}
+            </p>
+          </Transition>
 
-            <!-- PORTAL KEY -->
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-link"
-                class="size-4 text-muted"
-              />
-              <UInput
-                v-model="questionnairePortalKey"
-                variant="outline"
-                size="sm"
-                placeholder="MCU, MCU-2, dll"
-                class="max-w-48"
-                :color="questionnairePortalKey ? 'primary' : 'neutral'"
-              />
-              <p
-                v-if="questionnairePortalKey"
-                class="text-xs text-muted"
-              >
-                Portal akan pakai questionaire ini sebagai default
-              </p>
-</div>
+          <!-- PORTAL KEY -->
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-link"
+              class="size-4 text-muted"
+            />
+            <UInput
+              v-model="questionnairePortalKey"
+              variant="outline"
+              size="sm"
+              placeholder="MCU, MCU-2, dll"
+              class="max-w-48"
+              :color="questionnairePortalKey ? 'primary' : 'neutral'"
+            />
+            <p
+              v-if="questionnairePortalKey"
+              class="text-xs text-muted"
+            >
+              Portal akan pakai questionaire ini sebagai default
+            </p>
           </div>
         </div>
+      </div>
 
       <!-- EMPTY -->
       <div

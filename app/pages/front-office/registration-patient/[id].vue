@@ -24,8 +24,8 @@ type ExamItem = {
     id: string
     code: string
     name: string
-    department?: { id: string; name: string } | null
-    group?: { id: string; name: string } | null
+    department?: { id: string, name: string } | null
+    group?: { id: string, name: string } | null
   }
 }
 
@@ -35,7 +35,7 @@ type QueueSampleCollection = {
   collectedAt?: string | null
   receivedAt?: string | null
   rejectReason?: string | null
-  sampleType?: { id: string; code?: string | null; name?: string | null } | null
+  sampleType?: { id: string, code?: string | null, name?: string | null } | null
   items?: Array<{ itemId: string }>
 }
 
@@ -77,15 +77,15 @@ type Registration = {
     policyExpDate?: string | null
     photoUrl?: string | null
   } | null
-  branch: { branchId: string; nameBranch: string } | null
-  company: { id: number; codeCostumer: string; customerName: string } | null
+  branch: { branchId: string, nameBranch: string } | null
+  company: { id: number, codeCostumer: string, customerName: string } | null
   exam: {
     id: string
     status: string
     mealStatus?: string
     mealStartedAt?: string | null
     mealCompletedAt?: string | null
-    paket: { id: string; name: string } | null
+    paket: { id: string, name: string } | null
     examItems: ExamItem[]
     results: unknown[]
   } | null
@@ -126,7 +126,7 @@ type CheckinPreview = {
   examVerification: {
     examId: string | null
     examStatus: string | null
-    paket: { id: string; name: string } | null
+    paket: { id: string, name: string } | null
     totalItems: number
     paketItems: ExamItem[]
     additionalItems: ExamItem[]
@@ -142,7 +142,7 @@ type CheckinPreview = {
 }
 
 const { data: reg, refresh } = await useAsyncData(`registration-${route.params.id}`, () =>
-  api.get(`/registration/number/${route.params.id}`).then((r) => r.data.data as Registration)
+  api.get(`/registration/number/${route.params.id}`).then(r => r.data.data as Registration)
 )
 
 const SERVICE_LABEL: Record<string, string> = {
@@ -232,19 +232,19 @@ function getExamItemStatus(ei: ExamItem) {
   const samples = getSampleCollectionsForItem(ei.item.id)
   if (samples.length > 0) {
     // Item lab yang pasien tolak (REFUSED) → status "Menolak" walau sample PENDING.
-    const roomStatuses = ei.roomExamItems?.map((item) => item.status) ?? []
+    const roomStatuses = ei.roomExamItems?.map(item => item.status) ?? []
     if (roomStatuses.includes('REFUSED')) return 'REFUSED'
     // Selesai di-entry aktif (workStatus DONE) atau sample sudah diterima lab →
     // DONE, apalagi itu hasil dari resample (roomExamItem parent lama RESCHEDULED).
     if (ei.workStatus === 'DONE') return 'DONE'
-    if (samples.every((s) => s.status === 'RECEIVED')) return 'DONE'
+    if (samples.every(s => s.status === 'RECEIVED')) return 'DONE'
     if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
-    if (samples.some((s) => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
-    if (samples.some((s) => s.status === 'REJECTED')) return 'REJECTED'
+    if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
+    if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
     return 'WAITING_SAMPLE'
   }
 
-  const statuses = ei.roomExamItems?.map((item) => item.status) ?? []
+  const statuses = ei.roomExamItems?.map(item => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
   if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
   if (statuses.includes('CALLED')) return 'CALLED'
@@ -291,8 +291,8 @@ function shortTime(value: string | undefined | null): string {
 }
 
 function getRescheduleVisitDate(examItemId: string): string {
-  const ei = (reg.value?.exam?.examItems ?? []).find((e) => e.id === examItemId)
-  const re = ei?.roomExamItems?.find((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+  const ei = (reg.value?.exam?.examItems ?? []).find(e => e.id === examItemId)
+  const re = ei?.roomExamItems?.find(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
   return re?.rescheduleVisitDate?.slice(0, 10) ?? ''
 }
 
@@ -322,7 +322,7 @@ function getExamItemStatusIcon(status: string) {
 function getExamItemUpdatedAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
   const times = items
-    .map((item) => item.updatedAt)
+    .map(item => item.updatedAt)
     .filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((latest, value) => (value > latest ? value : latest))
@@ -330,21 +330,21 @@ function getExamItemUpdatedAt(ei: ExamItem) {
 
 function getExamItemStartAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
-  const times = items.map((item) => item.startAt).filter((value): value is string => Boolean(value))
+  const times = items.map(item => item.startAt).filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((earliest, value) => (value < earliest ? value : earliest))
 }
 
 function getExamItemDoneAt(ei: ExamItem) {
   const items = ei.roomExamItems ?? []
-  const times = items.map((item) => item.doneAt).filter((value): value is string => Boolean(value))
+  const times = items.map(item => item.doneAt).filter((value): value is string => Boolean(value))
   if (times.length === 0) return null
   return times.reduce((latest, value) => (value > latest ? value : latest))
 }
 
 function getSampleCollectionsForItem(itemId: string) {
-  return (reg.value?.queue?.sampleCollections ?? []).filter((collection) =>
-    collection.items?.some((item) => item.itemId === itemId)
+  return (reg.value?.queue?.sampleCollections ?? []).filter(collection =>
+    collection.items?.some(item => item.itemId === itemId)
   )
 }
 
@@ -366,7 +366,7 @@ function getSampleStatusLabel(status: string) {
 
 const mcuCategories = computed(() => {
   const items = reg.value?.exam?.examItems ?? []
-  const paketItems = items.filter((ei) => ei.source === 'paket')
+  const paketItems = items.filter(ei => ei.source === 'paket')
   const grouped = new Map<
     string,
     {
@@ -418,8 +418,8 @@ const mcuCategories = computed(() => {
   }
 
   return [...grouped.values()].map((category) => {
-    const completedItems = category.items.filter((item) => item.done)
-    const pendingItems = category.items.filter((item) => !item.done)
+    const completedItems = category.items.filter(item => item.done)
+    const pendingItems = category.items.filter(item => !item.done)
     const completed = completedItems.length
     const total = category.items.length
     const updatedAt = category.items.reduce<string | null>(
@@ -438,18 +438,18 @@ const mcuCategories = computed(() => {
       status:
         total > 0 && completed === total
           ? 'DONE'
-          : category.items.some((item) => item.status === 'RETEXT')
+          : category.items.some(item => item.status === 'RETEXT')
             ? 'RETEXT'
-            : category.items.some((item) => item.status === 'RESCHEDULED')
+            : category.items.some(item => item.status === 'RESCHEDULED')
               ? 'RESCHEDULED'
-              : category.items.some((item) => ['REFUSED', 'REJECTED'].includes(item.status))
+              : category.items.some(item => ['REFUSED', 'REJECTED'].includes(item.status))
                 ? 'REFUSED'
                 : 'PENDING'
     }
   })
 })
 const additionalItems = computed(() =>
-  (reg.value?.exam?.examItems ?? []).filter((ei) => ei.source === 'additional')
+  (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
 )
 
 type PatientQuestionnaire = {
@@ -708,9 +708,9 @@ async function loadCheckinPreview() {
     checkinPreview.value = res.data.data as CheckinPreview
   } catch (err: unknown) {
     checkinPreview.value = null
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal memuat preview check-in'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal memuat preview check-in'
     toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
   } finally {
     checkinPreviewLoading.value = false
@@ -755,9 +755,9 @@ async function confirmCheckin() {
       color: 'success'
     })
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal melakukan check-in'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal melakukan check-in'
     toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
   } finally {
     checkinLoading.value = false
@@ -783,9 +783,9 @@ async function saveServiceNumber() {
     serviceNumberModalOpen.value = false
     toast.add({ title: 'Berhasil', description: 'Service Number diperbarui', color: 'success' })
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal memperbarui Service Number'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal memperbarui Service Number'
     toast.add({ title: 'Gagal', description: msg, color: 'error' })
   } finally {
     serviceNumberSaving.value = false
@@ -874,10 +874,10 @@ async function captureAndSavePhoto() {
     photoModalOpen.value = false
     toast.add({ title: 'Berhasil', description: 'Foto pasien tersimpan', color: 'success' })
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      (err as Error)?.message ??
-      'Gagal menyimpan foto'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? (err as Error)?.message
+        ?? 'Gagal menyimpan foto'
     toast.add({ title: 'Gagal', description: msg, color: 'error' })
   } finally {
     photoSaving.value = false
@@ -908,9 +908,9 @@ async function undoCheckin() {
       color: 'success'
     })
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal membatalkan check-in'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal membatalkan check-in'
     toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
   } finally {
     uncheckLoading.value = false
@@ -938,18 +938,18 @@ const checkoutEligibility = ref<{
   canCheckout: boolean
   reasons: string[]
   warnings?: string[]
-  rescheduledItems?: Array<{ itemName: string; samples?: Array<{ name: string }> }>
-  nonFinalItems?: Array<{ itemName?: string; reason?: string; currentRoomStatus?: string; isAdditional?: boolean }>
+  rescheduledItems?: Array<{ itemName: string, samples?: Array<{ name: string }> }>
+  nonFinalItems?: Array<{ itemName?: string, reason?: string, currentRoomStatus?: string, isAdditional?: boolean }>
 } | null>(null)
 
 // Item non-final yang bermasalah utk banner Note (retest sudah di banner utama).
 const noteIssueItems = computed(() => {
-  const fromCheckout = (checkoutEligibility.value?.nonFinalItems ?? []).filter((item) =>
+  const fromCheckout = (checkoutEligibility.value?.nonFinalItems ?? []).filter(item =>
     ['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 
   // Get all rejected OR refused sample collections from queue
-  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter((s) =>
+  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter(s =>
     ['REJECTED', 'REFUSED'].includes(s.status)
   )
 
@@ -964,21 +964,21 @@ const noteIssueItems = computed(() => {
   const fromExamItems = (reg.value?.exam?.examItems ?? []).filter((item) => {
     const hasBadSampleId = badItemIds.has(item.item.id)
     const samples = getSampleCollectionsForItem(item.item.id)
-    const hasBadSampleStatus = samples.some((s) => ['REJECTED', 'REFUSED'].includes(s.status))
-    const roomStatuses = item.roomExamItems?.map((r) => r.status) ?? []
+    const hasBadSampleStatus = samples.some(s => ['REJECTED', 'REFUSED'].includes(s.status))
+    const roomStatuses = item.roomExamItems?.map(r => r.status) ?? []
     return (
-      roomStatuses.includes('REFUSED') ||
-      roomStatuses.includes('REJECTED') ||
-      item.workStatus === 'REFUSED' ||
-      item.workStatus === 'REJECTED' ||
-      hasBadSampleId ||
-      hasBadSampleStatus
+      roomStatuses.includes('REFUSED')
+      || roomStatuses.includes('REJECTED')
+      || item.workStatus === 'REFUSED'
+      || item.workStatus === 'REJECTED'
+      || hasBadSampleId
+      || hasBadSampleStatus
     )
   })
   // Merge & dedupe by itemName
   const merged = [...fromCheckout]
   for (const item of fromExamItems) {
-    if (!merged.some((m) => m.itemName === item.item.name)) {
+    if (!merged.some(m => m.itemName === item.item.name)) {
       merged.push({ itemName: item.item.name, currentRoomStatus: item.workStatus ?? 'REJECTED' })
     }
   }
@@ -988,7 +988,7 @@ const noteIssueItems = computed(() => {
 // Item belum selesai utk banner "Patient cannot be discharged yet" — tanpa utk yg rejected (sudah di Rejected Items).
 const dischargePendingItems = computed(() =>
   (checkoutEligibility.value?.nonFinalItems ?? []).filter(
-    (item) => !['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
+    item => !['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 )
 
@@ -1097,9 +1097,9 @@ const examMealStatus = computed(
 )
 const examMealStartedAt = computed(
   () =>
-    reg.value?.exam?.mealStartedAt ??
-    (examObj.value?.startedAt as string | undefined | null) ??
-    null
+    reg.value?.exam?.mealStartedAt
+    ?? (examObj.value?.startedAt as string | undefined | null)
+    ?? null
 )
 
 async function fetchMealDuration() {
@@ -1108,10 +1108,10 @@ async function fetchMealDuration() {
   try {
     const res = await api.get(`/medical/exams/${examId}/meal`)
     const data = res.data?.data as Record<string, unknown> | null
-    mealTimerDuration.value =
-      (data?.mealDurationMinutes as number | undefined | null) ??
-      (data?.durationMinutes as number | undefined | null) ??
-      null
+    mealTimerDuration.value
+      = (data?.mealDurationMinutes as number | undefined | null)
+        ?? (data?.durationMinutes as number | undefined | null)
+        ?? null
   } catch {
     mealTimerDuration.value = null
   }
@@ -1121,8 +1121,8 @@ const examMealRemainingText = computed(() => {
   const status = examMealStatus.value
   if (status !== 'IN_PROGRESS') return ''
   const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
-  const durationMin =
-    mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
+  const durationMin
+    = mealTimerDuration.value ?? (examObj.value?.durationMinutes as number | undefined | null) ?? 0
   const durationMs = durationMin * 60 * 1000
   if (!started || !durationMs) return ''
   const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
@@ -1151,10 +1151,10 @@ watch(
         mealTimerNow.value = Date.now()
 
         const started = examMealStartedAt.value ? new Date(examMealStartedAt.value).getTime() : 0
-        const durationMin =
-          mealTimerDuration.value ??
-          (examObj.value?.durationMinutes as number | undefined | null) ??
-          0
+        const durationMin
+          = mealTimerDuration.value
+            ?? (examObj.value?.durationMinutes as number | undefined | null)
+            ?? 0
         const durationMs = durationMin * 60 * 1000
         if (started && durationMs) {
           const remaining = Math.max(0, started + durationMs - mealTimerNow.value)
@@ -1180,17 +1180,17 @@ onBeforeUnmount(() => {
 })
 
 const hasRescheduleItem = computed(() =>
-  (reg.value?.exam?.examItems ?? []).some((ei) =>
+  (reg.value?.exam?.examItems ?? []).some(ei =>
     (ei.workStatus ?? '') === 'RESCHEDULED'
   )
 )
 // Banner Reschedule Items — dihitung dari data exam (tidak bergantung checkoutEligibility,
 // supaya tetap tampil walau pasien sudah CheckOut).
 const rescheduleBannerItems = computed<
-  Array<{ itemName: string; samples: Array<{ name: string }> }>
+  Array<{ itemName: string, samples: Array<{ name: string }> }>
 >(() => {
   const seen = new Set<string>()
-  const out: Array<{ itemName: string; samples: Array<{ name: string }> }> = []
+  const out: Array<{ itemName: string, samples: Array<{ name: string }> }> = []
   for (const ei of reg.value?.exam?.examItems ?? []) {
     // Hanya item yang MASIH di-reschedule (workStatus RESCHEDULED). Item yang sudah
     // selesai di-resample (workStatus DONE) tidak lagi tampil di banner.
@@ -1198,7 +1198,7 @@ const rescheduleBannerItems = computed<
     const itemName = ei.item?.name ?? '-'
     if (seen.has(itemName)) continue
     seen.add(itemName)
-    const samples = getSampleCollectionsForItem(ei.item?.id ?? '').map((sc) => ({
+    const samples = getSampleCollectionsForItem(ei.item?.id ?? '').map(sc => ({
       name: sc.sampleType?.name ?? sc.sampleType?.code ?? 'Sample'
     }))
     out.push({ itemName, samples })
@@ -1211,9 +1211,9 @@ const hasRescheduleForBanner = computed(() => rescheduleBannerItems.value.length
 // (selain tanggal tsb → pakai tombol Change Follow-up Date untuk menggeser jadwal.)
 const canResampleNow = computed(() => {
   const dates = (reg.value?.exam?.examItems ?? [])
-    .flatMap((ei) => ei.roomExamItems ?? [])
-    .filter((r) => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
-    .map((r) => (r.rescheduleVisitDate ?? '').slice(0, 10))
+    .flatMap(ei => ei.roomExamItems ?? [])
+    .filter(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
+    .map(r => (r.rescheduleVisitDate ?? '').slice(0, 10))
   if (!dates.length) return true
   return dates.includes(todayStr())
 })
@@ -1226,7 +1226,7 @@ const canCompleteReturnVisit = computed(() => {
   if ((reg.value?.exam?.status ?? '') === 'completed') return false
   const items = reg.value?.exam?.examItems ?? []
   if (!items.length) return false
-  return items.every((ei) => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
+  return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
 })
 const completingReturnVisit = ref(false)
 async function handleCompleteReturnVisit() {
@@ -1287,8 +1287,8 @@ async function handleResampleCheckin() {
     toast.add({
       title: 'Gagal resample',
       description:
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Terjadi kesalahan.',
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Terjadi kesalahan.',
       color: 'error'
     })
   } finally {
@@ -1296,7 +1296,7 @@ async function handleResampleCheckin() {
   }
 }
 
-type RescheduleDraftItem = { roomExamItemId: string; itemName: string; visitDate: string }
+type RescheduleDraftItem = { roomExamItemId: string, itemName: string, visitDate: string }
 
 const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
   if (!reg.value?.exam?.examItems) return []
@@ -1322,7 +1322,7 @@ const rescheduleMode = ref<'checkout' | 'dates'>('checkout')
 
 // Petugas ubah tanggal datang ulang pasien yang gagal datang (tanpa checkout).
 function openRescheduleDates() {
-  rescheduleDraft.value = rescheduleCheckoutItems.value.map((i) => ({ ...i }))
+  rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
   rescheduleMode.value = 'dates'
   showRescheduleModal.value = true
 }
@@ -1332,7 +1332,7 @@ async function saveRescheduleDatesOnly() {
   savingReschedule.value = true
   try {
     await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
-      items: rescheduleDraft.value.map((i) => ({
+      items: rescheduleDraft.value.map(i => ({
         roomExamItemId: i.roomExamItemId,
         visitDate: i.visitDate || null
       }))
@@ -1344,9 +1344,9 @@ async function saveRescheduleDatesOnly() {
     })
     await refresh()
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal memperbarui tanggal datang ulang.'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal memperbarui tanggal datang ulang.'
     toast.add({ title: 'Gagal', description: msg, color: 'error' })
   } finally {
     savingReschedule.value = false
@@ -1358,7 +1358,7 @@ async function confirmCheckout() {
   if (!reg.value || checkoutLoading.value) return
   // Jika ada item reschedule → tanya tanggal datang ulang dulu.
   if (rescheduleCheckoutItems.value.length) {
-    rescheduleDraft.value = rescheduleCheckoutItems.value.map((i) => ({ ...i }))
+    rescheduleDraft.value = rescheduleCheckoutItems.value.map(i => ({ ...i }))
     rescheduleMode.value = 'checkout'
     showRescheduleModal.value = true
     return
@@ -1373,7 +1373,7 @@ async function doCheckout() {
   try {
     if (rescheduleDraft.value.length) {
       await api.patch(`/registration/${reg.value.id_reg}/reschedule-dates`, {
-        items: rescheduleDraft.value.map((i) => ({
+        items: rescheduleDraft.value.map(i => ({
           roomExamItemId: i.roomExamItemId,
           visitDate: i.visitDate || null
         }))
@@ -1389,9 +1389,9 @@ async function doCheckout() {
     await loadStatusHistory()
     await loadCheckoutEligibility()
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-      'Gagal check-out pasien.'
+    const msg
+      = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Gagal check-out pasien.'
     toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
   } finally {
     checkoutLoading.value = false
@@ -1426,7 +1426,9 @@ watch(
             variant="ghost"
             to="/front-office/registration-patient"
           />
-          <h1 class="text-lg font-semibold ml-2">Detail Registrasi</h1>
+          <h1 class="text-lg font-semibold ml-2">
+            Detail Registrasi
+          </h1>
         </template>
         <template #right>
           <div class="flex items-center gap-2">
@@ -1500,10 +1502,10 @@ watch(
             />
             <UButton
               v-if="
-                !isCancelled &&
-                isCheckedIn &&
-                reg?.statusRegistration !== 'CheckOut' &&
-                canUndoCheckin
+                !isCancelled
+                  && isCheckedIn
+                  && reg?.statusRegistration !== 'CheckOut'
+                  && canUndoCheckin
               "
               icon="i-lucide-rotate-ccw"
               color="warning"
@@ -1532,8 +1534,12 @@ watch(
       <div v-else class="w-full max-w-7xl mx-auto py-6 px-4 space-y-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <p class="text-xs text-muted mb-1">Kembali ke Daftar Registrasi</p>
-            <h1 class="text-2xl font-bold text-default">Registration Detail</h1>
+            <p class="text-xs text-muted mb-1">
+              Kembali ke Daftar Registrasi
+            </p>
+            <h1 class="text-2xl font-bold text-default">
+              Registration Detail
+            </h1>
             <div class="flex items-center gap-3 mt-2">
               <code
                 class="text-base font-bold bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-lg"
@@ -1555,7 +1561,9 @@ watch(
             title="Lihat & print tiket antrian"
             @click="checkinSuccessOpen = true"
           >
-            <p class="text-xs text-muted">Queue Number</p>
+            <p class="text-xs text-muted">
+              Queue Number
+            </p>
             <p class="text-3xl font-bold text-primary">
               {{ activeQueue.queueCode }}
             </p>
@@ -1629,8 +1637,8 @@ watch(
           :description="
             checkoutEligibility.canCheckout
               ? 'Click the Check Out button to mark the patient finished and ready to leave.'
-              : checkoutEligibility.reasons?.join('; ') ||
-                'There are still unfinished examination items.'
+              : checkoutEligibility.reasons?.join('; ')
+                || 'There are still unfinished examination items.'
           "
         >
           <template v-if="dischargePendingItems.length" #description>
@@ -1666,9 +1674,10 @@ watch(
                 <UIcon name="i-lucide-user-circle" class="text-primary" />
                 Patient Information
               </h3>
-              <span v-if="reg.patient" class="text-xs text-muted"
-                >ID: {{ reg.patient.patientCode }}</span
-              >
+              <span
+                v-if="reg.patient"
+                class="text-xs text-muted"
+              >ID: {{ reg.patient.patientCode }}</span>
             </div>
             <div
               v-if="reg.patient && policyExpiry && policyExpiry.status !== 'valid'"
@@ -1700,7 +1709,7 @@ watch(
                     :src="patientPhotoUrl"
                     alt="Foto pasien"
                     class="h-full w-full object-cover"
-                  />
+                  >
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
                 </button>
                 <div class="space-y-1">
@@ -1719,25 +1728,33 @@ watch(
               </div>
               <div class="grid grid-cols-1 md:grid-cols-4 gap-5 border-b border-default pb-4 mb-4">
                 <div>
-                  <p class="text-xs text-muted mb-1">Full Name</p>
+                  <p class="text-xs text-muted mb-1">
+                    Full Name
+                  </p>
                   <p class="font-semibold text-base">
                     {{ reg.patient.patientName }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Gender</p>
+                  <p class="text-xs text-muted mb-1">
+                    Gender
+                  </p>
                   <p class="font-semibold">
                     {{ reg.patient.gender === 'MALE' ? 'Male' : 'Female' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Tanggal Lahir</p>
+                  <p class="text-xs text-muted mb-1">
+                    Tanggal Lahir
+                  </p>
                   <p class="font-semibold">
                     {{ formatDob(reg.patient.dob) }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">ID Number</p>
+                  <p class="text-xs text-muted mb-1">
+                    ID Number
+                  </p>
                   <p class="font-mono text-xs font-medium">
                     {{ reg.patient.idType }}: {{ reg.patient.idNumber }}
                   </p>
@@ -1745,25 +1762,33 @@ watch(
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p class="text-xs text-muted mb-1">Nomor HP</p>
+                  <p class="text-xs text-muted mb-1">
+                    Nomor HP
+                  </p>
                   <p class="font-medium">
                     {{ reg.patient.phone ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Email</p>
+                  <p class="text-xs text-muted mb-1">
+                    Email
+                  </p>
                   <p class="font-medium truncate">
                     {{ reg.patient.email ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Policy Number</p>
+                  <p class="text-xs text-muted mb-1">
+                    Policy Number
+                  </p>
                   <p class="font-medium">
                     {{ reg.patient.policyNumber ?? '-' }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-xs text-muted mb-1">Policy Exp. Date</p>
+                  <p class="text-xs text-muted mb-1">
+                    Policy Exp. Date
+                  </p>
                   <p class="flex flex-wrap items-center gap-2 font-medium">
                     <span>{{ reg.patient.policyExpDate ?? '-' }}</span>
                     <UBadge
@@ -1782,7 +1807,9 @@ watch(
                 </div>
               </div>
             </div>
-            <div v-else class="p-6 text-center text-sm text-muted">Data pasien tidak ditemukan</div>
+            <div v-else class="p-6 text-center text-sm text-muted">
+              Data pasien tidak ditemukan
+            </div>
           </div>
 
           <div
@@ -1816,8 +1843,7 @@ watch(
                 <div class="flex items-center gap-1.5">
                   <code
                     class="text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded px-2 py-0.5 font-mono"
-                    >{{ reg.serviceNumber }}</code
-                  >
+                  >{{ reg.serviceNumber }}</code>
                   <UButton
                     icon="i-lucide-pencil"
                     color="neutral"
@@ -1884,7 +1910,9 @@ watch(
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted">Payment Type</p>
+                    <p class="text-xs text-muted">
+                      Payment Type
+                    </p>
                     <p class="font-bold text-sm">
                       {{
                         reg.paymentType === 'Personal'
@@ -1924,7 +1952,9 @@ watch(
                   <UIcon name="i-lucide-loader-circle" class="animate-spin text-xl text-muted" />
                 </div>
                 <div v-else-if="!statusHistory.length" class="py-6 text-center">
-                  <p class="text-sm text-muted">Belum ada riwayat status.</p>
+                  <p class="text-sm text-muted">
+                    Belum ada riwayat status.
+                  </p>
                 </div>
                 <div v-else class="relative space-y-4">
                   <div class="absolute left-[7px] top-2 bottom-2 w-px bg-default" />
@@ -1953,7 +1983,9 @@ watch(
                       >
                         <UIcon name="i-lucide-user" class="text-xs" />
                         {{ item.actorName
-                        }}<template v-if="item.actorRole"> · {{ item.actorRole }} </template>
+                        }}<template v-if="item.actorRole">
+                          · {{ item.actorRole }}
+                        </template>
                       </p>
                     </div>
                   </div>
@@ -1983,7 +2015,9 @@ watch(
                 <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
               </div>
               <div v-else-if="!questionnaires.length" class="py-10 text-center">
-                <p class="text-sm text-muted">Belum ada questionnaire terisi.</p>
+                <p class="text-sm text-muted">
+                  Belum ada questionnaire terisi.
+                </p>
               </div>
               <table v-else class="w-full text-left">
                 <thead>
@@ -2120,9 +2154,7 @@ watch(
                   <div class="w-full lg:max-w-xs">
                     <div class="mb-1 flex items-center justify-between text-xs text-muted">
                       <span>Progress</span>
-                      <span class="font-medium text-highlighted"
-                        >{{ cat.completed }}/{{ cat.total }}</span
-                      >
+                      <span class="font-medium text-highlighted">{{ cat.completed }}/{{ cat.total }}</span>
                     </div>
                     <div class="h-2 overflow-hidden rounded-full bg-elevated">
                       <div
@@ -2141,7 +2173,9 @@ watch(
                 >
                   <div class="mb-3 flex items-center gap-2">
                     <UIcon name="i-lucide-test-tube-diagonal" class="text-info" />
-                    <p class="text-xs font-semibold uppercase text-muted">Status Sample</p>
+                    <p class="text-xs font-semibold uppercase text-muted">
+                      Status Sample
+                    </p>
                   </div>
                   <div class="space-y-3">
                     <template v-for="item in cat.items" :key="`sample-${item.id}`">
@@ -2194,7 +2228,9 @@ watch(
                 <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div class="rounded-lg border border-default bg-elevated/40 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
-                      <p class="text-xs font-semibold uppercase text-muted">Belum selesai</p>
+                      <p class="text-xs font-semibold uppercase text-muted">
+                        Belum selesai
+                      </p>
                       <UBadge
                         :label="`${cat.pendingItems.length} item`"
                         color="neutral"
@@ -2255,12 +2291,16 @@ watch(
                         </span>
                       </div>
                     </div>
-                    <p v-else class="text-sm text-muted">Tidak ada item pending.</p>
+                    <p v-else class="text-sm text-muted">
+                      Tidak ada item pending.
+                    </p>
                   </div>
 
                   <div class="rounded-lg border border-default bg-background p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
-                      <p class="text-xs font-semibold uppercase text-muted">Selesai</p>
+                      <p class="text-xs font-semibold uppercase text-muted">
+                        Selesai
+                      </p>
                       <UBadge
                         :label="`${cat.completedItems.length} item`"
                         color="success"
@@ -2292,7 +2332,9 @@ watch(
                         </span>
                       </div>
                     </div>
-                    <p v-else class="text-sm text-muted">Belum ada item selesai.</p>
+                    <p v-else class="text-sm text-muted">
+                      Belum ada item selesai.
+                    </p>
                   </div>
                 </div>
               </section>
@@ -2370,31 +2412,39 @@ watch(
 
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">No. Registrasi</p>
+                <p class="text-xs text-muted mb-1">
+                  No. Registrasi
+                </p>
                 <code class="text-sm font-bold text-primary">{{
                   checkinPreview?.registration.id_reg ?? reg?.id_reg
                 }}</code>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Layanan</p>
+                <p class="text-xs text-muted mb-1">
+                  Layanan
+                </p>
                 <p class="text-sm font-semibold">
                   {{
                     SERVICE_LABEL[
                       checkinPreview?.registration.serviceType ?? reg?.serviceType ?? ''
-                    ] ??
-                    checkinPreview?.registration.serviceType ??
-                    reg?.serviceType
+                    ]
+                      ?? checkinPreview?.registration.serviceType
+                      ?? reg?.serviceType
                   }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Tanggal Periksa</p>
+                <p class="text-xs text-muted mb-1">
+                  Tanggal Periksa
+                </p>
                 <p class="text-sm font-semibold">
                   {{ checkinPreview?.registration.examDate ?? reg?.examDate }}
                 </p>
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
-                <p class="text-xs text-muted mb-1">Branch</p>
+                <p class="text-xs text-muted mb-1">
+                  Branch
+                </p>
                 <p class="text-sm font-semibold">
                   {{ checkinPreview?.branch?.nameBranch ?? reg?.branch?.nameBranch ?? '-' }}
                 </p>
@@ -2421,7 +2471,9 @@ watch(
                 @click="checkinPaketOpen = !checkinPaketOpen"
               >
                 <div>
-                  <p class="text-xs text-muted">Paket MCU</p>
+                  <p class="text-xs text-muted">
+                    Paket MCU
+                  </p>
                   <p class="text-sm font-semibold">
                     {{
                       checkinPreview?.examVerification.paket?.name ?? reg?.exam?.paket?.name ?? '-'
@@ -2464,7 +2516,9 @@ watch(
                       <span class="text-[11px] font-medium text-muted">{{ item.source }}</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">Belum ada item paket.</p>
+                  <p v-else class="text-sm text-muted">
+                    Belum ada item paket.
+                  </p>
                 </div>
 
                 <div>
@@ -2489,7 +2543,9 @@ watch(
                       <span class="text-[11px] font-medium text-primary">additional</span>
                     </div>
                   </div>
-                  <p v-else class="text-sm text-muted">Tidak ada item tambahan.</p>
+                  <p v-else class="text-sm text-muted">
+                    Tidak ada item tambahan.
+                  </p>
                 </div>
               </div>
             </div>
@@ -2551,7 +2607,9 @@ watch(
               <UIcon name="i-lucide-check-circle-2" class="text-green-500 text-4xl" />
             </div>
             <div>
-              <p class="text-sm text-muted mb-2">Nomor Antrian</p>
+              <p class="text-sm text-muted mb-2">
+                Nomor Antrian
+              </p>
               <p class="text-5xl font-black text-primary tracking-tight">
                 {{ reg?.queue?.queueCode }}
               </p>
@@ -2583,7 +2641,9 @@ watch(
               <UIcon name="i-lucide-calendar-x" class="text-warning text-3xl" />
             </div>
             <div class="space-y-1">
-              <p class="text-sm text-muted">Exam pasien dijadwalkan pada tanggal</p>
+              <p class="text-sm text-muted">
+                Exam pasien dijadwalkan pada tanggal
+              </p>
               <p class="text-2xl font-bold tracking-tight text-highlighted">
                 {{ reg?.examDate?.slice(0, 10) }}
               </p>
@@ -2613,12 +2673,19 @@ watch(
                 </p>
               </div>
             </div>
-            <p v-else class="text-sm text-muted text-center py-4">Tidak ada jawaban.</p>
+            <p v-else class="text-sm text-muted text-center py-4">
+              Tidak ada jawaban.
+            </p>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" label="Close" @click="modalOpen = false" />
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Close"
+              @click="modalOpen = false"
+            />
           </div>
         </template>
       </UModal>
@@ -2763,7 +2830,7 @@ watch(
               :src="patientPhotoUrl"
               alt="Foto pasien"
               class="max-h-[70vh] w-auto rounded-xl border border-default"
-            />
+            >
           </div>
         </template>
         <template #footer>

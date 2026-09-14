@@ -41,7 +41,7 @@ const allExpanded = ref(false)
 function toggleAll() {
   allExpanded.value = !allExpanded.value
   if (allExpanded.value) {
-    filteredEntries.value.forEach(e => { if (e.id != null) expandedIds.value.add(e.id) })
+    filteredEntries.value.forEach((e) => { if (e.id != null) expandedIds.value.add(e.id) })
   } else {
     expandedIds.value.clear()
   }
@@ -51,12 +51,12 @@ function toggleAll() {
 type ActionDef = { title: string, badge: string, dotColor: string, dotIcon: string, type: string }
 
 const actionDefs: Record<string, ActionDef> = {
-  ASSIGN_EXTERNAL:  { title: 'Examination assigned to external doctor', badge: 'ASSIGN_EXTERNAL', dotColor: 'dot-amber', dotIcon: '+', type: 'status' },
-  CANCEL_EXTERNAL:  { title: 'External doctor assignment cancelled',     badge: 'CANCEL_EXTERNAL', dotColor: 'dot-gray', dotIcon: '×', type: 'status' },
-  START_PROCESSING: { title: 'External doctor started processing',           badge: 'START_PROCESSING', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
-  SUBMIT_EXTERNAL:  { title: 'External result received by system',       badge: 'SUBMIT_EXTERNAL', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
-  SUBMIT_INPUT:     { title: 'Doctor submitted examination result',     badge: 'SUBMIT_INPUT', dotColor: 'dot-green', dotIcon: '✓', type: 'submit' },
-  UPDATE_INPUT:     { title: 'Draft input updated',              badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
+  ASSIGN_EXTERNAL: { title: 'Examination assigned to external doctor', badge: 'ASSIGN_EXTERNAL', dotColor: 'dot-amber', dotIcon: '+', type: 'status' },
+  CANCEL_EXTERNAL: { title: 'External doctor assignment cancelled', badge: 'CANCEL_EXTERNAL', dotColor: 'dot-gray', dotIcon: '×', type: 'status' },
+  START_PROCESSING: { title: 'External doctor started processing', badge: 'START_PROCESSING', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  SUBMIT_EXTERNAL: { title: 'External result received by system', badge: 'SUBMIT_EXTERNAL', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  SUBMIT_INPUT: { title: 'Doctor submitted examination result', badge: 'SUBMIT_INPUT', dotColor: 'dot-green', dotIcon: '✓', type: 'submit' },
+  UPDATE_INPUT: { title: 'Draft input updated', badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' }
 }
 
 function getActionDef(action?: string): ActionDef {
@@ -71,7 +71,7 @@ const filteredEntries = computed(() => {
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter(e => {
+    list = list.filter((e) => {
       const actor = [e.actorName, e.actorId != null ? `user #${e.actorId}` : null, e.actorRole]
         .filter(Boolean)
         .join(' ')
@@ -155,7 +155,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
   return Object.entries(entry.payloadAfter).map(([field, diff]) => ({
     field,
     from: formatDiffValue(diff.from),
-    to: formatDiffValue(diff.to),
+    to: formatDiffValue(diff.to)
   }))
 }
 </script>
@@ -165,11 +165,19 @@ function getStatusDiffs(entry: DiffAuditEntry) {
     <!-- Header -->
     <div class="ht-header">
       <div>
-        <div class="ht-eyebrow">Medical Result Review</div>
-        <h2 class="ht-title">Examination Process History</h2>
-        <p class="ht-sub">Easier to scan activity timeline, with detailed changes that can be opened when needed.</p>
+        <div class="ht-eyebrow">
+          Medical Result Review
+        </div>
+        <h2 class="ht-title">
+          Examination Process History
+        </h2>
+        <p class="ht-sub">
+          Easier to scan activity timeline, with detailed changes that can be opened when needed.
+        </p>
       </div>
-      <div v-if="queueCode" class="ht-queue">{{ queueCode }}</div>
+      <div v-if="queueCode" class="ht-queue">
+        {{ queueCode }}
+      </div>
     </div>
 
     <!-- Loading -->
@@ -182,13 +190,21 @@ function getStatusDiffs(entry: DiffAuditEntry) {
       <div class="ht-toolbar">
         <label class="ht-search">
           <span class="ht-search-icon">⌕</span>
-          <input v-model="searchQuery" placeholder="Search event, user, parameter, or value..." />
+          <input v-model="searchQuery" placeholder="Search event, user, parameter, or value...">
         </label>
         <select v-model="typeFilter" class="ht-select">
-          <option value="">All activities</option>
-          <option value="submit">Submit</option>
-          <option value="update">Update</option>
-          <option value="status">Status</option>
+          <option value="">
+            All activities
+          </option>
+          <option value="submit">
+            Submit
+          </option>
+          <option value="update">
+            Update
+          </option>
+          <option value="status">
+            Status
+          </option>
         </select>
         <button class="ht-btn" @click="toggleAll">
           {{ allExpanded ? 'Collapse all' : 'Expand all' }}
@@ -199,8 +215,12 @@ function getStatusDiffs(entry: DiffAuditEntry) {
       <div class="ht-history">
         <header class="ht-history-head">
           <div>
-            <h3 class="ht-history-title">Audit Trail</h3>
-            <p class="ht-history-desc">Newest first. Click an activity to view detailed changes.</p>
+            <h3 class="ht-history-title">
+              Audit Trail
+            </h3>
+            <p class="ht-history-desc">
+              Newest first. Click an activity to view detailed changes.
+            </p>
           </div>
         </header>
 
@@ -213,7 +233,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
           >
             <div class="ht-time">
               <div>{{ formatDate(entry.createdAt).date }}</div>
-              <div class="ht-time-bold">{{ formatDate(entry.createdAt).time }}</div>
+              <div class="ht-time-bold">
+                {{ formatDate(entry.createdAt).time }}
+              </div>
             </div>
 
             <div class="ht-dot" :class="getActionDef(entry.action).dotColor">
@@ -238,9 +260,13 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                   <div class="ht-meta">
                     <template v-if="entry.actorName || entry.actorId">
                       {{ actorLabel(entry.actorName, entry.actorId) }}
-                      <template v-if="entry.actorRole"> • {{ entry.actorRole }}</template>
+                      <template v-if="entry.actorRole">
+                        • {{ entry.actorRole }}
+                      </template>
                     </template>
-                    <template v-else>system</template>
+                    <template v-else>
+                      system
+                    </template>
                   </div>
                 </div>
                 <span class="ht-chevron">⌄</span>
@@ -251,7 +277,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                 <template v-if="isInputAction(entry.action) && entry.payloadAfter">
                   <div class="ht-changes">
                     <div v-for="(diff, field) in entry.payloadAfter" :key="field" class="ht-change">
-                      <div class="ht-field">{{ field }}</div>
+                      <div class="ht-field">
+                        {{ field }}
+                      </div>
                       <div class="ht-diff">
                         <span class="ht-old">{{ formatDiffValue(diff.from) }}</span>
                         <span class="ht-arrow">→</span>
@@ -265,7 +293,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                 <template v-else-if="entry.payloadAfter">
                   <div class="ht-changes">
                     <div v-for="d in getStatusDiffs(entry)" :key="d.field" class="ht-change">
-                      <div class="ht-field">{{ d.field }}</div>
+                      <div class="ht-field">
+                        {{ d.field }}
+                      </div>
                       <div class="ht-diff">
                         <span class="ht-old">{{ d.from }}</span>
                         <span class="ht-arrow">→</span>
@@ -275,7 +305,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                   </div>
                 </template>
 
-                <div v-if="entry.notes" class="ht-note">{{ entry.notes }}</div>
+                <div v-if="entry.notes" class="ht-note">
+                  {{ entry.notes }}
+                </div>
 
                 <div class="ht-actor">
                   <span class="ht-avatar">{{ actorInitials(entry.actorId, entry.actorRole) }}</span>
@@ -298,9 +330,13 @@ function getStatusDiffs(entry: DiffAuditEntry) {
           >
             <div class="ht-time">
               <div>{{ formatDate(event.timestamp).date }}</div>
-              <div class="ht-time-bold">{{ formatDate(event.timestamp).time }}</div>
+              <div class="ht-time-bold">
+                {{ formatDate(event.timestamp).time }}
+              </div>
             </div>
-            <div class="ht-dot dot-gray">•</div>
+            <div class="ht-dot dot-gray">
+              •
+            </div>
             <div class="ht-card" :class="{ open: expandedIds.has('wh-' + idx) }">
               <div class="ht-card-head" @click="toggleExpand('wh-' + idx)">
                 <div>
@@ -308,12 +344,16 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                     <span class="ht-card-title">{{ event.action }}</span>
                     <span class="ht-badge ht-badge-gray">LEGACY</span>
                   </div>
-                  <div v-if="event.actor" class="ht-meta">{{ event.actor }}</div>
+                  <div v-if="event.actor" class="ht-meta">
+                    {{ event.actor }}
+                  </div>
                 </div>
                 <span class="ht-chevron">⌄</span>
               </div>
               <div class="ht-details">
-                <div v-if="event.details" class="ht-note">{{ event.details }}</div>
+                <div v-if="event.details" class="ht-note">
+                  {{ event.details }}
+                </div>
               </div>
             </div>
           </article>

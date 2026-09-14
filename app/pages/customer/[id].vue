@@ -1,301 +1,301 @@
 <script setup lang="ts">
-const route = useRoute();
-const api = useApi();
-const toast = useToast();
+const route = useRoute()
+const api = useApi()
+const toast = useToast()
 
 type Address = {
-  id: string;
-  type: string;
-  detail: string;
-  country: string;
-  province: string;
-  city: string;
-  district: string;
-  note?: string;
-};
+  id: string
+  type: string
+  detail: string
+  country: string
+  province: string
+  city: string
+  district: string
+  note?: string
+}
 
 type Contact = {
-  id: number;
-  value: string;
-  type: "EMAIL" | "PHONE";
-  isPrimary: boolean;
-  parentId: number;
-  modelType: string;
-};
+  id: number
+  value: string
+  type: 'EMAIL' | 'PHONE'
+  isPrimary: boolean
+  parentId: number
+  modelType: string
+}
 
 type Customer = {
-  codeCostumer?: string;
-  customerName: string;
-  CustomerType?: string;
-  addresses: Address[];
-  contacts: Contact[];
-};
+  codeCostumer?: string
+  customerName: string
+  CustomerType?: string
+  addresses: Address[]
+  contacts: Contact[]
+}
 
 const { data: rawData, refresh } = await useAsyncData(
   `customer-${route.params.id}`,
-  () => api.get(`/customer/${route.params.id}`).then((res) => res.data.data),
-);
+  () => api.get(`/customer/${route.params.id}`).then(res => res.data.data)
+)
 
 const customer = computed<Customer | null>(() => {
-  const raw = rawData.value;
-  if (!raw) return null;
-  return Array.isArray(raw) ? raw[0] : raw;
-});
+  const raw = rawData.value
+  if (!raw) return null
+  return Array.isArray(raw) ? raw[0] : raw
+})
 
 /* =========================
    EDIT CUSTOMER
 ========================= */
-const isEditing = ref(false);
-const editForm = ref<Partial<Customer>>({ customerName: "", CustomerType: "" });
+const isEditing = ref(false)
+const editForm = ref<Partial<Customer>>({ customerName: '', CustomerType: '' })
 
 const startEditing = () => {
-  if (!customer.value) return;
+  if (!customer.value) return
   editForm.value = {
     customerName: customer.value.customerName,
-    CustomerType: customer.value.CustomerType,
-  };
-  isEditing.value = true;
-};
+    CustomerType: customer.value.CustomerType
+  }
+  isEditing.value = true
+}
 
 const cancelEditing = () => {
-  isEditing.value = false;
-  editForm.value = {};
-};
+  isEditing.value = false
+  editForm.value = {}
+}
 
 const saveChanges = async () => {
-  if (!customer.value) return;
+  if (!customer.value) return
   try {
-    await api.put(`/customer/${route.params.id}`, editForm.value);
-    await refresh();
-    cancelEditing();
-    toast.add({ title: "Berhasil", description: "Data customer berhasil diperbarui", color: "success" });
+    await api.put(`/customer/${route.params.id}`, editForm.value)
+    await refresh()
+    cancelEditing()
+    toast.add({ title: 'Berhasil', description: 'Data customer berhasil diperbarui', color: 'success' })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal memperbarui data customer", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal memperbarui data customer', color: 'error' })
   }
-};
+}
 
 /* =========================
    HELPERS
 ========================= */
 function getInitials(name: string) {
-  return name?.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase() ?? "?";
+  return name?.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() ?? '?'
 }
 
-function getPrimaryContact(type: "EMAIL" | "PHONE") {
-  const list = customer.value?.contacts?.filter(c => c.type === type) ?? [];
+function getPrimaryContact(type: 'EMAIL' | 'PHONE') {
+  const list = customer.value?.contacts?.filter(c => c.type === type) ?? []
 
-  return list.find(c => c.isPrimary)?.value 
-      ?? list[0]?.value 
-      ?? "-";
+  return list.find(c => c.isPrimary)?.value
+    ?? list[0]?.value
+    ?? '-'
 }
 
-const customerTypeColor: Record<string, "info" | "success" | "neutral"> = {
-  PT: "info",
-  CV: "success",
-  PERSONAL: "neutral",
-  Personal: "neutral",
-};
+const customerTypeColor: Record<string, 'info' | 'success' | 'neutral'> = {
+  PT: 'info',
+  CV: 'success',
+  PERSONAL: 'neutral',
+  Personal: 'neutral'
+}
 
 function stripLegalPrefix(name: string) {
-  return String(name ?? '').replace(/^(?:PT|CV)\.?\s*/i, '');
+  return String(name ?? '').replace(/^(?:PT|CV)\.?\s*/i, '')
 }
 
 function shortOf(name: string) {
-  return stripLegalPrefix(name).trim() || name;
+  return stripLegalPrefix(name).trim() || name
 }
 
-const shortName = computed(() => (customer.value ? shortOf(customer.value.customerName) : ''));
+const shortName = computed(() => (customer.value ? shortOf(customer.value.customerName) : ''))
 
 /* =========================
    CONTACT
 ========================= */
-const isContactModalOpen = ref(false);
-const editingContact = ref<Partial<Contact> | null>(null);
-const isContactLoading = ref(false);
+const isContactModalOpen = ref(false)
+const editingContact = ref<Partial<Contact> | null>(null)
+const isContactLoading = ref(false)
 
 const contactTypeOptions = [
-  { value: "EMAIL", label: "Email" },
-  { value: "PHONE", label: "Telepon" },
-];
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'PHONE', label: 'Telepon' }
+]
 
 const defaultContactForm = (): Partial<Contact> => ({
-  type: "EMAIL",
-  value: "",
-  isPrimary: false,
-});
+  type: 'EMAIL',
+  value: '',
+  isPrimary: false
+})
 
 const openAddContact = () => {
-  editingContact.value = defaultContactForm();
-  isContactModalOpen.value = true;
-};
+  editingContact.value = defaultContactForm()
+  isContactModalOpen.value = true
+}
 
 const openEditContact = (contact: Contact) => {
-  editingContact.value = { ...contact };
-  isContactModalOpen.value = true;
-};
+  editingContact.value = { ...contact }
+  isContactModalOpen.value = true
+}
 
 const closeContactModal = () => {
-  isContactModalOpen.value = false;
-  editingContact.value = null;
-};
+  isContactModalOpen.value = false
+  editingContact.value = null
+}
 
 const saveContact = async () => {
-  if (!editingContact.value) return;
-  isContactLoading.value = true;
-  const isUpdate = !!editingContact.value.id;
+  if (!editingContact.value) return
+  isContactLoading.value = true
+  const isUpdate = !!editingContact.value.id
 
   try {
     if (isUpdate) {
       await api.put(
         `/customer/${route.params.id}/contact/${editingContact.value.id}`,
-        editingContact.value =
-          {
+        editingContact.value
+          = {
             ...editingContact.value,
             parentId: Number(route.params.id),
-            modelType: "Customer"
+            modelType: 'Customer'
           }
 
-        )
+      )
     } else {
       await api.post(
         `/contact`,
-        editingContact.value =  {
-            ...editingContact.value,
-            parentId: Number(route.params.id),
-            modelType: "Customer",
-            isPrimary: false
-          },
-      );
+        editingContact.value = {
+          ...editingContact.value,
+          parentId: Number(route.params.id),
+          modelType: 'Customer',
+          isPrimary: false
+        }
+      )
     }
-    await refresh();
-    closeContactModal();
+    await refresh()
+    closeContactModal()
     toast.add({
-      title: "Berhasil",
-      description: isUpdate ? "Kontak berhasil diperbarui" : "Kontak berhasil ditambahkan",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: isUpdate ? 'Kontak berhasil diperbarui' : 'Kontak berhasil ditambahkan',
+      color: 'success'
+    })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal menyimpan kontak", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal menyimpan kontak', color: 'error' })
   } finally {
-    isContactLoading.value = false;
+    isContactLoading.value = false
   }
-};
+}
 
 const deleteContact = async (id: number) => {
   try {
-    await api.delete(`/customer/${route.params.id}/contact/${id}`);
-    await refresh();
-    toast.add({ title: "Berhasil", description: "Kontak berhasil dihapus", color: "success" });
+    await api.delete(`/customer/${route.params.id}/contact/${id}`)
+    await refresh()
+    toast.add({ title: 'Berhasil', description: 'Kontak berhasil dihapus', color: 'success' })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal menghapus kontak", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal menghapus kontak', color: 'error' })
   }
-};
+}
 
 const setPrimaryContact = async (contact: Contact) => {
-  const parentId = Number(contact.parentId);
+  const parentId = Number(contact.parentId)
   try {
     await api.put(`/contact/isDefault/${parentId}`, {
       ...contact,
-      modelType: "Customer",
-      isPrimary: true,
-    });
-    await refresh();
-    toast.add({ title: "Berhasil", description: "Kontak utama diperbarui", color: "success" });
+      modelType: 'Customer',
+      isPrimary: true
+    })
+    await refresh()
+    toast.add({ title: 'Berhasil', description: 'Kontak utama diperbarui', color: 'success' })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal mengatur kontak utama", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal mengatur kontak utama', color: 'error' })
   }
-};
+}
 
 /* =========================
    ADDRESS
 ========================= */
-const isAddressModalOpen = ref(false);
-const editingAddress = ref<Partial<Address> | null>(null);
-const isAddressLoading = ref(false);
+const isAddressModalOpen = ref(false)
+const editingAddress = ref<Partial<Address> | null>(null)
+const isAddressLoading = ref(false)
 
 const addressTypeOptions = [
-  { value: "HOME", label: "Rumah" },
-  { value: "OFFICE", label: "Office" },
-  { value: "OTHER", label: "Lainnya" },
-  { value: "CUSTOMER", label: "Customer" },
-];
+  { value: 'HOME', label: 'Rumah' },
+  { value: 'OFFICE', label: 'Office' },
+  { value: 'OTHER', label: 'Lainnya' },
+  { value: 'CUSTOMER', label: 'Customer' }
+]
 
 const addressTypeLabel: Record<string, string> = {
-  HOME: "Rumah",
-  OFFICE: "Office",
-  OTHER: "Lainnya",
-  CUSTOMER: "Customer",
-};
+  HOME: 'Rumah',
+  OFFICE: 'Office',
+  OTHER: 'Lainnya',
+  CUSTOMER: 'Customer'
+}
 
 const addressTypeIcon: Record<string, string> = {
-  HOME: "i-lucide-home",
-  OFFICE: "i-lucide-building-2",
-  OTHER: "i-lucide-map-pin",
-  CUSTOMER: "i-lucide-user",
-};
+  HOME: 'i-lucide-home',
+  OFFICE: 'i-lucide-building-2',
+  OTHER: 'i-lucide-map-pin',
+  CUSTOMER: 'i-lucide-user'
+}
 
 const defaultAddressForm = (): Partial<Address> => ({
-  type: "OFFICE",
-  detail: "",
-  country: "Indonesia",
-  province: "",
-  city: "",
-  district: "",
-  note: "",
-});
+  type: 'OFFICE',
+  detail: '',
+  country: 'Indonesia',
+  province: '',
+  city: '',
+  district: '',
+  note: ''
+})
 
 const openAddAddress = () => {
-  editingAddress.value = defaultAddressForm();
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = defaultAddressForm()
+  isAddressModalOpen.value = true
+}
 
 const openEditAddress = (addr: Address) => {
-  editingAddress.value = { ...addr };
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = { ...addr }
+  isAddressModalOpen.value = true
+}
 
 const closeAddressModal = () => {
-  isAddressModalOpen.value = false;
-  editingAddress.value = null;
-};
+  isAddressModalOpen.value = false
+  editingAddress.value = null
+}
 
 const saveAddress = async () => {
-  if (!editingAddress.value) return;
-  isAddressLoading.value = true;
-  const isUpdate = !!editingAddress.value.id;
+  if (!editingAddress.value) return
+  isAddressLoading.value = true
+  const isUpdate = !!editingAddress.value.id
 
   try {
     if (isUpdate) {
       await api.post(
         `/customer/${route.params.id}/address?addressId=${editingAddress.value.id}`,
-        editingAddress.value,
-      );
+        editingAddress.value
+      )
     } else {
-      await api.post(`/customer/${route.params.id}/address`, editingAddress.value);
+      await api.post(`/customer/${route.params.id}/address`, editingAddress.value)
     }
-    await refresh();
-    closeAddressModal();
+    await refresh()
+    closeAddressModal()
     toast.add({
-      title: "Berhasil",
-      description: isUpdate ? "Alamat berhasil diperbarui" : "Alamat berhasil ditambahkan",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: isUpdate ? 'Alamat berhasil diperbarui' : 'Alamat berhasil ditambahkan',
+      color: 'success'
+    })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal menyimpan alamat", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal menyimpan alamat', color: 'error' })
   } finally {
-    isAddressLoading.value = false;
+    isAddressLoading.value = false
   }
-};
+}
 
 const deleteAddress = async (id: string) => {
   try {
-    await api.delete(`/customer/${route.params.id}/address/${id}`);
-    await refresh();
-    toast.add({ title: "Berhasil", description: "Alamat berhasil dihapus", color: "success" });
+    await api.delete(`/customer/${route.params.id}/address/${id}`)
+    await refresh()
+    toast.add({ title: 'Berhasil', description: 'Alamat berhasil dihapus', color: 'success' })
   } catch {
-    toast.add({ title: "Gagal", description: "Gagal menghapus alamat", color: "error" });
+    toast.add({ title: 'Gagal', description: 'Gagal menghapus alamat', color: 'error' })
   }
-};
+}
 </script>
 
 <template>
@@ -309,7 +309,12 @@ const deleteAddress = async (id: string) => {
       class="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-accented"
     >
       <template #leading>
-        <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/customer" />
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          to="/customer"
+        />
       </template>
       <template #trailing>
         <UButton
@@ -322,7 +327,12 @@ const deleteAddress = async (id: string) => {
           Edit Data
         </UButton>
         <div v-else class="flex gap-2">
-          <UButton color="error" variant="outline" icon="i-lucide-clipboard-x" @click="cancelEditing">
+          <UButton
+            color="error"
+            variant="outline"
+            icon="i-lucide-clipboard-x"
+            @click="cancelEditing"
+          >
             Batal
           </UButton>
           <UButton color="primary" icon="i-lucide-save" @click="saveChanges">
@@ -338,7 +348,6 @@ const deleteAddress = async (id: string) => {
     </div>
 
     <div v-else class="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-
       <!-- ===== HEADER CARD ===== -->
       <div class="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 p-4 sm:p-6 rounded-xl border border-accented bg-elevated">
         <div class="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-200 font-medium text-2xl flex-shrink-0 mx-auto sm:mx-0">
@@ -349,7 +358,9 @@ const deleteAddress = async (id: string) => {
           <!-- View mode -->
           <div v-if="!isEditing">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-xl font-semibold break-words">{{ shortName }}</h2>
+              <h2 class="text-xl font-semibold break-words">
+                {{ shortName }}
+              </h2>
               <UBadge
                 v-if="customer.CustomerType"
                 :label="customer.CustomerType"
@@ -376,7 +387,7 @@ const deleteAddress = async (id: string) => {
                   :items="[
                     { label: 'PT', value: 'PT' },
                     { label: 'CV', value: 'CV' },
-                    { label: 'Personal', value: 'Personal' },
+                    { label: 'Personal', value: 'Personal' }
                   ]"
                   size="sm"
                   class="w-full"
@@ -465,11 +476,19 @@ const deleteAddress = async (id: string) => {
                 <p class="text-xs text-muted mb-0.5">
                   {{ contact.type === 'EMAIL' ? 'Email' : 'Telepon' }}
                 </p>
-                <p class="text-sm truncate">{{ contact.value }}</p>
+                <p class="text-sm truncate">
+                  {{ contact.value }}
+                </p>
               </div>
 
               <div class="flex items-center gap-2 flex-shrink-0">
-                <UBadge v-if="contact.isPrimary" label="Utama" color="success" variant="subtle" size="xs" />
+                <UBadge
+                  v-if="contact.isPrimary"
+                  label="Utama"
+                  color="success"
+                  variant="subtle"
+                  size="xs"
+                />
 
                 <!-- Aksi hover -->
                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -553,7 +572,7 @@ const deleteAddress = async (id: string) => {
                   'bg-blue-100 dark:bg-blue-900': addr.type === 'OFFICE',
                   'bg-green-100 dark:bg-green-900': addr.type === 'HOME',
                   'bg-purple-100 dark:bg-purple-900': addr.type === 'OTHER',
-                  'bg-slate-100 dark:bg-slate-800': addr.type === 'CUSTOMER',
+                  'bg-slate-100 dark:bg-slate-800': addr.type === 'CUSTOMER'
                 }"
               >
                 <UIcon
@@ -563,29 +582,49 @@ const deleteAddress = async (id: string) => {
                     'text-blue-700 dark:text-blue-200': addr.type === 'OFFICE',
                     'text-green-700 dark:text-green-200': addr.type === 'HOME',
                     'text-purple-700 dark:text-purple-200': addr.type === 'OTHER',
-                    'text-slate-600 dark:text-slate-300': addr.type === 'CUSTOMER',
+                    'text-slate-600 dark:text-slate-300': addr.type === 'CUSTOMER'
                   }"
                 />
               </div>
 
               <div class="flex-1 space-y-1 min-w-0">
-                <UBadge :label="addressTypeLabel[addr.type] ?? addr.type" color="neutral" variant="outline" size="xs" />
-                <p class="text-sm">{{ addr.detail }}</p>
+                <UBadge
+                  :label="addressTypeLabel[addr.type] ?? addr.type"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                />
+                <p class="text-sm">
+                  {{ addr.detail }}
+                </p>
                 <p class="text-xs text-muted">
                   {{ [addr.district, addr.city, addr.province, addr.country].filter(Boolean).join(', ') }}
                 </p>
-                <p v-if="addr.note" class="text-xs text-muted italic">{{ addr.note }}</p>
+                <p v-if="addr.note" class="text-xs text-muted italic">
+                  {{ addr.note }}
+                </p>
               </div>
 
               <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <UButton icon="i-lucide-pencil" size="xs" color="neutral" variant="ghost" @click="openEditAddress(addr)" />
-                <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" @click="deleteAddress(addr.id)" />
+                <UButton
+                  icon="i-lucide-pencil"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="openEditAddress(addr)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="xs"
+                  color="error"
+                  variant="ghost"
+                  @click="deleteAddress(addr.id)"
+                />
               </div>
             </div>
           </div>
         </template>
       </UCollapsible>
-
     </div>
   </UDashboardPanel>
 
@@ -608,12 +647,12 @@ const deleteAddress = async (id: string) => {
             class="w-full"
           />
         </UFormField>
-          <UInput
-            :name="'parentId'"
-            :model-value="`${route.params.id}`"
-            :type="'hidden'"
-            class="w-full"
-          />
+        <UInput
+          :name="'parentId'"
+          :model-value="`${route.params.id}`"
+          :type="'hidden'"
+          class="w-full"
+        />
         <UFormField label="Kontak Utama">
           <USwitch
             :model-value="!!editingContact.isPrimary"
@@ -628,7 +667,9 @@ const deleteAddress = async (id: string) => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" @click="closeContactModal">Batal</UButton>
+        <UButton color="neutral" variant="ghost" @click="closeContactModal">
+          Batal
+        </UButton>
         <UButton color="primary" :loading="isContactLoading" @click="saveContact">
           {{ editingContact?.id ? 'Simpan Perubahan' : 'Tambah Kontak' }}
         </UButton>
@@ -679,7 +720,9 @@ const deleteAddress = async (id: string) => {
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" @click="closeAddressModal">Batal</UButton>
+        <UButton color="neutral" variant="ghost" @click="closeAddressModal">
+          Batal
+        </UButton>
         <UButton color="primary" :loading="isAddressLoading" @click="saveAddress">
           {{ editingAddress?.id ? 'Simpan Perubahan' : 'Tambah Alamat' }}
         </UButton>

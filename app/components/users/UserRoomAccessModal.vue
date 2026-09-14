@@ -196,7 +196,7 @@ async function saveRoomAccess() {
           </UButton>
         </div>
 
-          <div class="flex items-center justify-between gap-2 rounded-xl border border-default p-3 text-sm">
+        <div class="flex items-center justify-between gap-2 rounded-xl border border-default p-3 text-sm">
           <span class="text-muted">
             Selected room
           </span>

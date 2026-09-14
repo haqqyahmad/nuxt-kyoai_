@@ -126,7 +126,7 @@ type ExamResultDetail = {
     examCode?: string | null
     externalStatus?: 'ASSIGNED' | 'PROCESSING' | 'CANCELLED' | 'FILLED' | null
     assignedExternalUserId?: number | null
-    assignedExternalUser?: { id: number; name: string } | null
+    assignedExternalUser?: { id: number, name: string } | null
     externalAssignedAt?: string | null
     externalProcessingStartedAt?: string | null
     externalProcessingDeadline?: string | null
@@ -138,13 +138,13 @@ type ExamResultDetail = {
       mimeType?: string | null
       sizeBytes?: number | null
       uploadedBy?: number | null
-      uploadedByUser?: { id: number; name: string } | null
+      uploadedByUser?: { id: number, name: string } | null
       uploadedAt?: string | null
     } | null
     workUpdatedBy?: number | null
-    workUpdatedByUser?: { id: number; name: string } | null
+    workUpdatedByUser?: { id: number, name: string } | null
     resultSubmittedBy?: number | null
-    resultSubmittedByUser?: { id: number; name: string } | null
+    resultSubmittedByUser?: { id: number, name: string } | null
     externalProcessSlaDays?: number | null
     results?: Array<{
       inputanId: string
@@ -218,22 +218,22 @@ async function fetchAllAudit() {
         examItemIds.map((id: string) =>
           api
             .get(`/audit/RoomExamItem/${id}`)
-            .then((r) => r.data?.data ?? [])
+            .then(r => r.data?.data ?? [])
             .catch(() => [])
         )
-      ).then((rows) => rows.flat()),
+      ).then(rows => rows.flat()),
       Promise.all(
         examItemIds.map((id: string) =>
           api
             .get(`/audit/ExternalResultAssignment/${id}`)
-            .then((r) => r.data?.data ?? [])
+            .then(r => r.data?.data ?? [])
             .catch(() => [])
         )
-      ).then((rows) => rows.flat()),
+      ).then(rows => rows.flat()),
       examId
         ? api
             .get(`/audit/TrxExamResult/${examId}`)
-            .then((r) => r.data?.data ?? [])
+            .then(r => r.data?.data ?? [])
             .catch(() => [])
         : Promise.resolve([])
     ])
@@ -261,8 +261,8 @@ const canSubmitCurrentResult = computed(() => {
 })
 const isExternalResultFilled = computed(
   () =>
-    props.result?.items?.some((item) => item.isExternalResult) &&
-    props.result?.exam?.externalStatus === 'FILLED'
+    props.result?.items?.some(item => item.isExternalResult)
+    && props.result?.exam?.externalStatus === 'FILLED'
 )
 
 // [F] Approve department (reviewer step / four-eyes): REVIEW status + allowed by backend.
@@ -457,7 +457,7 @@ const returnReason = computed(() => props.result?.returnReason ?? null)
 const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
 function returnItemLabel(inputanId: string | null) {
   if (!inputanId) return 'Examination item'
-  const inputan = (props.result?.item?.inputans ?? []).find((inp) => inp.id === inputanId)
+  const inputan = (props.result?.item?.inputans ?? []).find(inp => inp.id === inputanId)
   return inputan?.label || inputanId.slice(0, 8)
 }
 // [RETURN] Notes per input (from doctor return → dept)
@@ -482,7 +482,7 @@ function getSampleImpactLabel(impact: SampleImpact) {
   return `${name} received`
 }
 
-const externalDoctors = ref<Array<{ id: number; name: string }>>([])
+const externalDoctors = ref<Array<{ id: number, name: string }>>([])
 const selectedExternalDoctor = ref<number | undefined>(undefined)
 const externalSaving = ref(false)
 const externalFile = ref<File | null>(null)
@@ -493,7 +493,7 @@ const externalAttachmentError = ref<string | null>(null)
 
 const hasExternalResultContext = computed(() =>
   Boolean(
-    props.result?.isExternalResult || props.result?.items?.some((item) => item.isExternalResult)
+    props.result?.isExternalResult || props.result?.items?.some(item => item.isExternalResult)
   )
 )
 const isExternalDoctorWorkspace = computed(() =>
@@ -506,7 +506,7 @@ async function loadExternalDoctors() {
     const res = await api.get('/mcu/exams/external-doctors')
     const payload = res.data?.data ?? []
     if (Array.isArray(payload)) {
-      externalDoctors.value = payload.map((externalDoctor: { id: number; name: string }) => ({
+      externalDoctors.value = payload.map((externalDoctor: { id: number, name: string }) => ({
         id: externalDoctor.id,
         name: externalDoctor.name
       }))
@@ -565,7 +565,7 @@ function sortedOpsis(inputan: ExamInput): ExamInputOption[] {
 }
 
 function getOptionLabel(inputan: ExamInput, value: string) {
-  return sortedOpsis(inputan).find((o) => o.value === value)?.label ?? value
+  return sortedOpsis(inputan).find(o => o.value === value)?.label ?? value
 }
 
 function getExamTypeColor(type?: 'MCU' | 'RAWAT_JALAN' | null): BadgeColor {
@@ -584,7 +584,7 @@ function getExternalHeaderSubtitle() {
 }
 
 function formatExternalActor(
-  user?: { id: number; name: string } | null,
+  user?: { id: number, name: string } | null,
   fallbackId?: number | null
 ) {
   if (user?.name) return user.name
@@ -604,7 +604,7 @@ function getExternalUploadLabel() {
   const actor = formatExternalActor(attachment?.uploadedByUser, attachment?.uploadedBy)
   const uploadedAt = formatDateTime(attachment?.uploadedAt)
   if (actor === '-' && uploadedAt === '-') return '-'
-  return [actor, uploadedAt].filter((value) => value && value !== '-').join(' - ')
+  return [actor, uploadedAt].filter(value => value && value !== '-').join(' - ')
 }
 
 function optionRequiresDetail(option: ExamInputOption) {
@@ -612,18 +612,18 @@ function optionRequiresDetail(option: ExamInputOption) {
 }
 
 function hasOtherOption(inputan: ExamInput) {
-  return (inputan.opsis || []).some((option) => optionRequiresDetail(option))
+  return (inputan.opsis || []).some(option => optionRequiresDetail(option))
 }
 
 function isOtherSelected(inputan: ExamInput) {
   const selected = getInputDraft(inputan.id).valueSelected
-  const option = (inputan.opsis || []).find((o) => o.value === selected)
+  const option = (inputan.opsis || []).find(o => o.value === selected)
   return Boolean(option && optionRequiresDetail(option)) || /\(Text\)$/i.test(selected ?? '')
 }
 
 function getExternalExamItemId() {
   if (isExternalDoctorWorkspace.value) return props.result?.id ?? null
-  const externalItem = props.result?.items?.find((item) => item.isExternalResult)
+  const externalItem = props.result?.items?.find(item => item.isExternalResult)
   return externalItem?.id ?? (props.result?.isExternalResult ? props.result.id : null)
 }
 
@@ -647,10 +647,10 @@ async function loadExternalAttachmentPreview() {
 
   const examItemId = getExternalExamItemId()
   if (
-    !isExternalDoctorWorkspace.value ||
-    !props.result?.exam?.id ||
-    !examItemId ||
-    !props.result.exam?.attachmentUrl
+    !isExternalDoctorWorkspace.value
+    || !props.result?.exam?.id
+    || !examItemId
+    || !props.result.exam?.attachmentUrl
   ) {
     return
   }
@@ -860,7 +860,7 @@ function isRangeMatchPatient(
   return true
 }
 
-function filterPatientMatchedRanges<T extends { sex?: string | null; ageMin?: number | null }>(
+function filterPatientMatchedRanges<T extends { sex?: string | null, ageMin?: number | null }>(
   ranges: T[]
 ) {
   if (!ranges.length) return []
@@ -868,14 +868,14 @@ function filterPatientMatchedRanges<T extends { sex?: string | null; ageMin?: nu
   const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
   const patientGenderKey = getPatientGenderKey(props.result?.patient?.gender)
 
-  const matched = ranges.filter((range) => isRangeMatchPatient(range, patientGenderKey, patientAge))
+  const matched = ranges.filter(range => isRangeMatchPatient(range, patientGenderKey, patientAge))
 
   if (!matched.length) {
     return []
   }
 
-  const bestAgeMin = Math.max(...matched.map((range) => range.ageMin ?? -1))
-  return matched.filter((range) => (range.ageMin ?? -1) === bestAgeMin)
+  const bestAgeMin = Math.max(...matched.map(range => range.ageMin ?? -1))
+  return matched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
 }
 
 function getPatientMatchedNormalRanges(inputan: ExamInput) {
@@ -895,18 +895,18 @@ function getVisibleNormalRanges(inputan: ExamInput) {
   const matched = getPatientMatchedDisplayNormalRanges(inputan)
   if (matched.length) return matched
 
-  const ranges =
-    inputan.inputType === 'selected' ? inputan.nilaiNormalSel || [] : inputan.nilaiNormalNum || []
+  const ranges
+    = inputan.inputType === 'selected' ? inputan.nilaiNormalSel || [] : inputan.nilaiNormalNum || []
   if (!ranges.length) return []
 
   const patientAge = getPatientAgeAtDate(props.result?.patient?.dob, props.result?.checkinAt)
   if (patientAge == null) return ranges.slice(0, 3)
 
-  const ageMatched = ranges.filter((range) => range.ageMin == null || patientAge >= range.ageMin)
+  const ageMatched = ranges.filter(range => range.ageMin == null || patientAge >= range.ageMin)
   if (!ageMatched.length) return ranges.slice(0, 3)
 
-  const bestAgeMin = Math.max(...ageMatched.map((range) => range.ageMin ?? -1))
-  return ageMatched.filter((range) => (range.ageMin ?? -1) === bestAgeMin)
+  const bestAgeMin = Math.max(...ageMatched.map(range => range.ageMin ?? -1))
+  return ageMatched.filter(range => (range.ageMin ?? -1) === bestAgeMin)
 }
 
 // Field visibility based on patient gender (radiology/USG items).
@@ -942,16 +942,16 @@ function getDraftText(value: unknown) {
 }
 
 function getStoredInputResult(inputanId: string) {
-  return props.result?.exam?.results?.find((result) => result.inputanId === inputanId)
+  return props.result?.exam?.results?.find(result => result.inputanId === inputanId)
 }
 
 function hasInputDraftValue(inputanId: string) {
   const draft = resultDrafts.value[inputanId] || {}
   return Boolean(
-    getDraftText(draft.valueNumber) ||
-    getDraftText(draft.valueCalculated) ||
-    getDraftText(draft.valueString) ||
-    getDraftText(draft.valueSelected)
+    getDraftText(draft.valueNumber)
+    || getDraftText(draft.valueCalculated)
+    || getDraftText(draft.valueString)
+    || getDraftText(draft.valueSelected)
   )
 }
 
@@ -1005,7 +1005,7 @@ function isResultOutsideNormalRange(inputan: ExamInput) {
   if (inputan.inputType === 'selected') {
     if (!resultValue.raw) return false
     return !getPatientMatchedSelectedNormalRanges(inputan).some(
-      (range) => range.opsi?.value === resultValue.raw
+      range => range.opsi?.value === resultValue.raw
     )
   }
 
@@ -1023,8 +1023,8 @@ function isResultOutsideNormalRange(inputan: ExamInput) {
 }
 
 function getResultInputClass(inputan: ExamInput) {
-  const base =
-    'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70'
+  const base
+    = 'w-full rounded-xl border bg-default px-3 py-2.5 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70'
   const outside = isResultOutsideNormalRange(inputan)
 
   if (!outside) {
@@ -1062,8 +1062,8 @@ function getResultNormalityState(inputan: ExamInput) {
     }
   }
 
-  const hasValue =
-    inputan.inputType === 'selected'
+  const hasValue
+    = inputan.inputType === 'selected'
       ? Boolean(resultValue.raw)
       : resultValue.numeric != null && !Number.isNaN(resultValue.numeric)
 
@@ -1126,7 +1126,7 @@ function formatNormalRange(
   return `${low} - ${high}${unit ? ` ${unit}` : ''}`
 }
 
-function formatRangeCriteria(range: { sex?: string | null; ageMin?: number | null }, format?: NumberFormat) {
+function formatRangeCriteria(range: { sex?: string | null, ageMin?: number | null }, format?: NumberFormat) {
   const parts: string[] = []
 
   if (range.sex) {
@@ -1163,9 +1163,9 @@ function getStatusLabel(status?: string) {
 
 function getStatusColor(status?: string) {
   if (
-    status === 'completed' ||
-    status === 'DEPARTMENT_APPROVED' ||
-    status === 'SUBMITTED_TO_DOCTOR'
+    status === 'completed'
+    || status === 'DEPARTMENT_APPROVED'
+    || status === 'SUBMITTED_TO_DOCTOR'
   )
     return 'success'
   if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
@@ -1228,7 +1228,7 @@ function getInputNumericValue(inputan: ExamInput) {
     if (draftValue != null) return draftValue
   }
 
-  const existing = props.result?.exam?.results?.find((result) => result.inputanId === inputan.id)
+  const existing = props.result?.exam?.results?.find(result => result.inputanId === inputan.id)
   if (existing?.valueNumber != null) return existing.valueNumber
   if (existing?.valueCalculated != null) return existing.valueCalculated
 
@@ -1327,7 +1327,7 @@ function evaluateCalculatedFormula(inputan: ExamInput) {
 
 function recomputeCalculatedDrafts(clearIncomplete = false) {
   const calculatedInputs = (props.result?.item?.inputans || []).filter(
-    (inputan) => inputan.inputType === 'calculated'
+    inputan => inputan.inputType === 'calculated'
   )
 
   for (let pass = 0; pass < calculatedInputs.length; pass += 1) {
@@ -1360,7 +1360,7 @@ function seedDraftsFromExistingResults() {
   if (!props.result?.exam?.results) return
 
   const resultMap = new Map(
-    (props.result?.exam?.results || []).map((result) => [result.inputanId, result])
+    (props.result?.exam?.results || []).map(result => [result.inputanId, result])
   )
 
   for (const inputan of props.result.item?.inputans || []) {
@@ -1416,8 +1416,8 @@ function buildResultsPayload() {
 
     if (inputan.inputType === 'selected') {
       const valueSelected = getDraftText(draft.valueSelected)
-      const valueString =
-        valueSelected && isOtherSelected(inputan) ? getDraftText(draft.valueString) : ''
+      const valueString
+        = valueSelected && isOtherSelected(inputan) ? getDraftText(draft.valueString) : ''
       if (valueSelected) {
         payload.push({ ...base, valueSelected, ...(valueString ? { valueString } : {}) })
       }
@@ -1621,7 +1621,7 @@ onBeforeUnmount(() => {
           color="neutral"
           variant="ghost"
           size="sm"
-           aria-label="Back to result list"
+          aria-label="Back to result list"
           class="mt-0.5 shrink-0"
           @click="emit('close')"
         />
@@ -1693,10 +1693,10 @@ onBeforeUnmount(() => {
 
         <div
           v-if="
-            embedded &&
-            (result?.status === 'pending' ||
-              result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT') &&
-            (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
+            embedded
+              && (result?.status === 'pending'
+                || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT')
+              && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
           "
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
@@ -1714,10 +1714,10 @@ onBeforeUnmount(() => {
             color="primary"
             :loading="submitting"
             :disabled="
-              saving ||
-              !canSubmitCurrentResult ||
-              isResultBlockedBySample ||
-              (hasExternalResultContext && externalProcessingOverdue)
+              saving
+                || !canSubmitCurrentResult
+                || isResultBlockedBySample
+                || (hasExternalResultContext && externalProcessingOverdue)
             "
             icon="i-lucide-send"
             @click="handleSubmitResult"
@@ -1734,14 +1734,14 @@ onBeforeUnmount(() => {
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-           title="Result returned by doctor"
-           :description="returnReason || 'Fix the marked results then resubmit.'"
-         >
-           <template #description>
-             <div class="mt-1 space-y-1">
-               <p>{{ returnReason || 'Fix the marked results then resubmit.' }}</p>
-               <p v-if="returnRevisionItems.length" class="text-xs">
-                 Items that need fixing:
+          title="Result returned by doctor"
+          :description="returnReason || 'Fix the marked results then resubmit.'"
+        >
+          <template #description>
+            <div class="mt-1 space-y-1">
+              <p>{{ returnReason || 'Fix the marked results then resubmit.' }}</p>
+              <p v-if="returnRevisionItems.length" class="text-xs">
+                Items that need fixing:
                 <span
                   v-for="(rev, revIdx) in returnRevisionItems"
                   :key="rev.inputanId ?? revIdx"
@@ -1851,7 +1851,9 @@ onBeforeUnmount(() => {
             >
               <UIcon name="i-lucide-play-circle" class="size-5 shrink-0 text-muted" />
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-highlighted">Examination not started</p>
+                <p class="text-sm font-semibold text-highlighted">
+                  Examination not started
+                </p>
                 <p class="text-xs text-muted">
                   Start the examination to enable the result form. Submit deadline is 3 hours after
                   starting.
@@ -1869,20 +1871,26 @@ onBeforeUnmount(() => {
             </div>
             <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">MR No. / Queue</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  MR No. / Queue
+                </dt>
                 <dd class="mt-1 break-words font-mono font-semibold text-highlighted">
                   {{ result.patient?.PatientId || '-' }} - {{ result.queueCode }}
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Examination Item</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  Examination Item
+                </dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{ result.item?.name || '-' }}
                   <span class="font-mono text-muted">{{ result.item?.code || '' }}</span>
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  External Doctor
+                </dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{
                     formatExternalActor(
@@ -1893,19 +1901,25 @@ onBeforeUnmount(() => {
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Collector</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  Collector
+                </dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{ getExternalCollectorLabel() }}
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">Upload File</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  Upload File
+                </dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{ getExternalUploadLabel() }}
                 </dd>
               </div>
               <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
+                <dt class="text-xs uppercase tracking-wide text-muted">
+                  External Doctor
+                </dt>
                 <dd class="mt-1 break-words font-semibold text-highlighted">
                   {{
                     formatExternalActor(
@@ -1954,8 +1968,8 @@ onBeforeUnmount(() => {
                   variant="soft"
                   title="PDF not yet available"
                   :description="
-                    externalAttachmentError ||
-                    'Nurse must upload the PDF before the external doctor fills in the result.'
+                    externalAttachmentError
+                      || 'Nurse must upload the PDF before the external doctor fills in the result.'
                   "
                   class="max-w-md"
                 />
@@ -2031,20 +2045,18 @@ onBeforeUnmount(() => {
                 :key="inputan.id"
                 class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
               >
-                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-                  >{{ inputan.label }}
-                  <span v-if="!inputan.allowBlank" class="text-error">*</span></label
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }}
+                  <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
+                <input
+                  v-if="inputan.inputType === 'number'"
+                  v-model="getInputDraft(inputan.id).valueNumber"
+                  type="number"
+                  :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                  :class="getResultInputClass(inputan)"
+                  placeholder="Enter result"
+                  @input="recomputeCalculatedDrafts(true)"
                 >
-<input
-  v-if="inputan.inputType === 'number'"
-  v-model="getInputDraft(inputan.id).valueNumber"
-  type="number"
-  :disabled="!canEditCurrentResult || isResultBlockedBySample"
-  :class="getResultInputClass(inputan)"
-  placeholder="Enter result"
-  @input="recomputeCalculatedDrafts(true)"
-/>
-<span v-if="getInputDraft(inputan.id).valueNumber !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueNumber), inputan.numberFormat) }}</span>
+                <span v-if="getInputDraft(inputan.id).valueNumber !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueNumber), inputan.numberFormat) }}</span>
                 <input
                   v-else-if="inputan.inputType === 'string'"
                   v-model="getInputDraft(inputan.id).valueString"
@@ -2052,54 +2064,49 @@ onBeforeUnmount(() => {
                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                   class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Enter result"
-                />
+                >
                 <template v-else-if="inputan.inputType === 'selected'">
                   <select
                     v-model="getInputDraft(inputan.id).valueSelected"
                     :disabled="!canEditCurrentResult || isResultBlockedBySample"
                     class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    <option selected value="" disabled>Select result</option>
+                    <option selected value="" disabled>
+                      Select result
+                    </option>
                     <option v-for="opsi in sortedOpsis(inputan)" :key="opsi.id" :value="opsi.value">
                       {{ opsi.label }}
                     </option>
                   </select>
                   <div v-if="hasOtherOption(inputan) && isOtherSelected(inputan)" class="mt-2">
-                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-                      >Detail {{ inputan.label }}</label
-                    ><input
+                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Detail {{ inputan.label }}</label><input
                       v-model="getInputDraft(inputan.id).valueString"
                       type="text"
                       :disabled="!canEditCurrentResult || isResultBlockedBySample"
                       class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
-                       placeholder="Enter details if selecting Others"
-                    />
+                      placeholder="Enter details if selecting Others"
+                    >
                   </div>
                 </template>
-<input
-  v-else-if="inputan.inputType === 'calculated'"
-  v-model="getInputDraft(inputan.id).valueCalculated"
-  type="number"
-  disabled
-  :class="getResultInputClass(inputan)"
-  placeholder="Calculated automatically"
-/>
-<span v-if="getInputDraft(inputan.id).valueCalculated !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueCalculated), inputan.numberFormat) }}</span>
+                <input
+                  v-else-if="inputan.inputType === 'calculated'"
+                  v-model="getInputDraft(inputan.id).valueCalculated"
+                  type="number"
+                  disabled
+                  :class="getResultInputClass(inputan)"
+                  placeholder="Calculated automatically"
+                >
+                <span v-if="getInputDraft(inputan.id).valueCalculated !== undefined" class="ml-2 text-sm text-muted">{{ formatNumberDisplay(Number(getInputDraft(inputan.id).valueCalculated), inputan.numberFormat) }}</span>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span v-if="getVisibleNormalRanges(inputan).length"
-                    >Normal:
-                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat ?? undefined) }}</span
-                  ><span v-else>Normal: not available</span
-                  ><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
+                  <span v-if="getVisibleNormalRanges(inputan).length">Normal:
+                    {{ formatNormalRange(getVisibleNormalRanges(inputan)[0]!, inputan.uom, inputan.numberFormat ?? undefined) }}</span><span v-else>Normal: not available</span><span class="font-mono">ID: {{ getInputDisplayId(inputan) }}</span>
                 </div>
               </div>
               <div
                 class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
                 :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"
               >
-                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-                  >Conclusion / Note</label
-                ><UTextarea
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Conclusion / Note</label><UTextarea
                   :rows="4"
                   placeholder="Add interpretation or doctor note..."
                   class="w-full"
@@ -2156,8 +2163,8 @@ onBeforeUnmount(() => {
                       icon="i-lucide-save"
                       @click="handleSaveResult"
                     >
-                      Save Draft </UButton
-                    ><UButton
+                      Save Draft
+                    </UButton><UButton
                       color="primary"
                       :loading="submitting"
                       :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
@@ -2186,10 +2193,10 @@ onBeforeUnmount(() => {
                       color="primary"
                       :loading="submitting"
                       :disabled="
-                        saving ||
-                        !canSubmitCurrentResult ||
-                        isResultBlockedBySample ||
-                        externalProcessingOverdue
+                        saving
+                          || !canSubmitCurrentResult
+                          || isResultBlockedBySample
+                          || externalProcessingOverdue
                       "
                       icon="i-lucide-send"
                       @click="handleSubmitResult"
@@ -2215,7 +2222,9 @@ onBeforeUnmount(() => {
           <div class="flex items-start gap-2">
             <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0" />
             <div class="min-w-0">
-              <p class="text-sm font-semibold">Result locked due to sample</p>
+              <p class="text-sm font-semibold">
+                Result locked due to sample
+              </p>
               <p class="text-xs">
                 {{ sampleBlockedDescription }}
               </p>
@@ -2270,8 +2279,7 @@ onBeforeUnmount(() => {
               >
                 External doctor is working on the examination
                 <span v-if="externalProcessingOverdue" class="text-error">
-                  — deadline has passed (3 hours)</span
-                >
+                  — deadline has passed (3 hours)</span>
                 <span v-else> — {{ externalProcessingRemainingLabel }}</span>
               </p>
               <p
@@ -2280,7 +2288,9 @@ onBeforeUnmount(() => {
               >
                 External doctor has filled in the result
               </p>
-              <p v-else class="text-sm font-semibold">Assignment cancelled</p>
+              <p v-else class="text-sm font-semibold">
+                Assignment cancelled
+              </p>
               <p class="text-xs opacity-80">
                 {{
                   formatExternalActor(
@@ -2302,7 +2312,9 @@ onBeforeUnmount(() => {
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Queue Number</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Queue Number
+              </p>
               <p class="mt-2 text-lg font-semibold text-highlighted">
                 {{ result.queueCode }}
               </p>
@@ -2311,7 +2323,9 @@ onBeforeUnmount(() => {
               v-if="!hasExternalResultContext"
               class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm"
             >
-              <p class="text-xs uppercase tracking-wide text-muted">Process Status</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Process Status
+              </p>
               <div class="mt-2">
                 <USelect
                   v-model="selectedResultStatus"
@@ -2333,7 +2347,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Result Type</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Result Type
+              </p>
               <div class="mt-2">
                 <UBadge
                   :label="getTypeLabel(result.resultTiming)"
@@ -2343,7 +2359,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm">
-              <p class="text-xs uppercase tracking-wide text-muted">Check-in Time</p>
+              <p class="text-xs uppercase tracking-wide text-muted">
+                Check-in Time
+              </p>
               <p class="mt-2 text-sm font-semibold text-highlighted">
                 {{ formatDateTime(result.checkinAt) }}
               </p>
@@ -2371,25 +2389,33 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Patient Name</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Patient Name
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatPatientName(result.patient) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Medical Record Number</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Medical Record Number
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.patient?.PatientId || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Date of Birth</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Date of Birth
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDate(result.patient?.dob) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Gender</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Gender
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{
                         result.patient?.gender === 'MALE'
@@ -2423,19 +2449,25 @@ onBeforeUnmount(() => {
 
                 <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Examination</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Examination
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ result.item?.name || '-' }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Department</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Department
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ getDepartmentLabel(result.item?.department) }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Examination Type</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Examination Type
+                    </dt>
                     <dd class="mt-1">
                       <UBadge :color="getExamTypeColor(result.exam?.examType)" variant="subtle">
                         {{ result.exam?.examType === 'RAWAT_JALAN' ? 'Outpatient' : 'MCU' }}
@@ -2443,19 +2475,25 @@ onBeforeUnmount(() => {
                     </dd>
                   </div>
                   <div v-if="result.exam?.examCode">
-                    <dt class="text-xs uppercase tracking-wide text-muted">Exam Code (Edition)</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Exam Code (Edition)
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted font-mono">
                       {{ result?.exam?.examCode }}
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Reg No.</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Reg No.
+                    </dt>
                     <dd class="mt-1 font-mono text-sm font-semibold text-highlighted">
                       {{ result.queueCode || '-' }}
                     </dd>
                   </div>
                   <div v-if="hasExternalResultContext">
-                    <dt class="text-xs uppercase tracking-wide text-muted">External Doctor</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      External Doctor
+                    </dt>
                     <dd class="mt-2 space-y-3">
                       <!-- Assignment -->
                       <div class="rounded-lg border border-default bg-muted/20 p-3">
@@ -2476,9 +2514,9 @@ onBeforeUnmount(() => {
 
                         <div
                           v-if="
-                            result?.exam?.externalStatus === 'ASSIGNED' ||
-                            result?.exam?.externalStatus === 'PROCESSING' ||
-                            result?.exam?.externalStatus === 'FILLED'
+                            result?.exam?.externalStatus === 'ASSIGNED'
+                              || result?.exam?.externalStatus === 'PROCESSING'
+                              || result?.exam?.externalStatus === 'FILLED'
                           "
                           class="mt-2 flex items-center gap-2 text-sm"
                         >
@@ -2495,9 +2533,9 @@ onBeforeUnmount(() => {
 
                         <div
                           v-if="
-                            !isExternalDoctor &&
-                            (!result?.exam?.externalStatus ||
-                              result?.exam?.externalStatus === 'CANCELLED')
+                            !isExternalDoctor
+                              && (!result?.exam?.externalStatus
+                                || result?.exam?.externalStatus === 'CANCELLED')
                           "
                           class="mt-2 flex flex-wrap items-center gap-2"
                         >
@@ -2553,9 +2591,9 @@ onBeforeUnmount(() => {
 
                         <div
                           v-if="
-                            !isExternalDoctor &&
-                            (result?.exam?.externalStatus === 'ASSIGNED' ||
-                              result?.exam?.externalStatus === 'PROCESSING')
+                            !isExternalDoctor
+                              && (result?.exam?.externalStatus === 'ASSIGNED'
+                                || result?.exam?.externalStatus === 'PROCESSING')
                           "
                           class="mt-2 space-y-2"
                         >
@@ -2607,13 +2645,17 @@ onBeforeUnmount(() => {
                           >
                             View PDF
                           </UButton>
-                          <p v-else class="text-xs text-muted">No file uploaded yet.</p>
+                          <p v-else class="text-xs text-muted">
+                            No file uploaded yet.
+                          </p>
                         </div>
                       </div>
                     </dd>
                   </div>
                   <div>
-                    <dt class="text-xs uppercase tracking-wide text-muted">Completion Time</dt>
+                    <dt class="text-xs uppercase tracking-wide text-muted">
+                      Completion Time
+                    </dt>
                     <dd class="mt-1 text-sm font-semibold text-highlighted">
                       {{ formatDateTime(result.completedAt) }}
                     </dd>
@@ -2764,7 +2806,7 @@ onBeforeUnmount(() => {
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Enter result"
                                 @input="recomputeCalculatedDrafts(true)"
-                              />
+                              >
 
                               <input
                                 v-else-if="inputan.inputType === 'string'"
@@ -2773,7 +2815,7 @@ onBeforeUnmount(() => {
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                                 placeholder="Enter result"
-                              />
+                              >
 
                               <select
                                 v-else-if="inputan.inputType === 'selected'"
@@ -2781,7 +2823,9 @@ onBeforeUnmount(() => {
                                 :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                 class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
                               >
-                                <option value="">Select result</option>
+                                <option value="">
+                                  Select result
+                                </option>
                                 <option
                                   v-for="opsi in sortedOpsis(inputan)"
                                   :key="opsi.id"
@@ -2793,9 +2837,9 @@ onBeforeUnmount(() => {
 
                               <div
                                 v-if="
-                                  inputan.inputType === 'selected' &&
-                                  hasOtherOption(inputan) &&
-                                  isOtherSelected(inputan)
+                                  inputan.inputType === 'selected'
+                                    && hasOtherOption(inputan)
+                                    && isOtherSelected(inputan)
                                 "
                                 class="mt-2"
                               >
@@ -2810,7 +2854,7 @@ onBeforeUnmount(() => {
                                   :disabled="!canEditCurrentResult || isResultBlockedBySample"
                                   class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
                                   placeholder="Write details"
-                                />
+                                >
                               </div>
 
                               <input
@@ -2820,7 +2864,7 @@ onBeforeUnmount(() => {
                                 disabled
                                 :class="getResultInputClass(inputan)"
                                 placeholder="Calculated automatically"
-                              />
+                              >
                               <p
                                 v-if="inputan.formula?.formula"
                                 class="mt-1 truncate text-[11px] text-muted"
@@ -3005,13 +3049,17 @@ onBeforeUnmount(() => {
                                   </p>
                                 </template>
                                 <template v-else>
-                                  <p class="text-sm text-muted">-</p>
+                                  <p class="text-sm text-muted">
+                                    -
+                                  </p>
                                 </template>
                                 <p class="text-[11px] text-muted">
                                   ID: {{ getExtResult(inputan.id)!.inputanId }}
                                 </p>
                               </div>
-                              <p v-else class="text-sm text-muted">Not filled</p>
+                              <p v-else class="text-sm text-muted">
+                                Not filled
+                              </p>
                             </div>
                           </td>
 
@@ -3046,7 +3094,12 @@ onBeforeUnmount(() => {
 
     <template #footer>
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <UButton v-if="!embedded" color="neutral" variant="soft" @click="emit('close')">
+        <UButton
+          v-if="!embedded"
+          color="neutral"
+          variant="soft"
+          @click="emit('close')"
+        >
           Back
         </UButton>
         <template v-if="canEditCurrentResult || canSubmitCurrentResult">
@@ -3068,7 +3121,12 @@ onBeforeUnmount(() => {
             Submit Result
           </UButton>
         </template>
-        <UButton v-else-if="!embedded" color="neutral" variant="soft" disabled>
+        <UButton
+          v-else-if="!embedded"
+          color="neutral"
+          variant="soft"
+          disabled
+        >
           Result Locked
         </UButton>
       </div>

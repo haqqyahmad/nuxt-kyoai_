@@ -24,7 +24,6 @@ const links: NavigationMenuItem[] = [
 const hideTabs = computed(() =>
   /^\/services\/(types|packages)\/.+/.test(route.path)
 )
-
 </script>
 
 <template>

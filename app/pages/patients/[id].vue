@@ -1,157 +1,157 @@
 <script setup lang="ts">
-const route = useRoute();
-const api = useApi();
-const toast = useToast();
+const route = useRoute()
+const api = useApi()
+const toast = useToast()
 
 type Address = {
-  id: string;
-  type: string;
-  detail: string;
-  country: string;
-  province: string;
-  city: string;
-  district: string;
-  note?: string;
-};
+  id: string
+  type: string
+  detail: string
+  country: string
+  province: string
+  city: string
+  district: string
+  note?: string
+}
 
 type CompanyHistory = {
-  id: string;
-  company: string;
-  position?: string;
-  isCurrent: boolean;
-  startDate?: string;
-  endDate?: string;
-};
+  id: string
+  company: string
+  position?: string
+  isCurrent: boolean
+  startDate?: string
+  endDate?: string
+}
 
 type Patient = {
-  id: string;
-  PatientId: string;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  gender: "MALE" | "FEMALE";
-  idType: string;
-  idNumber: string;
-  email?: string;
-  dob: string;
-  maritalStatus?: string;
-  phone?: string;
-  bloodTypeId?: number | null;
-  bloodType?: { id: number; kode: string } | null;
-  policyNumber?: string | null;
-  policyExpDate?: string | null;
-  createdAt: string;
-  addresses: Address[];
-  histories: CompanyHistory[];
-  photoUrl?: string;
-};
+  id: string
+  PatientId: string
+  firstName: string
+  middleName?: string
+  lastName: string
+  gender: 'MALE' | 'FEMALE'
+  idType: string
+  idNumber: string
+  email?: string
+  dob: string
+  maritalStatus?: string
+  phone?: string
+  bloodTypeId?: number | null
+  bloodType?: { id: number, kode: string } | null
+  policyNumber?: string | null
+  policyExpDate?: string | null
+  createdAt: string
+  addresses: Address[]
+  histories: CompanyHistory[]
+  photoUrl?: string
+}
 
 type PatientForm = Omit<
   Partial<Patient>,
-  "policyNumber" | "policyExpDate"
+  'policyNumber' | 'policyExpDate'
 > & {
-  policyNumber?: string;
-  policyExpDate?: string;
-  updatedAt?: string;
-};
+  policyNumber?: string
+  policyExpDate?: string
+  updatedAt?: string
+}
 
 const { data: patient, refresh } = await useAsyncData(
   `patient-${route.params.id}`,
-  () => api.get(`/patient/${route.params.id}`).then((res) => res.data.data),
-);
+  () => api.get(`/patient/${route.params.id}`).then(res => res.data.data)
+)
 
-const { data: bloodTypes } = await useAsyncData("master-blood-types", () =>
-  api.get("/master/blood-types").then((res) => res.data.data ?? []),
-);
+const { data: bloodTypes } = await useAsyncData('master-blood-types', () =>
+  api.get('/master/blood-types').then(res => res.data.data ?? [])
+)
 const bloodTypeOptions = computed(() =>
-  (bloodTypes.value ?? []).map((b: { id: number; kode: string }) => ({
+  (bloodTypes.value ?? []).map((b: { id: number, kode: string }) => ({
     label: b.kode,
-    value: b.id,
-  })),
-);
+    value: b.id
+  }))
+)
 
 // State untuk edit mode
-const isEditing = ref(false);
-const selectedPhotoFile = ref<File | null>(null);
-const photoPreview = ref<string | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
+const isEditing = ref(false)
+const selectedPhotoFile = ref<File | null>(null)
+const photoPreview = ref<string | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
-const cameraOpen = ref(false);
-const cameraStream = ref<MediaStream | null>(null);
-const cameraVideoEl = ref<HTMLVideoElement | null>(null);
-const cameraStarting = ref(false);
-const cameraSaving = ref(false);
-const cameraError = ref("");
+const cameraOpen = ref(false)
+const cameraStream = ref<MediaStream | null>(null)
+const cameraVideoEl = ref<HTMLVideoElement | null>(null)
+const cameraStarting = ref(false)
+const cameraSaving = ref(false)
+const cameraError = ref('')
 const editForm = ref<PatientForm>({
   gender: undefined,
-  maritalStatus: "",
-  idType: "",
+  maritalStatus: '',
+  idType: '',
   bloodTypeId: null,
-  policyNumber: "",
-  policyExpDate: "",
-});
+  policyNumber: '',
+  policyExpDate: ''
+})
 
 const fullName = computed(() => {
-  if (!patient.value) return "-";
+  if (!patient.value) return '-'
   return [
     patient.value.firstName,
     patient.value.middleName,
-    patient.value.lastName,
+    patient.value.lastName
   ]
     .filter(Boolean)
-    .join(" ");
-});
+    .join(' ')
+})
 
 const sortedHistories = computed(() =>
   [...(patient.value?.histories ?? [])].sort((a, b) => {
-    if (a.isCurrent && !b.isCurrent) return -1;
-    if (!a.isCurrent && b.isCurrent) return 1;
-    return 0;
+    if (a.isCurrent && !b.isCurrent) return -1
+    if (!a.isCurrent && b.isCurrent) return 1
+    return 0
   })
-);
+)
 
 const formatDate = (date?: string) => {
-  if (!date) return "-";
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-};
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 
 const formatDateForInput = (date?: string) => {
-  if (!date) return "";
-  return new Date(date).toISOString().split("T")[0];
-};
+  if (!date) return ''
+  return new Date(date).toISOString().split('T')[0]
+}
 
 // [POLICY] Status masa berlaku kartu polis
-const POLICY_SOON_DAYS = 30;
+const POLICY_SOON_DAYS = 30
 const policyExpiry = computed(() => {
-  const raw = patient.value?.policyExpDate;
-  if (!raw) return null;
-  const exp = new Date(raw);
-  if (Number.isNaN(exp.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((exp.getTime() - today.getTime()) / 86400000);
-  if (days < 0) return { status: "expired" as const, days };
-  if (days <= POLICY_SOON_DAYS) return { status: "soon" as const, days };
-  return { status: "valid" as const, days };
-});
+  const raw = patient.value?.policyExpDate
+  if (!raw) return null
+  const exp = new Date(raw)
+  if (Number.isNaN(exp.getTime())) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.ceil((exp.getTime() - today.getTime()) / 86400000)
+  if (days < 0) return { status: 'expired' as const, days }
+  if (days <= POLICY_SOON_DAYS) return { status: 'soon' as const, days }
+  return { status: 'valid' as const, days }
+})
 
-const genderLabel = (g: string) => (g === "MALE" ? "Laki-laki" : "Perempuan");
+const genderLabel = (g: string) => (g === 'MALE' ? 'Laki-laki' : 'Perempuan')
 
 const maritalLabel: Record<string, string> = {
-  SINGLE: "Belum Menikah",
-  MARRIED: "Menikah",
-  DIVORCED: "Cerai",
-};
+  SINGLE: 'Belum Menikah',
+  MARRIED: 'Menikah',
+  DIVORCED: 'Cerai'
+}
 
-const defaultPhotoUrl =
-  "https://ui-avatars.com/api/?background=0D8F81&color=fff&bold=true";
+const defaultPhotoUrl
+  = 'https://ui-avatars.com/api/?background=0D8F81&color=fff&bold=true'
 
 // Fungsi untuk memulai edit
-const normalizeValue = (val?: string) => val?.toUpperCase() || "";
+const normalizeValue = (val?: string) => val?.toUpperCase() || ''
 
 const startEditing = () => {
   if (patient.value) {
@@ -163,314 +163,314 @@ const startEditing = () => {
       bloodTypeId: patient.value.bloodTypeId ?? null,
       dob: formatDateForInput(patient.value.dob),
       policyNumber: patient.value.policyNumber ?? undefined,
-      policyExpDate: patient.value.policyExpDate ?? undefined,
-    };
+      policyExpDate: patient.value.policyExpDate ?? undefined
+    }
 
-    photoPreview.value = patient.value.photoUrl || null;
-    selectedPhotoFile.value = null;
-    isEditing.value = true;
+    photoPreview.value = patient.value.photoUrl || null
+    selectedPhotoFile.value = null
+    isEditing.value = true
   }
-};
+}
 
 // Fungsi untuk membatalkan edit
 const cancelEditing = () => {
-  isEditing.value = false;
-  editForm.value = {};
-  selectedPhotoFile.value = null;
-  photoPreview.value = null;
-};
+  isEditing.value = false
+  editForm.value = {}
+  selectedPhotoFile.value = null
+  photoPreview.value = null
+}
 
 // Fungsi untuk handle klik foto profil
 const handlePhotoClick = () => {
   if (isEditing.value && fileInputRef.value) {
-    fileInputRef.value.click();
+    fileInputRef.value.click()
   }
-};
+}
 
 // Fungsi untuk handle upload foto
 const handlePhotoUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement;
+  const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
-    selectedPhotoFile.value = input.files[0];
-    const reader = new FileReader();
+    selectedPhotoFile.value = input.files[0]
+    const reader = new FileReader()
     reader.onload = (e) => {
-      photoPreview.value = e.target?.result as string;
-    };
-    reader.readAsDataURL(input.files[0]);
+      photoPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(input.files[0])
   }
-};
+}
 
 const photoMenuItems = [
   [
     {
-      label: "Ambil dari Kamera",
-      icon: "i-lucide-camera",
-      onSelect: () => openCamera(),
+      label: 'Ambil dari Kamera',
+      icon: 'i-lucide-camera',
+      onSelect: () => openCamera()
     },
     {
-      label: "Pilih dari File",
-      icon: "i-lucide-image",
-      onSelect: () => handlePhotoClick(),
-    },
-  ],
-];
+      label: 'Pilih dari File',
+      icon: 'i-lucide-image',
+      onSelect: () => handlePhotoClick()
+    }
+  ]
+]
 
 async function startCameraStream() {
-  cameraStarting.value = true;
-  cameraError.value = "";
+  cameraStarting.value = true
+  cameraError.value = ''
   try {
     if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error("Browser tidak mendukung akses kamera");
+      throw new Error('Browser tidak mendukung akses kamera')
     }
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } },
-      audio: false,
-    });
-    cameraStream.value = stream;
-    const el = cameraVideoEl.value;
+      video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+      audio: false
+    })
+    cameraStream.value = stream
+    const el = cameraVideoEl.value
     if (el) {
-      el.srcObject = stream;
-      await el.play().catch(() => {});
+      el.srcObject = stream
+      await el.play().catch(() => {})
     }
   } catch (e) {
-    cameraError.value = (e as Error)?.message || "Gagal mengakses kamera";
+    cameraError.value = (e as Error)?.message || 'Gagal mengakses kamera'
   } finally {
-    cameraStarting.value = false;
+    cameraStarting.value = false
   }
 }
 
 async function openCamera() {
-  cameraError.value = "";
-  cameraOpen.value = true;
-  await nextTick();
-  await startCameraStream();
+  cameraError.value = ''
+  cameraOpen.value = true
+  await nextTick()
+  await startCameraStream()
 }
 
 function stopCameraStream() {
-  cameraStream.value?.getTracks().forEach((track) => track.stop());
-  cameraStream.value = null;
-  if (cameraVideoEl.value) cameraVideoEl.value.srcObject = null;
+  cameraStream.value?.getTracks().forEach(track => track.stop())
+  cameraStream.value = null
+  if (cameraVideoEl.value) cameraVideoEl.value.srcObject = null
 }
 
 function closeCamera() {
-  stopCameraStream();
-  cameraOpen.value = false;
+  stopCameraStream()
+  cameraOpen.value = false
 }
 
 async function captureCamera() {
-  const video = cameraVideoEl.value;
-  if (!video || cameraSaving.value) return;
-  cameraSaving.value = true;
+  const video = cameraVideoEl.value
+  if (!video || cameraSaving.value) return
+  cameraSaving.value = true
   try {
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 480;
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas tidak tersedia");
-    ctx.drawImage(video, 0, 0, w, h);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.9),
-    );
-    if (!blob) throw new Error("Gagal mengambil gambar");
-    const file = new File([blob], "patient-photo.jpg", { type: "image/jpeg" });
-    selectedPhotoFile.value = file;
-    const reader = new FileReader();
+    const w = video.videoWidth || 640
+    const h = video.videoHeight || 480
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas tidak tersedia')
+    ctx.drawImage(video, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.9)
+    )
+    if (!blob) throw new Error('Gagal mengambil gambar')
+    const file = new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' })
+    selectedPhotoFile.value = file
+    const reader = new FileReader()
     reader.onload = (e) => {
-      photoPreview.value = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-    stopCameraStream();
-    cameraOpen.value = false;
+      photoPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+    stopCameraStream()
+    cameraOpen.value = false
   } catch (err) {
-    cameraError.value = (err as Error)?.message || "Gagal mengambil foto";
+    cameraError.value = (err as Error)?.message || 'Gagal mengambil foto'
   } finally {
-    cameraSaving.value = false;
+    cameraSaving.value = false
   }
 }
 
 onBeforeUnmount(() => {
-  stopCameraStream();
-});
+  stopCameraStream()
+})
 
 // Fungsi untuk menyimpan perubahan
 const saveChanges = async () => {
-  if (!patient.value) return;
+  if (!patient.value) return
 
   try {
     // Upload foto jika ada
     if (selectedPhotoFile.value) {
-      const formData = new FormData();
-      formData.append("photo", selectedPhotoFile.value);
+      const formData = new FormData()
+      formData.append('photo', selectedPhotoFile.value)
       const photoResponse = await api.post(
         `/patient/${patient.value.id}/upload-photo`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-      editForm.value.photoUrl = photoResponse.data.data.url;
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      )
+      editForm.value.photoUrl = photoResponse.data.data.url
     }
 
     // Update data pasien
-    const updateData = { ...editForm.value };
-    delete updateData.id;
-    delete updateData.PatientId;
-    delete updateData.createdAt;
-    delete updateData.updatedAt;
-    delete updateData.addresses;
-    delete updateData.histories;
-    delete updateData.bloodType;
+    const updateData = { ...editForm.value }
+    delete updateData.id
+    delete updateData.PatientId
+    delete updateData.createdAt
+    delete updateData.updatedAt
+    delete updateData.addresses
+    delete updateData.histories
+    delete updateData.bloodType
 
-    await api.patch(`/patient/${patient.value.id}`, updateData);
-    await refresh();
-    cancelEditing();
+    await api.patch(`/patient/${patient.value.id}`, updateData)
+    await refresh()
+    cancelEditing()
 
     // Tampilkan notifikasi sukses
     toast.add({
-      title: "Berhasil",
-      description: "Data pasien berhasil diperbarui",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: 'Data pasien berhasil diperbarui',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error saving patient data:", error);
+    console.error('Error saving patient data:', error)
     toast.add({
-      title: "Gagal",
-      description: "Gagal memperbarui data pasien",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal memperbarui data pasien',
+      color: 'error'
+    })
   }
-};
+}
 
 const resolveMediaUrl = (url?: string | null) => {
-  if (!url) return "";
-  if (/^https?:\/\//.test(url) || url.startsWith("data:")) return url;
-  let base = useRuntimeConfig().public.apiBase || "";
-  base = base.replace(/\/+$/, "").replace(/\/api$/, "");
-  return base ? `${base}${url}` : url;
-};
+  if (!url) return ''
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  let base = useRuntimeConfig().public.apiBase || ''
+  base = base.replace(/\/+$/, '').replace(/\/api$/, '')
+  return base ? `${base}${url}` : url
+}
 
 const getPhotoUrl = () => {
   if (isEditing.value && photoPreview.value) {
-    return resolveMediaUrl(photoPreview.value);
+    return resolveMediaUrl(photoPreview.value)
   }
-  if (!patient.value) return defaultPhotoUrl;
+  if (!patient.value) return defaultPhotoUrl
   return (
-    resolveMediaUrl(patient.value.photoUrl) ||
-    `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
-  );
-};
+    resolveMediaUrl(patient.value.photoUrl)
+    || `${defaultPhotoUrl}&name=${encodeURIComponent(fullName.value)}`
+  )
+}
 
-const isAddressModalOpen = ref(false);
-const editingAddress = ref<Partial<Address> | null>(null);
-const isAddressLoading = ref(false);
+const isAddressModalOpen = ref(false)
+const editingAddress = ref<Partial<Address> | null>(null)
+const isAddressLoading = ref(false)
 
 const addressTypeOptions = [
-  { value: "HOME", label: "Rumah" },
-  { value: "WORK", label: "Kantor" },
-  { value: "OTHER", label: "Lainnya" },
-];
+  { value: 'HOME', label: 'Rumah' },
+  { value: 'WORK', label: 'Kantor' },
+  { value: 'OTHER', label: 'Lainnya' }
+]
 
 const addressTypeLabel: Record<string, string> = {
-  HOME: "Rumah",
-  WORK: "Kantor",
-  OTHER: "Lainnya",
-};
+  HOME: 'Rumah',
+  WORK: 'Kantor',
+  OTHER: 'Lainnya'
+}
 
 const defaultAddressForm = (): Partial<Address> => ({
-  type: "HOME",
-  detail: "",
-  country: "Indonesia",
-  province: "",
-  city: "",
-  district: "",
-  note: "",
-});
+  type: 'HOME',
+  detail: '',
+  country: 'Indonesia',
+  province: '',
+  city: '',
+  district: '',
+  note: ''
+})
 
 // Buka modal untuk tambah address baru
 const openAddAddress = () => {
-  editingAddress.value = defaultAddressForm();
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = defaultAddressForm()
+  isAddressModalOpen.value = true
+}
 
 // Buka modal untuk edit address yang ada
 const openEditAddress = (address: Address) => {
-  editingAddress.value = { ...address };
-  isAddressModalOpen.value = true;
-};
+  editingAddress.value = { ...address }
+  isAddressModalOpen.value = true
+}
 
 // Tutup modal
 const closeAddressModal = () => {
-  isAddressModalOpen.value = false;
-  editingAddress.value = null;
-};
+  isAddressModalOpen.value = false
+  editingAddress.value = null
+}
 
 // Simpan address (tambah atau update)
 const saveAddress = async () => {
-  if (!patient.value || !editingAddress.value) return;
-  isAddressLoading.value = true;
+  if (!patient.value || !editingAddress.value) return
+  isAddressLoading.value = true
 
   // Simpan dulu sebelum di-null-kan oleh closeAddressModal()
-  const isUpdate = !!editingAddress.value.id;
+  const isUpdate = !!editingAddress.value.id
 
   try {
     if (isUpdate) {
       await api.post(
         `/patient/${patient.value.id}/address?addressId=${editingAddress.value.id}`,
-        editingAddress.value,
-      );
+        editingAddress.value
+      )
     } else {
       await api.post(
         `/patient/${patient.value.id}/address`,
-        editingAddress.value,
-      );
+        editingAddress.value
+      )
     }
 
-    await refresh();
-    closeAddressModal();
+    await refresh()
+    closeAddressModal()
 
     toast.add({
-      title: "Berhasil",
+      title: 'Berhasil',
       description: isUpdate
-        ? "Alamat berhasil diperbarui"
-        : "Alamat berhasil ditambahkan",
-      color: "success",
-    });
+        ? 'Alamat berhasil diperbarui'
+        : 'Alamat berhasil ditambahkan',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error saving address:", error);
+    console.error('Error saving address:', error)
     toast.add({
-      title: "Gagal",
-      description: "Gagal menyimpan alamat",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal menyimpan alamat',
+      color: 'error'
+    })
   } finally {
-    isAddressLoading.value = false;
+    isAddressLoading.value = false
   }
-};
+}
 
 // Hapus address
 const deleteAddress = async (addressId: string) => {
-  if (!patient.value) return;
+  if (!patient.value) return
 
   try {
-    await api.delete(`/patient/${patient.value.id}/address/${addressId}`);
-    await refresh();
+    await api.delete(`/patient/${patient.value.id}/address/${addressId}`)
+    await refresh()
 
     toast.add({
-      title: "Berhasil",
-      description: "Alamat berhasil dihapus",
-      color: "success",
-    });
+      title: 'Berhasil',
+      description: 'Alamat berhasil dihapus',
+      color: 'success'
+    })
   } catch (error) {
-    console.error("Error deleting address:", error);
+    console.error('Error deleting address:', error)
     toast.add({
-      title: "Gagal",
-      description: "Gagal menghapus alamat",
-      color: "error",
-    });
+      title: 'Gagal',
+      description: 'Gagal menghapus alamat',
+      color: 'error'
+    })
   }
-};
+}
 </script>
 
 <template>
@@ -545,227 +545,220 @@ const deleteAddress = async (addressId: string) => {
         <div
           class="relative flex flex-col md:flex-row items-start gap-4 sm:gap-5 p-4 sm:p-5"
         >
-        <!-- Foto Profil -->
-        <div class="relative flex-shrink-0 mx-auto md:mx-0">
-          <UDropdownMenu
-            v-if="isEditing"
-            :items="photoMenuItems"
-            :content="{ align: 'center' }"
-          >
+          <!-- Foto Profil -->
+          <div class="relative flex-shrink-0 mx-auto md:mx-0">
+            <UDropdownMenu
+              v-if="isEditing"
+              :items="photoMenuItems"
+              :content="{ align: 'center' }"
+            >
+              <div
+                class="group relative rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg cursor-pointer"
+              >
+                <img
+                  :src="getPhotoUrl()"
+                  :alt="fullName"
+                  class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
+                >
+                <div
+                  class="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <UIcon name="i-lucide-camera" class="text-white text-lg sm:text-xl" />
+                </div>
+              </div>
+            </UDropdownMenu>
             <div
-              class="group relative rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg cursor-pointer"
+              v-else
+              class="rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg"
             >
               <img
                 :src="getPhotoUrl()"
                 :alt="fullName"
                 class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
-              />
-              <div
-                class="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <UIcon name="i-lucide-camera" class="text-white text-lg sm:text-xl" />
-              </div>
             </div>
-          </UDropdownMenu>
-          <div
-            v-else
-            class="rounded-full p-[3px] bg-gradient-to-tr from-primary/40 via-accent to-primary/40 shadow-lg"
-          >
-            <img
-              :src="getPhotoUrl()"
-              :alt="fullName"
-              class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full object-cover border-2 border-background"
-            />
-          </div>
-          <input
-            v-if="isEditing"
-            ref="fileInputRef"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="handlePhotoUpload"
-          />
-        </div>
-
-        <!-- Informasi Utama -->
-        <div class="flex-1 min-w-0 w-full">
-          <!-- Baris Nama dan Badge - sekarang center di mobile -->
-          <div
-            class="flex flex-col items-center sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
-          >
-            <div class="flex-1 min-w-0 text-center sm:text-left">
-              <!-- Nama - Edit mode -->
-              <div v-if="isEditing" class="space-y-2">
-                <div class="grid grid-cols-1 xs:grid-cols-3 gap-2">
-                  <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >First Name *</label
-                    >
-                    <UInput
-                      v-model="editForm.firstName"
-                      size="sm"
-                      class="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >Middle Name</label
-                    >
-                    <UInput
-                      v-model="editForm.middleName"
-                      size="sm"
-                      class="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label class="text-xs text-muted block mb-1"
-                      >Last Name</label
-                    >
-                    <UInput
-                      v-model="editForm.lastName"
-                      size="sm"
-                      class="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-              <!-- Nama - View mode -->
-              <div v-else>
-                <div class="flex items-center gap-2">
-                  <h2
-                    class="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight break-words"
-                  >
-                    {{ fullName }}
-                  </h2>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span
-                    class="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2.5 py-1"
-                  >
-                    <UIcon name="i-lucide-id-card" class="size-3.5" />
-                    {{ patient.PatientId }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Badges - sekarang center di mobile -->
-            <div class="flex gap-2 flex-shrink-0 justify-center sm:justify-end">
-              <UBadge
-                :label="genderLabel(patient.gender)"
-                :color="patient.gender === 'MALE' ? 'primary' : 'info'"
-                variant="subtle"
-                class="text-xs sm:text-sm"
-              />
-              <UBadge
-                v-if="patient.maritalStatus"
-                :label="
-                  maritalLabel[patient.maritalStatus] ?? patient.maritalStatus
-                "
-                color="neutral"
-                variant="subtle"
-                class="text-xs sm:text-sm"
-              />
-            </div>
+            <input
+              v-if="isEditing"
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handlePhotoUpload"
+            >
           </div>
 
-          <!-- Informasi Singkat di bawah nama -->
-          <div
-            class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-accented"
-          >
-            <!-- Tanggal Lahir -->
-            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
-              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <UIcon name="i-lucide-calendar" class="size-4" />
-              </span>
-              <span class="text-muted flex-shrink-0">Tanggal Lahir:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                formatDate(patient.dob)
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.dob"
-                type="date"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
+          <!-- Informasi Utama -->
+          <div class="flex-1 min-w-0 w-full">
+            <!-- Baris Nama dan Badge - sekarang center di mobile -->
+            <div
+              class="flex flex-col items-center sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+            >
+              <div class="flex-1 min-w-0 text-center sm:text-left">
+                <!-- Nama - Edit mode -->
+                <div v-if="isEditing" class="space-y-2">
+                  <div class="grid grid-cols-1 xs:grid-cols-3 gap-2">
+                    <div>
+                      <label class="text-xs text-muted block mb-1">First Name *</label>
+                      <UInput
+                        v-model="editForm.firstName"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label class="text-xs text-muted block mb-1">Middle Name</label>
+                      <UInput
+                        v-model="editForm.middleName"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label class="text-xs text-muted block mb-1">Last Name</label>
+                      <UInput
+                        v-model="editForm.lastName"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <!-- Nama - View mode -->
+                <div v-else>
+                  <div class="flex items-center gap-2">
+                    <h2
+                      class="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight break-words"
+                    >
+                      {{ fullName }}
+                    </h2>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs px-2.5 py-1"
+                    >
+                      <UIcon name="i-lucide-id-card" class="size-3.5" />
+                      {{ patient.PatientId }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Badges - sekarang center di mobile -->
+              <div class="flex gap-2 flex-shrink-0 justify-center sm:justify-end">
+                <UBadge
+                  :label="genderLabel(patient.gender)"
+                  :color="patient.gender === 'MALE' ? 'primary' : 'info'"
+                  variant="subtle"
+                  class="text-xs sm:text-sm"
+                />
+                <UBadge
+                  v-if="patient.maritalStatus"
+                  :label="
+                    maritalLabel[patient.maritalStatus] ?? patient.maritalStatus
+                  "
+                  color="neutral"
+                  variant="subtle"
+                  class="text-xs sm:text-sm"
+                />
+              </div>
             </div>
 
-            <!-- No HP -->
-            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
-              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <UIcon name="i-lucide-phone" class="size-4" />
-              </span>
-              <span class="text-muted flex-shrink-0">No. HP:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.phone ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.phone"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
+            <!-- Informasi Singkat di bawah nama -->
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-accented"
+            >
+              <!-- Tanggal Lahir -->
+              <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+                <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                  <UIcon name="i-lucide-calendar" class="size-4" />
+                </span>
+                <span class="text-muted flex-shrink-0">Tanggal Lahir:</span>
+                <span v-if="!isEditing" class="truncate">{{
+                  formatDate(patient.dob)
+                }}</span>
+                <UInput
+                  v-else
+                  v-model="editForm.dob"
+                  type="date"
+                  size="sm"
+                  class="flex-1 min-w-0"
+                />
+              </div>
 
-            <!-- Email -->
-            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
-              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <UIcon name="i-lucide-mail" class="size-4" />
-              </span>
-              <span class="text-muted flex-shrink-0">Email:</span>
-              <span v-if="!isEditing" class="truncate">{{
-                patient.email ?? "-"
-              }}</span>
-              <UInput
-                v-else
-                v-model="editForm.email"
-                type="email"
-                size="sm"
-                class="flex-1 min-w-0"
-              />
-            </div>
+              <!-- No HP -->
+              <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+                <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                  <UIcon name="i-lucide-phone" class="size-4" />
+                </span>
+                <span class="text-muted flex-shrink-0">No. HP:</span>
+                <span v-if="!isEditing" class="truncate">{{
+                  patient.phone ?? "-"
+                }}</span>
+                <UInput
+                  v-else
+                  v-model="editForm.phone"
+                  size="sm"
+                  class="flex-1 min-w-0"
+                />
+              </div>
 
-            <!-- Identitas -->
-            <!-- <div
+              <!-- Email -->
+              <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+                <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                  <UIcon name="i-lucide-mail" class="size-4" />
+                </span>
+                <span class="text-muted flex-shrink-0">Email:</span>
+                <span v-if="!isEditing" class="truncate">{{
+                  patient.email ?? "-"
+                }}</span>
+                <UInput
+                  v-else
+                  v-model="editForm.email"
+                  type="email"
+                  size="sm"
+                  class="flex-1 min-w-0"
+                />
+              </div>
+
+              <!-- Identitas -->
+              <!-- <div
               class="flex flex-col xs:flex-row items-start xs:items-center gap-2 text-xs sm:text-sm min-w-0 col-span-1 sm:col-span-2"
             > -->
-            <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
-              <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                <UIcon name="i-lucide-id-card" class="size-4" />
-              </span>
-              <span class="text-muted whitespace-nowrap">Identitas:</span>
-              <!-- </div> -->
+              <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+                <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                  <UIcon name="i-lucide-id-card" class="size-4" />
+                </span>
+                <span class="text-muted whitespace-nowrap">Identitas:</span>
+                <!-- </div> -->
 
-              <div v-if="isEditing" class="flex flex-1 flex-wrap gap-2">
-                <USelect
-                  v-model="editForm.idType"
-                  :items="[
-                    { label: 'KTP', value: 'KTP' },
-                    { label: 'SIM', value: 'SIM' },
-                    { label: 'PASSPORT', value: 'PASSPORT' },
-                    { label: 'KITAS', value: 'KITAS' },
-                  ]"
-                  size="sm"
-                  class="w-20 sm:w-24"
-                />
-                <UInput
-                  v-model="editForm.idNumber"
-                  size="sm"
-                  class="flex-1 min-w-[120px]"
-                  placeholder="Nomor Identitas"
-                />
-              </div>
+                <div v-if="isEditing" class="flex flex-1 flex-wrap gap-2">
+                  <USelect
+                    v-model="editForm.idType"
+                    :items="[
+                      { label: 'KTP', value: 'KTP' },
+                      { label: 'SIM', value: 'SIM' },
+                      { label: 'PASSPORT', value: 'PASSPORT' },
+                      { label: 'KITAS', value: 'KITAS' }
+                    ]"
+                    size="sm"
+                    class="w-20 sm:w-24"
+                  />
+                  <UInput
+                    v-model="editForm.idNumber"
+                    size="sm"
+                    class="flex-1 min-w-[120px]"
+                    placeholder="Nomor Identitas"
+                  />
+                </div>
 
-              <div v-else class="flex flex-1 flex-wrap items-center gap-x-2">
-                <span class="text-muted">{{ patient.idType }}:</span>
-                <span class="font-mono break-all">{{ patient.idNumber }}</span>
+                <div v-else class="flex flex-1 flex-wrap items-center gap-x-2">
+                  <span class="text-muted">{{ patient.idType }}:</span>
+                  <span class="font-mono break-all">{{ patient.idNumber }}</span>
+                </div>
               </div>
             </div>
-
           </div>
         </div>
-      </div>
       </div>
 
       <!-- Data Diri -->
@@ -785,7 +778,9 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-cake" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Usia</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Usia
+              </p>
             </div>
             <p v-if="!isEditing" class="text-sm">
               {{
@@ -794,7 +789,9 @@ const deleteAddress = async (addressId: string) => {
                   : "-"
               }}
             </p>
-            <p v-else class="text-sm text-muted">Akan dihitung otomatis</p>
+            <p v-else class="text-sm text-muted">
+              Akan dihitung otomatis
+            </p>
           </div>
 
           <!-- Status -->
@@ -803,14 +800,16 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-heart" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Status</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Status
+              </p>
             </div>
             <div v-if="!isEditing">
               <p class="text-sm">
                 {{
-                  maritalLabel[patient.maritalStatus] ??
-                  patient.maritalStatus ??
-                  "-"
+                  maritalLabel[patient.maritalStatus]
+                    ?? patient.maritalStatus
+                    ?? "-"
                 }}
               </p>
             </div>
@@ -820,7 +819,7 @@ const deleteAddress = async (addressId: string) => {
                 :items="[
                   { label: 'Belum Menikah', value: 'SINGLE' },
                   { label: 'Menikah', value: 'MARRIED' },
-                  { label: 'Cerai', value: 'DIVORCED' },
+                  { label: 'Cerai', value: 'DIVORCED' }
                 ]"
                 class="w-32"
               />
@@ -833,7 +832,9 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-droplets" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Golongan Darah</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Golongan Darah
+              </p>
             </div>
             <div v-if="!isEditing">
               <p class="text-sm">
@@ -855,7 +856,9 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-user" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Jenis Kelamin</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Jenis Kelamin
+              </p>
             </div>
             <div v-if="!isEditing">
               <p class="text-sm">
@@ -867,7 +870,7 @@ const deleteAddress = async (addressId: string) => {
                 v-model="editForm.gender"
                 :items="[
                   { label: 'Laki-laki', value: 'MALE' },
-                  { label: 'Perempuan', value: 'FEMALE' },
+                  { label: 'Perempuan', value: 'FEMALE' }
                 ]"
                 class="w-32"
               />
@@ -880,10 +883,14 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-shield-check" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Policy Number</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Policy Number
+              </p>
             </div>
             <div v-if="!isEditing">
-              <p class="text-sm">{{ patient.policyNumber ?? "-" }}</p>
+              <p class="text-sm">
+                {{ patient.policyNumber ?? "-" }}
+              </p>
             </div>
             <div v-else>
               <UInput
@@ -900,7 +907,9 @@ const deleteAddress = async (addressId: string) => {
               <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UIcon name="i-lucide-shield" class="size-3.5" />
               </span>
-              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">Policy Exp. Date</p>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Policy Exp. Date
+              </p>
             </div>
             <div v-if="!isEditing">
               <p class="flex flex-wrap items-center gap-2 text-sm">
@@ -1000,7 +1009,7 @@ const deleteAddress = async (addressId: string) => {
                       address.district,
                       address.city,
                       address.province,
-                      address.country,
+                      address.country
                     ]
                       .filter(Boolean)
                       .join(", ")

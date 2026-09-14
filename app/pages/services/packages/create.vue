@@ -99,8 +99,6 @@ const INPUT_TYPE_COLOR: Record<string, string> = {
   calculated: 'rose'
 }
 
-
-
 // ─────────────────────────────────────────────
 // Paket Form
 // ─────────────────────────────────────────────
@@ -294,8 +292,8 @@ const groupOptions = computed(() => {
         return a.name.localeCompare(b.name)
       })
       .map(group => ({
-      label: group.name,
-      value: group.id
+        label: group.name,
+        value: group.id
       }))
   ]
 })
@@ -986,7 +984,6 @@ await fetchSourcePakets()
                               variant="subtle"
                               size="xs"
                             />
-
                           </div>
 
                           <p class="text-xs text-muted truncate">

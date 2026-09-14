@@ -52,7 +52,7 @@ watchDebounced(
       await api.put(`/questionnaire/${questionnaireId}`, {
         questionnaire_name: questionnaireTitle.value,
         description: questionnaireDescription.value,
-        portalKey: questionnairePortalKey.value || null,
+        portalKey: questionnairePortalKey.value || null
       })
     } catch {
       // abaikan — gagal update header tidak memblokir builder
@@ -158,14 +158,14 @@ async function saveQuestionnaire() {
     :sections="sections"
     :title="questionnaireTitle"
     :description="questionnaireDescription"
-    :portalKey="questionnairePortalKey"
+    :portal-key="questionnairePortalKey"
     :saving="saving"
     @update:sections="onUpdateSections"
     @update:title="questionnaireTitle = $event"
     @update:description="
       questionnaireDescription = $event
     "
-    @update:portalKey="questionnairePortalKey = $event"
+    @update:portal-key="questionnairePortalKey = $event"
     @add-section="handleAddSection"
     @add-question="addQuestion"
     @preview="isPreviewOpen = true"

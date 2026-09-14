@@ -1471,7 +1471,7 @@ async function submit() {
                 accept="image/*"
                 class="hidden"
                 @change="onUploadLogo"
-              />
+              >
             </div>
           </div>
 

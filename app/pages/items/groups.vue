@@ -1,27 +1,27 @@
 <script setup lang="ts">
 type Department = {
-  id: string,
-  name: string,
-  code?: string | null,
+  id: string
+  name: string
+  code?: string | null
   type?: 'office' | 'medical' | null
 }
 
 type GroupNode = {
-  id: string,
-  departmentId: string,
-  name: string,
-  code?: string | null,
-  parentId: string | null,
-  sortOrder: number,
-  items?: Array<{ id: string; code: string; name: string; isActive?: boolean }>
+  id: string
+  departmentId: string
+  name: string
+  code?: string | null
+  parentId: string | null
+  sortOrder: number
+  items?: Array<{ id: string, code: string, name: string, isActive?: boolean }>
   children?: GroupNode[]
 }
 
 type GroupFormState = {
-  departmentId: string,
-  name: string,
-  code: string,
-  parentId: string,
+  departmentId: string
+  name: string
+  code: string
+  parentId: string
   sortOrder: number
 }
 
@@ -59,13 +59,13 @@ const form = reactive<GroupFormState>({
   sortOrder: 0
 })
 
-const departmentOptions = computed(() => departments.value.map((dep) => ({
+const departmentOptions = computed(() => departments.value.map(dep => ({
   label: dep.name,
   value: dep.id
 })))
 
 const flatGroups = computed(() => {
-  const rows: Array<GroupNode & { depth: number; path: string }> = []
+  const rows: Array<GroupNode & { depth: number, path: string }> = []
 
   const walk = (nodes: GroupNode[], depth = 0, ancestors: string[] = []) => {
     for (const node of nodes) {
@@ -115,9 +115,9 @@ const parentGroupOptions = computed(() => {
     : new Set<string>()
 
   return flatGroups.value
-    .filter((group) => group.departmentId === form.departmentId)
-    .filter((group) => !blockedIds.has(group.id))
-    .map((group) => ({
+    .filter(group => group.departmentId === form.departmentId)
+    .filter(group => !blockedIds.has(group.id))
+    .map(group => ({
       label: group.path,
       value: group.id
     }))
@@ -125,7 +125,7 @@ const parentGroupOptions = computed(() => {
 
 const parentGroupSelectionError = computed(() => {
   if (!form.departmentId) return ''
-  if (form.parentId && !parentGroupOptions.value.some((group) => group.value === form.parentId)) {
+  if (form.parentId && !parentGroupOptions.value.some(group => group.value === form.parentId)) {
     return 'Parent group tidak valid untuk department atau posisi hierarchy ini.'
   }
   return ''
@@ -382,7 +382,7 @@ async function submitImportPreview() {
       return nodes.flatMap(node => [node, ...flatten(node.children ?? [])])
     }
 
-    importPreviewRows.value.forEach(row => { row.error = '' })
+    importPreviewRows.value.forEach((row) => { row.error = '' })
 
     for (let i = 0; i < importPreviewRows.value.length; i++) {
       const row = importPreviewRows.value[i]!
@@ -509,8 +509,12 @@ onMounted(async () => {
       <div class="space-y-4">
         <div class="flex flex-col gap-3 rounded-xl border border-default bg-elevated/30 p-4 md:flex-row md:items-end md:justify-between">
           <div class="space-y-1">
-            <p class="text-sm font-medium">Pilih Department</p>
-            <p class="text-xs text-muted">Hierarchy group dan subgroup mengikuti department aktif.</p>
+            <p class="text-sm font-medium">
+              Pilih Department
+            </p>
+            <p class="text-xs text-muted">
+              Hierarchy group dan subgroup mengikuti department aktif.
+            </p>
           </div>
 
           <div class="flex flex-col gap-2 md:flex-row md:items-end">
@@ -538,8 +542,12 @@ onMounted(async () => {
           <template #header>
             <div class="flex items-center justify-between gap-3">
               <div>
-                <h2 class="text-base font-semibold">Group & Subgroup</h2>
-                <p class="text-sm text-muted">Tambah root group atau child subgroup sesuai struktur lab.</p>
+                <h2 class="text-base font-semibold">
+                  Group & Subgroup
+                </h2>
+                <p class="text-sm text-muted">
+                  Tambah root group atau child subgroup sesuai struktur lab.
+                </p>
               </div>
               <UBadge
                 :label="`${flatGroups.length} node`"
@@ -555,8 +563,12 @@ onMounted(async () => {
 
           <div v-else-if="!flatGroups.length" class="py-16 text-center">
             <UIcon name="i-lucide-folder-plus" class="size-10 text-muted mx-auto mb-3" />
-            <p class="font-medium">Belum ada group</p>
-            <p class="text-sm text-muted mt-1">Klik Add Root Group untuk mulai membuat hierarchy.</p>
+            <p class="font-medium">
+              Belum ada group
+            </p>
+            <p class="text-sm text-muted mt-1">
+              Klik Add Root Group untuk mulai membuat hierarchy.
+            </p>
           </div>
 
           <div v-else class="space-y-2">
@@ -583,8 +595,16 @@ onMounted(async () => {
                       :name="node.depth === 0 ? 'i-lucide-folder' : 'i-lucide-folder-tree'"
                       class="size-4 text-primary"
                     />
-                    <p class="font-medium">{{ node.name }}</p>
-                    <UBadge v-if="node.code" :label="node.code" size="xs" color="neutral" variant="subtle" />
+                    <p class="font-medium">
+                      {{ node.name }}
+                    </p>
+                    <UBadge
+                      v-if="node.code"
+                      :label="node.code"
+                      size="xs"
+                      color="neutral"
+                      variant="subtle"
+                    />
                   </div>
                   <p class="text-xs text-muted mt-1">
                     {{ node.path }}
@@ -597,11 +617,29 @@ onMounted(async () => {
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
-                  <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-plus" @click="openCreate(node.id)">
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    @click="openCreate(node.id)"
+                  >
                     Subgroup
                   </UButton>
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" @click="openEdit(node)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteGroup(node)" />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-pencil"
+                    @click="openEdit(node)"
+                  />
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    @click="deleteGroup(node)"
+                  />
                 </div>
               </div>
             </div>
@@ -614,8 +652,12 @@ onMounted(async () => {
           <UCard class="flex max-h-[90vh] flex-col" :ui="{ body: 'min-h-0 p-0', footer: 'shrink-0' }">
             <template #header>
               <div>
-                <h2 class="text-lg font-semibold">Preview Import Group</h2>
-                <p class="text-sm text-muted">Edit data dulu. Klik Import ke DB jika sudah benar.</p>
+                <h2 class="text-lg font-semibold">
+                  Preview Import Group
+                </h2>
+                <p class="text-sm text-muted">
+                  Edit data dulu. Klik Import ke DB jika sudah benar.
+                </p>
               </div>
             </template>
 
@@ -643,16 +685,39 @@ onMounted(async () => {
                   <UInput v-model="row.parentCode" size="sm" />
                   <UInput v-model="row.parentName" size="sm" />
                   <UInput v-model.number="row.sortOrder" type="number" size="sm" />
-                  <UButton color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" @click="removeImportRow(index)" />
-                  <p v-if="row.error" class="col-span-7 text-xs text-error">{{ row.error }}</p>
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    icon="i-lucide-trash-2"
+                    @click="removeImportRow(index)"
+                  />
+                  <p v-if="row.error" class="col-span-7 text-xs text-error">
+                    {{ row.error }}
+                  </p>
                 </div>
               </div>
             </div>
 
             <template #footer>
               <div class="flex w-full justify-end gap-2">
-                <UButton color="neutral" variant="soft" :disabled="importing" @click="importPreviewOpen = false">Batal</UButton>
-                <UButton color="primary" icon="i-lucide-database" :loading="importing" :disabled="!importPreviewRows.length" @click="submitImportPreview">Import ke DB</UButton>
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  :disabled="importing"
+                  @click="importPreviewOpen = false"
+                >
+                  Batal
+                </UButton>
+                <UButton
+                  color="primary"
+                  icon="i-lucide-database"
+                  :loading="importing"
+                  :disabled="!importPreviewRows.length"
+                  @click="submitImportPreview"
+                >
+                  Import ke DB
+                </UButton>
               </div>
             </template>
           </UCard>
@@ -711,7 +776,12 @@ onMounted(async () => {
               </div>
 
               <UFormField label="Sort Order">
-                <UInput v-model="form.sortOrder" type="number" min="0" class="w-full" />
+                <UInput
+                  v-model="form.sortOrder"
+                  type="number"
+                  min="0"
+                  class="w-full"
+                />
               </UFormField>
             </div>
 
