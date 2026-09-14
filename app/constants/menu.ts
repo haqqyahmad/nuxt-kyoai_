@@ -6,7 +6,6 @@ export const restrictedAllowedRoutes: string[] = [
   '/',
   '/rooms/assignments',
   '/rooms/queue',
-  '/rooms/sample-collection',
   '/rooms/sample-reception',
   '/result/exam-results',
   '/rooms/queue-work',
@@ -115,7 +114,6 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         { label: 'Room Assignment', to: '/rooms/assignments' },
         { label: 'Room Queue', to: '/rooms/queue' },
-        { label: 'Sample Collection', to: '/rooms/sample-collection', permission: 'sample:collect' },
         { label: 'Queue Search', icon: 'i-lucide-scan-barcode', to: '/queue-search' }
       ]
     },

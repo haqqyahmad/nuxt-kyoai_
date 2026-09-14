@@ -489,7 +489,7 @@ async function submitSelfAssignment() {
       await refreshMyAssignment()
 
       // [SELF-ASSIGN] aktifkan sesi room otomatis utk room yang dipilih,
-      // lalu arahkan ke /rooms/queue (bukan sample-collection) agar langsung bisa ambil pasien.
+      // lalu arahkan ke /rooms/queue agar langsung bisa ambil pasien.
       try {
         await enterRoomSession({ roomId: selfForm.roomId })
       } catch (error: unknown) {
