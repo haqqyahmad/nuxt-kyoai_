@@ -1,0 +1,107 @@
+{
+    "docs": [
+        {
+            "name": "Dengue IgG",
+            "owner": "Administrator",
+            "creation": "2025-05-21 11:34:53.576948",
+            "modified": "2025-05-21 11:34:53.576948",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 0,
+            "lab_test_name": "Dengue IgG",
+            "department": "Laboratory",
+            "custom_result_in_exam": 0,
+            "disabled": 0,
+            "link_existing_item": 1,
+            "item": "OTIM-00002",
+            "lab_test_code": "OTIM-00002",
+            "lab_test_group": "Other Test Imunnoserologi",
+            "is_billable": 1,
+            "lab_test_rate": 50000,
+            "lab_test_description": "Dengue IgG ",
+            "lab_test_template_type": "Selective",
+            "custom_is_single_result": 0,
+            "conversion_factor": 0,
+            "sensitivity": 0,
+            "custom_allow_stock_consumption": 1,
+            "sample_qty": 1,
+            "legend_print_position": "Bottom",
+            "change_in_item": 0,
+            "doctype": "Lab Test Template",
+            "lab_test_groups": [],
+            "custom_items": [],
+            "custom_calculated_exam": [],
+            "custom_selective": [
+                {
+                    "name": "02tmbe37vk",
+                    "owner": "Administrator",
+                    "creation": "2025-05-21 11:34:53.576948",
+                    "modified": "2025-05-21 11:34:53.576948",
+                    "modified_by": "Administrator",
+                    "docstatus": 0,
+                    "idx": 1,
+                    "event": "Dengue IgG",
+                    "result_select": "Negative\nPositive",
+                    "normal_value": "Negative",
+                    "parent": "Dengue IgG",
+                    "parentfield": "custom_selective",
+                    "parenttype": "Lab Test Template",
+                    "doctype": "Lab Test Select Template"
+                }
+            ],
+            "normal_test_templates": [],
+            "descriptive_test_templates": [],
+            "codification_table": []
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "Lab Test Template",
+        "name": "Dengue IgG",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [
+            {
+                "name": "rq701ds7fe",
+                "owner": "Administrator",
+                "creation": "2025-05-21 11:34:53.584502",
+                "data": "{\"created_by\":\"Administrator\",\"creation\":\"2025-05-21 11:34:53.576948\",\"updater_reference\":{\"docname\":\"Lab Test Template Import on 2025-05-21 09:20:12.295740\",\"doctype\":\"Data Import\",\"label\":\"via Data Import\"}}"
+            }
+        ],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 1,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::OTIM-00002": "Dengue IgG "
+    }
+}

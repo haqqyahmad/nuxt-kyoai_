@@ -1,0 +1,113 @@
+{
+    "docs": [
+        {
+            "name": "Parasite/worm/amoeba",
+            "owner": "Administrator",
+            "creation": "2025-05-21 11:34:52.104697",
+            "modified": "2025-05-21 11:34:52.104697",
+            "modified_by": "Administrator",
+            "docstatus": 0,
+            "idx": 0,
+            "lab_test_name": "Parasite/worm/amoeba",
+            "department": "Laboratory",
+            "custom_result_in_exam": 0,
+            "disabled": 0,
+            "link_existing_item": 1,
+            "item": "MIRS-00001",
+            "lab_test_code": "MIRS-00001",
+            "lab_test_group": "Microscopic Stool",
+            "is_billable": 1,
+            "lab_test_rate": 50000,
+            "lab_test_description": "Parasite/worm/amoeba",
+            "lab_test_template_type": "Selective",
+            "custom_is_single_result": 0,
+            "conversion_factor": 0,
+            "sensitivity": 0,
+            "custom_allow_stock_consumption": 0,
+            "sample": "Feaces",
+            "sample_qty": 1,
+            "legend_print_position": "Bottom",
+            "change_in_item": 0,
+            "doctype": "Lab Test Template",
+            "lab_test_groups": [],
+            "custom_items": [],
+            "custom_calculated_exam": [],
+            "custom_selective": [
+                {
+                    "name": "02u79rjaum",
+                    "owner": "Administrator",
+                    "creation": "2025-05-21 11:34:52.104697",
+                    "modified": "2025-05-21 11:34:52.104697",
+                    "modified_by": "Administrator",
+                    "docstatus": 0,
+                    "idx": 1,
+                    "event": "Parasite/worm/amoeba",
+                    "result_select": "Nogative\nPositive",
+                    "parent": "Parasite/worm/amoeba",
+                    "parentfield": "custom_selective",
+                    "parenttype": "Lab Test Template",
+                    "doctype": "Lab Test Select Template"
+                }
+            ],
+            "normal_test_templates": [],
+            "descriptive_test_templates": [],
+            "codification_table": []
+        }
+    ],
+    "docinfo": {
+        "user_info": {},
+        "comments": [],
+        "shared": [],
+        "assignment_logs": [],
+        "attachment_logs": [],
+        "info_logs": [],
+        "like_logs": [],
+        "workflow_logs": [],
+        "doctype": "Lab Test Template",
+        "name": "Parasite/worm/amoeba",
+        "attachments": [],
+        "communications": [],
+        "automated_messages": [],
+        "versions": [
+            {
+                "name": "rppjm2orig",
+                "owner": "Administrator",
+                "creation": "2025-05-21 11:34:52.111299",
+                "data": "{\"created_by\":\"Administrator\",\"creation\":\"2025-05-21 11:34:52.104697\",\"updater_reference\":{\"docname\":\"Lab Test Template Import on 2025-05-21 09:20:12.295740\",\"doctype\":\"Data Import\",\"label\":\"via Data Import\"}}"
+            },
+            {
+                "name": "mi1u02e1el",
+                "owner": "Administrator",
+                "creation": "2025-05-20 11:45:58.501972",
+                "data": "{\"added\":[],\"changed\":[],\"data_import\":null,\"removed\":[],\"row_changed\":[[\"custom_selective\",0,\"02u79rjaum\",[[\"result_select\",\"-\\r<br>+\",\"Nogative<br>Positive\"]]]],\"updater_reference\":{\"docname\":\"Lab Test Template Import on 2025-05-20 10:09:35.679892\",\"doctype\":\"Data Import\",\"label\":\"via Data Import\"}}"
+            }
+        ],
+        "assignments": [],
+        "permissions": {
+            "select": 1,
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 1,
+            "amend": 1,
+            "print": 1,
+            "email": 1,
+            "report": 1,
+            "import": 1,
+            "export": 1,
+            "share": 1
+        },
+        "views": [],
+        "energy_point_logs": [],
+        "additional_timeline_content": [],
+        "milestones": [],
+        "is_document_followed": null,
+        "tags": "",
+        "document_email": null
+    },
+    "_link_titles": {
+        "Item::MIRS-00001": "Parasite/worm/amoeba"
+    }
+}
