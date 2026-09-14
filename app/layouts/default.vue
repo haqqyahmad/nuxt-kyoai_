@@ -1,6 +1,6 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
+import type { NavigationMenuItem, CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
 
 const route = useRoute()
@@ -305,11 +305,22 @@ const hideSidebar = computed(() => {
   return false
 })
 
-const groups = computed(() => [
+function toSearchItems(items: NavigationMenuItem[]): CommandPaletteItem[] {
+  return items.map((item) => {
+    const mapped: CommandPaletteItem = {}
+    if (item.label) mapped.label = String(item.label)
+    if (item.icon) mapped.icon = item.icon
+    if (typeof item.to === 'string') mapped.to = item.to
+    if (item.children?.length) mapped.children = toSearchItems(item.children as NavigationMenuItem[])
+    return mapped
+  })
+}
+
+const groups = computed<CommandPaletteGroup[]>(() => [
   {
     id: 'links',
     label: 'Go to',
-    items: links.value.flat()
+    items: toSearchItems(links.value.flat())
   }
 ])
 
@@ -323,7 +334,7 @@ onMounted(() => {
     return
   }
 
-  const toastId = toast.add({
+  const cookieToast = toast.add({
     title: 'Cookie Notice',
     description:
   'This website uses cookies to ensure you get the best experience on our website. Please review our Privacy Policy for more information.',
@@ -343,7 +354,7 @@ onMounted(() => {
         color: 'primary',
         onClick: () => {
           cookie.value = 'accepted'
-          toast.remove(toastId)
+          toast.remove(cookieToast.id)
         }
       },
       {
@@ -351,7 +362,7 @@ onMounted(() => {
         color: 'neutral',
         onClick: () => {
           cookie.value = 'rejected'
-          toast.remove(toastId)
+          toast.remove(cookieToast.id)
         }
       }
     ]
