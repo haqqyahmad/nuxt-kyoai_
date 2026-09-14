@@ -1,26 +1,26 @@
 export const masterSeo = {
   '/branches': {
-    title: 'Branches | Master Data',
+    title: 'Branches',
     description: 'Manage company branches.'
   },
 
   '/customer': {
-    title: 'Customers | Master Data',
+    title: 'Customers',
     description: 'Manage customers.'
   },
 
   '/departments': {
-    title: 'Departments | Master Data',
+    title: 'Departments',
     description: 'Manage departments.'
   },
 
   '/patients': {
-    title: 'Patients | Master Data',
+    title: 'Patients',
     description: 'Manage patients.'
   },
 
   '/users': {
-    title: 'Users | Master Data',
+    title: 'Users',
     description: 'Manage users.'
   }
 }

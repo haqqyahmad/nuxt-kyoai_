@@ -1,32 +1,32 @@
 export const medicalSeo = {
 
   '/items/mcu': {
-    title: 'MCU Items | Medical',
+    title: 'MCU Items',
     description: 'Manage MCU items.'
   },
 
   '/items/sample-types': {
-    title: 'Sample Types | Medical',
+    title: 'Sample Types',
     description: 'Manage Sample Types.'
   },
 
   '/questionnaire': {
-    title: 'Questionnaires | Medical',
+    title: 'Questionnaires',
     description: 'Manage questionnaires.'
   },
 
   '/rooms': {
-    title: 'Rooms | Medical',
+    title: 'Rooms',
     description: 'Manage rooms.'
   },
 
   '/services/packages': {
-    title: 'Service Packages | Medical',
+    title: 'Service Packages',
     description: 'Manage service packages.'
   },
 
   '/services/types': {
-    title: 'Service Types | Medical',
+    title: 'Service Types',
     description: 'Manage service types.'
   }
 }

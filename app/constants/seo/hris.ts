@@ -1,37 +1,37 @@
 export const hrisSeo = {
 
   '/hris': {
-    title: 'Dashboard | HRIS',
+    title: 'Dashboard',
     description: 'Manage MCU items.'
   },
 
   '/hris/shifts': {
-    title: 'Shift Management | HRIS',
+    title: 'Shift Management',
     description: 'Manage Shifts.'
   },
 
   '/hris/attendances': {
-    title: 'Attendances | HRIS',
+    title: 'Attendances',
     description: 'Manage Attendances.'
   },
 
   '/hris/employees': {
-    title: 'Employees | HRIS',
+    title: 'Employees',
     description: 'Manage Employees.'
   },
 
   '/hris/leaves': {
-    title: 'Leave Management | HRIS',
+    title: 'Leave Management',
     description: 'Manage Leaves.'
   },
 
   '/hris/reimbursement': {
-    title: 'Reimbursement | HRIS',
+    title: 'Reimbursement',
     description: 'Manage Reimbursement.'
   },
 
   '/hris/recruitment': {
-    title: 'Recruitment | HRIS',
+    title: 'Recruitment',
     description: 'Manage Recruitment.'
   }
 }

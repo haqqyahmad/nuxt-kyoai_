@@ -1,21 +1,21 @@
 export const settingsSeo = {
   '/settings': {
-    title: 'Profile | Settings',
+    title: 'Profile',
     description: 'Manage profile settings.'
   },
 
   '/settings/security': {
-    title: 'Security | Settings',
+    title: 'Security',
     description: 'Manage account security and password.'
   },
 
   '/settings/roles': {
-    title: 'Roles & Permissions | Settings',
+    title: 'Roles & Permissions',
     description: 'Manage roles and access permissions.'
   },
 
   '/settings/permissions': {
-    title: 'Permissions | Settings',
+    title: 'Permissions',
     description: 'Manage system permissions.'
   }
 }
