@@ -5,7 +5,7 @@ import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
 import HistoryTimeline from './HistoryTimeline.vue'
 
-const { isExternalDoctor, user: currentUser } = await useCurrentUser()
+const { isExternalDoctor } = await useCurrentUser()
 
 type Patient = {
   id: string | number
@@ -264,50 +264,6 @@ const isExternalResultFilled = computed(
     props.result?.items?.some(item => item.isExternalResult)
     && props.result?.exam?.externalStatus === 'FILLED'
 )
-
-// [F] Approve department (reviewer step / four-eyes): REVIEW status + allowed by backend.
-const departmentApproveBlockedReason = computed<string | null>(() => {
-  const r = props.result
-  if (r?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return null
-  if (r.departmentCanApprove === false) return r.departmentApproveDisableReason || 'You do not have permission to approve this step'
-  if (r.exam?.resultSubmittedBy != null && Number(r.exam.resultSubmittedBy) === Number(currentUser.value?.id)) {
-    return 'The same inputter/submitter cannot approve (four-eyes).'
-  }
-  return null
-})
-const canApproveCurrentResult = computed(() => {
-  if (props.result?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return false
-  if (props.result.departmentCanApprove === false) return false
-  if (props.result.departmentCanApprove === true) return Boolean(props.result?.item?.department?.id)
-  const currentId = currentUser.value?.id
-  if (!currentId) return false
-  return Number(props.result?.exam?.resultSubmittedBy) !== Number(currentId)
-})
-const approveButtonTitle = computed(() => {
-  if (props.result?.departmentResultStatus !== 'DEPARTMENT_REVIEW') return undefined
-  return departmentApproveBlockedReason.value || undefined
-})
-
-const approving = ref(false)
-async function handleApproveResult() {
-  const examId = props.result?.exam?.id
-  const departmentId = props.result?.item?.department?.id
-  if (!examId || !departmentId || approving.value) return
-  approving.value = true
-  try {
-    await api.post(`/mcu/exams/${examId}/department-result/approve`, { departmentId })
-    toast.add({ title: 'Approved', description: 'Result approved by department.', color: 'success' })
-    emit('resultSaved', props.result)
-  } catch (error: unknown) {
-    toast.add({
-      title: 'Approve failed',
-      description: getErrorMessage(error, 'An error occurred while approving.'),
-      color: 'error'
-    })
-  } finally {
-    approving.value = false
-  }
-}
 
 const externalProcessingDeadline = computed(() => {
   if (props.result?.exam?.externalStatus !== 'PROCESSING') return null
@@ -1651,18 +1607,6 @@ onBeforeUnmount(() => {
           size="sm"
           @click="emit('close')"
         />
-
-        <UButton
-          v-if="embedded && result?.departmentResultStatus === 'DEPARTMENT_REVIEW'"
-          color="success"
-          :loading="approving"
-          :disabled="!canApproveCurrentResult"
-          :title="approveButtonTitle"
-          icon="i-lucide-check-circle"
-          @click="handleApproveResult"
-        >
-          Approve
-        </UButton>
 
         <div
           v-if="

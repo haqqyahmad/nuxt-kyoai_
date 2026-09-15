@@ -282,7 +282,6 @@ onMounted(() => {
             :department-id="(result as any)?.item?.department?.id"
             :result-status="(result as any)?.departmentResultStatus"
             :submitted-by="(result as any)?.exam?.resultSubmittedBy"
-            @approved="loadResult"
           />
 
           <HistoryTimeline
