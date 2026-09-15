@@ -283,6 +283,11 @@ const canSubmitCurrentResult = computed(() => {
     return props.result?.exam?.externalStatus === 'PROCESSING'
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
+const submitHint = computed<string | null>(() => {
+  if (canSubmitCurrentResult.value) return null
+  if (isResultBlockedBySample.value) return sampleBlockedDescription.value
+  return 'Save Draft dulu untuk mengaktifkan Submit'
+})
 const isExternalResultFilled = computed(
   () =>
     props.result?.items?.some(item => item.isExternalResult)
@@ -1672,6 +1677,7 @@ onBeforeUnmount(() => {
           <UButton
             color="primary"
             :loading="submitting"
+            :title="submitHint || undefined"
             :disabled="
               saving
                 || !canSubmitCurrentResult
@@ -1683,6 +1689,10 @@ onBeforeUnmount(() => {
           >
             Submit Result
           </UButton>
+          <span
+            v-if="submitHint"
+            class="w-full text-right text-xs text-muted sm:w-auto"
+          >{{ submitHint }}</span>
         </div>
       </div>
     </template>
@@ -2126,12 +2136,17 @@ onBeforeUnmount(() => {
                     </UButton><UButton
                       color="primary"
                       :loading="submitting"
+                      :title="submitHint || undefined"
                       :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
                       icon="i-lucide-send"
                       @click="handleSubmitResult"
                     >
                       Submit Result
                     </UButton>
+                    <span
+                      v-if="submitHint"
+                      class="text-xs text-muted sm:ml-2 sm:self-center"
+                    >{{ submitHint }}</span>
                   </div>
                 </template>
 
@@ -2151,6 +2166,7 @@ onBeforeUnmount(() => {
                     <UButton
                       color="primary"
                       :loading="submitting"
+                      :title="submitHint || undefined"
                       :disabled="
                         saving
                           || !canSubmitCurrentResult
@@ -3074,6 +3090,7 @@ onBeforeUnmount(() => {
           <UButton
             color="primary"
             :loading="submitting"
+            :title="submitHint || undefined"
             :disabled="saving || !canSubmitCurrentResult || isResultBlockedBySample"
             @click="handleSubmitResult"
           >
