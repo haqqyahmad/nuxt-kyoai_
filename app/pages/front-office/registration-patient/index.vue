@@ -239,13 +239,6 @@ function getRowItems(row: Row<Patient>) {
       to: `/front-office/registration-patient/${row.original.id_reg}`
     },
     {
-      label: 'Edit patient data',
-      icon: 'i-lucide-pencil',
-      onSelect() {
-        openPatientEdit(row.original.id)
-      }
-    },
-    {
       type: 'separator'
     },
     {
