@@ -146,15 +146,15 @@ const { data: reg, refresh } = await useAsyncData(`registration-${route.params.i
 )
 
 const SERVICE_LABEL: Record<string, string> = {
-  Laboratorium: 'Laboratorium',
-  DoctorConsultation: 'Konsultasi Dokter',
+  Laboratorium: 'Laboratory',
+  DoctorConsultation: 'Doctor Consultation',
   MCU: 'MCU (Medical Checkup)',
-  Vaccine: 'Vaksin',
+  Vaccine: 'Vaccine',
   Antigen: 'Antigen',
   PCR: 'PCR',
   VitaminInjection: 'Vitamin Injection',
-  Pharmacy: 'Farmasi',
-  Dental: 'Gigi'
+  Pharmacy: 'Pharmacy',
+  Dental: 'Dental'
 }
 
 const STATUS_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
@@ -180,7 +180,7 @@ function priorityBlockClass(priority?: string | null) {
 
 function formatDateTime(d?: string) {
   if (!d) return '-'
-  return new Date(d).toLocaleString('id-ID', {
+  return new Date(d).toLocaleString('en-US', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -193,7 +193,7 @@ function formatDob(d?: string) {
   if (!d) return '-'
   const date = parseLocalDate(d)
   if (!date) return d
-  return date.toLocaleDateString('id-ID', {
+  return date.toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
@@ -258,16 +258,16 @@ function getExamItemStatus(ei: ExamItem) {
 }
 
 function getExamItemStatusLabel(status: string) {
-  if (status === 'DONE') return 'Selesai'
-  if (status === 'IN_PROGRESS') return 'Dikerjakan'
-  if (status === 'CALLED') return 'Dipanggil'
-  if (status === 'SKIPPED') return 'Skip'
+  if (status === 'DONE') return 'Done'
+  if (status === 'IN_PROGRESS') return 'In Progress'
+  if (status === 'CALLED') return 'Called'
+  if (status === 'SKIPPED') return 'Skipped'
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
-  if (status === 'WAITING_SAMPLE') return 'Menunggu Sample'
-  if (status === 'REJECTED') return 'Sample Ditolak'
-  return 'Menunggu'
+  if (status === 'WAITING_SAMPLE') return 'Waiting Sample'
+  if (status === 'REJECTED') return 'Sample Rejected'
+  return 'Waiting'
 }
 
 function getExamItemStatusLabelEn(status: string) {
@@ -287,7 +287,7 @@ function shortTime(value: string | undefined | null): string {
   if (!value) return ''
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
 function getRescheduleVisitDate(examItemId: string): string {
@@ -357,11 +357,11 @@ function getSampleStatusColor(status: string) {
 }
 
 function getSampleStatusLabel(status: string) {
-  if (status === 'RECEIVED') return 'Diterima Lab'
-  if (status === 'COLLECTED') return 'Sudah Diambil'
-  if (status === 'REJECTED') return 'Ditolak'
+  if (status === 'RECEIVED') return 'Received by Lab'
+  if (status === 'COLLECTED') return 'Collected'
+  if (status === 'REJECTED') return 'Rejected'
   if (status === 'RESCHEDULED') return 'Reschedule'
-  return 'Menunggu Ambil'
+  return 'Waiting for Collection'
 }
 
 const mcuCategories = computed(() => {
@@ -392,7 +392,7 @@ const mcuCategories = computed(() => {
   }
 
   for (const ei of paketItems) {
-    const deptName: string = ei.item.department?.name ?? 'Lainnya'
+    const deptName: string = ei.item.department?.name ?? 'Others'
     if (!grouped.has(deptName)) {
       const icon = deptIcon[deptName as keyof typeof deptIcon] ?? deptIcon.default
       grouped.set(deptName, {
@@ -537,9 +537,9 @@ function printQueueTicket() {
   const company = r?.company?.customerName ? esc(r.company.customerName) : ''
   const regNo = esc(r?.id_reg)
   const examDate = r?.examDate
-    ? new Date(r.examDate).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+    ? new Date(r.examDate).toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : '-'
-  const printedAt = new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const printedAt = new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   const logo = new URL('/logo.png', window.location.origin).toString()
   const serviceNumber = esc(r?.serviceNumber)
   const serviceBarcode = r?.serviceNumber
@@ -547,10 +547,10 @@ function printQueueTicket() {
     : ''
 
   const html = `<!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Tiket Antrian ${code}</title>
+<title>Queue Ticket ${code}</title>
 <style>
   @page { size: auto; margin: 6mm; }
   * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; color: #111; }
@@ -574,16 +574,16 @@ function printQueueTicket() {
   <div class="ticket">
     <img class="logo" src="${logo}" alt="Logo" />
     <div class="branch">${branch}</div>
-    <div class="label">Nomor Antrian</div>
+    <div class="label">Queue Number</div>
     <div class="code">${code}</div>
     <div class="name">${patientName}</div>
     <div class="divider"></div>
-    <div class="row"><span class="k">No. RM</span><span class="v">${rm}</span></div>
-    <div class="row"><span class="k">No. Registrasi</span><span class="v">${regNo}</span></div>
-    <div class="row"><span class="k">Tanggal Exam</span><span class="v">${examDate}</span></div>
-    ${company ? `<div class="row"><span class="k">Perusahaan</span><span class="v">${company}</span></div>` : ''}
+    <div class="row"><span class="k">MR No.</span><span class="v">${rm}</span></div>
+    <div class="row"><span class="k">Registration No.</span><span class="v">${regNo}</span></div>
+    <div class="row"><span class="k">Exam Date</span><span class="v">${examDate}</span></div>
+    ${company ? `<div class="row"><span class="k">Company</span><span class="v">${company}</span></div>` : ''}
     ${serviceBarcode ? `<div class="divider"></div><div class="label">Service No.</div><div class="barcode">${serviceBarcode}</div><div class="name" style="font-size:10px;">${serviceNumber}</div>` : ''}
-    <div class="footer">Dicetak: ${printedAt}</div>
+    <div class="footer">Printed: ${printedAt}</div>
   </div>
 </body>
 </html>`
@@ -633,9 +633,9 @@ async function loadStatusHistory() {
 const statusHistoryDisplay = computed(() => [...statusHistory.value].reverse())
 
 function statusHistoryLabel(item: StatusHistoryItem): string {
-  if (item.action === 'CREATE') return 'Registrasi Dibuat'
-  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Check-in Kunjungan Kembali'
-  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan Kembali Selesai'
+  if (item.action === 'CREATE') return 'Registration Created'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Return Visit Check-in'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Return Visit Completed'
   if (item.action === 'STATUS_CHANGE') {
     const before = item.payloadBefore?.statusRegistration
     const after = item.payloadAfter?.statusRegistration
@@ -643,17 +643,17 @@ function statusHistoryLabel(item: StatusHistoryItem): string {
     const to = after?.to ?? after?.from
     if (from && to && from !== to) return `${from} → ${to}`
     if (to) return `Status: ${to}`
-    return 'Perubahan status'
+    return 'Status change'
   }
   return item.action
 }
 
 function statusHistoryDesc(item: StatusHistoryItem): string {
   if (item.notes) return item.notes
-  if (item.action === 'CREATE') return 'Registrasi dibuat.'
-  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Pasien datang kembali untuk item yang di-reschedule.'
-  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Kunjungan kembali ditutup; seluruh item selesai.'
-  return 'Perubahan status registrasi.'
+  if (item.action === 'CREATE') return 'Registration created.'
+  if (item.action === 'RETURN_VISIT_CHECKIN') return 'Patient returned for rescheduled items.'
+  if (item.action === 'RETURN_VISIT_COMPLETED') return 'Return visit closed; all items completed.'
+  return 'Registration status changed.'
 }
 
 const isCancelled = computed(() => reg.value?.statusRegistration === 'Cancel')
@@ -718,8 +718,8 @@ async function loadCheckinPreview() {
     checkinPreview.value = null
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal memuat preview check-in'
-    toast.add({ title: 'Gagal memuat preview', description: msg, color: 'error' })
+        ?? 'Failed to load check-in preview'
+    toast.add({ title: 'Failed to load preview', description: msg, color: 'error' })
   } finally {
     checkinPreviewLoading.value = false
   }
@@ -759,14 +759,14 @@ async function confirmCheckin() {
 
     toast.add({
       title: 'Check-in berhasil',
-      description: `Nomor antrian: ${entry.queueCode}`,
+      description: `Queue number: ${entry.queueCode}`,
       color: 'success'
     })
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal melakukan check-in'
-    toast.add({ title: 'Gagal check-in', description: msg, color: 'error' })
+        ?? 'Failed to check in'
+    toast.add({ title: 'Check-in failed', description: msg, color: 'error' })
   } finally {
     checkinLoading.value = false
   }
@@ -781,7 +781,7 @@ async function saveServiceNumber() {
   if (!reg.value || serviceNumberSaving.value) return
   const value = serviceNumberInput.value.trim()
   if (!value) {
-    toast.add({ title: 'Wajib diisi', description: 'Service Number tidak boleh kosong', color: 'warning' })
+    toast.add({ title: 'Required', description: 'Service Number cannot be empty', color: 'warning' })
     return
   }
   serviceNumberSaving.value = true
@@ -789,12 +789,12 @@ async function saveServiceNumber() {
     await api.patch(`/registration/${reg.value.id}/service-number`, { serviceNumber: value })
     await refresh()
     serviceNumberModalOpen.value = false
-    toast.add({ title: 'Berhasil', description: 'Service Number diperbarui', color: 'success' })
+    toast.add({ title: 'Success', description: 'Service Number updated', color: 'success' })
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal memperbarui Service Number'
-    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+        ?? 'Failed to update Service Number'
+    toast.add({ title: 'Failed', description: msg, color: 'error' })
   } finally {
     serviceNumberSaving.value = false
   }
@@ -815,7 +815,7 @@ async function startCameraStream() {
   photoError.value = ''
   try {
     if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Browser tidak mendukung akses kamera')
+      throw new Error('Browser does not support camera access')
     }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
@@ -828,7 +828,7 @@ async function startCameraStream() {
       await el.play().catch(() => {})
     }
   } catch (e) {
-    photoError.value = (e as Error)?.message || 'Gagal mengakses kamera'
+    photoError.value = (e as Error)?.message || 'Failed to access camera'
   } finally {
     photoStarting.value = false
   }
@@ -836,7 +836,7 @@ async function startCameraStream() {
 
 async function openCamera() {
   if (!reg.value?.patient?.id) {
-    toast.add({ title: 'Tidak ada data pasien', description: 'Pasien belum terhubung ke registrasi ini.', color: 'warning' })
+    toast.add({ title: 'No patient data', description: 'Patient is not linked to this registration.', color: 'warning' })
     return
   }
   photoError.value = ''
@@ -868,10 +868,10 @@ async function captureAndSavePhoto() {
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Canvas tidak tersedia')
+    if (!ctx) throw new Error('Canvas not available')
     ctx.drawImage(video, 0, 0, w, h)
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-    if (!blob) throw new Error('Gagal mengambil gambar')
+    if (!blob) throw new Error('Failed to capture image')
     const formData = new FormData()
     formData.append('photo', new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' }))
     await api.post(`/patient/${patientId}/upload-photo`, formData, {
@@ -880,13 +880,13 @@ async function captureAndSavePhoto() {
     await refresh()
     stopCameraStream()
     photoModalOpen.value = false
-    toast.add({ title: 'Berhasil', description: 'Foto pasien tersimpan', color: 'success' })
+    toast.add({ title: 'Success', description: 'Patient photo saved', color: 'success' })
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? (err as Error)?.message
-        ?? 'Gagal menyimpan foto'
-    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+        ?? 'Failed to save photo'
+    toast.add({ title: 'Failed', description: msg, color: 'error' })
   } finally {
     photoSaving.value = false
   }
@@ -911,15 +911,15 @@ async function undoCheckin() {
     await refresh()
     await loadStatusHistory()
     toast.add({
-      title: 'Berhasil',
-      description: 'Check-in pasien berhasil dibatalkan',
+      title: 'Success',
+      description: 'Patient check-in successfully cancelled',
       color: 'success'
     })
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal membatalkan check-in'
-    toast.add({ title: 'Gagal uncheck', description: msg, color: 'error' })
+        ?? 'Failed to cancel check-in'
+    toast.add({ title: 'Uncheck failed', description: msg, color: 'error' })
   } finally {
     uncheckLoading.value = false
   }
@@ -930,11 +930,11 @@ async function cancelRegistration() {
   cancelLoading.value = true
   try {
     await api.patch(`/registration/${reg.value?.id}/cancel`)
-    toast.add({ title: 'Berhasil', description: 'Registrasi dibatalkan', color: 'success' })
+    toast.add({ title: 'Success', description: 'Registration cancelled', color: 'success' })
     await refresh()
     await loadStatusHistory()
   } catch {
-    toast.add({ title: 'Gagal', description: 'Gagal membatalkan registrasi', color: 'error' })
+    toast.add({ title: 'Failed', description: 'Failed to cancel registration', color: 'error' })
   } finally {
     cancelLoading.value = false
   }
@@ -1063,7 +1063,7 @@ function waShareLink(questionnaireId?: string): string {
   const phone = normalizeWaPhone(reg.value?.patient?.phone)
   if (!phone) return ''
   const questUrl = questionnaireLink(questionnaireId)
-  const message = `Assalamualaikum, silakan isi kuesioner medis Anda di: ${questUrl}`
+  const message = `Hello, please fill out your medical questionnaire at: ${questUrl}`
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
@@ -1071,8 +1071,8 @@ function shareQuestionnaireViaWa(questionnaireId?: string) {
   const link = waShareLink(questionnaireId)
   if (!link) {
     toast.add({
-      title: 'Gagal',
-      description: 'Nomor HP pasien tidak tersedia',
+      title: 'Failed',
+      description: 'Patient phone number is not available',
       color: 'error'
     })
     return
@@ -1086,15 +1086,15 @@ function copyQuestionnaireLink(questionnaireId?: string) {
     .writeText(link)
     .then(() => {
       toast.add({
-        title: 'Berhasil',
-        description: 'Link kuesioner disalin',
+        title: 'Success',
+        description: 'Questionnaire link copied',
         color: 'success'
       })
     })
     .catch(() => {
       toast.add({
-        title: 'Gagal',
-        description: 'Gagal menyalin link',
+        title: 'Failed',
+        description: 'Failed to copy link',
         color: 'error'
       })
     })
@@ -1249,14 +1249,14 @@ async function handleCompleteReturnVisit() {
   completingReturnVisit.value = true
   try {
     await api.patch(`/registration/${reg.value.id_reg}/complete-return-visit`)
-    toast.add({ title: 'Selesai', description: 'Kunjungan kembali ditutup & exam selesai.', color: 'success' })
+    toast.add({ title: 'Completed', description: 'Return visit closed & exam completed.', color: 'success' })
     await refresh()
     await loadStatusHistory()
     await loadCheckoutEligibility()
   } catch (err: unknown) {
     toast.add({
-      title: 'Gagal menyelesaikan kunjungan kembali',
-      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Terjadi kesalahan.',
+      title: 'Failed to complete return visit',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'An error occurred.',
       color: 'error'
     })
   } finally {
@@ -1266,17 +1266,17 @@ async function handleCompleteReturnVisit() {
 async function handleResampleCheckin() {
   if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
     toast.add({
-      title: 'Gagal',
-      description: 'Data resample tidak lengkap (queue/branch).',
+      title: 'Failed',
+      description: 'Incomplete resample data (queue/branch).',
       color: 'error'
     })
     return
   }
   if (!canResampleNow.value) {
     toast.add({
-      title: 'Bukan tanggal kunjungan kembali',
+      title: 'Not the return visit date',
       description:
-        'Pasien hanya dapat di-resample pada tanggal kunjungan kembali. Untuk menggeser jadwal gunakan tombol Change Follow-up Date.',
+        'Patients can only be resampled on the return visit date. To change the schedule, use the Change Follow-up Date button.',
       color: 'warning'
     })
     return
@@ -1291,8 +1291,8 @@ async function handleResampleCheckin() {
       parentQueueEntryId: reg.value.queue.id
     })
     toast.add({
-      title: 'Berhasil',
-      description: 'Pasien dijadwalkan ulang (resample) — dapat diproses lagi.',
+      title: 'Success',
+      description: 'Patient rescheduled (resample) — can be processed again.',
       color: 'success'
     })
     await refresh()
@@ -1300,10 +1300,10 @@ async function handleResampleCheckin() {
     await loadCheckoutEligibility()
   } catch (err: unknown) {
     toast.add({
-      title: 'Gagal resample',
+      title: 'Resample failed',
       description:
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Terjadi kesalahan.',
+        ?? 'An error occurred.',
       color: 'error'
     })
   } finally {
@@ -1353,16 +1353,16 @@ async function saveRescheduleDatesOnly() {
       }))
     })
     toast.add({
-      title: 'Berhasil',
-      description: 'Tanggal datang ulang diperbarui.',
+      title: 'Success',
+      description: 'Follow-up visit date updated.',
       color: 'success'
     })
     await refresh()
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal memperbarui tanggal datang ulang.'
-    toast.add({ title: 'Gagal', description: msg, color: 'error' })
+        ?? 'Failed to update follow-up visit date.'
+    toast.add({ title: 'Failed', description: msg, color: 'error' })
   } finally {
     savingReschedule.value = false
     showRescheduleModal.value = false
@@ -1396,8 +1396,8 @@ async function doCheckout() {
     }
     await api.patch(`/registration/${reg.value.id_reg}/checkout`)
     toast.add({
-      title: 'Berhasil',
-      description: 'Pasien telah check-out dan dapat dipulangkan.',
+      title: 'Success',
+      description: 'Patient has checked out and can be discharged.',
       color: 'success'
     })
     await refresh()
@@ -1406,8 +1406,8 @@ async function doCheckout() {
   } catch (err: unknown) {
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Gagal check-out pasien.'
-    toast.add({ title: 'Gagal check-out', description: msg, color: 'error' })
+        ?? 'Failed to check out patient.'
+    toast.add({ title: 'Check-out failed', description: msg, color: 'error' })
   } finally {
     checkoutLoading.value = false
     savingReschedule.value = false
@@ -1442,7 +1442,7 @@ watch(
             to="/front-office/registration-patient"
           />
           <h1 class="text-lg font-semibold ml-2">
-            Detail Registrasi
+            Registration Detail
           </h1>
         </template>
         <template #right>
@@ -1464,7 +1464,7 @@ watch(
               label="Patient Return Visit"
               :loading="resampling"
               :disabled="!canResampleNow"
-              :title="canResampleNow ? undefined : 'Hanya bisa di-resample pada tanggal kunjungan kembali'"
+              :title="canResampleNow ? undefined : 'Can only be resampled on the return visit date'"
               @click="handleResampleCheckin"
             />
             <UButton
@@ -1479,7 +1479,7 @@ watch(
               v-if="canCompleteReturnVisit"
               icon="i-lucide-check-circle-2"
               color="success"
-              label="Selesaikan Kunjungan Kembali"
+              label="Complete Return Visit"
               :loading="completingReturnVisit"
               @click="handleCompleteReturnVisit"
             />
@@ -1503,7 +1503,7 @@ watch(
               color="success"
               label="Check Out"
               :loading="checkoutLoading"
-              title="Semua item selesai — pasien dapat dipulangkan."
+              title="All items completed — patient can be discharged."
               @click="confirmCheckout"
             />
             <UButton
@@ -1511,7 +1511,7 @@ watch(
               icon="i-lucide-x-circle"
               color="error"
               variant="outline"
-              label="Cancel Registrasi"
+              label="Cancel Registration"
               :loading="cancelLoading"
               @click="cancelRegistration"
             />
@@ -1525,7 +1525,7 @@ watch(
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
-              label="Batalkan Check-in"
+              label="Cancel Check-in"
               :loading="uncheckLoading"
               @click="undoCheckin"
             />
@@ -1533,7 +1533,7 @@ watch(
               v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-user-check"
               color="primary"
-              label="Check-in Pasien"
+              label="Patient Check-in"
               @click="openCheckinModal"
             />
           </div>
@@ -1550,7 +1550,7 @@ watch(
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p class="text-xs text-muted mb-1">
-              Kembali ke Daftar Registrasi
+              Back to Registration List
             </p>
             <h1 class="text-2xl font-bold text-default">
               Registration Detail
@@ -1573,7 +1573,7 @@ watch(
             v-if="activeQueue"
             type="button"
             class="cursor-pointer rounded-xl border border-primary/20 bg-background shadow-sm px-5 py-3 text-left transition-colors hover:bg-primary/5"
-            title="Lihat & print tiket antrian"
+            title="View & print queue ticket"
             @click="checkinSuccessOpen = true"
           >
             <p class="text-xs text-muted">
@@ -1635,8 +1635,8 @@ watch(
           color="info"
           variant="soft"
           icon="i-lucide-plus-circle"
-          title="Pasien memiliki additional item pemeriksaan"
-          :description="`Terdapat ${additionalItems.length} item tambahan di luar paket: ${additionalItems.map(i => i.item.name).join(', ')}`"
+          title="Patient has additional exam items"
+          :description="`There are ${additionalItems.length} additional items outside the package: ${additionalItems.map(i => i.item.name).join(', ')}`"
         />
 
         <UAlert
@@ -1704,10 +1704,10 @@ watch(
                 :icon="policyExpiry.status === 'expired' ? 'i-lucide-shield-x' : 'i-lucide-shield-alert'"
                 :title="
                   policyExpiry.status === 'expired'
-                    ? 'Kartu polis sudah kadaluarsa'
-                    : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
+                    ? 'Policy card has expired'
+                    : `Policy card will expire in ${policyExpiry.days} days`
                 "
-                description="Mohon perbarui data polis sebelum registrasi diproses."
+                description="Please update the policy data before processing the registration."
               />
             </div>
             <div v-if="reg.patient" class="px-5 py-4">
@@ -1716,13 +1716,13 @@ watch(
                   type="button"
                   class="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-default bg-muted/30 flex items-center justify-center"
                   :class="patientPhotoUrl ? 'cursor-zoom-in hover:ring-2 hover:ring-primary/40' : 'cursor-default'"
-                  :title="patientPhotoUrl ? 'Lihat foto' : undefined"
+                  :title="patientPhotoUrl ? 'View photo' : undefined"
                   @click="patientPhotoUrl && (photoViewerOpen = true)"
                 >
                   <img
                     v-if="patientPhotoUrl"
                     :src="patientPhotoUrl"
-                    alt="Foto pasien"
+                    alt="Patient photo"
                     class="h-full w-full object-cover"
                   >
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
@@ -1733,11 +1733,11 @@ watch(
                     color="primary"
                     variant="soft"
                     size="sm"
-                    :label="patientPhotoUrl ? 'Ganti Foto' : 'Ambil Foto'"
+                    :label="patientPhotoUrl ? 'Change Photo' : 'Take Photo'"
                     @click="openCamera"
                   />
                   <p class="text-[11px] text-muted">
-                    Ambil foto pasien langsung dari kamera.
+                    Take patient photo directly from the camera.
                   </p>
                 </div>
               </div>
@@ -1760,7 +1760,7 @@ watch(
                 </div>
                 <div>
                   <p class="text-xs text-muted mb-1">
-                    Tanggal Lahir
+                    Date of Birth
                   </p>
                   <p class="font-semibold">
                     {{ formatDob(reg.patient.dob) }}
@@ -1778,7 +1778,7 @@ watch(
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p class="text-xs text-muted mb-1">
-                    Nomor HP
+                    Phone Number
                   </p>
                   <p class="font-medium">
                     {{ reg.patient.phone ?? '-' }}
@@ -1814,7 +1814,7 @@ watch(
                     />
                     <UBadge
                       v-else-if="policyExpiry?.status === 'soon'"
-                      :label="`Segera berakhir (${policyExpiry.days} hari)`"
+                      :label="`Expiring soon (${policyExpiry.days} days)`"
                       color="warning"
                       size="xs"
                     />
@@ -1823,7 +1823,7 @@ watch(
               </div>
             </div>
             <div v-else class="p-6 text-center text-sm text-muted">
-              Data pasien tidak ditemukan
+              Patient data not found
             </div>
           </div>
 
@@ -1850,7 +1850,7 @@ watch(
               <div class="flex items-center justify-between px-5 py-3">
                 <span class="text-xs text-muted">Exam Type</span>
                 <UBadge :color="examTypeBadgeColor[examType] ?? 'neutral'" variant="subtle">
-                  {{ examType === 'MCU' ? 'MCU (Medical Checkup)' : 'Rawat Jalan' }}
+                  {{ examType === 'MCU' ? 'MCU (Medical Checkup)' : 'Outpatient' }}
                 </UBadge>
               </div>
               <div class="flex items-center justify-between px-5 py-3">
@@ -1878,7 +1878,7 @@ watch(
                 <span class="text-sm font-semibold">{{ reg.branch?.nameBranch ?? '-' }}</span>
               </div>
               <div v-if="reg.exam?.paket" class="flex items-center justify-between px-5 py-3">
-                <span class="text-xs text-muted">Paket</span>
+                <span class="text-xs text-muted">Package</span>
                 <span class="text-sm font-semibold">{{ reg.exam?.paket?.name ?? '-' }}</span>
               </div>
               <div
@@ -1887,9 +1887,9 @@ watch(
               >
                 <span class="text-xs text-muted">Meal Time</span>
                 <span class="text-sm font-semibold">
-                  Mulai {{ shortTime(reg.exam.mealStartedAt) }}
+                  Start {{ shortTime(reg.exam.mealStartedAt) }}
                   <template v-if="reg.exam.mealCompletedAt">
-                    · Selesai {{ shortTime(reg.exam.mealCompletedAt) }}
+                    · Done {{ shortTime(reg.exam.mealCompletedAt) }}
                   </template>
                   <template v-else-if="reg.exam.mealStatus === 'IN_PROGRESS'">
                     · {{ examMealRemainingText }}
@@ -1969,7 +1969,7 @@ watch(
                 </div>
                 <div v-else-if="!statusHistory.length" class="py-6 text-center">
                   <p class="text-sm text-muted">
-                    Belum ada riwayat status.
+                    No status history yet.
                   </p>
                 </div>
                 <div v-else class="relative space-y-4">
@@ -2032,7 +2032,7 @@ watch(
               </div>
               <div v-else-if="!questionnaires.length" class="py-10 text-center">
                 <p class="text-sm text-muted">
-                  Belum ada questionnaire terisi.
+                  No questionnaires filled yet.
                 </p>
               </div>
               <table v-else class="w-full text-left">
@@ -2088,7 +2088,7 @@ watch(
                           color="success"
                           variant="ghost"
                           size="xs"
-                          title="Kirim via WhatsApp"
+                          title="Send via WhatsApp"
                           :disabled="!reg?.patient?.phone"
                           @click="shareQuestionnaireViaWa(q.questionnaire_id)"
                         />
@@ -2113,7 +2113,7 @@ watch(
                           color="primary"
                           variant="ghost"
                           size="xs"
-                          title="Print hasil questionnaire"
+                          title="Print questionnaire result"
                           :disabled="q.status !== 'Completed'"
                           @click="printQuestionnaire(q)"
                         />
@@ -2163,7 +2163,7 @@ watch(
                       {{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
                     </div>
                     <p class="mt-1 text-xs text-muted">
-                      {{ cat.completed }} selesai dari {{ cat.total }} item
+                      {{ cat.completed }} of {{ cat.total }} items completed
                     </p>
                   </div>
 
@@ -2190,7 +2190,7 @@ watch(
                   <div class="mb-3 flex items-center gap-2">
                     <UIcon name="i-lucide-test-tube-diagonal" class="text-info" />
                     <p class="text-xs font-semibold uppercase text-muted">
-                      Status Sample
+                      Sample Status
                     </p>
                   </div>
                   <div class="space-y-3">
@@ -2245,7 +2245,7 @@ watch(
                   <div class="rounded-lg border border-default bg-elevated/40 p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
                       <p class="text-xs font-semibold uppercase text-muted">
-                        Belum selesai
+                        Not Completed
                       </p>
                       <UBadge
                         :label="`${cat.pendingItems.length} item`"
@@ -2299,23 +2299,23 @@ watch(
                         </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
                           <UIcon name="i-lucide-play" class="size-3" />
-                          Mulai {{ formatDateTime(item.startAt || undefined) }}
+                          Start {{ formatDateTime(item.startAt || undefined) }}
                           <span class="mx-1 text-muted">·</span>
                           <UIcon name="i-lucide-check" class="size-3" />
-                          Selesai
-                          {{ item.done ? formatDateTime(item.doneAt || undefined) : 'Belum' }}
+                          Done
+                          {{ item.done ? formatDateTime(item.doneAt || undefined) : 'Not yet' }}
                         </span>
                       </div>
                     </div>
                     <p v-else class="text-sm text-muted">
-                      Tidak ada item pending.
+                      No pending items.
                     </p>
                   </div>
 
                   <div class="rounded-lg border border-default bg-background p-3">
                     <div class="mb-2 flex items-center justify-between gap-2">
                       <p class="text-xs font-semibold uppercase text-muted">
-                        Selesai
+                        Completed
                       </p>
                       <UBadge
                         :label="`${cat.completedItems.length} item`"
@@ -2341,15 +2341,15 @@ watch(
                         </span>
                         <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
                           <UIcon name="i-lucide-play" class="size-3" />
-                          Mulai {{ formatDateTime(item.startAt || undefined) }}
+                          Start {{ formatDateTime(item.startAt || undefined) }}
                           <span class="mx-1 text-muted">·</span>
                           <UIcon name="i-lucide-check" class="size-3" />
-                          Selesai {{ formatDateTime(item.doneAt || undefined) }}
+                          Done {{ formatDateTime(item.doneAt || undefined) }}
                         </span>
                       </div>
                     </div>
                     <p v-else class="text-sm text-muted">
-                      Belum ada item selesai.
+                      No completed items yet.
                     </p>
                   </div>
                 </div>
@@ -2402,7 +2402,7 @@ watch(
         </div>
       </div>
 
-      <UModal v-model:open="checkinModalOpen" title="Verifikasi Check-in Pasien">
+      <UModal v-model:open="checkinModalOpen" title="Patient Check-in Verification">
         <template #body>
           <div v-if="checkinPreviewLoading" class="flex items-center justify-center py-10">
             <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
@@ -2429,7 +2429,7 @@ watch(
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">
-                  No. Registrasi
+                  Registration No.
                 </p>
                 <code class="text-sm font-bold text-primary">{{
                   checkinPreview?.registration.id_reg ?? reg?.id_reg
@@ -2437,7 +2437,7 @@ watch(
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">
-                  Layanan
+                  Service
                 </p>
                 <p class="text-sm font-semibold">
                   {{
@@ -2451,7 +2451,7 @@ watch(
               </div>
               <div class="p-3 rounded-xl bg-elevated border border-default">
                 <p class="text-xs text-muted mb-1">
-                  Tanggal Periksa
+                  Exam Date
                 </p>
                 <p class="text-sm font-semibold">
                   {{ checkinPreview?.registration.examDate ?? reg?.examDate }}
@@ -2468,15 +2468,15 @@ watch(
             </div>
 
             <div class="space-y-1">
-              <label class="text-xs font-medium text-muted">Service Number (No. Loker)</label>
+              <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
               <UInput
                 v-model="checkinServiceNumber"
                 icon="i-lucide-key-round"
-                placeholder="Nomor loker pasien"
+                placeholder="Patient locker number"
                 class="w-full"
               />
               <p class="text-[11px] text-muted">
-                Nomor ini dipakai sebagai nomor loker pasien. Kosongkan untuk memakai nomor bawaan.
+                This number is used as the patient locker number. Leave blank to use the default number.
               </p>
             </div>
 
@@ -2488,7 +2488,7 @@ watch(
               >
                 <div>
                   <p class="text-xs text-muted">
-                    Paket MCU
+                    MCU Package
                   </p>
                   <p class="text-sm font-semibold">
                     {{
@@ -2512,7 +2512,7 @@ watch(
               <div v-show="checkinPaketOpen" class="mt-4 space-y-3">
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-                    Item Paket
+                    Package Items
                   </p>
                   <div v-if="checkinPaketItems.length" class="space-y-2">
                     <div
@@ -2533,13 +2533,13 @@ watch(
                     </div>
                   </div>
                   <p v-else class="text-sm text-muted">
-                    Belum ada item paket.
+                    No package items yet.
                   </p>
                 </div>
 
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-                    Item Additional
+                    Additional Items
                   </p>
                   <div v-if="checkinAdditionalItems.length" class="space-y-2">
                     <div
@@ -2560,7 +2560,7 @@ watch(
                     </div>
                   </div>
                   <p v-else class="text-sm text-muted">
-                    Tidak ada item tambahan.
+                    No additional items.
                   </p>
                 </div>
               </div>
@@ -2577,8 +2577,8 @@ watch(
               <p class="text-sm font-semibold">
                 {{
                   checkinPreview?.checkinEligibility.canCheckin
-                    ? 'Data siap di-check-in ke queue umum'
-                    : 'Data belum siap di-check-in'
+                    ? 'Data is ready to be checked in to the general queue'
+                    : 'Data is not ready for check-in'
                 }}
               </p>
               <ul
@@ -2590,7 +2590,7 @@ watch(
                 </li>
               </ul>
               <p v-else class="mt-2 text-sm text-muted">
-                Sistem akan membuat nomor antrian dan memasukkan pasien ke ruang tunggu umum.
+                The system will generate a queue number and place the patient in the general waiting room.
               </p>
             </div>
           </div>
@@ -2600,14 +2600,14 @@ watch(
             <UButton
               color="neutral"
               variant="ghost"
-              label="Batal"
+              label="Cancel"
               :disabled="checkinLoading"
               @click="checkinModalOpen = false"
             />
             <UButton
               color="primary"
               icon="i-lucide-user-check"
-              label="Check-in ke Queue Umum"
+              label="Check-in to General Queue"
               :loading="checkinLoading"
               :disabled="checkinPreviewLoading || !checkinPreview?.checkinEligibility.canCheckin"
               @click="confirmCheckin"
@@ -2616,7 +2616,7 @@ watch(
         </template>
       </UModal>
 
-      <UModal v-model:open="checkinSuccessOpen" title="Check-in Berhasil">
+      <UModal v-model:open="checkinSuccessOpen" title="Check-in Successful">
         <template #body>
           <div class="flex flex-col items-center gap-4 py-4 text-center">
             <div class="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -2624,15 +2624,15 @@ watch(
             </div>
             <div>
               <p class="text-sm text-muted mb-2">
-                Nomor Antrian
+                Queue Number
               </p>
               <p class="text-5xl font-black text-primary tracking-tight">
                 {{ reg?.queue?.queueCode }}
               </p>
             </div>
             <p class="text-sm text-muted max-w-xs">
-              Pasien telah masuk ruang tunggu. Petugas masing-masing ruangan akan memanggil sesuai
-              urutan.
+              The patient has entered the waiting room. Each room's staff will call according to the
+              queue order.
             </p>
           </div>
         </template>
@@ -2642,15 +2642,15 @@ watch(
               icon="i-lucide-printer"
               color="neutral"
               variant="outline"
-              label="Print Tiket"
+              label="Print Ticket"
               @click="printQueueTicket"
             />
-            <UButton color="primary" label="Selesai" @click="checkinSuccessOpen = false" />
+            <UButton color="primary" label="Done" @click="checkinSuccessOpen = false" />
           </div>
         </template>
       </UModal>
 
-      <UModal v-model:open="dateBlockedOpen" title="Belum Waktunya Check-in">
+      <UModal v-model:open="dateBlockedOpen" title="Not Check-in Time Yet">
         <template #body>
           <div class="flex flex-col items-center gap-4 py-2 text-center">
             <div class="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center">
@@ -2658,20 +2658,20 @@ watch(
             </div>
             <div class="space-y-1">
               <p class="text-sm text-muted">
-                Exam pasien dijadwalkan pada tanggal
+                Patient exam is scheduled for
               </p>
               <p class="text-2xl font-bold tracking-tight text-highlighted">
                 {{ reg?.examDate?.slice(0, 10) }}
               </p>
               <p class="text-xs text-muted max-w-sm leading-relaxed">
-                Check-in hanya dapat dilakukan pada hari exam.
+                Check-in can only be done on the exam day.
               </p>
             </div>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end">
-            <UButton color="primary" label="Mengerti" @click="dateBlockedOpen = false" />
+            <UButton color="primary" label="Got it" @click="dateBlockedOpen = false" />
           </div>
         </template>
       </UModal>
@@ -2690,7 +2690,7 @@ watch(
               </div>
             </div>
             <p v-else class="text-sm text-muted text-center py-4">
-              Tidak ada jawaban.
+              No answers.
             </p>
           </div>
         </template>
@@ -2710,7 +2710,7 @@ watch(
         <template #body>
           <div class="space-y-4">
             <p class="text-sm text-muted">
-              Pilih tanggal datang ulang pasien untuk item yang di-reschedule:
+              Select the patient follow-up visit date for rescheduled items:
             </p>
             <div
               v-for="item in rescheduleDraft"
@@ -2727,21 +2727,21 @@ watch(
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton
-              label="Batal"
+              label="Cancel"
               variant="outline"
               :disabled="savingReschedule"
               @click="showRescheduleModal = false"
             />
             <UButton
               v-if="rescheduleMode === 'dates'"
-              label="Simpan Tanggal"
+              label="Save Date"
               color="primary"
               :loading="savingReschedule"
               @click="saveRescheduleDatesOnly"
             />
             <UButton
               v-else
-              label="Simpan & Checkout"
+              label="Save & Checkout"
               color="primary"
               :loading="savingReschedule"
               @click="doCheckout"
@@ -2754,17 +2754,17 @@ watch(
         <template #body>
           <div class="space-y-3">
             <div class="space-y-1">
-              <label class="text-xs font-medium text-muted">Service Number (No. Loker)</label>
+              <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
               <UInput
                 v-model="serviceNumberInput"
                 icon="i-lucide-key-round"
-                placeholder="Nomor loker / service number"
+                placeholder="Locker number / service number"
                 class="w-full"
                 @keyup.enter="saveServiceNumber"
               />
             </div>
             <p class="text-[11px] text-muted">
-              Nomor ini dipakai sebagai Service No. registrasi (mis. nomor loker pasien).
+              This number is used as the registration Service No. (e.g. patient locker number).
             </p>
           </div>
         </template>
@@ -2773,13 +2773,13 @@ watch(
             <UButton
               color="neutral"
               variant="ghost"
-              label="Batal"
+              label="Cancel"
               :disabled="serviceNumberSaving"
               @click="serviceNumberModalOpen = false"
             />
             <UButton
               color="primary"
-              label="Simpan"
+              label="Save"
               :loading="serviceNumberSaving"
               @click="saveServiceNumber"
             />
@@ -2787,7 +2787,7 @@ watch(
         </template>
       </UModal>
 
-      <UModal v-model:open="photoModalOpen" title="Ambil Foto Pasien" :ui="{ content: 'sm:max-w-lg' }">
+      <UModal v-model:open="photoModalOpen" title="Take Patient Photo" :ui="{ content: 'sm:max-w-lg' }">
         <template #body>
           <div class="space-y-3">
             <div class="relative aspect-square overflow-hidden rounded-xl border border-default bg-black">
@@ -2813,7 +2813,7 @@ watch(
               :description="photoError"
             />
             <p class="text-[11px] text-muted">
-              Pastikan wajah pasien terlihat jelas di dalam frame sebelum mengambil foto.
+              Make sure the patient's face is clearly visible in the frame before taking the photo.
             </p>
           </div>
         </template>
@@ -2822,14 +2822,14 @@ watch(
             <UButton
               color="neutral"
               variant="ghost"
-              label="Batal"
+              label="Cancel"
               :disabled="photoSaving"
               @click="closeCamera"
             />
             <UButton
               icon="i-lucide-camera"
               color="primary"
-              label="Ambil & Simpan"
+              label="Capture & Save"
               :loading="photoSaving"
               :disabled="photoStarting || !!photoError"
               @click="captureAndSavePhoto"
@@ -2838,20 +2838,20 @@ watch(
         </template>
       </UModal>
 
-      <UModal v-model:open="photoViewerOpen" title="Foto Pasien" :ui="{ content: 'sm:max-w-2xl' }">
+      <UModal v-model:open="photoViewerOpen" title="Patient Photo" :ui="{ content: 'sm:max-w-2xl' }">
         <template #body>
           <div class="flex items-center justify-center">
             <img
               v-if="patientPhotoUrl"
               :src="patientPhotoUrl"
-              alt="Foto pasien"
+              alt="Patient photo"
               class="max-h-[70vh] w-auto rounded-xl border border-default"
             >
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end">
-            <UButton color="primary" label="Tutup" @click="photoViewerOpen = false" />
+            <UButton color="primary" label="Close" @click="photoViewerOpen = false" />
           </div>
         </template>
       </UModal>
