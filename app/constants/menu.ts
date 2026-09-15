@@ -8,6 +8,9 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/queue',
   '/rooms/sample-reception',
   '/result/exam-results',
+  '/result/doctor-result',
+  '/result/exam-status',
+  '/result/mr-review',
   '/rooms/queue-work',
   '/settings',
   '/settings/roles',
@@ -156,7 +159,8 @@ export function buildMenuTree(): MenuItem[] {
         {
           label: 'Doctor Result MCU',
           icon: 'i-lucide-clipboard-check',
-          to: '/result/doctor-result'
+          to: '/result/doctor-result',
+          resultDepartmentCode: 'DOCTOR'
         },
         {
           label: 'MR Review',
