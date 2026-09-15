@@ -1245,8 +1245,8 @@ async function handleWaitingRowCall(row: WaitingRow) {
 
     if (status === 409) {
       toast.add({
-        title: 'Already picked by another room',
-        description: 'This patient has already been called by another room. Please refresh queue.',
+        title: 'Cannot pick patient',
+        description: message,
         color: 'warning'
       })
       await refreshWaiting()
