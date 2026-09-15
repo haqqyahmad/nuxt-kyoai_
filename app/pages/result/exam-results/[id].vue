@@ -116,17 +116,25 @@ async function loadResult() {
   filterNotice.value = null
 
   try {
+    // Dokter butuh scope per-exam (rollup); department lain (lab/nurse/radiologi/
+    // dental) scope-nya per-item — supaya item yang di-klik benar-benar diambil,
+    // bukan item representatif exam.
+    const departmentKey = department.value.toLowerCase()
+    const isDoctorScope = departmentKey === 'dok' || departmentKey === 'dokter'
+    const hasItemId = Boolean(String(route.params.id ?? '').trim())
+    const itemScope = (isExternalDoctor.value || !isDoctorScope) && hasItemId
+
     const baseParams: Record<string, string | number> = {
       page: 1,
       limit: 1,
-      groupBy: isExternalDoctor.value ? 'item' : 'exam'
+      groupBy: itemScope ? 'item' : 'exam'
     }
 
-    if (isExternalDoctor.value) {
+    if (itemScope) {
       baseParams.examItemId = String(route.params.id)
     } else if (examId.value) {
       baseParams.examId = examId.value
-    } else {
+    } else if (hasItemId) {
       baseParams.examItemId = String(route.params.id)
     }
 
