@@ -222,6 +222,7 @@ const updateMenuState = (menuName: string, isOpen: boolean) => {
 type SidebarItem = NavigationMenuItem & {
   permission?: string
   resultDepartmentCode?: string
+  roles?: string[]
 }
 
 function canAccessResultDeptForMenu(code?: string) {
@@ -284,6 +285,11 @@ function buildNavItems(items: SidebarItem[]): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
     if (item.permission && !permissions.value.includes(item.permission)) return acc
     if (item.resultDepartmentCode && !canAccessResultDeptForMenu(item.resultDepartmentCode)) return acc
+    if (Array.isArray(item.roles) && item.roles.length > 0) {
+      const userRoles = roles.value.map(role => role.toLowerCase())
+      const allowed = item.roles.some(role => userRoles.includes(role.toLowerCase()))
+      if (!allowed) return acc
+    }
 
     const nav = { ...item } as SidebarItem
 

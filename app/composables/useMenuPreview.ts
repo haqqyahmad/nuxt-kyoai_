@@ -25,6 +25,13 @@ function filterMenuItems(
   options: PreviewOptions
 ): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
+    const itemRoles = (item as Record<string, unknown>).roles
+    if (Array.isArray(itemRoles) && itemRoles.length > 0) {
+      const roleName = (options.roleName ?? '').toLowerCase()
+      const allowed = itemRoles.some(role => String(role).toLowerCase() === roleName)
+      if (!allowed) return acc
+    }
+
     if (options.isExternal) {
       const routes = collectRoutes(item)
       const allowed = routes.some(r => externalDoctorAllowedRoutes.includes(r))

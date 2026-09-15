@@ -165,7 +165,8 @@ export function buildMenuTree(): MenuItem[] {
         {
           label: 'MR Review',
           icon: 'i-lucide-file-search',
-          to: '/result/mr-review'
+          to: '/result/mr-review',
+          roles: ['dokter']
         },
         {
           label: 'Status Examination',
