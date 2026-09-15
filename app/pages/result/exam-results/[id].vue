@@ -205,6 +205,36 @@ onMounted(() => {
 
 <template>
   <UDashboardPanel id="exam-result-detail">
+    <template #header>
+      <UDashboardNavbar
+        :title="(result as any)?.item?.name || 'Exam Result'"
+        :subtitle="patientName"
+      >
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+        <template #trailing>
+          <UBadge
+            v-if="(result as any)?.itemApproved"
+            color="success"
+            variant="subtle"
+            icon="i-lucide-check-circle-2"
+          >
+            Item Approved
+          </UBadge>
+          <UButton
+            v-else-if="(result as any)?.departmentResultStatus === 'DEPARTMENT_REVIEW'"
+            color="primary"
+            icon="i-lucide-check"
+            :loading="approvingItem"
+            @click="approveCurrentItem"
+          >
+            Approve Item
+          </UButton>
+        </template>
+      </UDashboardNavbar>
+    </template>
+
     <template #body>
       <div v-if="filterNotice" class="px-4 pt-4">
         <UAlert
@@ -214,27 +244,6 @@ onMounted(() => {
           title="Filter pada link tidak cocok"
           :description="filterNotice"
         />
-      </div>
-
-      <!-- Approve per item -->
-      <div v-if="result && !loading && !error" class="flex flex-wrap items-center justify-end gap-2 px-4 pt-4">
-        <UBadge
-          v-if="(result as any).itemApproved"
-          color="success"
-          variant="subtle"
-          icon="i-lucide-check-circle-2"
-        >
-          Item Approved
-        </UBadge>
-        <UButton
-          v-else-if="(result as any).departmentResultStatus === 'DEPARTMENT_REVIEW'"
-          color="primary"
-          icon="i-lucide-check"
-          :loading="approvingItem"
-          @click="approveCurrentItem"
-        >
-          Approve Item
-        </UButton>
       </div>
 
       <div v-if="loading" class="flex min-h-96 items-center justify-center">
