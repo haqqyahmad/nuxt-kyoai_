@@ -62,6 +62,7 @@ type ExamResult = {
   } | null
   resultTiming?: 'inline' | 'deferred'
   status?: 'pending' | 'completed'
+  departmentResultStatus?: string | null
   checkinAt?: string | null
   completedAt?: string | null
   createdAt?: string
@@ -95,6 +96,7 @@ type ExamResultRow = {
   roomTypes?: Department[]
   resultTiming?: 'inline' | 'deferred' | null
   status?: string | null
+  departmentResultStatus?: string | null
   checkinAt?: string | null
 }
 
@@ -394,6 +396,7 @@ function mapExamRow(row: ExamResultRow): ExamResult {
     },
     resultTiming: row.resultTiming ?? undefined,
     status: row.status === 'pending' ? 'pending' : 'completed',
+    departmentResultStatus: row.departmentResultStatus ?? null,
     checkinAt: row.checkinAt ?? null,
     createdAt: row.checkinAt ?? undefined,
     exam: { id: row.examId }
@@ -801,8 +804,8 @@ onMounted(async () => {
                   </td>
                   <td class="px-4 py-3 text-sm">
                     <UBadge
-                      :label="getStatusLabel(result.status)"
-                      :color="getStatusColor(result.status)"
+                      :label="getStatusLabel(result.departmentResultStatus || result.status)"
+                      :color="getStatusColor(result.departmentResultStatus || result.status)"
                       variant="subtle"
                     />
                   </td>
