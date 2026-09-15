@@ -640,6 +640,10 @@ async function refreshStageUsage() {
   try {
     const params: Record<string, unknown> = { _: Date.now() }
     if (myRoomId.value) params.roomId = myRoomId.value
+    // Samakan filter tanggal dengan daftar antrean (kapasitas dihitung per queueDate).
+    if (waitingExamDateFrom.value) params.queueDateFrom = waitingExamDateFrom.value
+    if (waitingExamDateTo.value) params.queueDateTo = waitingExamDateTo.value
+    if (!waitingExamDateFrom.value && !waitingExamDateTo.value) params.queueDate = today
 
     const res = await api.get(`/medical/exams/queue/room/${roomType}/stage-usage`, { params })
     const rows = (res.data?.data ?? []) as Array<{ stageId: string } & StageUsage>
@@ -1526,7 +1530,7 @@ async function openWaitingPatientsModal() {
 }
 
 watch(
-  [isWaitingModalOpen, effectiveWaitingRoomTypeId],
+  [isWaitingModalOpen, effectiveWaitingRoomTypeId, waitingExamDateFrom, waitingExamDateTo],
   async ([open, roomType]) => {
     if (!open || !roomType) return
     await Promise.all([refreshWaiting(), refreshStageUsage()])
