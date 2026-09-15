@@ -609,17 +609,25 @@ const mealSearchTerm = ref<string>('')
 const loadingMealItems = ref(false)
 const mealSampleFilter = ref<string[]>([])
 
-const mealItemOptions = computed(() =>
-  mealConfigItems.value
+const mealItemOptions = computed(() => {
+  const term = mealSearchTerm.value.trim().toLowerCase()
+
+  return mealConfigItems.value
     .filter(item =>
       !mealSampleFilter.value.length
       || (item.sampleTypes ?? []).some(s => mealSampleFilter.value.includes(s.sampleTypeId))
+    )
+    // USelectMenu memakai `ignore-filter`, jadi search harus disaring di sini.
+    .filter(item =>
+      !term
+      || item.code.toLowerCase().includes(term)
+      || item.name.toLowerCase().includes(term)
     )
     .map(item => ({
       label: `${item.code} - ${item.name}`,
       value: item.id
     }))
-)
+})
 
 const mealSampleOptions = computed(() => {
   const options = new Map<string, string>()
@@ -666,26 +674,19 @@ function removeMealItem(value: string) {
 async function loadMealItems(search = '', limit = 50) {
   loadingMealItems.value = true
   try {
-    // BE membatasi limit maksimum 100 per request (parsePagination), jadi untuk
-    // memuat seluruh item (agar semua sample muncul di filter) kita iterasi halaman.
-    const pageSize = Math.min(100, Math.max(1, limit))
-    const fetchAllPages = limit > 100
-    const collected: Item[] = []
-    let page = 1
-    let safety = 0
+    let collected: Item[] = []
 
-    while (safety < 30) {
-      const res = await api.get('/mcu/items', { params: { search, limit: pageSize, page } })
+    if (limit > 100 && !search) {
+      // Endpoint ringan: seluruh item + sample types (tanpa inputans/nilai normal),
+      // satu request — agar semua sample muncul di filter.
+      const res = await api.get('/mcu/items/meal-options')
+      collected = (res.data?.data ?? []) as Item[]
+    } else {
+      const pageSize = Math.min(100, Math.max(1, limit))
+      const res = await api.get('/mcu/items', { params: { search, limit: pageSize, page: 1 } })
       const payload = res.data?.data ?? res.data
-      const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
 
-      collected.push(...(list as Item[]))
-
-      const hasNext = Boolean(res.data?.meta?.hasNextPage)
-      if (!fetchAllPages || !hasNext || list.length === 0) break
-
-      page++
-      safety++
+      collected = (Array.isArray(payload) ? payload : (payload?.data ?? [])) as Item[]
     }
 
     // Merge into mealConfigItems so that we don't lose items that are already selected or previously loaded
@@ -1367,7 +1368,6 @@ watch(currentPage, (page) => {
                   searchable
                   placeholder="Cari & pilih item..."
                   class="w-full"
-                  @update:search-term="loadMealItems"
                 >
                   <template #default="{ modelValue }">
                     <span v-if="Array.isArray(modelValue) && modelValue.length" class="truncate text-sm text-default">
