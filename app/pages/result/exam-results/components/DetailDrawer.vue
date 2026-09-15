@@ -198,6 +198,30 @@ const externalContextOpen = ref(true)
 
 const api = useApi()
 const toast = useToast()
+
+// Approve per item (workflow step department) — posisi tombol sama seperti approve lama.
+const approvingItem = ref(false)
+async function handleApproveItem() {
+  const targetExamId = props.result?.exam?.id
+  const targetItemId = props.result?.id
+  if (!targetExamId || !targetItemId || approvingItem.value) return
+
+  approvingItem.value = true
+  try {
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/approve`, {})
+    toast.add({ title: 'Approved', description: 'Item approved.', color: 'success' })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Approve failed',
+      description: getErrorMessage(error, 'An error occurred while approving.'),
+      color: 'error'
+    })
+  } finally {
+    approvingItem.value = false
+  }
+}
+
 const { loading: auditLoading, entries, resetAudit } = useAudit()
 async function fetchAllAudit() {
   if (!props.result?.id) {
@@ -1598,6 +1622,24 @@ onBeforeUnmount(() => {
             }}
           </p>
         </div>
+
+        <UBadge
+          v-if="(result as any)?.itemApproved"
+          color="success"
+          variant="subtle"
+          icon="i-lucide-check-circle-2"
+        >
+          Item Approved
+        </UBadge>
+        <UButton
+          v-else-if="result?.departmentResultStatus === 'DEPARTMENT_REVIEW'"
+          color="success"
+          :loading="approvingItem"
+          icon="i-lucide-check-circle"
+          @click="handleApproveItem"
+        >
+          Approve Item
+        </UButton>
 
         <UButton
           v-if="!embedded"

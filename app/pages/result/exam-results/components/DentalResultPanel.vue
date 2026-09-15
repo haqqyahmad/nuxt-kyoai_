@@ -10,14 +10,36 @@ const props = defineProps<{
   departmentId?: string
   resultStatus?: string | null
   submittedBy?: number | null
+  itemApproved?: boolean
 }>()
 
+const emit = defineEmits<{ approved: [] }>()
+
 const api = useApi()
+const toast = useToast()
 
 const loading = ref(false)
 const data = ref<DentalExamData | null>(null)
 const editing = ref(false)
 const saving = ref(false)
+
+const approvingItem = ref(false)
+async function handleApproveItem() {
+  if (!props.examId || !props.examItemId || approvingItem.value) return
+  approvingItem.value = true
+  try {
+    await api.post(`/mcu/exams/${props.examId}/items/${props.examItemId}/approve`, {})
+    toast.add({ title: 'Approved', description: 'Item approved.', color: 'success' })
+    await loadData()
+    emit('approved')
+  } catch (error: unknown) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+      ?? 'Failed to approve item.'
+    toast.add({ title: 'Failed to approve', description: message, color: 'error' })
+  } finally {
+    approvingItem.value = false
+  }
+}
 
 const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
   switch (props.resultStatus) {
@@ -94,6 +116,24 @@ function printDental() {
             @click="printDental"
           >
             Print
+          </UButton>
+          <UBadge
+            v-if="itemApproved"
+            color="success"
+            variant="subtle"
+            icon="i-lucide-check-circle-2"
+          >
+            Item Approved
+          </UBadge>
+          <UButton
+            v-else-if="resultStatus === 'DEPARTMENT_REVIEW'"
+            color="success"
+            icon="i-lucide-check-circle"
+            size="sm"
+            :loading="approvingItem"
+            @click="handleApproveItem"
+          >
+            Approve Item
           </UButton>
           <UButton
             v-if="canEdit && !editing"
