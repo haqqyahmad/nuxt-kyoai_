@@ -627,6 +627,52 @@ const {
   }
 )
 
+type StageUsage = { activeCount: number, slotLimit: number }
+const roomStageUsage = ref<Record<string, StageUsage>>({})
+
+async function refreshStageUsage() {
+  const roomType = effectiveWaitingRoomTypeId.value
+  if (!roomType) {
+    roomStageUsage.value = {}
+    return
+  }
+
+  try {
+    const params: Record<string, unknown> = { _: Date.now() }
+    if (myRoomId.value) params.roomId = myRoomId.value
+
+    const res = await api.get(`/medical/exams/queue/room/${roomType}/stage-usage`, { params })
+    const rows = (res.data?.data ?? []) as Array<{ stageId: string } & StageUsage>
+
+    const map: Record<string, StageUsage> = {}
+    for (const row of rows) {
+      map[row.stageId] = { activeCount: row.activeCount, slotLimit: row.slotLimit }
+    }
+    roomStageUsage.value = map
+  } catch {
+    roomStageUsage.value = {}
+  }
+}
+
+function stageUsage(stageId?: string | null): StageUsage | null {
+  if (!stageId) return null
+  return roomStageUsage.value[stageId] ?? null
+}
+
+function isStageFull(stageId?: string | null): boolean {
+  const usage = stageUsage(stageId)
+  return Boolean(usage && usage.slotLimit > 0 && usage.activeCount >= usage.slotLimit)
+}
+
+function stageUsageLabel(stageId?: string | null): string {
+  const usage = stageUsage(stageId)
+  return usage ? `${usage.activeCount}/${usage.slotLimit}` : ''
+}
+
+function stageUsageColor(stageId?: string | null): 'error' | 'success' {
+  return isStageFull(stageId) ? 'error' : 'success'
+}
+
 const historyItems = computed(() =>
   [...(historyData.value ?? [])]
     .filter(item => historyStatusFilter.value === 'ALL' || item.status === historyStatusFilter.value)
@@ -1226,7 +1272,7 @@ async function handleWaitingRowCall(row: WaitingRow) {
       roomId: myRoomId.value,
       roomTypeId: activeRoomSession.value?.roomTypeId ?? undefined
     })
-    await refreshAll()
+    await Promise.all([refreshAll(), refreshStageUsage()])
     await refreshRoomSession()
     isWaitingModalOpen.value = false
 
@@ -1483,7 +1529,7 @@ watch(
   [isWaitingModalOpen, effectiveWaitingRoomTypeId],
   async ([open, roomType]) => {
     if (!open || !roomType) return
-    await refreshWaiting()
+    await Promise.all([refreshWaiting(), refreshStageUsage()])
   }
 )
 
@@ -2200,6 +2246,14 @@ watch(
                         >
                           View Queue Work
                         </UButton>
+                        <UBadge
+                          v-if="stageUsageLabel(row.stageId)"
+                          :label="stageUsageLabel(row.stageId)"
+                          :color="stageUsageColor(row.stageId)"
+                          variant="subtle"
+                          icon="i-lucide-users"
+                          class="whitespace-nowrap"
+                        />
                         <UButton
                           v-if="row.stageId && row.meal?.status !== 'IN_PROGRESS'"
                           size="sm"
@@ -2207,7 +2261,8 @@ watch(
                           variant="solid"
                           icon="i-lucide-log-in"
                           :loading="Boolean(waitingRowActionLoading[row.id])"
-                          :disabled="Boolean(!row.stageId || !activeRoomSession || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId))"
+                          :disabled="Boolean(!row.stageId || !activeRoomSession || isStageFull(row.stageId) || (!isSuperAdmin && effectiveWaitingRoomTypeId && activeRoomSession?.roomTypeId !== effectiveWaitingRoomTypeId))"
+                          :title="isStageFull(row.stageId) ? 'Room is full for this stage' : undefined"
                           @click="handleWaitingRowCall(row)"
                         >
                           Pick Patient
