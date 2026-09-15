@@ -458,6 +458,7 @@ type PatientQuestionnaire = {
   status: 'Completed' | 'Pending'
   completionDate: string | null
   print_template?: string | null
+  token?: string | null
   answers?: Array<{
     questionId: string
     questionText: string
@@ -1043,7 +1044,14 @@ function questionnaireLink(questionnaireId?: string): string {
   const params = new URLSearchParams()
   if (reg.value?.company?.id) params.set('companyId', String(reg.value.company.id))
   if (reg.value?.branch?.branchId) params.set('branchId', reg.value.branch.branchId)
-  if (questionnaireId) params.set('questionnaireId', questionnaireId)
+  if (questionnaireId) {
+    params.set('questionnaireId', questionnaireId)
+    // Token bertanda tangan — mengikat link ke registrasi + questionnaire ini.
+    const questionnaire = questionnaires.value.find(
+      item => item.questionnaire_id === questionnaireId
+    )
+    if (questionnaire?.token) params.set('token', questionnaire.token)
+  }
   // Registrasi final punya id numerik; jawaban ter-backfill ke registrationId.
   params.set('registrationId', String(reg.value?.id ?? ''))
   // Gender pasien (untuk filter section "Khusus Wanita" di portal).
