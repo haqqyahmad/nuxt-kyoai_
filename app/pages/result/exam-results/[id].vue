@@ -33,6 +33,7 @@ const { isExternalDoctor } = await useCurrentUser()
 const result = ref<StructuredResult | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const filterNotice = ref<string | null>(null)
 
 const auditLoading = ref(false)
 const auditEntries = ref<AuditEntry[]>([])
@@ -99,42 +100,51 @@ const patientDob = computed(() => {
     : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 })
 
+async function fetchResultRows(params: Record<string, string | number>) {
+  const response = await api.get('/mcu/exams/results', { params })
+  const payload = response.data?.data ?? response.data
+  return Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : []
+}
+
 async function loadResult() {
   loading.value = true
   error.value = null
+  filterNotice.value = null
 
   try {
-    const params: Record<string, string | number> = {
+    const baseParams: Record<string, string | number> = {
       page: 1,
       limit: 1,
       groupBy: isExternalDoctor.value ? 'item' : 'exam'
     }
 
     if (isExternalDoctor.value) {
-      params.examItemId = String(route.params.id)
+      baseParams.examItemId = String(route.params.id)
     } else if (examId.value) {
-      params.examId = examId.value
+      baseParams.examId = examId.value
     } else {
-      params.examItemId = String(route.params.id)
+      baseParams.examItemId = String(route.params.id)
     }
 
-    if (department.value) {
-      params.department = department.value
-    }
+    const params: Record<string, string | number> = { ...baseParams }
+    if (department.value) params.department = department.value
+    if (roomTypeId.value) params.roomTypeId = roomTypeId.value
 
-    if (roomTypeId.value) {
-      params.roomTypeId = roomTypeId.value
-    }
+    let rows = await fetchResultRows(params)
 
-    const response = await api.get('/mcu/exams/results', {
-      params
-    })
-    const payload = response.data?.data ?? response.data
-    const rows = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : []
+    // Fallback: link lama bisa membawa filter department/roomType yang tidak
+    // cocok dengan examId. Coba sekali lagi tanpa filter tersebut.
+    if (!rows.length && (department.value || roomTypeId.value)) {
+      const relaxedRows = await fetchResultRows(baseParams)
+      if (relaxedRows.length) {
+        rows = relaxedRows
+        filterNotice.value = `Filter department/room type pada link tidak cocok dengan hasil, jadi diabaikan (department link: ${department.value || '-'}).`
+      }
+    }
 
     result.value = rows[0] ?? null
     if (!result.value) error.value = 'Result not found or inaccessible.'
@@ -165,6 +175,16 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="exam-result-detail">
     <template #body>
+      <div v-if="filterNotice" class="px-4 pt-4">
+        <UAlert
+          color="warning"
+          variant="soft"
+          icon="i-lucide-alert-triangle"
+          title="Filter pada link tidak cocok"
+          :description="filterNotice"
+        />
+      </div>
+
       <div v-if="loading" class="flex min-h-96 items-center justify-center">
         <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary" />
       </div>
@@ -176,7 +196,18 @@ onMounted(() => {
           title="Result detail unavailable"
           :description="error"
           class="max-w-xl"
-        />
+        >
+          <template #actions>
+            <UButton
+              color="error"
+              variant="soft"
+              icon="i-lucide-arrow-left"
+              @click="goBackToResults"
+            >
+              Back to Results
+            </UButton>
+          </template>
+        </UAlert>
       </div>
 
       <!-- Dental: editor + dental-specific view -->
