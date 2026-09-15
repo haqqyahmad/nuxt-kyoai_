@@ -26,7 +26,9 @@ const schema = z.object({
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   dob: z.string().min(1, 'Tanggal lahir wajib diisi'),
   maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED']).optional(),
-  phone: z.string().optional()
+  phone: z.string().optional(),
+  policyNumber: z.string().optional(),
+  policyExpDate: z.string().optional()
 })
 
 type Schema = z.output<typeof schema>
@@ -41,7 +43,9 @@ const state = reactive<Partial<Schema>>({
   email: '',
   dob: '',
   maritalStatus: undefined,
-  phone: ''
+  phone: '',
+  policyNumber: '',
+  policyExpDate: ''
 })
 
 type AddressType = 'HOME' | 'OFFICE' | 'BILLING' | 'OTHER'
@@ -128,6 +132,8 @@ type PatientDetail = {
   dob?: string | null
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | null
   phone?: string | null
+  policyNumber?: string | null
+  policyExpDate?: string | null
   addresses?: PatientAddress[]
 }
 
@@ -155,6 +161,8 @@ function resetIdentity() {
   state.dob = ''
   state.maritalStatus = undefined
   state.phone = ''
+  state.policyNumber = ''
+  state.policyExpDate = ''
 }
 
 function startNewAddress() {
@@ -190,6 +198,8 @@ function fillForm(patient: PatientDetail) {
   state.dob = formatDateForInput(patient.dob)
   state.maritalStatus = patient.maritalStatus ?? undefined
   state.phone = patient.phone ?? ''
+  state.policyNumber = patient.policyNumber ?? ''
+  state.policyExpDate = patient.policyExpDate ?? ''
 
   addresses.value = patient.addresses ?? []
 
@@ -306,7 +316,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       email: data.email || undefined,
       dob: data.dob,
       maritalStatus: data.maritalStatus || undefined,
-      phone: data.phone || undefined
+      phone: data.phone || undefined,
+      policyNumber: data.policyNumber || undefined,
+      policyExpDate: data.policyExpDate || undefined
     })
 
     toast.add({
@@ -440,6 +452,26 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               v-model="state.email"
               :disabled="loading"
               placeholder="budi@email.com"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <UFormField label="No. Polis" name="policyNumber">
+            <UInput
+              v-model="state.policyNumber"
+              :disabled="loading"
+              placeholder="POL-000123"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Polis Berlaku s/d" name="policyExpDate">
+            <UInput
+              v-model="state.policyExpDate"
+              type="date"
+              :disabled="loading"
               class="w-full"
             />
           </UFormField>
