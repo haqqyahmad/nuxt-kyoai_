@@ -484,6 +484,67 @@ async function loadQuestionnaires() {
   }
 }
 
+type PatientAddressDetail = {
+  id?: string
+  type?: string | null
+  detail?: string | null
+  city?: string | null
+  province?: string | null
+}
+
+type PatientHistoryDetail = {
+  id?: string
+  company?: string | null
+  position?: string | null
+  isCurrent?: boolean
+}
+
+type PatientDetailFull = {
+  maritalStatus?: string | null
+  addresses?: PatientAddressDetail[]
+  histories?: PatientHistoryDetail[]
+}
+
+const patientDetail = ref<PatientDetailFull | null>(null)
+
+function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null) {
+  if (!dob) return null
+  const birth = new Date(dob)
+  if (Number.isNaN(birth.getTime())) return null
+  const ref = referenceDate ? new Date(referenceDate) : new Date()
+  if (Number.isNaN(ref.getTime())) return null
+  let age = ref.getFullYear() - birth.getFullYear()
+  const monthDiff = ref.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--
+  return age >= 0 ? age : null
+}
+
+async function loadPatientDetail() {
+  const patientId = reg.value?.patient?.id
+  if (!patientId) return
+  try {
+    const res = await api.get(`/patient/${patientId}`)
+    patientDetail.value = (res.data?.data ?? res.data ?? null) as PatientDetailFull | null
+  } catch {
+    patientDetail.value = null
+  }
+}
+
+function primaryPatientAddress(): string | null {
+  const list = patientDetail.value?.addresses ?? []
+  const primary = list.find(address => address.type === 'HOME') ?? list[0]
+  if (!primary) return null
+  const line = [primary.detail, primary.city, primary.province].filter(Boolean).join(', ')
+  return line || null
+}
+
+function currentPatientPosition(): string | null {
+  const histories = patientDetail.value?.histories ?? []
+  const current = histories.find(history => history.isCurrent) ?? histories[0]
+  if (!current) return null
+  return current.position || current.company || null
+}
+
 type PatientAnswer = NonNullable<PatientQuestionnaire['answers']>[number]
 
 function formatAnswer(q: PatientAnswer): string {
@@ -512,7 +573,11 @@ function printQuestionnaire(q: PatientQuestionnaire) {
     patientName: fullName,
     patientGender: p?.gender ?? null,
     patientDob: p?.dob ?? null,
+    patientAge: getPatientAgeAtDate(p?.dob, reg.value?.examDate),
+    patientMaritalStatus: patientDetail.value?.maritalStatus ?? null,
     patientPhone: p?.phone ?? null,
+    patientAddress: primaryPatientAddress(),
+    patientPosition: currentPatientPosition(),
     patientCode: p?.patientCode ?? null,
     registrationRef: reg.value?.id_reg ?? null,
     companyName: reg.value?.company?.customerName ?? null,
@@ -1418,6 +1483,7 @@ async function doCheckout() {
 onMounted(() => {
   loadQuestionnaires()
   loadStatusHistory()
+  void loadPatientDetail()
   void loadCheckoutEligibility()
   void fetchMealDuration()
 })
