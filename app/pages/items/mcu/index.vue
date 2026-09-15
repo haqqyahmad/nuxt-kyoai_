@@ -666,13 +666,31 @@ function removeMealItem(value: string) {
 async function loadMealItems(search = '', limit = 50) {
   loadingMealItems.value = true
   try {
-    const res = await api.get('/mcu/items', { params: { search, limit } })
-    const payload = res.data?.data ?? res.data
-    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    // BE membatasi limit maksimum 100 per request (parsePagination), jadi untuk
+    // memuat seluruh item (agar semua sample muncul di filter) kita iterasi halaman.
+    const pageSize = Math.min(100, Math.max(1, limit))
+    const fetchAllPages = limit > 100
+    const collected: Item[] = []
+    let page = 1
+    let safety = 0
+
+    while (safety < 30) {
+      const res = await api.get('/mcu/items', { params: { search, limit: pageSize, page } })
+      const payload = res.data?.data ?? res.data
+      const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+
+      collected.push(...(list as Item[]))
+
+      const hasNext = Boolean(res.data?.meta?.hasNextPage)
+      if (!fetchAllPages || !hasNext || list.length === 0) break
+
+      page++
+      safety++
+    }
 
     // Merge into mealConfigItems so that we don't lose items that are already selected or previously loaded
     const existingIds = new Set(mealConfigItems.value.map(i => i.id))
-    for (const item of list as Item[]) {
+    for (const item of collected) {
       if (!existingIds.has(item.id)) {
         mealConfigItems.value.push(item)
         existingIds.add(item.id)
