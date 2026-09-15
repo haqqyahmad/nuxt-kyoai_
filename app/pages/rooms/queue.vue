@@ -323,7 +323,7 @@ async function completeMealFromList() {
     completeMealConfirmOpen.value = false
   }
 }
-const { user, isSuperAdmin, allowedSelfRooms, permissions } = await useCurrentUser()
+const { user, isSuperAdmin, allowedSelfRooms, allowedResultDepartments, permissions } = await useCurrentUser()
 const {
   session: roomSession,
   pending: roomSessionPending,
@@ -532,14 +532,33 @@ const effectiveWaitingRoomTypeId = computed(() =>
 // History by department — no room assignment needed.
 const departmentOptions = ref<Array<{ id: string, name: string }>>([])
 const departmentOptionsPending = ref(false)
+function allowedResultDepartmentOptions() {
+  return (allowedResultDepartments.value ?? []).map(department => ({
+    id: department.id,
+    name: department.name ?? department.code ?? '-'
+  }))
+}
+
 async function loadDepartmentOptions() {
   departmentOptionsPending.value = true
   try {
+    // Role terbatas (mis. dokter) tidak punya izin baca master department;
+    // cukup tampilkan department yang memang menjadi akses hasil mereka.
+    const canReadAllDepartments = isSuperAdmin.value
+      || permissions.value.includes('medicalDepartmen:read')
+
+    if (!canReadAllDepartments) {
+      departmentOptions.value = allowedResultDepartmentOptions()
+      return
+    }
+
     const res = await api.get('/medical/departments')
     const payload = res.data?.data ?? []
-    departmentOptions.value = Array.isArray(payload) ? payload.map((d: { id: string, name: string }) => ({ id: d.id, name: d.name })) : []
+    departmentOptions.value = Array.isArray(payload)
+      ? payload.map((d: { id: string, name: string }) => ({ id: d.id, name: d.name }))
+      : []
   } catch {
-    departmentOptions.value = []
+    departmentOptions.value = allowedResultDepartmentOptions()
   } finally {
     departmentOptionsPending.value = false
   }
