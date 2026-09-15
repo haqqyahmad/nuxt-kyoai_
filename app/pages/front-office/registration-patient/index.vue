@@ -219,6 +219,14 @@ async function deleteSelectedPatients() {
 
 const isDeleteModalOpen = ref(false)
 
+const isPatientEditOpen = ref(false)
+const patientEditId = ref<string | null>(null)
+
+function openPatientEdit(id: string) {
+  patientEditId.value = id
+  isPatientEditOpen.value = true
+}
+
 function getRowItems(row: Row<Patient>) {
   return [
     {
@@ -229,6 +237,13 @@ function getRowItems(row: Row<Patient>) {
       label: 'View patient details',
       icon: 'i-lucide-eye',
       to: `/front-office/registration-patient/${row.original.id_reg}`
+    },
+    {
+      label: 'Edit patient data',
+      icon: 'i-lucide-pencil',
+      onSelect() {
+        openPatientEdit(row.original.id)
+      }
     },
     {
       type: 'separator'
@@ -311,8 +326,12 @@ const columns: TableColumn<Patient>[] = [
 
       return h('div', { class: 'flex items-center gap-3' }, [
         h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, fullName)
-          // h("p", { class: "text-muted" }, `ID: ${p.id_reg}`),
+          h('button', {
+            type: 'button',
+            class: 'text-left font-medium text-highlighted hover:text-primary hover:underline',
+            title: 'Klik untuk edit data pasien',
+            onClick: () => openPatientEdit(p.id)
+          }, fullName)
         ])
       ])
     }
@@ -689,6 +708,11 @@ watch(currentPage, (page) => {
         :count="1"
         entity="patient"
         @confirm="handleDeleteById"
+      />
+      <PatientsEditModal
+        v-model:open="isPatientEditOpen"
+        :patient-id="patientEditId"
+        @updated="refresh()"
       />
     </template>
   </UDashboardPanel>
