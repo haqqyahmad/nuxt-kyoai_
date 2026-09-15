@@ -603,132 +603,63 @@ function editItem(item: Item) {
 const isMealConfigOpen = ref(false)
 const mealConfigSaving = ref(false)
 const mealDurationValue = ref<number | null>(null)
-const selectedMealItemIds = ref<string[]>([])
-const mealConfigItems = ref<Item[]>([])
-const mealSearchTerm = ref<string>('')
-const loadingMealItems = ref(false)
-const mealSampleFilter = ref<string[]>([])
+type MealSampleType = {
+  id: string
+  code: string
+  name: string
+  isActive?: boolean
+  mealPrerequisite?: boolean
+}
 
-const mealItemOptions = computed(() => {
-  const term = mealSearchTerm.value.trim().toLowerCase()
+const mealSampleTypes = ref<MealSampleType[]>([])
+const mealPrereqSampleIds = ref<string[]>([])
+const loadingMealSampleTypes = ref(false)
 
-  return mealConfigItems.value
-    .filter(item =>
-      !mealSampleFilter.value.length
-      || (item.sampleTypes ?? []).some(s => mealSampleFilter.value.includes(s.sampleTypeId))
-    )
-    // USelectMenu memakai `ignore-filter`, jadi search harus disaring di sini.
-    .filter(item =>
-      !term
-      || item.code.toLowerCase().includes(term)
-      || item.name.toLowerCase().includes(term)
-    )
-    .map(item => ({
-      label: `${item.code} - ${item.name}`,
-      value: item.id
+const mealSampleTypeOptions = computed(() =>
+  mealSampleTypes.value
+    .map(sample => ({
+      label: `${sample.name}${sample.code ? ` (${sample.code})` : ''}`,
+      value: sample.id
     }))
-})
-
-const mealSampleOptions = computed(() => {
-  const options = new Map<string, string>()
-  for (const item of mealConfigItems.value) {
-    for (const entry of item.sampleTypes ?? []) {
-      const id = entry.sampleTypeId ?? entry.sampleType?.id
-      if (!id || options.has(id)) continue
-      options.set(id, entry.sampleType?.name || entry.sampleType?.code || id)
-    }
-  }
-  return [...options.entries()]
-    .map(([value, label]) => ({ label, value }))
     .sort((a, b) => a.label.localeCompare(b.label))
-})
-
-function selectAllFilteredMealItems() {
-  const ids = mealItemOptions.value.map(option => option.value)
-  selectedMealItemIds.value = [...new Set([...selectedMealItemIds.value, ...ids])]
-}
-
-function deselectFilteredMealItems() {
-  const ids = new Set(mealItemOptions.value.map(option => option.value))
-  selectedMealItemIds.value = selectedMealItemIds.value.filter(id => !ids.has(id))
-}
-
-const filteredSelectedCount = computed(() => {
-  const ids = new Set(mealItemOptions.value.map(option => option.value))
-  return selectedMealItemIds.value.filter(id => ids.has(id)).length
-})
-
-const selectedMealItems = computed(() =>
-  selectedMealItemIds.value
-    .map((id) => {
-      const item = mealConfigItems.value.find(i => i.id === id)
-      return item ? { value: id, label: `${item.code} - ${item.name}` } : null
-    })
-    .filter(Boolean) as Array<{ value: string, label: string }>
 )
 
-function removeMealItem(value: string) {
-  selectedMealItemIds.value = selectedMealItemIds.value.filter(id => id !== value)
-}
-
-async function loadMealItems(search = '', limit = 50) {
-  loadingMealItems.value = true
+async function loadMealSampleTypes() {
+  loadingMealSampleTypes.value = true
   try {
-    let collected: Item[] = []
-
-    if (limit > 100 && !search) {
-      // Endpoint ringan: seluruh item + sample types (tanpa inputans/nilai normal),
-      // satu request — agar semua sample muncul di filter.
-      const res = await api.get('/mcu/items/meal-options')
-      collected = (res.data?.data ?? []) as Item[]
-    } else {
-      const pageSize = Math.min(100, Math.max(1, limit))
-      const res = await api.get('/mcu/items', { params: { search, limit: pageSize, page: 1 } })
-      const payload = res.data?.data ?? res.data
-
-      collected = (Array.isArray(payload) ? payload : (payload?.data ?? [])) as Item[]
-    }
-
-    // Merge into mealConfigItems so that we don't lose items that are already selected or previously loaded
-    const existingIds = new Set(mealConfigItems.value.map(i => i.id))
-    for (const item of collected) {
-      if (!existingIds.has(item.id)) {
-        mealConfigItems.value.push(item)
-        existingIds.add(item.id)
-      }
-    }
+    const res = await api.get('/medical/exams/sample-types', {
+      params: { isActive: true, limit: 100 }
+    })
+    const payload = res.data?.data ?? res.data
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    mealSampleTypes.value = list as MealSampleType[]
   } catch {
-    // keep existing items
+    mealSampleTypes.value = []
   } finally {
-    loadingMealItems.value = false
+    loadingMealSampleTypes.value = false
   }
 }
 
 async function openMealConfigGlobal() {
-  mealConfigItems.value = []
-  selectedMealItemIds.value = []
+  mealSampleTypes.value = []
+  mealPrereqSampleIds.value = []
   mealDurationValue.value = null
-  mealSearchTerm.value = ''
-  mealSampleFilter.value = []
   isMealConfigOpen.value = true
 
   try {
-    const cfgPromise = api.get('/master/app-config/meal_duration_minutes')
-    const selectedRes = await api.get('/mcu/items', { params: { mealPrerequisite: true, limit: 100 } })
+    const [cfgRes] = await Promise.all([
+      api.get('/master/app-config/meal_duration_minutes'),
+      loadMealSampleTypes()
+    ])
 
-    const selectedPayload = selectedRes.data?.data ?? selectedRes.data
-    const selectedList = Array.isArray(selectedPayload) ? selectedPayload : (selectedPayload?.data ?? [])
-
-    mealConfigItems.value = selectedList as Item[]
-    selectedMealItemIds.value = (selectedList as Item[]).map(item => item.id)
-
-    const cfgRes = await cfgPromise
     const cfg = cfgRes.data?.data ?? null
     mealDurationValue.value = cfg?.value ? Number(cfg.value) : null
 
-    await loadMealItems('', 500)
+    mealPrereqSampleIds.value = mealSampleTypes.value
+      .filter(sample => sample.mealPrerequisite)
+      .map(sample => sample.id)
   } catch (error: unknown) {
-    mealConfigItems.value = []
+    mealSampleTypes.value = []
     const err = error as { response?: { data?: { message?: string } } }
     toast.add({
       title: 'Gagal',
@@ -742,12 +673,18 @@ async function saveMealConfigGlobal() {
   if (mealConfigSaving.value) return
   mealConfigSaving.value = true
   try {
-    const selected = new Set(selectedMealItemIds.value)
+    const selected = new Set(mealPrereqSampleIds.value)
+
+    // Kirim hanya sample type yang flag-nya berubah.
+    const changedSamples = mealSampleTypes.value.filter(
+      sample => Boolean(sample.mealPrerequisite) !== selected.has(sample.id)
+    )
+
     await Promise.all([
       api.put('/master/app-config/meal_duration_minutes', { value: mealDurationValue.value ? String(mealDurationValue.value) : null }),
-      ...mealConfigItems.value.map(item =>
-        api.put(`/mcu/items/${item.id}`, {
-          mealPrerequisite: selected.has(item.id)
+      ...changedSamples.map(sample =>
+        api.put(`/medical/exams/sample-types/${sample.id}`, {
+          mealPrerequisite: selected.has(sample.id)
         })
       )
     ])
@@ -1285,7 +1222,7 @@ watch(currentPage, (page) => {
                   Konfigurasi Meal
                 </h2>
                 <p class="text-sm text-muted">
-                  Atur durasi makan dan pilih item yang wajib selesai sebelum pasien dapat mulai meal.
+                  Atur durasi makan dan pilih sample yang wajib sudah diambil sebelum pasien dapat mulai meal.
                 </p>
               </div>
             </template>
@@ -1302,120 +1239,19 @@ watch(currentPage, (page) => {
               </UFormField>
 
               <UFormField
-                label="Filter Item by Sample"
-                description="Pilih sample untuk memfilter item, lalu pilih semuanya sebagai Prerequisite Meal."
-              >
-                <div class="space-y-2">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <USelectMenu
-                      v-model="mealSampleFilter"
-                      :items="mealSampleOptions"
-                      value-key="value"
-                      label-key="label"
-                      icon="i-lucide-test-tube-diagonal"
-                      multiple
-                      placeholder="Semua sample"
-                      class="w-72"
-                    />
-                    <UButton
-                      v-if="mealSampleFilter.length"
-                      icon="i-lucide-x"
-                      size="sm"
-                      color="neutral"
-                      variant="ghost"
-                      @click="mealSampleFilter = []"
-                    >
-                      Reset filter
-                    </UButton>
-                  </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <UButton
-                      icon="i-lucide-check-check"
-                      color="warning"
-                      variant="soft"
-                      size="sm"
-                      :disabled="!mealItemOptions.length"
-                      @click="selectAllFilteredMealItems"
-                    >
-                      Pilih semua ({{ mealItemOptions.length }})
-                    </UButton>
-                    <UButton
-                      icon="i-lucide-eraser"
-                      color="error"
-                      variant="soft"
-                      size="sm"
-                      :disabled="!filteredSelectedCount"
-                      @click="deselectFilteredMealItems"
-                    >
-                      Hapus hasil filter ({{ filteredSelectedCount }})
-                    </UButton>
-                  </div>
-                </div>
-              </UFormField>
-
-              <UFormField
-                label="Prerequisite Meal"
-                description="Pilih item (bisa banyak) yang harus selesai sebelum pasien dapat mulai meal."
+                label="Prasyarat Sample (Meal)"
+                description="Meal baru otomatis mulai setelah seluruh sample terpilih selesai diambil (COLLECTED). Sample yang tidak ada di kunjungan pasien tidak menahan."
               >
                 <USelectMenu
-                  v-model="selectedMealItemIds"
-                  v-model:search-term="mealSearchTerm"
-                  :items="mealItemOptions"
-                  :loading="loadingMealItems"
+                  v-model="mealPrereqSampleIds"
+                  :items="mealSampleTypeOptions"
+                  :loading="loadingMealSampleTypes"
                   value-key="value"
                   label-key="label"
                   multiple
-                  searchable
-                  placeholder="Cari & pilih item..."
+                  placeholder="Pilih sample prasyarat..."
                   class="w-full"
-                >
-                  <template #default="{ modelValue }">
-                    <span v-if="Array.isArray(modelValue) && modelValue.length" class="truncate text-sm text-default">
-                      {{ modelValue.length }} item dipilih
-                    </span>
-                    <span v-else class="truncate text-muted">Cari & pilih item...</span>
-                  </template>
-                </USelectMenu>
-
-                <div
-                  v-if="selectedMealItems.length"
-                  class="mt-2 rounded-lg border border-default bg-elevated/40 px-2.5 py-2"
-                >
-                  <div class="mb-1.5 flex items-center justify-between">
-                    <span class="text-xs font-medium text-muted">
-                      {{ selectedMealItems.length }} item terpilih
-                    </span>
-                    <UButton
-                      icon="i-lucide-trash-2"
-                      size="xs"
-                      color="neutral"
-                      variant="link"
-                      @click="selectedMealItemIds = []"
-                    >
-                      Bersihkan
-                    </UButton>
-                  </div>
-                  <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-                    <UBadge
-                      v-for="item in selectedMealItems"
-                      :key="item.value"
-                      color="warning"
-                      variant="soft"
-                      size="sm"
-                      class="gap-1 pr-1"
-                    >
-                      <span class="max-w-[240px] truncate">{{ item.label }}</span>
-                      <UIcon
-                        name="i-lucide-x"
-                        class="size-3 shrink-0 cursor-pointer opacity-60 hover:opacity-100"
-                        @click="removeMealItem(item.value)"
-                      />
-                    </UBadge>
-                  </div>
-                </div>
-                <p v-else class="mt-1 text-xs text-muted">
-                  Belum ada item dipilih.
-                </p>
+                />
               </UFormField>
             </div>
 
