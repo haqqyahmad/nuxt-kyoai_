@@ -32,6 +32,7 @@ type Item = {
       id: string
       code?: string | null
       name?: string | null
+      mealPrerequisite?: boolean
     } | null
   }>
   departmentId?: string | null
@@ -831,12 +832,21 @@ const columns: TableColumn<Item>[] = [
   {
     id: 'mealPrerequisite',
     header: ({ column }) => sortableHeader('Meal', column),
-    cell: ({ row }) =>
-      h(UBadge, {
-        label: row.original.mealPrerequisite ? 'Pre-req' : '-',
-        color: row.original.mealPrerequisite ? 'warning' : 'neutral',
-        variant: 'subtle'
+    cell: ({ row }) => {
+      const prereqSamples = (row.original.sampleTypes ?? [])
+        .filter(entry => entry.sampleType?.mealPrerequisite)
+        .map(entry => entry.sampleType?.name || entry.sampleType?.code)
+        .filter(Boolean)
+
+      return h(UBadge, {
+        label: prereqSamples.length ? 'Pre-req' : '-',
+        color: prereqSamples.length ? 'warning' : 'neutral',
+        variant: 'subtle',
+        title: prereqSamples.length
+          ? `Sample prasyarat meal: ${prereqSamples.join(', ')}`
+          : 'Sample item ini bukan prasyarat meal'
       })
+    }
   },
   {
     accessorKey: 'isActive',
