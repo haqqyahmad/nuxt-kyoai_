@@ -328,7 +328,7 @@ const columns: TableColumn<Patient>[] = [
         h('div', undefined, [
           h('button', {
             type: 'button',
-            class: 'text-left font-medium text-highlighted hover:text-primary hover:underline',
+            class: 'text-left font-medium text-blue-600 hover:text-blue-700 hover:underline',
             title: 'Klik untuk edit data pasien',
             onClick: () => openPatientEdit(p.id)
           }, fullName)
