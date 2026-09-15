@@ -1852,6 +1852,7 @@ watch(
                     class="text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded px-2 py-0.5 font-mono"
                   >{{ reg.serviceNumber }}</code>
                   <UButton
+                    v-if="isCheckedIn"
                     icon="i-lucide-pencil"
                     color="neutral"
                     variant="ghost"
