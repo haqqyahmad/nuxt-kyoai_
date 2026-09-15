@@ -494,12 +494,17 @@ watch(results, () => {
 
 // View detail
 async function viewDetail(result: ExamResult) {
+  // Gunakan department milik baris (bukan filter halaman) agar query detail
+  // selalu konsisten dengan examId & roomTypeId-nya.
+  const departmentCode = result.item?.department?.code?.toLowerCase()
+    || getQueryValue(route.query.department)
+
   await router.push({
     path: `/result/exam-results/${result.id}`,
     query: isExternalDoctor.value
       ? {}
       : {
-          department: getQueryValue(route.query.department),
+          department: departmentCode,
           examId: result.exam?.id || '',
           ...(result.item?.roomType?.id ? { roomTypeId: result.item.roomType.id } : {})
         }
