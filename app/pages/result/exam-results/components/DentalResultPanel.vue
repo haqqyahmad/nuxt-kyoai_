@@ -28,7 +28,7 @@ const canApprove = computed(() => data.value?.canApproveDepartment === true)
 const approvalStatus = computed<{ label: string, color: 'success' | 'warning' | 'info' | 'neutral' | 'error' }>(() => {
   switch (props.resultStatus) {
     case 'DEPARTMENT_APPROVED': return { label: `Approved by ${data.value?.doctorName || 'Doctor'}`, color: 'success' }
-    case 'SUBMITTED_TO_DOCTOR': return { label: 'Sent to Doctor', color: 'info' }
+    case 'SUBMITTED_TO_DOCTOR': return { label: 'Approved · Sent to Doctor', color: 'info' }
     case 'DEPARTMENT_REVIEW': return { label: 'Pending Approval', color: 'warning' }
     case 'RETURNED_TO_DEPARTMENT': return { label: 'Returned', color: 'error' }
     case 'DRAFT': return { label: 'Draft', color: 'neutral' }

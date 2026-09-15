@@ -191,7 +191,7 @@ function getStatusLabel(status?: string) {
   if (status === 'pending') return 'Pending'
   if (status === 'DEPARTMENT_REVIEW') return 'Pending Approval'
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
-  if (status === 'SUBMITTED_TO_DOCTOR') return 'Sent to Doctor'
+  if (status === 'SUBMITTED_TO_DOCTOR') return 'Approved · Sent to Doctor'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
   if (status === 'DRAFT') return 'Draft'
   return status || '-'
