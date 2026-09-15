@@ -353,9 +353,16 @@ async function submitSingleAssignment() {
 
   singleSaving.value = true
   try {
+    const roomId = singleForm.roomId
+    const assignedUserId = Number(singleForm.userId)
+    // Khusus superadmin yang meng-assign dirinya sendiri: langsung masuk room
+    // dan arahkan ke /rooms/queue agar bisa langsung ambil pasien.
+    const shouldEnterQueue = isSuperAdmin.value
+      && assignedUserId === Number(currentUser.value?.id)
+
     await createAssignment({
-      userId: Number(singleForm.userId),
-      roomId: singleForm.roomId,
+      userId: assignedUserId,
+      roomId,
       assignedDate: singleForm.assignedDate,
       notes: singleForm.notes.trim() || null
     })
@@ -367,6 +374,19 @@ async function submitSingleAssignment() {
     })
 
     resetSingleForm()
+
+    if (shouldEnterQueue) {
+      try {
+        await enterRoomSession({ roomId })
+      } catch (error: unknown) {
+        toast.add({
+          title: 'Sesi room belum aktif',
+          description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
+          color: 'warning'
+        })
+      }
+      await navigateTo('/rooms/queue')
+    }
   } catch (error: unknown) {
     toast.add({
       title: 'Gagal',
