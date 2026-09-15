@@ -28,6 +28,7 @@ type AuditEntry = {
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
+const toast = useToast()
 const { isExternalDoctor } = await useCurrentUser()
 
 const result = ref<StructuredResult | null>(null)
@@ -99,6 +100,28 @@ const patientDob = computed(() => {
     ? '-'
     : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 })
+
+const approvingItem = ref(false)
+
+async function approveCurrentItem() {
+  const current = result.value as unknown as { exam?: { id?: string | null } } | null
+  const targetExamId = examId.value || current?.exam?.id
+  const targetItemId = String(route.params.id ?? '')
+  if (!targetExamId || !targetItemId || approvingItem.value) return
+
+  approvingItem.value = true
+  try {
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/approve`, {})
+    toast.add({ title: 'Approved', description: 'Item berhasil di-approve.', color: 'success' })
+    await loadResult()
+  } catch (error: unknown) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+      ?? 'Gagal approve item.'
+    toast.add({ title: 'Gagal approve', description: message, color: 'error' })
+  } finally {
+    approvingItem.value = false
+  }
+}
 
 async function fetchResultRows(params: Record<string, string | number>) {
   const response = await api.get('/mcu/exams/results', { params })
@@ -191,6 +214,27 @@ onMounted(() => {
           title="Filter pada link tidak cocok"
           :description="filterNotice"
         />
+      </div>
+
+      <!-- Approve per item -->
+      <div v-if="result && !loading && !error" class="flex flex-wrap items-center justify-end gap-2 px-4 pt-4">
+        <UBadge
+          v-if="(result as any).itemApproved"
+          color="success"
+          variant="subtle"
+          icon="i-lucide-check-circle-2"
+        >
+          Item Approved
+        </UBadge>
+        <UButton
+          v-else-if="(result as any).departmentResultStatus === 'DEPARTMENT_REVIEW'"
+          color="primary"
+          icon="i-lucide-check"
+          :loading="approvingItem"
+          @click="approveCurrentItem"
+        >
+          Approve Item
+        </UButton>
       </div>
 
       <div v-if="loading" class="flex min-h-96 items-center justify-center">
