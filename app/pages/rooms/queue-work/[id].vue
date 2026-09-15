@@ -692,8 +692,11 @@ async function loadPatientDetail(patientId?: string | number | null) {
   try {
     const res = await api.get(`/patient/${patientId}`)
     patientDetail.value = (res.data?.data ?? res.data ?? null) as Patient | null
-  } catch {
-    patientDetailError.value = 'Detail pasien tidak dapat dimuat. Informasi dasar dari antrian tetap ditampilkan.'
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    patientDetailError.value = status === 403
+      ? ''
+      : 'Detail pasien tidak dapat dimuat. Informasi dasar dari antrian tetap ditampilkan.'
   } finally {
     patientDetailLoading.value = false
   }
