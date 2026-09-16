@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toDepartmentMenuKey } from '~/constants/menu'
 import DetailDrawer from './components/DetailDrawer.vue'
 import DentalResultPanel from './components/DentalResultPanel.vue'
 import PhysicalResultPanel from './components/PhysicalResultPanel.vue'
@@ -169,9 +170,10 @@ async function loadResult() {
 }
 
 async function goBackToResults() {
+  const menuKey = toDepartmentMenuKey(department.value) ?? department.value
   await router.push({
     path: '/result/exam-results',
-    query: department.value ? { department: department.value } : {}
+    query: menuKey ? { department: menuKey } : {}
   })
 }
 

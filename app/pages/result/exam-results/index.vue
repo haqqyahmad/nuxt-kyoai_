@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { toDepartmentMenuKey } from '~/constants/menu'
 
 type Department = {
   id: string
@@ -498,8 +499,9 @@ watch(results, () => {
 // View detail
 async function viewDetail(result: ExamResult) {
   // Gunakan department milik baris (bukan filter halaman) agar query detail
-  // selalu konsisten dengan examId & roomTypeId-nya.
-  const departmentCode = result.item?.department?.code?.toLowerCase()
+  // selalu konsisten dengan examId & roomTypeId-nya. Key menu (bukan kode) agar
+  // tombol Back di halaman detail kembali dengan filter yang benar.
+  const departmentCode = toDepartmentMenuKey(result.item?.department?.code)
     || getQueryValue(route.query.department)
 
   await router.push({

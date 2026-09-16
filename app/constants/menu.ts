@@ -221,3 +221,17 @@ export function buildMenuTree(): MenuItem[] {
     }
   ]
 }
+
+export const departmentMenuKeyByCode: Record<string, string> = {
+  LAB: 'lab',
+  RAD: 'radiology',
+  NURSE: 'nurse',
+  DOK: 'dokter',
+  DENTAL: 'dental'
+}
+
+export function toDepartmentMenuKey(code?: string | null): string | null {
+  if (!code) return null
+  const upper = String(code).trim().toUpperCase()
+  return departmentMenuKeyByCode[upper] ?? upper.toLowerCase()
+}
