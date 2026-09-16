@@ -284,9 +284,17 @@ async function onGradeChange(item: DoctorResultItem, grade: string) {
 
 async function loadGradeOptions() {
   for (const item of allItems.value) {
-    if (item.gradable && !item.locked) {
-      const options = await gradeOptionsFor(item)
-      gradeOptionsCache.value[item.inputanId] = options
+    if (!item.gradable || item.locked) continue
+
+    const options = await gradeOptionsFor(item)
+    gradeOptionsCache.value[item.inputanId] = options
+
+    // Hasil normal → otomatis pilih grade A (masih bisa diubah dokter).
+    const isNormal = String(item.flag || 'normal').toLowerCase() === 'normal'
+    const hasGrade = selectedGrades.value[item.inputanId] || item.grade
+    const autoGrade = options.find(option => String(option).toUpperCase() === 'A') ?? options[0]
+    if (isNormal && !hasGrade && autoGrade) {
+      await onGradeChange(item, autoGrade)
     }
   }
 }
