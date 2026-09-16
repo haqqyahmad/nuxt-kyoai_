@@ -1662,7 +1662,7 @@ onBeforeUnmount(() => {
                 || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT')
               && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
           "
-          class="flex w-full items-center justify-end gap-2 sm:w-auto"
+          class="flex w-full items-start justify-end gap-2 sm:w-auto"
         >
           <div class="flex flex-col items-end gap-0.5">
             <UButton
@@ -2115,7 +2115,7 @@ onBeforeUnmount(() => {
                       Update Status
                     </UButton>
                   </div>
-                  <div class="flex flex-col gap-2 sm:flex-row">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <UButton
                       color="secondary"
                       variant="soft"
