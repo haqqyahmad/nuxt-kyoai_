@@ -49,7 +49,7 @@ export function useMedicalReport() {
       list.value = payload?.data ?? (Array.isArray(payload) ? payload : [])
       totalItems.value = payload?.meta?.total ?? list.value.length
     } catch (err) {
-      error.value = getErrorMessage(err, 'Gagal memuat daftar medical report')
+      error.value = getErrorMessage(err, 'Failed to load medical report list')
       toast.add({ title: 'Error', description: error.value, color: 'error' })
     } finally {
       loading.value = false
@@ -64,7 +64,7 @@ export function useMedicalReport() {
       const res = await api.get(`/medical-reports/${id}`)
       detail.value = res.data?.data ?? res.data
     } catch (err) {
-      error.value = getErrorMessage(err, 'Gagal memuat detail medical report')
+      error.value = getErrorMessage(err, 'Failed to load medical report detail')
       toast.add({ title: 'Error', description: error.value, color: 'error' })
     } finally {
       loading.value = false
@@ -76,10 +76,10 @@ export function useMedicalReport() {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/verify`, {})
-      toast.add({ title: 'Terverifikasi', description: 'Medical report berhasil diverifikasi', color: 'success' })
+      toast.add({ title: 'Verified', description: 'Medical report verified successfully', color: 'success' })
       return true
     } catch (err) {
-      toast.add({ title: 'Gagal verify', description: getErrorMessage(err, 'Gagal memverifikasi report'), color: 'error' })
+      toast.add({ title: 'Verify failed', description: getErrorMessage(err, 'Failed to verify report'), color: 'error' })
       return false
     } finally {
       submitting.value = false
@@ -91,10 +91,10 @@ export function useMedicalReport() {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/return`, payload)
-      toast.add({ title: 'Dikembalikan', description: 'Medical report dikembalikan ke dokter', color: 'warning' })
+      toast.add({ title: 'Returned', description: 'Medical report returned to the doctor', color: 'warning' })
       return true
     } catch (err) {
-      toast.add({ title: 'Gagal return', description: getErrorMessage(err, 'Gagal mengembalikan report'), color: 'error' })
+      toast.add({ title: 'Return failed', description: getErrorMessage(err, 'Failed to return report'), color: 'error' })
       return false
     } finally {
       submitting.value = false
@@ -106,10 +106,10 @@ export function useMedicalReport() {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/release`, {})
-      toast.add({ title: 'Released', description: 'Medical report berhasil dirilis', color: 'success' })
+      toast.add({ title: 'Released', description: 'Medical report released successfully', color: 'success' })
       return true
     } catch (err) {
-      toast.add({ title: 'Gagal release', description: getErrorMessage(err, 'Gagal merilis report'), color: 'error' })
+      toast.add({ title: 'Release failed', description: getErrorMessage(err, 'Failed to release report'), color: 'error' })
       return false
     } finally {
       submitting.value = false

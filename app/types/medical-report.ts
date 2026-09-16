@@ -92,16 +92,16 @@ export const MR_STATUS_COLOR: Record<string, 'primary' | 'success' | 'warning' |
 
 export const EXAM_STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
-  in_progress: 'Sedang Pemeriksaan',
-  completed: 'Selesai'
+  in_progress: 'In Progress',
+  completed: 'Completed'
 }
 
 export const MR_STATUS_LABEL: Record<string, string> = {
-  DOCTOR_REVIEW: 'Dokter Review',
-  DOCTOR_APPROVED: 'Menunggu MR',
+  DOCTOR_REVIEW: 'Doctor Review',
+  DOCTOR_APPROVED: 'Waiting for MR',
   MR_REVIEW: 'MR Review',
-  MR_RETURNED_TO_DOCTOR: 'Dikembalikan ke Dokter',
-  MR_VERIFIED: 'Terverifikasi MR',
-  READY_TO_RELEASE: 'Siap Release',
+  MR_RETURNED_TO_DOCTOR: 'Returned to Doctor',
+  MR_VERIFIED: 'MR Verified',
+  READY_TO_RELEASE: 'Ready to Release',
   RELEASED: 'Released'
 }

@@ -23,11 +23,11 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 
 const statusOptions = [
-  { label: 'Semua Status', value: 'all' },
-  { label: 'Menunggu MR', value: 'DOCTOR_APPROVED' },
-  { label: 'Sedang Review MR', value: 'MR_REVIEW' },
-  { label: 'Dikembalikan ke Dokter', value: 'MR_RETURNED_TO_DOCTOR' },
-  { label: 'Terverifikasi MR', value: 'MR_VERIFIED' },
+  { label: 'All Statuses', value: 'all' },
+  { label: 'Waiting for MR', value: 'DOCTOR_APPROVED' },
+  { label: 'Under MR Review', value: 'MR_REVIEW' },
+  { label: 'Returned to Doctor', value: 'MR_RETURNED_TO_DOCTOR' },
+  { label: 'MR Verified', value: 'MR_VERIFIED' },
   { label: 'Released', value: 'RELEASED' }
 ]
 
@@ -71,7 +71,7 @@ function openDetail(report: MedicalReportListItem) {
 const columns: TableColumn<MedicalReportListItem>[] = [
   {
     id: 'patient',
-    header: 'Pasien',
+    header: 'Patient',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
       h('span', { class: 'font-medium text-highlighted' }, row.original.patient?.name ?? '-'),
       h('span', { class: 'text-xs text-muted' }, row.original.patient?.PatientId ?? '-')
@@ -87,7 +87,7 @@ const columns: TableColumn<MedicalReportListItem>[] = [
   },
   {
     id: 'company',
-    header: 'Perusahaan',
+    header: 'Company',
     cell: ({ row }) => row.original.companyName ?? row.original.company ?? '-'
   },
   {
@@ -113,15 +113,15 @@ const columns: TableColumn<MedicalReportListItem>[] = [
   },
   {
     id: 'doctorApprovedAt',
-    header: 'Dikirim Dokter',
+    header: 'Doctor Submitted',
     cell: ({ row }) => formatDate(row.original.doctorApprovedAt)
   },
   {
     id: 'actions',
-    header: () => h('div', { class: 'text-right' }, 'Aksi'),
+    header: () => h('div', { class: 'text-right' }, 'Action'),
     cell: ({ row }) => h('div', { class: 'flex justify-end gap-1' }, [
       h(UButton, {
-        label: 'Lihat',
+        label: 'View',
         icon: 'i-lucide-eye',
         size: 'xs',
         variant: 'outline',
@@ -170,7 +170,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
             </h1>
           </div>
           <p class="mt-1 text-sm text-muted">
-            Verifikasi, return, atau release report yang sudah disetujui dokter.
+            Verify, return, or release reports that have been approved by the doctor.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <UCard>
             <div class="text-sm text-muted">
-              Menunggu MR
+              Waiting for MR
             </div>
             <div class="mt-1 text-2xl font-bold text-warning">
               {{ totalWaiting }}
@@ -186,7 +186,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
           </UCard>
           <UCard>
             <div class="text-sm text-muted">
-              Terverifikasi
+              Verified
             </div>
             <div class="mt-1 text-2xl font-bold text-success">
               {{ totalVerified }}
@@ -214,7 +214,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
         <div class="flex flex-wrap items-center gap-2">
           <UInput
             v-model="search"
-            placeholder="Cari pasien / exam code..."
+            placeholder="Search patient / exam code..."
             icon="i-lucide-search"
             class="w-64"
           />
@@ -236,17 +236,17 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
 
         <!-- Pagination -->
         <div v-if="totalItems > pageSize" class="flex items-center justify-between">
-          <span class="text-sm text-muted">Menampilkan {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalItems) }} dari {{ totalItems }}</span>
+          <span class="text-sm text-muted">Showing {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalItems) }} of {{ totalItems }}</span>
           <div class="flex gap-1">
             <UButton
-              label="Sebelumnya"
+              label="Previous"
               variant="outline"
               size="xs"
               :disabled="currentPage <= 1"
               @click="currentPage--"
             />
             <UButton
-              label="Berikutnya"
+              label="Next"
               variant="outline"
               size="xs"
               :disabled="currentPage * pageSize >= totalItems"
