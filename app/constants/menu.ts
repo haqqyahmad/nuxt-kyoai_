@@ -34,9 +34,18 @@ export const queueSearchAllowedRoutes: string[] = [
   '/queue-search'
 ]
 
+export const medicalRecordAllowedRoutes: string[] = [
+  '/',
+  '/result/mr-review',
+  '/settings',
+  '/settings/security',
+  '/settings/notifications'
+]
+
 export function getAllowedRoutes(roleName: string): string[] {
   if (roleName === 'queue-search') return queueSearchAllowedRoutes
   if (roleName === 'front-office') return frontOfficeAllowedRoutes
+  if (roleName === 'medical-record') return medicalRecordAllowedRoutes
   return restrictedAllowedRoutes
 }
 
@@ -53,7 +62,8 @@ export const restrictedRoles: string[] = [
   'dokter-gigi',
   'nurse',
   'front-office',
-  'queue-search'
+  'queue-search',
+  'medical-record'
 ]
 
 export const externalRoles: string[] = [
