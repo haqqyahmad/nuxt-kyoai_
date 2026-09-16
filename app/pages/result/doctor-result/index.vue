@@ -19,6 +19,7 @@ type ExamListItem = {
     lastName?: string | null
   } | null
   status?: string
+  medicalReportStatus?: string | null
   needsRevision?: boolean
   revisionCount?: number
   revisionItems?: Array<{
@@ -69,7 +70,7 @@ const table = ref<DoctorResultTable | null>(null)
 const loading = ref(false)
 const exams = ref<ExamListItem[]>([])
 const search = ref('')
-const statusFilter = ref('all')
+const statusFilter = ref('pending')
 const companyFilter = ref('all')
 const packageFilter = ref('all')
 const examDateFrom = ref('')
@@ -175,11 +176,10 @@ const columns: TableColumn<ExamListItem>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => h(UBadge, {
-      label: displayStatus(row.original),
-      color: statusColor(row.original.needsRevision ? 'needs_revision' : row.original.status),
-      variant: 'subtle'
-    })
+    cell: ({ row }) => {
+      const info = displayStatusInfo(row.original)
+      return h(UBadge, { label: info.label, color: info.color, variant: 'subtle' })
+    }
   },
   {
     id: 'revision',
@@ -254,13 +254,25 @@ function getPatientName(exam: ExamListItem) {
     || '-'
 }
 
-function statusColor(status?: string) {
-  return status === 'completed' ? 'success' : status === 'needs_revision' ? 'error' : 'warning'
-}
+function displayStatusInfo(exam: ExamListItem): {
+  label: string
+  color: 'success' | 'warning' | 'error' | 'info' | 'neutral'
+} {
+  const report = exam.medicalReportStatus
 
-function displayStatus(exam: ExamListItem) {
-  if (exam.needsRevision) return 'Needs Revision'
-  return exam.status === 'completed' ? 'completed' : exam.status ?? 'pending'
+  if (exam.needsRevision || report === 'MR_RETURNED_TO_DOCTOR') {
+    return { label: 'Needs Revision', color: 'error' }
+  }
+  if (report === 'RELEASED') return { label: 'Released', color: 'success' }
+  if (report === 'MR_VERIFIED' || report === 'READY_TO_RELEASE') {
+    return { label: 'Verified by MR', color: 'success' }
+  }
+  if (report === 'DOCTOR_APPROVED') return { label: 'Sent to MR Review', color: 'success' }
+  if (report === 'DOCTOR_REVIEW') return { label: 'Pending Doctor Review', color: 'warning' }
+
+  return exam.status === 'completed'
+    ? { label: 'Completed', color: 'success' }
+    : { label: 'Pending', color: 'warning' }
 }
 
 function progressValue(exam: ExamListItem) {
