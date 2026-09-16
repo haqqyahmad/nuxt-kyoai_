@@ -72,14 +72,22 @@ export function useMedicalReport() {
   }
 
   // ── verify ────────────────────────────────────────────────────────
-  async function verify(id: string) {
+  async function verify(id: string, step: 'start' | 'verify' = 'verify') {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/verify`, {})
-      toast.add({ title: 'Verified', description: 'Medical report verified successfully', color: 'success' })
+      if (step === 'start') {
+        toast.add({ title: 'Review Started', description: 'MR review started for this medical report', color: 'info' })
+      } else {
+        toast.add({ title: 'Verified', description: 'Medical report verified successfully', color: 'success' })
+      }
       return true
     } catch (err) {
-      toast.add({ title: 'Verify failed', description: getErrorMessage(err, 'Failed to verify report'), color: 'error' })
+      toast.add({
+        title: step === 'start' ? 'Failed to start review' : 'Verify failed',
+        description: getErrorMessage(err, step === 'start' ? 'Failed to start MR review' : 'Failed to verify report'),
+        color: 'error'
+      })
       return false
     } finally {
       submitting.value = false
@@ -91,7 +99,7 @@ export function useMedicalReport() {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/return`, payload)
-      toast.add({ title: 'Returned', description: 'Medical report returned to the doctor', color: 'warning' })
+      toast.add({ title: 'Returned to Doctor', description: 'Medical report returned to the doctor for revision', color: 'warning' })
       return true
     } catch (err) {
       toast.add({ title: 'Return failed', description: getErrorMessage(err, 'Failed to return report'), color: 'error' })
@@ -102,14 +110,22 @@ export function useMedicalReport() {
   }
 
   // ── release ───────────────────────────────────────────────────────
-  async function release(id: string) {
+  async function release(id: string, step: 'ready' | 'release' = 'release') {
     submitting.value = true
     try {
       await api.post(`/medical-reports/${id}/release`, {})
-      toast.add({ title: 'Released', description: 'Medical report released successfully', color: 'success' })
+      if (step === 'ready') {
+        toast.add({ title: 'Ready to Release', description: 'Medical report marked as ready to release', color: 'info' })
+      } else {
+        toast.add({ title: 'Released', description: 'Medical report released successfully', color: 'success' })
+      }
       return true
     } catch (err) {
-      toast.add({ title: 'Release failed', description: getErrorMessage(err, 'Failed to release report'), color: 'error' })
+      toast.add({
+        title: step === 'ready' ? 'Failed to mark ready' : 'Release failed',
+        description: getErrorMessage(err, step === 'ready' ? 'Failed to mark report as ready to release' : 'Failed to release report'),
+        color: 'error'
+      })
       return false
     } finally {
       submitting.value = false

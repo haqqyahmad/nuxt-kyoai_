@@ -120,7 +120,7 @@ async function loadAll() {
 
 async function handleVerify() {
   if (!detail.value) return
-  const ok = await verify(detail.value.id)
+  const ok = await verify(detail.value.id, detail.value.status === 'DOCTOR_APPROVED' ? 'start' : 'verify')
   if (ok) await loadAll()
 }
 
@@ -146,7 +146,7 @@ async function handleReturn() {
 
 async function handleRelease() {
   if (!detail.value) return
-  const ok = await release(detail.value.id)
+  const ok = await release(detail.value.id, detail.value.status === 'MR_VERIFIED' ? 'ready' : 'release')
   if (ok) await loadAll()
 }
 
