@@ -104,8 +104,18 @@ watch(
   { immediate: true }
 )
 
-watch(() => form.roomTypeId, (value) => {
-  if (value) loadStages(value)
+watch(() => form.roomTypeId, async (value) => {
+  if (!value) {
+    stageOptions.value = []
+    return
+  }
+
+  await loadStages(value)
+
+  // Room type diganti → set stage ke stage aktif milik tipe baru supaya link
+  // room-stage tidak tertinggal dari tipe lama.
+  if (props.room?.roomTypeId === value) return
+  form.stageIds = stageOptions.value.map(stage => stage.id)
 })
 
 watch(open, (value) => {
