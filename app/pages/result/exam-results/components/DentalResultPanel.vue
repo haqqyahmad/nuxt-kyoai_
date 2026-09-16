@@ -9,6 +9,7 @@ const props = defineProps<{
   roomTypeId?: string
   departmentId?: string
   resultStatus?: string | null
+  itemResultStatus?: string | null
   submittedBy?: number | null
   itemApproved?: boolean
 }>()
@@ -126,7 +127,7 @@ function printDental() {
             Item Approved
           </UBadge>
           <UButton
-            v-else-if="resultStatus === 'DEPARTMENT_REVIEW'"
+            v-else-if="resultStatus === 'DEPARTMENT_REVIEW' && itemResultStatus === 'SUBMITTED'"
             color="success"
             icon="i-lucide-check-circle"
             size="sm"

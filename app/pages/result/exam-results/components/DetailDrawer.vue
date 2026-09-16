@@ -1638,7 +1638,7 @@ onBeforeUnmount(() => {
           Item Approved
         </UBadge>
         <UButton
-          v-else-if="result?.departmentResultStatus === 'DEPARTMENT_REVIEW'"
+          v-else-if="result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && result?.resultStatus === 'SUBMITTED'"
           color="success"
           :loading="approvingItem"
           icon="i-lucide-check-circle"

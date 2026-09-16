@@ -248,6 +248,7 @@ onMounted(() => {
             :room-type-id="roomTypeId"
             :department-id="(result as any)?.item?.department?.id"
             :result-status="(result as any)?.departmentResultStatus"
+            :item-result-status="(result as any)?.resultStatus"
             :submitted-by="(result as any)?.exam?.resultSubmittedBy"
             :item-approved="(result as any)?.itemApproved === true"
             @approved="loadResult"
