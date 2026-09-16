@@ -286,7 +286,7 @@ const canSubmitCurrentResult = computed(() => {
 const submitHint = computed<string | null>(() => {
   if (canSubmitCurrentResult.value) return null
   if (isResultBlockedBySample.value) return sampleBlockedDescription.value
-  return 'Save Draft dulu untuk mengaktifkan Submit'
+  return 'Save Draft first to enable Submit'
 })
 const isExternalResultFilled = computed(
   () =>

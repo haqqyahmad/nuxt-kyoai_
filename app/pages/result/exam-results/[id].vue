@@ -150,7 +150,7 @@ async function loadResult() {
       const relaxedRows = await fetchResultRows(baseParams)
       if (relaxedRows.length) {
         rows = relaxedRows
-        filterNotice.value = `Filter department/room type pada link tidak cocok dengan hasil, jadi diabaikan (department link: ${department.value || '-'}).`
+        filterNotice.value = `The department/room type filter in the link does not match the result, so it was ignored (link department: ${department.value || '-'}).`
       }
     }
 
@@ -199,7 +199,7 @@ onMounted(() => {
           color="warning"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Filter pada link tidak cocok"
+          title="Link filter does not match"
           :description="filterNotice"
         />
       </div>
