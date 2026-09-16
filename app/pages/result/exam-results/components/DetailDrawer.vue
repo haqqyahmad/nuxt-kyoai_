@@ -1664,16 +1664,22 @@ onBeforeUnmount(() => {
           "
           class="flex w-full items-center justify-end gap-2 sm:w-auto"
         >
-          <UButton
-            color="neutral"
-            variant="soft"
-            :loading="saving"
-            :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
-            icon="i-lucide-save"
-            @click="handleSaveResult"
-          >
-            Save Draft
-          </UButton>
+          <div class="flex flex-col items-end gap-0.5">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :loading="saving"
+              :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
+              icon="i-lucide-save"
+              @click="handleSaveResult"
+            >
+              Save Draft
+            </UButton>
+            <span
+              v-if="submitHint"
+              class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
+            >{{ submitHint }}</span>
+          </div>
           <UButton
             color="primary"
             :loading="submitting"
@@ -1689,10 +1695,6 @@ onBeforeUnmount(() => {
           >
             Submit Result
           </UButton>
-          <span
-            v-if="submitHint"
-            class="w-full text-right text-xs text-muted sm:w-auto"
-          >{{ submitHint }}</span>
         </div>
       </div>
     </template>
@@ -2124,16 +2126,23 @@ onBeforeUnmount(() => {
                     >
                       Start Process
                     </UButton>
+                    <div class="flex flex-col items-center gap-0.5">
+                      <UButton
+                        color="neutral"
+                        variant="soft"
+                        :loading="saving"
+                        :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
+                        icon="i-lucide-save"
+                        @click="handleSaveResult"
+                      >
+                        Save Draft
+                      </UButton>
+                      <span
+                        v-if="submitHint"
+                        class="max-w-[220px] text-center text-[10px] leading-tight text-muted"
+                      >{{ submitHint }}</span>
+                    </div>
                     <UButton
-                      color="neutral"
-                      variant="soft"
-                      :loading="saving"
-                      :disabled="submitting || !canEditCurrentResult || isResultBlockedBySample"
-                      icon="i-lucide-save"
-                      @click="handleSaveResult"
-                    >
-                      Save Draft
-                    </UButton><UButton
                       color="primary"
                       :loading="submitting"
                       :title="submitHint || undefined"
@@ -2143,10 +2152,6 @@ onBeforeUnmount(() => {
                     >
                       Submit Result
                     </UButton>
-                    <span
-                      v-if="submitHint"
-                      class="text-xs text-muted sm:ml-2 sm:self-center"
-                    >{{ submitHint }}</span>
                   </div>
                 </template>
 
