@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ approved: [] }>()
 
+const { isExternalDoctor } = await useCurrentUser()
 const api = useApi()
 const toast = useToast()
 
@@ -127,7 +128,7 @@ function printDental() {
             Item Approved
           </UBadge>
           <UButton
-            v-else-if="resultStatus === 'DEPARTMENT_REVIEW' && itemResultStatus === 'SUBMITTED'"
+            v-else-if="!isExternalDoctor && resultStatus === 'DEPARTMENT_REVIEW' && itemResultStatus === 'SUBMITTED'"
             color="success"
             icon="i-lucide-check-circle"
             size="sm"
