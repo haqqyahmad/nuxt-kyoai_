@@ -1510,6 +1510,7 @@ async function handleSubmitResult() {
 
     await api.post(`/mcu/exams/${props.result?.exam?.id}/results`, { results })
     await api.post(`/mcu/exams/${props.result?.exam?.id}/results/submit`, {
+      examItemId: props.result.id,
       departmentId: props.result.item?.department?.id
     })
 
