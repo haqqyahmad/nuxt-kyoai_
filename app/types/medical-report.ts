@@ -21,6 +21,7 @@ export type MedicalReportListItem = {
     name: string
   } | null
   company: string | null
+  companyName: string | null
   status: MedicalReportStatus
   doctorApprovedAt: string | null
   mrVerifiedAt: string | null
@@ -61,6 +62,7 @@ export type MedicalReportDetail = {
   } | null
   queueCode: string | null
   company: string | null
+  companyName: string | null
   status: MedicalReportStatus
   doctorId: number | null
   doctorApprovedAt: string | null
@@ -86,6 +88,12 @@ export const MR_STATUS_COLOR: Record<string, 'primary' | 'success' | 'warning' |
   MR_VERIFIED: 'success',
   READY_TO_RELEASE: 'success',
   RELEASED: 'success'
+}
+
+export const EXAM_STATUS_LABEL: Record<string, string> = {
+  draft: 'Draft',
+  in_progress: 'Sedang Pemeriksaan',
+  completed: 'Selesai'
 }
 
 export const MR_STATUS_LABEL: Record<string, string> = {

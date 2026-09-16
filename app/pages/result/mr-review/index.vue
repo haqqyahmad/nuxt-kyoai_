@@ -39,7 +39,7 @@ const filteredList = computed(() => {
   const q = search.value.toLowerCase()
   return list.value.filter((item) => {
     const patientName = item.patient?.name ?? ''
-    const hay = [item.examCode, item.queueCode, patientName, item.patient?.PatientId, item.company]
+    const hay = [item.examCode, item.queueCode, patientName, item.patient?.PatientId, item.companyName, item.company]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
@@ -88,7 +88,7 @@ const columns: TableColumn<MedicalReportListItem>[] = [
   {
     id: 'company',
     header: 'Perusahaan',
-    cell: ({ row }) => row.original.company ?? '-'
+    cell: ({ row }) => row.original.companyName ?? row.original.company ?? '-'
   },
   {
     id: 'finalGrade',

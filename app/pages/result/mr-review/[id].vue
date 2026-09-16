@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
+import { EXAM_STATUS_LABEL, MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
 import type { DoctorResultResponse, DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
 
 definePageMeta({ title: 'MR Review Detail' })
@@ -34,6 +34,10 @@ function statusColor(status?: string) {
 }
 function statusLabel(status?: string) {
   return MR_STATUS_LABEL[status ?? ''] ?? status ?? '-'
+}
+function examStatusLabel(status?: string | null) {
+  if (!status) return '-'
+  return EXAM_STATUS_LABEL[status] ?? status
 }
 
 const canVerify = computed(() => {
@@ -187,7 +191,7 @@ onMounted(loadAll)
               variant="subtle"
             />
             <span class="text-sm text-muted">Exam: <strong class="font-mono">{{ detail.examCode }}</strong></span>
-            <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ detail.examStatus }}</span>
+            <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ examStatusLabel(detail.examStatus) }}</span>
           </div>
           <div class="flex gap-2">
             <UButton
@@ -261,7 +265,7 @@ onMounted(loadAll)
               <div class="text-xs text-muted">
                 Perusahaan
               </div>
-              <div>{{ detail.company ?? '-' }}</div>
+              <div>{{ detail.companyName ?? detail.company ?? '-' }}</div>
             </div>
             <div>
               <div class="text-xs text-muted">
