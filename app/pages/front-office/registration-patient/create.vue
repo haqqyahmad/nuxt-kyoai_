@@ -41,6 +41,8 @@ type Patient = {
   phone?: string
   email?: string
   dob?: string
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   addresses?: {
     type?: string
     detail?: string
@@ -383,6 +385,12 @@ const personalChanged = computed(() => {
   }
 })
 
+const allergyChanged = computed(() => {
+  const p = selectedPatient.value
+  if (!p || !fromTemp.value) return false
+  return nrm(medicalNotesForm.value.allergyNotes) !== nrm(p.allergyNotes)
+})
+
 const contactChanged = computed(() => ({
   phone: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
   email: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email)
@@ -596,8 +604,8 @@ type TempRegistration = {
 
 const tempLoading = ref(false)
 const tempLoadError = ref('')
-const tempAllergyNotes = ref('')
-const tempDiseaseNotes = ref('')
+// [MEDICAL NOTES] Nilai yang dikirim ke pasien existing (portal, bisa dikoreksi FO)
+const medicalNotesForm = ref({ allergyNotes: '', diseaseNotes: '' })
 
 function tempDobToInput(tempDob?: string) {
   if (!tempDob) return ''
@@ -647,6 +655,10 @@ async function loadTempPrefill(temp: TempRegistration) {
       regForm.value.position = companyTemp?.position ?? regForm.value.position
       applyTempContact(temp)
       applyTempPersonal(temp)
+      medicalNotesForm.value = {
+        allergyNotes: temp.allergyNotes || patient.allergyNotes || '',
+        diseaseNotes: temp.diseaseNotes || patient.diseaseNotes || ''
+      }
     } catch {
       tempLoadError.value = 'Failed to load patient data'
     }
@@ -677,9 +689,6 @@ async function loadFromTemp() {
   try {
     const res = await api.get(`/registration-temp/${tempId.value}`)
     const temp = res.data.data as TempRegistration
-
-    tempAllergyNotes.value = temp.allergyNotes || ''
-    tempDiseaseNotes.value = temp.diseaseNotes || ''
 
     const forceNew = patientTypeFromQuery.value === 'new'
 
@@ -1036,10 +1045,10 @@ async function submit() {
         policyExpDate: newPatient.value.policyExpDate || undefined,
         // [MEDICAL NOTES] Update catatan alergi/penyakit pasien existing (bila FO setuju)
         allergyNotes: updateNotesFromQuery.value
-          ? (tempAllergyNotes.value.trim() || undefined)
+          ? (medicalNotesForm.value.allergyNotes.trim() || undefined)
           : undefined,
         diseaseNotes: updateNotesFromQuery.value
-          ? (tempDiseaseNotes.value.trim() || undefined)
+          ? (medicalNotesForm.value.diseaseNotes.trim() || undefined)
           : undefined
       })
       registrationId = approveRes.data.data.registrationId
@@ -1592,6 +1601,39 @@ async function cancel() {
                         </div>
                       </UFormField>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Card Allergy Notes (pasien existing dari portal) -->
+                <div
+                  v-if="selectedPatient && fromTemp"
+                  class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
+                >
+                  <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex items-center gap-2">
+                    <p class="text-sm font-semibold">
+                      Allergy Notes
+                    </p>
+                    <UBadge
+                      v-if="allergyChanged"
+                      label="Change"
+                      color="warning"
+                      size="xs"
+                    />
+                    <p class="ml-auto text-[11px] text-muted">
+                      Existing: {{ selectedPatient.allergyNotes || '-' }}
+                    </p>
+                  </div>
+                  <div class="p-3">
+                    <UTextarea
+                      v-model="medicalNotesForm.allergyNotes"
+                      :rows="3"
+                      size="sm"
+                      placeholder="e.g. Seafood, peanut"
+                      class="w-full"
+                    />
+                    <p class="mt-1 text-[11px] text-muted">
+                      Saved to the patient only when the "update allergy notes" option is enabled at approval.
+                    </p>
                   </div>
                 </div>
 
