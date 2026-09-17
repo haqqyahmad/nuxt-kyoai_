@@ -826,6 +826,11 @@ const allItemsFinal = computed(() =>
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
+// [Back to Called] Disembunyikan juga setelah ada sample yang diambil/diterima.
+const hasStartedSampleCollection = computed(() =>
+  sampleCollections.value.some(sample => sample.status && sample.status !== 'PENDING')
+)
+
 const allSamplesReceived = computed(() =>
   sampleCollections.value.length > 0
   && sampleCollections.value.every(collection => collection.status === 'RECEIVED')
@@ -2411,7 +2416,7 @@ async function handleSubmitItemAction() {
                 Return to Waiting
               </UButton>
               <UButton
-                v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems"
+                v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems && !hasStartedSampleCollection"
                 color="warning"
                 variant="soft"
                 icon="i-lucide-rotate-ccw"
