@@ -20,6 +20,8 @@ type Patient = {
   idType?: string | null
   idNumber?: string | null
   photoUrl?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
 }
 
 type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
@@ -692,6 +694,8 @@ async function loadPatientDetail(patientId?: string | number | null) {
   try {
     const res = await api.get(`/patient/${patientId}`)
     patientDetail.value = (res.data?.data ?? res.data ?? null) as Patient | null
+    medicalNotesForm.allergyNotes = patientDetail.value?.allergyNotes ?? ''
+    medicalNotesForm.diseaseNotes = patientDetail.value?.diseaseNotes ?? ''
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status
     patientDetailError.value = status === 403
@@ -701,6 +705,43 @@ async function loadPatientDetail(patientId?: string | number | null) {
     patientDetailLoading.value = false
   }
 }
+const medicalNotesForm = reactive({ allergyNotes: '', diseaseNotes: '' })
+const medicalNotesSaving = ref(false)
+const medicalNotesDirty = computed(() =>
+  medicalNotesForm.allergyNotes !== (patientDetail.value?.allergyNotes ?? '')
+  || medicalNotesForm.diseaseNotes !== (patientDetail.value?.diseaseNotes ?? '')
+)
+
+async function saveMedicalNotes() {
+  const patientId = patient.value?.id
+  if (patientId == null || medicalNotesSaving.value) return
+
+  medicalNotesSaving.value = true
+  try {
+    await api.patch(`/patient/${patientId}/medical-notes`, {
+      allergyNotes: medicalNotesForm.allergyNotes,
+      diseaseNotes: medicalNotesForm.diseaseNotes
+    })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Catatan medis pasien disimpan',
+      color: 'success'
+    })
+    await loadPatientDetail(patientId)
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    toast.add({
+      title: 'Gagal',
+      description: status === 403
+        ? 'Anda tidak punya akses mengubah catatan medis'
+        : 'Catatan medis gagal disimpan',
+      color: 'error'
+    })
+  } finally {
+    medicalNotesSaving.value = false
+  }
+}
+
 const canManageItemActions = computed(() => permissions.value.includes('queue:update'))
 const activeStage = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
@@ -2225,6 +2266,55 @@ async function handleSubmitItemAction() {
               </div>
             </div>
           </div>
+
+          <!-- Catatan medis pasien (alergi & penyakit) -->
+          <UCard v-if="patient" class="border border-default/80 shadow-sm">
+            <template #header>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-clipboard-plus" class="size-5 text-primary" />
+                  <div>
+                    <h3 class="text-sm font-bold text-highlighted">
+                      Catatan Medis
+                    </h3>
+                    <p class="text-xs text-muted">
+                      Catatan alergi & penyakit pasien — bisa diperbarui dari sini.
+                    </p>
+                  </div>
+                </div>
+                <UButton
+                  color="primary"
+                  variant="soft"
+                  size="sm"
+                  icon="i-lucide-save"
+                  :loading="medicalNotesSaving"
+                  :disabled="!medicalNotesDirty"
+                  @click="saveMedicalNotes"
+                >
+                  Simpan
+                </UButton>
+              </div>
+            </template>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <UFormField label="Catatan Alergi">
+                <UTextarea
+                  v-model="medicalNotesForm.allergyNotes"
+                  :rows="3"
+                  placeholder="Contoh: seafood, kacang"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField label="Catatan Penyakit">
+                <UTextarea
+                  v-model="medicalNotesForm.diseaseNotes"
+                  :rows="3"
+                  placeholder="Contoh: hipertensi"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+          </UCard>
 
           <UCard v-if="isLabRoom && sampleCollectionCards.length" class="border border-default/80 shadow-sm">
             <template #header>
