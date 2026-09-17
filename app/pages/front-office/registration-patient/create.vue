@@ -1641,7 +1641,7 @@ async function cancel() {
                       size="xs"
                     />
                     <p class="ml-auto text-[11px] text-muted">
-                      Existing: {{ selectedPatient.allergyNotes || '-' }}
+                      On patient record: {{ selectedPatient.allergyNotes || '-' }}
                     </p>
                   </div>
                   <div class="p-3">
@@ -2092,7 +2092,7 @@ async function cancel() {
                       </UFormField>
                     </div>
                     <p class="text-[11px] text-muted">
-                      Existing: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
+                      On patient record: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
                     </p>
                   </div>
                 </div>
