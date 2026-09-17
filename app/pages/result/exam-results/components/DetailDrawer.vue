@@ -203,13 +203,28 @@ const toast = useToast()
 const approvingItem = ref(false)
 async function handleApproveItem() {
   const targetExamId = props.result?.exam?.id
-  const targetItemId = props.result?.id
-  if (!targetExamId || !targetItemId || approvingItem.value) return
+  // Grouped per exam (mis. tab dokter): result.id = examId, item id ada di result.items.
+  const groupedItems = (props.result as {
+    items?: Array<{ id: string, resultStatus?: string | null, itemApproved?: boolean | null }>
+  })?.items
+  const targetItemIds = groupedItems?.length
+    ? groupedItems
+        .filter(item => item.resultStatus === 'SUBMITTED' && !item.itemApproved)
+        .map(item => item.id)
+    : (props.result?.id ? [props.result.id] : [])
+
+  if (!targetExamId || !targetItemIds.length || approvingItem.value) return
 
   approvingItem.value = true
   try {
-    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/approve`, {})
-    toast.add({ title: 'Approved', description: 'Item approved.', color: 'success' })
+    for (const targetItemId of targetItemIds) {
+      await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/approve`, {})
+    }
+    toast.add({
+      title: 'Approved',
+      description: targetItemIds.length > 1 ? `${targetItemIds.length} items approved.` : 'Item approved.',
+      color: 'success'
+    })
     emit('resultSaved', props.result)
   } catch (error: unknown) {
     toast.add({
@@ -1638,7 +1653,7 @@ onBeforeUnmount(() => {
           Item Approved
         </UBadge>
         <UButton
-          v-else-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && result?.resultStatus === 'SUBMITTED'"
+          v-else-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && ['SUBMITTED', 'PARTIAL'].includes(result?.resultStatus || '')"
           color="success"
           :loading="approvingItem"
           icon="i-lucide-check-circle"
