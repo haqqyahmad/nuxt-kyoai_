@@ -2215,6 +2215,43 @@ async function handleSubmitItemAction() {
                     variant="soft"
                   />
                 </div>
+
+                <!-- Medical Notes (allergy & disease) -->
+                <div v-if="patient" class="mt-3 max-w-2xl rounded-lg bg-muted/30 p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      Medical Notes
+                    </p>
+                    <UButton
+                      v-if="canEditMedicalNotes"
+                      color="primary"
+                      variant="ghost"
+                      size="xs"
+                      icon="i-lucide-pencil"
+                      @click="openMedicalNotesModal"
+                    >
+                      Edit
+                    </UButton>
+                  </div>
+                  <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div class="min-w-0">
+                      <p class="text-[11px] text-muted">
+                        Allergy Notes
+                      </p>
+                      <p class="whitespace-pre-wrap text-sm">
+                        {{ patientDetail?.allergyNotes || '-' }}
+                      </p>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[11px] text-muted">
+                        Disease Notes
+                      </p>
+                      <p class="whitespace-pre-wrap text-sm">
+                        {{ patientDetail?.diseaseNotes || '-' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="flex flex-wrap items-center gap-3">
@@ -2274,46 +2311,6 @@ async function handleSubmitItemAction() {
                 >
                   Complete Room
                 </UButton>
-              </div>
-            </div>
-
-            <!-- Catatan medis pasien (alergi & penyakit) -->
-            <div v-if="patient" class="mt-4 border-t border-default/70 pt-4">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-clipboard-plus" class="size-4 text-primary" />
-                  <p class="text-sm font-bold text-highlighted">
-                    Medical Notes
-                  </p>
-                </div>
-                <UButton
-                  v-if="canEditMedicalNotes"
-                  color="primary"
-                  variant="soft"
-                  size="sm"
-                  icon="i-lucide-pencil"
-                  @click="openMedicalNotesModal"
-                >
-                  Edit
-                </UButton>
-              </div>
-              <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                <div class="min-w-0">
-                  <p class="mb-1 text-xs text-muted">
-                    Allergy Notes
-                  </p>
-                  <p class="whitespace-pre-wrap text-sm font-medium">
-                    {{ patientDetail?.allergyNotes || '-' }}
-                  </p>
-                </div>
-                <div class="min-w-0">
-                  <p class="mb-1 text-xs text-muted">
-                    Disease Notes
-                  </p>
-                  <p class="whitespace-pre-wrap text-sm font-medium">
-                    {{ patientDetail?.diseaseNotes || '-' }}
-                  </p>
-                </div>
               </div>
             </div>
           </div>
