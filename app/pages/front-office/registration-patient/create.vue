@@ -1625,63 +1625,6 @@ async function cancel() {
                   </div>
                 </div>
 
-                <!-- Card Insurance Policy (pasien existing dari portal) -->
-                <div
-                  v-if="selectedPatient && fromTemp && regForm.paymentType === 'Insurance'"
-                  class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
-                >
-                  <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex flex-wrap items-center gap-2">
-                    <p class="text-sm font-semibold">
-                      Insurance Policy
-                    </p>
-                    <UBadge
-                      v-if="policyChanged.policyNumber || policyChanged.policyExpDate"
-                      label="Change"
-                      color="warning"
-                      size="xs"
-                    />
-                    <p class="ml-auto text-[11px] text-muted">
-                      Existing: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
-                    </p>
-                  </div>
-                  <div class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
-                    <UFormField label="Policy Number">
-                      <div class="flex items-center gap-1">
-                        <UInput
-                          v-model="policyForm.policyNumber"
-                          size="sm"
-                          placeholder="Policy no."
-                          class="w-full min-w-0"
-                        />
-                        <UBadge
-                          v-if="policyChanged.policyNumber"
-                          label="Change"
-                          color="warning"
-                          size="xs"
-                          class="shrink-0"
-                        />
-                      </div>
-                    </UFormField>
-                    <UFormField label="Policy Exp. Date">
-                      <div class="flex items-center gap-1">
-                        <UInput
-                          v-model="policyForm.policyExpDate"
-                          type="date"
-                          size="sm"
-                          class="w-full min-w-0"
-                        />
-                        <UBadge
-                          v-if="policyChanged.policyExpDate"
-                          label="Change"
-                          color="warning"
-                          size="xs"
-                          class="shrink-0"
-                        />
-                      </div>
-                    </UFormField>
-                  </div>
-                </div>
-
                 <!-- Card Allergy Notes (pasien existing dari portal) -->
                 <div
                   v-if="selectedPatient && fromTemp"
@@ -2105,6 +2048,63 @@ async function cancel() {
                     class="w-full"
                   />
                 </UFormField>
+
+                <!-- Insurance Policy (pasien existing dari portal) -->
+                <div
+                  v-if="selectedPatient && fromTemp && regForm.paymentType === 'Insurance'"
+                  class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
+                >
+                  <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex flex-wrap items-center gap-2">
+                    <p class="text-sm font-semibold">
+                      Insurance Policy
+                    </p>
+                    <UBadge
+                      v-if="policyChanged.policyNumber || policyChanged.policyExpDate"
+                      label="Change"
+                      color="warning"
+                      size="xs"
+                    />
+                    <p class="ml-auto text-[11px] text-muted">
+                      Existing: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
+                    </p>
+                  </div>
+                  <div class="grid grid-cols-1 gap-2 p-3">
+                    <UFormField label="Policy Number">
+                      <div class="flex items-center gap-1">
+                        <UInput
+                          v-model="policyForm.policyNumber"
+                          size="sm"
+                          placeholder="Policy no."
+                          class="w-full min-w-0"
+                        />
+                        <UBadge
+                          v-if="policyChanged.policyNumber"
+                          label="Change"
+                          color="warning"
+                          size="xs"
+                          class="shrink-0"
+                        />
+                      </div>
+                    </UFormField>
+                    <UFormField label="Policy Exp. Date">
+                      <div class="flex items-center gap-1">
+                        <UInput
+                          v-model="policyForm.policyExpDate"
+                          type="date"
+                          size="sm"
+                          class="w-full min-w-0"
+                        />
+                        <UBadge
+                          v-if="policyChanged.policyExpDate"
+                          label="Change"
+                          color="warning"
+                          size="xs"
+                          class="shrink-0"
+                        />
+                      </div>
+                    </UFormField>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
