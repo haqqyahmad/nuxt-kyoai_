@@ -2238,9 +2238,21 @@ async function handleSubmitItemAction() {
                     variant="soft"
                   />
                 </div>
+              </div>
+
+              <div class="flex w-full flex-col items-end gap-3 md:w-72">
+                <UButton
+                  class="lg:hidden"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-list-checks"
+                  @click="toggleDrawer()"
+                >
+                  Select Item
+                </UButton>
 
                 <!-- Medical Notes (allergy & disease) -->
-                <div v-if="patient" class="mt-3 max-w-2xl rounded-lg bg-muted/30 p-3">
+                <div v-if="patient" class="w-full rounded-lg bg-muted/30 p-3 text-left">
                   <div class="flex items-center justify-between gap-2">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">
                       Medical Notes
@@ -2256,7 +2268,7 @@ async function handleSubmitItemAction() {
                       Edit
                     </UButton>
                   </div>
-                  <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div class="mt-2 space-y-2">
                     <div class="min-w-0">
                       <p class="text-[11px] text-muted">
                         Allergy Notes
@@ -2275,27 +2287,6 @@ async function handleSubmitItemAction() {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-3">
-                <div class="hidden text-right sm:block">
-                  <span class="block text-[10px] font-medium text-muted">Room Status</span>
-                  <span
-                    class="text-xs font-bold"
-                    :class="allItemsFinal ? 'text-success' : 'text-warning'"
-                  >
-                    {{ completedItemCount }}/{{ totalItemCount }} Items Completed
-                  </span>
-                </div>
-                <UButton
-                  class="lg:hidden"
-                  color="primary"
-                  variant="soft"
-                  icon="i-lucide-list-checks"
-                  @click="toggleDrawer()"
-                >
-                  Select Item
-                </UButton>
               </div>
             </div>
           </div>
@@ -2449,6 +2440,15 @@ async function handleSubmitItemAction() {
             <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" />
 
             <div class="ml-auto flex flex-wrap items-center gap-2">
+              <div class="text-right">
+                <span class="block text-[10px] font-medium text-muted">Room Status</span>
+                <span
+                  class="text-xs font-bold"
+                  :class="allItemsFinal ? 'text-success' : 'text-warning'"
+                >
+                  {{ completedItemCount }}/{{ totalItemCount }} Items Completed
+                </span>
+              </div>
               <UButton
                 v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
                 color="neutral"
