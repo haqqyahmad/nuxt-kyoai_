@@ -40,6 +40,8 @@ type Patient = {
   bloodType?: { id: number, kode: string } | null
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   createdAt: string
   addresses: Address[]
   histories: CompanyHistory[]
@@ -48,10 +50,12 @@ type Patient = {
 
 type PatientForm = Omit<
   Partial<Patient>,
-  'policyNumber' | 'policyExpDate'
+  'policyNumber' | 'policyExpDate' | 'allergyNotes' | 'diseaseNotes'
 > & {
   policyNumber?: string
   policyExpDate?: string
+  allergyNotes?: string
+  diseaseNotes?: string
   updatedAt?: string
 }
 
@@ -88,7 +92,9 @@ const editForm = ref<PatientForm>({
   idType: '',
   bloodTypeId: null,
   policyNumber: '',
-  policyExpDate: ''
+  policyExpDate: '',
+  allergyNotes: '',
+  diseaseNotes: ''
 })
 
 const fullName = computed(() => {
@@ -163,7 +169,9 @@ const startEditing = () => {
       bloodTypeId: patient.value.bloodTypeId ?? null,
       dob: formatDateForInput(patient.value.dob),
       policyNumber: patient.value.policyNumber ?? undefined,
-      policyExpDate: patient.value.policyExpDate ?? undefined
+      policyExpDate: patient.value.policyExpDate ?? undefined,
+      allergyNotes: patient.value.allergyNotes ?? undefined,
+      diseaseNotes: patient.value.diseaseNotes ?? undefined
     }
 
     photoPreview.value = patient.value.photoUrl || null
@@ -932,6 +940,56 @@ const deleteAddress = async (addressId: string) => {
               <UInput
                 v-model="editForm.policyExpDate"
                 type="date"
+                size="sm"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Allergy Notes -->
+          <div class="bg-background p-3 flex flex-col gap-1 md:col-span-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-alert-triangle" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Allergy Notes
+              </p>
+            </div>
+            <div v-if="!isEditing">
+              <p class="whitespace-pre-wrap text-sm">
+                {{ patient.allergyNotes ?? "-" }}
+              </p>
+            </div>
+            <div v-else>
+              <UTextarea
+                v-model="editForm.allergyNotes"
+                :rows="3"
+                size="sm"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Disease Notes -->
+          <div class="bg-background p-3 flex flex-col gap-1 md:col-span-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-activity" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Disease Notes
+              </p>
+            </div>
+            <div v-if="!isEditing">
+              <p class="whitespace-pre-wrap text-sm">
+                {{ patient.diseaseNotes ?? "-" }}
+              </p>
+            </div>
+            <div v-else>
+              <UTextarea
+                v-model="editForm.diseaseNotes"
+                :rows="3"
                 size="sm"
                 class="w-full"
               />

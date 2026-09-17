@@ -28,7 +28,9 @@ const schema = z.object({
   maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED']).optional(),
   phone: z.string().optional(),
   policyNumber: z.string().optional(),
-  policyExpDate: z.string().optional()
+  policyExpDate: z.string().optional(),
+  allergyNotes: z.string().optional(),
+  diseaseNotes: z.string().optional()
 })
 
 type Schema = z.output<typeof schema>
@@ -45,7 +47,9 @@ const state = reactive<Partial<Schema>>({
   maritalStatus: undefined,
   phone: '',
   policyNumber: '',
-  policyExpDate: ''
+  policyExpDate: '',
+  allergyNotes: '',
+  diseaseNotes: ''
 })
 
 type AddressType = 'HOME' | 'OFFICE' | 'BILLING' | 'OTHER'
@@ -134,6 +138,8 @@ type PatientDetail = {
   phone?: string | null
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   addresses?: PatientAddress[]
 }
 
@@ -163,6 +169,8 @@ function resetIdentity() {
   state.phone = ''
   state.policyNumber = ''
   state.policyExpDate = ''
+  state.allergyNotes = ''
+  state.diseaseNotes = ''
 }
 
 function startNewAddress() {
@@ -200,6 +208,8 @@ function fillForm(patient: PatientDetail) {
   state.phone = patient.phone ?? ''
   state.policyNumber = patient.policyNumber ?? ''
   state.policyExpDate = patient.policyExpDate ?? ''
+  state.allergyNotes = patient.allergyNotes ?? ''
+  state.diseaseNotes = patient.diseaseNotes ?? ''
 
   addresses.value = patient.addresses ?? []
 
@@ -318,7 +328,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       maritalStatus: data.maritalStatus || undefined,
       phone: data.phone || undefined,
       policyNumber: data.policyNumber || undefined,
-      policyExpDate: data.policyExpDate || undefined
+      policyExpDate: data.policyExpDate || undefined,
+      allergyNotes: data.allergyNotes || undefined,
+      diseaseNotes: data.diseaseNotes || undefined
     })
 
     toast.add({
@@ -472,6 +484,28 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               v-model="state.policyExpDate"
               type="date"
               :disabled="loading"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <UFormField label="Allergy Notes" name="allergyNotes">
+            <UTextarea
+              v-model="state.allergyNotes"
+              :disabled="loading"
+              :rows="3"
+              placeholder="e.g. Seafood, peanut"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Disease Notes" name="diseaseNotes">
+            <UTextarea
+              v-model="state.diseaseNotes"
+              :disabled="loading"
+              :rows="3"
+              placeholder="e.g. Hypertension"
               class="w-full"
             />
           </UFormField>
