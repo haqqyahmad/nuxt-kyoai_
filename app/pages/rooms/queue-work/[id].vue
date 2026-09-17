@@ -2296,54 +2296,6 @@ async function handleSubmitItemAction() {
                 >
                   Select Item
                 </UButton>
-                <UButton
-                  v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-lucide-user-round-plus"
-                  to="/rooms/assignments"
-                >
-                  Assign Room
-                </UButton>
-                <UButton
-                  v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
-                  color="warning"
-                  variant="soft"
-                  icon="i-lucide-play"
-                  :loading="stageActionLoading"
-                  @click="handleStartStage"
-                >
-                  Start Examination
-                </UButton>
-                <UButton
-                  v-if="activeStage?.status === 'CALLED'"
-                  color="neutral"
-                  variant="soft"
-                  icon="i-lucide-rotate-ccw"
-                  :loading="stageActionLoading"
-                  @click="handleReturnPatient"
-                >
-                  Return to Waiting
-                </UButton>
-                <UButton
-                  v-if="activeStage?.status === 'IN_PROGRESS'"
-                  color="warning"
-                  variant="soft"
-                  icon="i-lucide-rotate-ccw"
-                  :loading="stageActionLoading"
-                  @click="handleCancelStartStage"
-                >
-                  Back to Called
-                </UButton>
-                <UButton
-                  v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
-                  color="success"
-                  icon="i-lucide-check-circle-2"
-                  :loading="stageActionLoading"
-                  @click="handleFinishStage"
-                >
-                  Complete Room
-                </UButton>
               </div>
             </div>
           </div>
@@ -2492,7 +2444,61 @@ async function handleSubmitItemAction() {
             </div>
           </UCard>
 
-          <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" class="mt-2" />
+          <!-- Stage actions (sejajar dengan Meal status, tombol di kanan) -->
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" />
+
+            <div class="ml-auto flex flex-wrap items-center gap-2">
+              <UButton
+                v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-user-round-plus"
+                to="/rooms/assignments"
+              >
+                Assign Room
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
+                color="warning"
+                variant="soft"
+                icon="i-lucide-play"
+                :loading="stageActionLoading"
+                @click="handleStartStage"
+              >
+                Start Examination
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'CALLED'"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-rotate-ccw"
+                :loading="stageActionLoading"
+                @click="handleReturnPatient"
+              >
+                Return to Waiting
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'IN_PROGRESS'"
+                color="warning"
+                variant="soft"
+                icon="i-lucide-rotate-ccw"
+                :loading="stageActionLoading"
+                @click="handleCancelStartStage"
+              >
+                Back to Called
+              </UButton>
+              <UButton
+                v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
+                color="success"
+                icon="i-lucide-check-circle-2"
+                :loading="stageActionLoading"
+                @click="handleFinishStage"
+              >
+                Complete Room
+              </UButton>
+            </div>
+          </div>
 
           <UAlert
             v-if="selectedItemIsMealPrereq"
