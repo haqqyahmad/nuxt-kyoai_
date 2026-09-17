@@ -63,6 +63,7 @@ type ExamResult = {
   } | null
   resultTiming?: 'inline' | 'deferred'
   status?: 'pending' | 'completed'
+  resultStatus?: string | null
   departmentResultStatus?: string | null
   checkinAt?: string | null
   completedAt?: string | null
@@ -181,9 +182,9 @@ function formatDateTime(dateString?: string | null) {
 
 function getStatusColor(status?: string) {
   if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
-  if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
-  if (status === 'RETURNED_TO_DEPARTMENT') return 'error'
-  if (status === 'DRAFT') return 'neutral'
+  if (status === 'pending' || status === 'DEPARTMENT_REVIEW' || status === 'SUBMITTED' || status === 'PARTIAL') return 'warning'
+  if (status === 'RETURNED_TO_DEPARTMENT' || status === 'RETURNED') return 'error'
+  if (status === 'DRAFT' || status === 'READY' || status === 'NOT_READY') return 'neutral'
   return 'neutral'
 }
 
@@ -194,8 +195,23 @@ function getStatusLabel(status?: string) {
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
   if (status === 'SUBMITTED_TO_DOCTOR') return 'Approved · Sent to Doctor'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
+  if (status === 'SUBMITTED') return 'Pending Approval'
+  if (status === 'PARTIAL') return 'Partially Submitted'
+  if (status === 'READY') return 'Ready'
+  if (status === 'NOT_READY') return 'Not Ready'
+  if (status === 'RETURNED') return 'Returned'
   if (status === 'DRAFT') return 'Draft'
   return status || '-'
+}
+
+// Status per item: pakai status item bila belum disubmit; bila sudah disubmit,
+// tampilkan status approval department-nya.
+function getRowStatus(result: ExamResult) {
+  const itemStatus = result.resultStatus
+  if (!itemStatus) return result.departmentResultStatus || result.status || ''
+  // Semua item sudah disubmit → tampilkan status approval department-nya.
+  if (itemStatus === 'SUBMITTED') return result.departmentResultStatus || 'SUBMITTED'
+  return itemStatus
 }
 
 function getTypeLabel(type?: string) {
@@ -806,8 +822,8 @@ onMounted(async () => {
                   </td>
                   <td class="px-4 py-3 text-sm">
                     <UBadge
-                      :label="getStatusLabel(result.departmentResultStatus || result.status)"
-                      :color="getStatusColor(result.departmentResultStatus || result.status)"
+                      :label="getStatusLabel(getRowStatus(result))"
+                      :color="getStatusColor(getRowStatus(result))"
                       variant="subtle"
                     />
                   </td>
