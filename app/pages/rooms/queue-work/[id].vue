@@ -2329,7 +2329,7 @@ async function handleSubmitItemAction() {
                   v-if="activeStage?.status === 'IN_PROGRESS'"
                   color="warning"
                   variant="soft"
-                  icon="i-lucide-undo-2"
+                  icon="i-lucide-rotate-ccw"
                   :loading="stageActionLoading"
                   @click="handleCancelStartStage"
                 >
