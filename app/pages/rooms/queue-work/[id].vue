@@ -2367,6 +2367,87 @@ async function handleSubmitItemAction() {
             </template>
           </UModal>
 
+          <!-- Stage actions (sejajar dengan Meal status, tombol di kanan) -->
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" />
+
+            <div class="ml-auto flex flex-wrap items-center gap-2">
+              <div class="text-right">
+                <span class="block text-[10px] font-medium text-muted">Room Status</span>
+                <span
+                  class="text-xs font-bold"
+                  :class="allItemsFinal ? 'text-success' : 'text-warning'"
+                >
+                  {{ completedItemCount }}/{{ totalItemCount }} Items Completed
+                </span>
+              </div>
+              <UButton
+                v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-user-round-plus"
+                to="/rooms/assignments"
+              >
+                Assign Room
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
+                color="warning"
+                variant="soft"
+                icon="i-lucide-play"
+                :loading="stageActionLoading"
+                @click="handleStartStage"
+              >
+                Start Examination
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'CALLED'"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-rotate-ccw"
+                :loading="stageActionLoading"
+                @click="handleReturnPatient"
+              >
+                Return to Waiting
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems"
+                color="warning"
+                variant="soft"
+                icon="i-lucide-rotate-ccw"
+                :loading="stageActionLoading"
+                @click="handleCancelStartStage"
+              >
+                Back to Called
+              </UButton>
+              <UButton
+                v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
+                color="success"
+                icon="i-lucide-check-circle-2"
+                :loading="stageActionLoading"
+                @click="handleFinishStage"
+              >
+                Complete Room
+              </UButton>
+            </div>
+          </div>
+
+          <UAlert
+            v-if="selectedItemIsMealPrereq"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-utensils"
+            title="Prerequisite Meal"
+            description="Once this exam is completed, the patient may proceed to meal time."
+          />
+
+          <UAlert
+            v-if="!canFinishWork"
+            color="warning"
+            title="Room cannot be completed yet"
+            description="Some examination items are not final yet. Complete the results or documentation, then finish each item."
+          />
+
           <UCard v-if="isLabRoom && sampleCollectionCards.length" class="border border-default/80 shadow-sm">
             <template #header>
               <div class="flex flex-wrap items-center justify-between gap-2">
@@ -2462,87 +2543,6 @@ async function handleSubmitItemAction() {
               </div>
             </div>
           </UCard>
-
-          <!-- Stage actions (sejajar dengan Meal status, tombol di kanan) -->
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" />
-
-            <div class="ml-auto flex flex-wrap items-center gap-2">
-              <div class="text-right">
-                <span class="block text-[10px] font-medium text-muted">Room Status</span>
-                <span
-                  class="text-xs font-bold"
-                  :class="allItemsFinal ? 'text-success' : 'text-warning'"
-                >
-                  {{ completedItemCount }}/{{ totalItemCount }} Items Completed
-                </span>
-              </div>
-              <UButton
-                v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
-                color="neutral"
-                variant="soft"
-                icon="i-lucide-user-round-plus"
-                to="/rooms/assignments"
-              >
-                Assign Room
-              </UButton>
-              <UButton
-                v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
-                color="warning"
-                variant="soft"
-                icon="i-lucide-play"
-                :loading="stageActionLoading"
-                @click="handleStartStage"
-              >
-                Start Examination
-              </UButton>
-              <UButton
-                v-if="activeStage?.status === 'CALLED'"
-                color="neutral"
-                variant="soft"
-                icon="i-lucide-rotate-ccw"
-                :loading="stageActionLoading"
-                @click="handleReturnPatient"
-              >
-                Return to Waiting
-              </UButton>
-              <UButton
-                v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems"
-                color="warning"
-                variant="soft"
-                icon="i-lucide-rotate-ccw"
-                :loading="stageActionLoading"
-                @click="handleCancelStartStage"
-              >
-                Back to Called
-              </UButton>
-              <UButton
-                v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
-                color="success"
-                icon="i-lucide-check-circle-2"
-                :loading="stageActionLoading"
-                @click="handleFinishStage"
-              >
-                Complete Room
-              </UButton>
-            </div>
-          </div>
-
-          <UAlert
-            v-if="selectedItemIsMealPrereq"
-            color="warning"
-            variant="soft"
-            icon="i-lucide-utensils"
-            title="Prerequisite Meal"
-            description="Once this exam is completed, the patient may proceed to meal time."
-          />
-
-          <UAlert
-            v-if="!canFinishWork"
-            color="warning"
-            title="Room cannot be completed yet"
-            description="Some examination items are not final yet. Complete the results or documentation, then finish each item."
-          />
 
           <!-- Custom doctor renderer: navigasi item menjadi tab di bawah detail pasien. -->
           <div v-if="isFullWidthWork" class="flex flex-wrap gap-2 border-b border-default pb-4">
