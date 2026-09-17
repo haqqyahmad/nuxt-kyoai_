@@ -501,6 +501,8 @@ type PatientHistoryDetail = {
 
 type PatientDetailFull = {
   maritalStatus?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   addresses?: PatientAddressDetail[]
   histories?: PatientHistoryDetail[]
 }
@@ -1884,6 +1886,26 @@ watch(
                       color="warning"
                       size="xs"
                     />
+                  </p>
+                </div>
+              </div>
+              <div class="mt-4 grid grid-cols-1 gap-4 border-t border-default pt-4 md:grid-cols-2">
+                <div>
+                  <p class="mb-1 flex items-center gap-1.5 text-xs text-muted">
+                    <UIcon name="i-lucide-alert-triangle" class="size-3.5 text-warning" />
+                    Allergy Notes
+                  </p>
+                  <p class="whitespace-pre-wrap text-sm">
+                    {{ patientDetail?.allergyNotes ?? '-' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="mb-1 flex items-center gap-1.5 text-xs text-muted">
+                    <UIcon name="i-lucide-activity" class="size-3.5 text-primary" />
+                    Disease Notes
+                  </p>
+                  <p class="whitespace-pre-wrap text-sm">
+                    {{ patientDetail?.diseaseNotes ?? '-' }}
                   </p>
                 </div>
               </div>
