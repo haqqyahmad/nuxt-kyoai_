@@ -1744,6 +1744,29 @@ async function handleReturnPatient() {
   }
 }
 
+async function handleCancelStartStage() {
+  if (!activeStage.value || stageActionLoading.value) return
+
+  stageActionLoading.value = true
+  try {
+    await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/cancel-start`, {})
+    await loadPage(true)
+    toast.add({
+      title: 'Success',
+      description: 'Examination cancelled — patient status back to Called.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Failed to cancel start',
+      description: getErrorMessage(error, 'An error occurred while reverting the stage to Called.'),
+      color: 'error'
+    })
+  } finally {
+    stageActionLoading.value = false
+  }
+}
+
 async function handleStartStage() {
   if (!activeStage.value || stageActionLoading.value) return
 
@@ -2301,6 +2324,16 @@ async function handleSubmitItemAction() {
                   @click="handleReturnPatient"
                 >
                   Return to Waiting
+                </UButton>
+                <UButton
+                  v-if="activeStage?.status === 'IN_PROGRESS'"
+                  color="warning"
+                  variant="soft"
+                  icon="i-lucide-undo-2"
+                  :loading="stageActionLoading"
+                  @click="handleCancelStartStage"
+                >
+                  Back to Called
                 </UButton>
                 <UButton
                   v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
