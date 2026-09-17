@@ -694,8 +694,6 @@ async function loadPatientDetail(patientId?: string | number | null) {
   try {
     const res = await api.get(`/patient/${patientId}`)
     patientDetail.value = (res.data?.data ?? res.data ?? null) as Patient | null
-    medicalNotesForm.allergyNotes = patientDetail.value?.allergyNotes ?? ''
-    medicalNotesForm.diseaseNotes = patientDetail.value?.diseaseNotes ?? ''
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status
     patientDetailError.value = status === 403
@@ -705,20 +703,37 @@ async function loadPatientDetail(patientId?: string | number | null) {
     patientDetailLoading.value = false
   }
 }
+const patientMedicalNotes = ref<{ allergyNotes?: string | null, diseaseNotes?: string | null } | null>(null)
 const medicalNotesForm = reactive({ allergyNotes: '', diseaseNotes: '' })
 const medicalNotesSaving = ref(false)
 const medicalNotesModalOpen = ref(false)
 const medicalNotesDirty = computed(() =>
-  medicalNotesForm.allergyNotes !== (patientDetail.value?.allergyNotes ?? '')
-  || medicalNotesForm.diseaseNotes !== (patientDetail.value?.diseaseNotes ?? '')
+  medicalNotesForm.allergyNotes !== (patientMedicalNotes.value?.allergyNotes ?? '')
+  || medicalNotesForm.diseaseNotes !== (patientMedicalNotes.value?.diseaseNotes ?? '')
 )
 const canEditMedicalNotes = computed(() =>
   permissions.value.includes('patient:update') || permissions.value.includes('queue:update')
 )
 
+// Endpoint khusus: dapat diakses petugas ruangan (tidak butuh patient:read penuh).
+async function loadPatientMedicalNotes(patientId?: string | number | null) {
+  patientMedicalNotes.value = null
+  if (patientId == null) return
+
+  try {
+    const res = await api.get(`/patient/${patientId}/medical-notes`)
+    patientMedicalNotes.value = res.data?.data ?? res.data ?? null
+  } catch {
+    patientMedicalNotes.value = null
+  } finally {
+    medicalNotesForm.allergyNotes = patientMedicalNotes.value?.allergyNotes ?? ''
+    medicalNotesForm.diseaseNotes = patientMedicalNotes.value?.diseaseNotes ?? ''
+  }
+}
+
 function openMedicalNotesModal() {
-  medicalNotesForm.allergyNotes = patientDetail.value?.allergyNotes ?? ''
-  medicalNotesForm.diseaseNotes = patientDetail.value?.diseaseNotes ?? ''
+  medicalNotesForm.allergyNotes = patientMedicalNotes.value?.allergyNotes ?? ''
+  medicalNotesForm.diseaseNotes = patientMedicalNotes.value?.diseaseNotes ?? ''
   medicalNotesModalOpen.value = true
 }
 
@@ -728,17 +743,23 @@ async function saveMedicalNotes() {
 
   medicalNotesSaving.value = true
   try {
-    await api.patch(`/patient/${patientId}/medical-notes`, {
+    const res = await api.patch(`/patient/${patientId}/medical-notes`, {
       allergyNotes: medicalNotesForm.allergyNotes,
       diseaseNotes: medicalNotesForm.diseaseNotes
     })
+    const saved = res.data?.data ?? res.data ?? null
+    if (saved) {
+      patientMedicalNotes.value = {
+        allergyNotes: saved.allergyNotes ?? null,
+        diseaseNotes: saved.diseaseNotes ?? null
+      }
+    }
     toast.add({
       title: 'Success',
       description: 'Patient medical notes saved',
       color: 'success'
     })
     medicalNotesModalOpen.value = false
-    await loadPatientDetail(patientId)
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status
     toast.add({
@@ -1643,7 +1664,10 @@ async function loadPage(showRefreshState = false) {
     ])
 
     roomQueueDetail.value = detailRes.data?.data ?? detailRes.data ?? null
-    await loadPatientDetail(queuePatient.value?.id ?? null)
+    await Promise.all([
+      loadPatientDetail(queuePatient.value?.id ?? null),
+      loadPatientMedicalNotes(queuePatient.value?.id ?? null)
+    ])
     roomExamItems.value = examItemsRes.data?.data ?? examItemsRes.data ?? []
     await nextTick()
     await fetchSelectedItemHistory()
@@ -2274,7 +2298,7 @@ async function handleSubmitItemAction() {
                         Allergy Notes
                       </p>
                       <p class="whitespace-pre-wrap text-sm">
-                        {{ patientDetail?.allergyNotes || '-' }}
+                        {{ patientMedicalNotes?.allergyNotes || '-' }}
                       </p>
                     </div>
                     <div class="min-w-0">
@@ -2282,7 +2306,7 @@ async function handleSubmitItemAction() {
                         Disease Notes
                       </p>
                       <p class="whitespace-pre-wrap text-sm">
-                        {{ patientDetail?.diseaseNotes || '-' }}
+                        {{ patientMedicalNotes?.diseaseNotes || '-' }}
                       </p>
                     </div>
                   </div>
