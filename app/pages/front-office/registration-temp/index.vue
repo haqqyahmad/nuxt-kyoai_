@@ -42,7 +42,7 @@ type TempRegist = {
   scheduleDateExam: string
   notes?: string
 
-  patientExist: boolean
+  patientExists: boolean
   patientId?: string
 
   status: string
@@ -148,6 +148,16 @@ const SERVICE_TYPE_COLOR: Record<string, string> = {
   VitaminInjection: 'success',
   Pharmacy: 'success',
   Dental: 'success'
+}
+
+// [PROCESS] Link lanjutkan approve → create, dibangun dari data temp
+function resumeCreateUrl(row: TempRegist) {
+  const query = new URLSearchParams({ tempId: row.id })
+  if (row.examDate) query.set('examDate', String(row.examDate).slice(0, 10))
+  if (row.priorityRegist) query.set('priorityRegist', row.priorityRegist)
+  if (row.patientExists && row.patientId) query.set('patientId', row.patientId)
+  query.set('patientType', row.patientExists ? 'existing' : 'new')
+  return `/front-office/registration-patient/create?${query.toString()}`
 }
 
 const columns: TableColumn<TempRegist>[] = [
@@ -440,12 +450,23 @@ const columns: TableColumn<TempRegist>[] = [
   {
     id: 'actions',
     cell: ({ row }) => {
-      return h('div', { class: 'text-right' }, [
+      return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        row.original.status === 'PROCESS'
+          ? h(UButton, {
+              label: 'Lanjutkan',
+              icon: 'i-lucide-play',
+              color: 'primary',
+              variant: 'soft',
+              size: 'xs',
+              to: resumeCreateUrl(row.original),
+              title: 'Lanjutkan Registrasi'
+            })
+          : null,
         h(UButton, {
           icon: 'i-lucide-eye',
           color: 'neutral',
           variant: 'ghost',
-          class: 'ml-auto hover:bg-muted rounded-md',
+          class: 'hover:bg-muted rounded-md',
           to: `/front-office/registration-temp/${row.original.id}`,
           title: 'View Detail'
         })

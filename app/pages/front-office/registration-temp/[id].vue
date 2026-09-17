@@ -194,6 +194,41 @@ const isChanged = computed(() => {
 })
 const changedCount = computed(() => Object.values(isChanged.value).filter(Boolean).length)
 
+// [PROCESS] Link lanjutkan proses approve → create (dibangun dari data temp,
+// jadi tetap bisa dikembalikan walau user pindah menu tanpa klik Batal/Back).
+const resumeCreateUrl = computed(() => {
+  const r = reg.value
+  if (!r) return null
+  const query = new URLSearchParams({ tempId: r.id })
+  if (r.examDate) query.set('examDate', String(r.examDate).slice(0, 10))
+  if (r.priorityRegist) query.set('priorityRegist', r.priorityRegist)
+  if (r.patientExists && r.patientId) query.set('patientId', r.patientId)
+  query.set('patientType', r.patientExists ? 'existing' : 'new')
+  return `/front-office/registration-patient/create?${query.toString()}`
+})
+
+const resettingProcess = ref(false)
+async function resetProcess() {
+  resettingProcess.value = true
+  try {
+    await api.post(`/registration-temp/${String(route.params.id)}/reset`)
+    toast.add({
+      title: 'Dibatalkan',
+      description: 'Status kembali ke PENDING',
+      color: 'info'
+    })
+    await refresh()
+  } catch {
+    toast.add({
+      title: 'Gagal',
+      description: 'Gagal membatalkan proses',
+      color: 'error'
+    })
+  } finally {
+    resettingProcess.value = false
+  }
+}
+
 // [POLICY] Status masa berlaku kartu polis
 const POLICY_SOON_DAYS = 30
 const policyExpiry = computed(() => {
@@ -375,7 +410,14 @@ async function confirmChangeStatus() {
 
     isStatusModalOpen.value = false
     try {
-      await api.post(`/registration-temp/${String(route.params.id)}/process`)
+      // Simpan pilihan FO di temp agar proses bisa dilanjutkan kembali
+      // walau user pindah menu sebelum registrasi dibuat.
+      await api.post(`/registration-temp/${String(route.params.id)}/process`, {
+        examDate: formApprove.examDate || undefined,
+        priorityRegist: formApprove.priorityRegist || undefined,
+        patientId: formApprove.patientExists ? formApprove.patientId : null,
+        patientExists: formApprove.patientExists
+      })
     } catch {
       // best-effort — redirect tetap jalan
     }
@@ -770,6 +812,14 @@ function printModalAnswers() {
               icon="i-lucide-x"
               @click="openStatusModal('REJECTED')"
             />
+            <UButton
+              v-if="reg?.status === 'PROCESS' && resumeCreateUrl"
+              label="Lanjutkan Registrasi"
+              color="primary"
+              variant="solid"
+              icon="i-lucide-play"
+              :to="resumeCreateUrl"
+            />
           </div>
         </template>
       </UDashboardNavbar>
@@ -801,6 +851,34 @@ function printModalAnswers() {
             </div>
           </div>
         </div>
+
+        <!-- ── Status PROCESS: lanjutkan / batalkan ── -->
+        <UAlert
+          v-if="reg.status === 'PROCESS'"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-loader-circle"
+          title="Registrasi sedang diproses"
+          description="Pilihan approve sudah disimpan. Klik Lanjutkan Registrasi untuk memilih paket MCU dan membuat registrasi, atau Batalkan Proses untuk kembali ke PENDING."
+        >
+          <template #actions>
+            <UButton
+              v-if="resumeCreateUrl"
+              label="Lanjutkan Registrasi"
+              color="primary"
+              icon="i-lucide-play"
+              :to="resumeCreateUrl"
+            />
+            <UButton
+              label="Batalkan Proses"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-rotate-ccw"
+              :loading="resettingProcess"
+              @click="resetProcess"
+            />
+          </template>
+        </UAlert>
 
         <!-- ── Grid layout ── -->
         <div class="grid grid-cols-12 gap-5">
