@@ -707,10 +707,20 @@ async function loadPatientDetail(patientId?: string | number | null) {
 }
 const medicalNotesForm = reactive({ allergyNotes: '', diseaseNotes: '' })
 const medicalNotesSaving = ref(false)
+const medicalNotesModalOpen = ref(false)
 const medicalNotesDirty = computed(() =>
   medicalNotesForm.allergyNotes !== (patientDetail.value?.allergyNotes ?? '')
   || medicalNotesForm.diseaseNotes !== (patientDetail.value?.diseaseNotes ?? '')
 )
+const canEditMedicalNotes = computed(() =>
+  permissions.value.includes('patient:update') || permissions.value.includes('queue:update')
+)
+
+function openMedicalNotesModal() {
+  medicalNotesForm.allergyNotes = patientDetail.value?.allergyNotes ?? ''
+  medicalNotesForm.diseaseNotes = patientDetail.value?.diseaseNotes ?? ''
+  medicalNotesModalOpen.value = true
+}
 
 async function saveMedicalNotes() {
   const patientId = patient.value?.id
@@ -727,6 +737,7 @@ async function saveMedicalNotes() {
       description: 'Catatan medis pasien disimpan',
       color: 'success'
     })
+    medicalNotesModalOpen.value = false
     await loadPatientDetail(patientId)
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status
@@ -2278,14 +2289,80 @@ async function handleSubmitItemAction() {
                       Catatan Medis
                     </h3>
                     <p class="text-xs text-muted">
-                      Catatan alergi & penyakit pasien — bisa diperbarui dari sini.
+                      Catatan alergi & penyakit pasien.
                     </p>
                   </div>
                 </div>
                 <UButton
+                  v-if="canEditMedicalNotes"
                   color="primary"
                   variant="soft"
                   size="sm"
+                  icon="i-lucide-pencil"
+                  @click="openMedicalNotesModal"
+                >
+                  Edit
+                </UButton>
+              </div>
+            </template>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="min-w-0">
+                <p class="mb-1 text-xs text-muted">
+                  Catatan Alergi
+                </p>
+                <p class="whitespace-pre-wrap text-sm font-medium">
+                  {{ patientDetail?.allergyNotes || '-' }}
+                </p>
+              </div>
+              <div class="min-w-0">
+                <p class="mb-1 text-xs text-muted">
+                  Catatan Penyakit
+                </p>
+                <p class="whitespace-pre-wrap text-sm font-medium">
+                  {{ patientDetail?.diseaseNotes || '-' }}
+                </p>
+              </div>
+            </div>
+          </UCard>
+
+          <!-- Modal edit catatan medis -->
+          <UModal
+            v-model:open="medicalNotesModalOpen"
+            title="Catatan Medis"
+            description="Perbarui catatan alergi & penyakit pasien."
+          >
+            <template #body>
+              <div class="space-y-4">
+                <UFormField label="Catatan Alergi">
+                  <UTextarea
+                    v-model="medicalNotesForm.allergyNotes"
+                    :rows="3"
+                    placeholder="Contoh: seafood, kacang"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Catatan Penyakit">
+                  <UTextarea
+                    v-model="medicalNotesForm.diseaseNotes"
+                    :rows="3"
+                    placeholder="Contoh: hipertensi"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+            </template>
+            <template #footer>
+              <div class="flex w-full justify-end gap-2">
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  @click="medicalNotesModalOpen = false"
+                >
+                  Batal
+                </UButton>
+                <UButton
+                  color="primary"
                   icon="i-lucide-save"
                   :loading="medicalNotesSaving"
                   :disabled="!medicalNotesDirty"
@@ -2295,26 +2372,7 @@ async function handleSubmitItemAction() {
                 </UButton>
               </div>
             </template>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <UFormField label="Catatan Alergi">
-                <UTextarea
-                  v-model="medicalNotesForm.allergyNotes"
-                  :rows="3"
-                  placeholder="Contoh: seafood, kacang"
-                  class="w-full"
-                />
-              </UFormField>
-              <UFormField label="Catatan Penyakit">
-                <UTextarea
-                  v-model="medicalNotesForm.diseaseNotes"
-                  :rows="3"
-                  placeholder="Contoh: hipertensi"
-                  class="w-full"
-                />
-              </UFormField>
-            </div>
-          </UCard>
+          </UModal>
 
           <UCard v-if="isLabRoom && sampleCollectionCards.length" class="border border-default/80 shadow-sm">
             <template #header>
