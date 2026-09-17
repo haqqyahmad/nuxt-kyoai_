@@ -252,7 +252,9 @@ const newPatient = ref({
   email: '',
   dob: '',
   policyNumber: '',
-  policyExpDate: ''
+  policyExpDate: '',
+  allergyNotes: '',
+  diseaseNotes: ''
 })
 
 // [CONTACT INFO] Pasien existing (dari portal) — dapat diedit FO, lalu di-override saat approve
@@ -498,7 +500,9 @@ function buildNewPatientPayload() {
     idNumber: newPatient.value.idNumber.trim(),
     phone: newPatient.value.phone.trim() || undefined,
     email: newPatient.value.email.trim() || undefined,
-    dob: newPatient.value.dob
+    dob: newPatient.value.dob,
+    allergyNotes: newPatient.value.allergyNotes.trim() || undefined,
+    diseaseNotes: newPatient.value.diseaseNotes.trim() || undefined
   }
 }
 
@@ -584,6 +588,8 @@ type TempRegistration = {
   companyTemp?: string | null
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
 }
 
 const tempLoading = ref(false)
@@ -654,6 +660,8 @@ async function loadTempPrefill(temp: TempRegistration) {
     newPatient.value.dob = tempDobToInput(temp.dob)
     newPatient.value.policyNumber = temp.policyNumber || ''
     newPatient.value.policyExpDate = temp.policyExpDate || ''
+    newPatient.value.allergyNotes = temp.allergyNotes || ''
+    newPatient.value.diseaseNotes = temp.diseaseNotes || ''
   }
 }
 
@@ -1836,6 +1844,24 @@ async function cancel() {
                         v-model="newPatient.policyExpDate"
                         type="date"
                         size="sm"
+                        class="w-full"
+                      />
+                    </UFormField>
+                    <UFormField label="Allergy Notes" class="col-span-3">
+                      <UTextarea
+                        v-model="newPatient.allergyNotes"
+                        :rows="2"
+                        size="sm"
+                        placeholder="e.g. Seafood, peanut"
+                        class="w-full"
+                      />
+                    </UFormField>
+                    <UFormField label="Disease Notes" class="col-span-3">
+                      <UTextarea
+                        v-model="newPatient.diseaseNotes"
+                        :rows="2"
+                        size="sm"
+                        placeholder="e.g. Hypertension"
                         class="w-full"
                       />
                     </UFormField>
