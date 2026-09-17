@@ -33,6 +33,8 @@ type TempRegistration = {
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
 }
 
 const { data: reg, refresh } = await useAsyncData(
@@ -160,6 +162,8 @@ const patientResults = ref<Patient[]>([])
 const patientSearchLoading = ref(false)
 const selectedPatient = ref<Patient | null>(null)
 const confirmOverwrite = ref(false)
+// [MEDICAL NOTES] Tawarkan update catatan alergi pasien existing saat approve
+const updateMedicalNotes = ref(true)
 
 // [Repeat Patient] data pasien existing yg dibandingkan dgn data temp portal
 const existingPatient = ref<Patient | null>(null)
@@ -379,6 +383,7 @@ async function openStatusModal(status: string) {
   errors.confirmOverwrite = ''
   errors.rejectReason = ''
   confirmOverwrite.value = false
+  updateMedicalNotes.value = true
   duplicateSuggestions.value = []
   duplicateSuggestionsChecked.value = false
 }
@@ -409,6 +414,8 @@ async function confirmChangeStatus() {
     if (formApprove.patientId) query.set('patientId', formApprove.patientId)
     // [A+] Kirim keputusan FO: existing → pakai pasien lama, new → buat pasien baru
     query.set('patientType', formApprove.patientExists ? 'existing' : 'new')
+    // [MEDICAL NOTES] Teruskan preferensi update catatan alergi pasien existing
+    query.set('updateNotes', updateMedicalNotes.value ? '1' : '0')
 
     isStatusModalOpen.value = false
     try {
@@ -1450,6 +1457,28 @@ function printModalAnswers() {
               <p v-if="touched.confirmOverwrite && errors.confirmOverwrite" class="text-xs text-red-500">
                 {{ errors.confirmOverwrite }}
               </p>
+            </div>
+
+            <!-- Update catatan alergi pasien existing -->
+            <div
+              v-if="selectedStatus === 'APPROVED' && formApprove.patientExists === true"
+              class="rounded-xl border border-default p-3"
+            >
+              <label class="flex items-start gap-2.5 text-sm">
+                <UCheckbox v-model="updateMedicalNotes" color="primary" />
+                <span>
+                  Update the existing patient's <strong class="font-semibold">Allergy Notes</strong>
+                  with the data from this submission (only if provided).
+                </span>
+              </label>
+              <div v-if="reg?.allergyNotes" class="mt-2 rounded-lg bg-elevated/60 p-2.5">
+                <p class="mb-0.5 text-xs text-muted">
+                  Allergy Notes from this submission:
+                </p>
+                <p class="whitespace-pre-wrap text-sm">
+                  {{ reg.allergyNotes }}
+                </p>
+              </div>
             </div>
 
             <!-- STATUS INFO -->

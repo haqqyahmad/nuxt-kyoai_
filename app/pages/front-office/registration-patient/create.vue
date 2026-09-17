@@ -10,6 +10,8 @@ const tempId = computed(() => route.query.tempId as string | undefined)
 const fromTemp = ref(false)
 // [A+] Keputusan FO: 'existing' → pasien lama, 'new' → pasien baru
 const patientTypeFromQuery = computed(() => route.query.patientType as string | undefined)
+// [MEDICAL NOTES] Preferensi FO: update catatan alergi pasien existing (default: ya)
+const updateNotesFromQuery = computed(() => route.query.updateNotes !== '0')
 
 const backTarget = computed(() =>
   fromTemp.value && tempId.value
@@ -594,6 +596,8 @@ type TempRegistration = {
 
 const tempLoading = ref(false)
 const tempLoadError = ref('')
+const tempAllergyNotes = ref('')
+const tempDiseaseNotes = ref('')
 
 function tempDobToInput(tempDob?: string) {
   if (!tempDob) return ''
@@ -673,6 +677,9 @@ async function loadFromTemp() {
   try {
     const res = await api.get(`/registration-temp/${tempId.value}`)
     const temp = res.data.data as TempRegistration
+
+    tempAllergyNotes.value = temp.allergyNotes || ''
+    tempDiseaseNotes.value = temp.diseaseNotes || ''
 
     const forceNew = patientTypeFromQuery.value === 'new'
 
@@ -1026,7 +1033,14 @@ async function submit() {
         idValue: personalForm.value.idNumber || undefined,
         // [POLICY] Override data polis asuransi (dari form pasien baru)
         policyNumber: newPatient.value.policyNumber || undefined,
-        policyExpDate: newPatient.value.policyExpDate || undefined
+        policyExpDate: newPatient.value.policyExpDate || undefined,
+        // [MEDICAL NOTES] Update catatan alergi/penyakit pasien existing (bila FO setuju)
+        allergyNotes: updateNotesFromQuery.value
+          ? (tempAllergyNotes.value.trim() || undefined)
+          : undefined,
+        diseaseNotes: updateNotesFromQuery.value
+          ? (tempDiseaseNotes.value.trim() || undefined)
+          : undefined
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
