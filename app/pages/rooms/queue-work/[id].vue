@@ -2276,22 +2276,15 @@ async function handleSubmitItemAction() {
                 </UButton>
               </div>
             </div>
-          </div>
 
-          <!-- Catatan medis pasien (alergi & penyakit) -->
-          <UCard v-if="patient" class="border border-default/80 shadow-sm">
-            <template #header>
+            <!-- Catatan medis pasien (alergi & penyakit) -->
+            <div v-if="patient" class="mt-4 border-t border-default/70 pt-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-clipboard-plus" class="size-5 text-primary" />
-                  <div>
-                    <h3 class="text-sm font-bold text-highlighted">
-                      Catatan Medis
-                    </h3>
-                    <p class="text-xs text-muted">
-                      Catatan alergi & penyakit pasien.
-                    </p>
-                  </div>
+                  <UIcon name="i-lucide-clipboard-plus" class="size-4 text-primary" />
+                  <p class="text-sm font-bold text-highlighted">
+                    Catatan Medis
+                  </p>
                 </div>
                 <UButton
                   v-if="canEditMedicalNotes"
@@ -2304,27 +2297,26 @@ async function handleSubmitItemAction() {
                   Edit
                 </UButton>
               </div>
-            </template>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="min-w-0">
-                <p class="mb-1 text-xs text-muted">
-                  Catatan Alergi
-                </p>
-                <p class="whitespace-pre-wrap text-sm font-medium">
-                  {{ patientDetail?.allergyNotes || '-' }}
-                </p>
-              </div>
-              <div class="min-w-0">
-                <p class="mb-1 text-xs text-muted">
-                  Catatan Penyakit
-                </p>
-                <p class="whitespace-pre-wrap text-sm font-medium">
-                  {{ patientDetail?.diseaseNotes || '-' }}
-                </p>
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="min-w-0">
+                  <p class="mb-1 text-xs text-muted">
+                    Catatan Alergi
+                  </p>
+                  <p class="whitespace-pre-wrap text-sm font-medium">
+                    {{ patientDetail?.allergyNotes || '-' }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="mb-1 text-xs text-muted">
+                    Catatan Penyakit
+                  </p>
+                  <p class="whitespace-pre-wrap text-sm font-medium">
+                    {{ patientDetail?.diseaseNotes || '-' }}
+                  </p>
+                </div>
               </div>
             </div>
-          </UCard>
+          </div>
 
           <!-- Modal edit catatan medis -->
           <UModal
