@@ -775,6 +775,10 @@ async function saveMedicalNotes() {
 }
 
 const canManageItemActions = computed(() => permissions.value.includes('queue:update'))
+// [Back to Called] Disembunyikan setelah ada item yang mulai dikerjakan.
+const hasStartedExamItems = computed(() =>
+  roomExamItems.value.some(item => item.status && item.status !== 'PENDING')
+)
 const activeStage = computed(() => {
   const stages = (roomQueueDetail.value?.stageItems ?? [])
     .filter(stage =>
@@ -2503,7 +2507,7 @@ async function handleSubmitItemAction() {
                 Return to Waiting
               </UButton>
               <UButton
-                v-if="activeStage?.status === 'IN_PROGRESS'"
+                v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems"
                 color="warning"
                 variant="soft"
                 icon="i-lucide-rotate-ccw"
