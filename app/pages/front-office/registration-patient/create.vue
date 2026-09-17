@@ -43,6 +43,8 @@ type Patient = {
   dob?: string
   allergyNotes?: string | null
   diseaseNotes?: string | null
+  policyNumber?: string | null
+  policyExpDate?: string | null
   addresses?: {
     type?: string
     detail?: string
@@ -385,6 +387,15 @@ const personalChanged = computed(() => {
   }
 })
 
+const policyChanged = computed(() => {
+  const p = selectedPatient.value
+  if (!p || !fromTemp.value) return { policyNumber: false, policyExpDate: false }
+  return {
+    policyNumber: nrm(policyForm.value.policyNumber) !== nrm(p.policyNumber),
+    policyExpDate: normDateStr(policyForm.value.policyExpDate) !== normDateStr(p.policyExpDate)
+  }
+})
+
 const allergyChanged = computed(() => {
   const p = selectedPatient.value
   if (!p || !fromTemp.value) return false
@@ -606,6 +617,8 @@ const tempLoading = ref(false)
 const tempLoadError = ref('')
 // [MEDICAL NOTES] Nilai yang dikirim ke pasien existing (portal, bisa dikoreksi FO)
 const medicalNotesForm = ref({ allergyNotes: '', diseaseNotes: '' })
+// [POLICY] Data polis asuransi pasien existing (portal, bisa dikoreksi FO)
+const policyForm = ref({ policyNumber: '', policyExpDate: '' })
 
 function tempDobToInput(tempDob?: string) {
   if (!tempDob) return ''
@@ -658,6 +671,10 @@ async function loadTempPrefill(temp: TempRegistration) {
       medicalNotesForm.value = {
         allergyNotes: temp.allergyNotes || patient.allergyNotes || '',
         diseaseNotes: temp.diseaseNotes || patient.diseaseNotes || ''
+      }
+      policyForm.value = {
+        policyNumber: temp.policyNumber || patient.policyNumber || '',
+        policyExpDate: temp.policyExpDate || patient.policyExpDate || ''
       }
     } catch {
       tempLoadError.value = 'Failed to load patient data'
@@ -1040,9 +1057,13 @@ async function submit() {
         dob: toDMY(personalForm.value.dob) || undefined,
         idType: personalForm.value.idType,
         idValue: personalForm.value.idNumber || undefined,
-        // [POLICY] Override data polis asuransi (dari form pasien baru)
-        policyNumber: newPatient.value.policyNumber || undefined,
-        policyExpDate: newPatient.value.policyExpDate || undefined,
+        // [POLICY] Override data polis: pasien baru dari form, pasien existing dari kartu Policy
+        policyNumber: (isNewPatient.value
+          ? newPatient.value.policyNumber
+          : policyForm.value.policyNumber) || undefined,
+        policyExpDate: (isNewPatient.value
+          ? newPatient.value.policyExpDate
+          : policyForm.value.policyExpDate) || undefined,
         // [MEDICAL NOTES] Update catatan alergi/penyakit pasien existing (bila FO setuju)
         allergyNotes: updateNotesFromQuery.value
           ? (medicalNotesForm.value.allergyNotes.trim() || undefined)
@@ -1601,6 +1622,63 @@ async function cancel() {
                         </div>
                       </UFormField>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Card Insurance Policy (pasien existing dari portal) -->
+                <div
+                  v-if="selectedPatient && fromTemp && regForm.paymentType === 'Insurance'"
+                  class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
+                >
+                  <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex flex-wrap items-center gap-2">
+                    <p class="text-sm font-semibold">
+                      Insurance Policy
+                    </p>
+                    <UBadge
+                      v-if="policyChanged.policyNumber || policyChanged.policyExpDate"
+                      label="Change"
+                      color="warning"
+                      size="xs"
+                    />
+                    <p class="ml-auto text-[11px] text-muted">
+                      Existing: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
+                    </p>
+                  </div>
+                  <div class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+                    <UFormField label="Policy Number">
+                      <div class="flex items-center gap-1">
+                        <UInput
+                          v-model="policyForm.policyNumber"
+                          size="sm"
+                          placeholder="Policy no."
+                          class="w-full min-w-0"
+                        />
+                        <UBadge
+                          v-if="policyChanged.policyNumber"
+                          label="Change"
+                          color="warning"
+                          size="xs"
+                          class="shrink-0"
+                        />
+                      </div>
+                    </UFormField>
+                    <UFormField label="Policy Exp. Date">
+                      <div class="flex items-center gap-1">
+                        <UInput
+                          v-model="policyForm.policyExpDate"
+                          type="date"
+                          size="sm"
+                          class="w-full min-w-0"
+                        />
+                        <UBadge
+                          v-if="policyChanged.policyExpDate"
+                          label="Change"
+                          color="warning"
+                          size="xs"
+                          class="shrink-0"
+                        />
+                      </div>
+                    </UFormField>
                   </div>
                 </div>
 
