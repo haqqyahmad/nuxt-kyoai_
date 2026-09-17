@@ -194,6 +194,16 @@ const emit = defineEmits<{
 
 const result = computed(() => props.result)
 
+// Grouped per exam (mis. tab dokter): tampilkan nama item, bukan "N pemeriksaan".
+const resultItemsLabel = computed(() => {
+  const items = (props.result as { items?: Array<{ item?: { name?: string | null } | null }> })?.items
+  if (!Array.isArray(items) || items.length < 2) return ''
+  const names = items
+    .map(item => item?.item?.name)
+    .filter((name): name is string => Boolean(name))
+  return names.length ? names.join(' · ') : ''
+})
+
 const externalContextOpen = ref(true)
 
 const api = useApi()
@@ -1632,7 +1642,7 @@ onBeforeUnmount(() => {
             {{
               isExternalDoctorWorkspace
                 ? formatPatientName(result?.patient)
-                : result?.item?.name || '-'
+                : (resultItemsLabel || result?.item?.name || '-')
             }}
           </h1>
           <p class="mt-1 text-sm text-muted">
@@ -2696,27 +2706,22 @@ onBeforeUnmount(() => {
                       <thead class="bg-muted/40">
                         <tr>
                           <th
-                            class="w-[18%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
-                          >
-                            Group
-                          </th>
-                          <th
-                            class="w-[24%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[30%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Parameter
                           </th>
                           <th
-                            class="w-[22%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[26%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Normal Value
                           </th>
                           <th
-                            class="w-[22%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[28%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Result
                           </th>
                           <th
-                            class="w-[14%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+                            class="w-[16%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted"
                           >
                             Status
                           </th>
@@ -2731,17 +2736,15 @@ onBeforeUnmount(() => {
                           :class="inputanReturnNote(inputan.id) ? 'bg-error/5' : ''"
                         >
                           <td class="px-3 py-2.5 align-middle">
-                            <UBadge
-                              :label="(inputan as any).groupName || (inputan as any).itemName || '-'"
-                              color="neutral"
-                              variant="subtle"
-                              size="sm"
-                            />
-                          </td>
-                          <td class="px-3 py-2.5 align-middle">
                             <div class="min-w-0">
                               <p class="text-sm font-semibold text-highlighted">
                                 {{ inputan.label }}
+                              </p>
+                              <p
+                                v-if="(inputan as any).itemName || (inputan as any).groupName"
+                                class="text-[11px] text-muted"
+                              >
+                                {{ (inputan as any).itemName || (inputan as any).groupName }}
                               </p>
                               <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                 <UBadge
