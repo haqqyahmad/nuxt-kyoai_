@@ -145,12 +145,12 @@ const policyExpiry = computed(() => {
   return { status: 'valid' as const, days }
 })
 
-const genderLabel = (g: string) => (g === 'MALE' ? 'Laki-laki' : 'Perempuan')
+const genderLabel = (g: string) => (g === 'MALE' ? 'Male' : 'Female')
 
 const maritalLabel: Record<string, string> = {
-  SINGLE: 'Belum Menikah',
-  MARRIED: 'Menikah',
-  DIVORCED: 'Cerai'
+  SINGLE: 'Single',
+  MARRIED: 'Married',
+  DIVORCED: 'Divorced'
 }
 
 const defaultPhotoUrl
@@ -211,12 +211,12 @@ const handlePhotoUpload = (event: Event) => {
 const photoMenuItems = [
   [
     {
-      label: 'Ambil dari Kamera',
+      label: 'Capture from Camera',
       icon: 'i-lucide-camera',
       onSelect: () => openCamera()
     },
     {
-      label: 'Pilih dari File',
+      label: 'Choose from File',
       icon: 'i-lucide-image',
       onSelect: () => handlePhotoClick()
     }
@@ -228,7 +228,7 @@ async function startCameraStream() {
   cameraError.value = ''
   try {
     if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Browser tidak mendukung akses kamera')
+      throw new Error('Browser does not support camera access')
     }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
@@ -241,7 +241,7 @@ async function startCameraStream() {
       await el.play().catch(() => {})
     }
   } catch (e) {
-    cameraError.value = (e as Error)?.message || 'Gagal mengakses kamera'
+    cameraError.value = (e as Error)?.message || 'Failed to access camera'
   } finally {
     cameraStarting.value = false
   }
@@ -276,12 +276,12 @@ async function captureCamera() {
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Canvas tidak tersedia')
+    if (!ctx) throw new Error('Canvas is not available')
     ctx.drawImage(video, 0, 0, w, h)
     const blob = await new Promise<Blob | null>(resolve =>
       canvas.toBlob(resolve, 'image/jpeg', 0.9)
     )
-    if (!blob) throw new Error('Gagal mengambil gambar')
+    if (!blob) throw new Error('Failed to capture image')
     const file = new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' })
     selectedPhotoFile.value = file
     const reader = new FileReader()
@@ -292,7 +292,7 @@ async function captureCamera() {
     stopCameraStream()
     cameraOpen.value = false
   } catch (err) {
-    cameraError.value = (err as Error)?.message || 'Gagal mengambil foto'
+    cameraError.value = (err as Error)?.message || 'Failed to take photo'
   } finally {
     cameraSaving.value = false
   }
@@ -337,15 +337,15 @@ const saveChanges = async () => {
 
     // Tampilkan notifikasi sukses
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil diperbarui',
+      title: 'Success',
+      description: 'Patient data updated successfully',
       color: 'success'
     })
   } catch (error) {
     console.error('Error saving patient data:', error)
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal memperbarui data pasien',
+      title: 'Failed',
+      description: 'Failed to update patient data',
       color: 'error'
     })
   }
@@ -375,15 +375,15 @@ const editingAddress = ref<Partial<Address> | null>(null)
 const isAddressLoading = ref(false)
 
 const addressTypeOptions = [
-  { value: 'HOME', label: 'Rumah' },
-  { value: 'WORK', label: 'Kantor' },
-  { value: 'OTHER', label: 'Lainnya' }
+  { value: 'HOME', label: 'Home' },
+  { value: 'WORK', label: 'Office' },
+  { value: 'OTHER', label: 'Other' }
 ]
 
 const addressTypeLabel: Record<string, string> = {
-  HOME: 'Rumah',
-  WORK: 'Kantor',
-  OTHER: 'Lainnya'
+  HOME: 'Home',
+  WORK: 'Office',
+  OTHER: 'Other'
 }
 
 const defaultAddressForm = (): Partial<Address> => ({
@@ -439,17 +439,17 @@ const saveAddress = async () => {
     closeAddressModal()
 
     toast.add({
-      title: 'Berhasil',
+      title: 'Success',
       description: isUpdate
-        ? 'Alamat berhasil diperbarui'
-        : 'Alamat berhasil ditambahkan',
+        ? 'Address updated successfully'
+        : 'Address added successfully',
       color: 'success'
     })
   } catch (error) {
     console.error('Error saving address:', error)
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menyimpan alamat',
+      title: 'Failed',
+      description: 'Failed to save address',
       color: 'error'
     })
   } finally {
@@ -466,15 +466,15 @@ const deleteAddress = async (addressId: string) => {
     await refresh()
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Alamat berhasil dihapus',
+      title: 'Success',
+      description: 'Address deleted successfully',
       color: 'success'
     })
   } catch (error) {
     console.error('Error deleting address:', error)
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus alamat',
+      title: 'Failed',
+      description: 'Failed to delete address',
       color: 'error'
     })
   }
@@ -515,10 +515,10 @@ const deleteAddress = async (addressId: string) => {
             icon="i-lucide-clipboard-x"
             @click="cancelEditing"
           >
-            Batal
+            Cancel
           </UButton>
           <UButton color="primary" icon="i-lucide-save" @click="saveChanges">
-            Simpan
+            Save
           </UButton>
         </div>
       </template>
@@ -539,10 +539,10 @@ const deleteAddress = async (addressId: string) => {
         :icon="policyExpiry.status === 'expired' ? 'i-lucide-shield-x' : 'i-lucide-shield-alert'"
         :title="
           policyExpiry.status === 'expired'
-            ? 'Kartu polis sudah kadaluarsa'
-            : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
+            ? 'Policy card has expired'
+            : `Policy card will expire in ${policyExpiry.days} days`
         "
-        description="Mohon perbarui data polis pada pasien ini."
+        description="Please update the policy data for this patient."
       />
 
       <!-- Header dengan foto di kiri -->
@@ -680,7 +680,7 @@ const deleteAddress = async (addressId: string) => {
                 <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <UIcon name="i-lucide-calendar" class="size-4" />
                 </span>
-                <span class="text-muted flex-shrink-0">Tanggal Lahir:</span>
+                <span class="text-muted flex-shrink-0">Date of Birth:</span>
                 <span v-if="!isEditing" class="truncate">{{
                   formatDate(patient.dob)
                 }}</span>
@@ -698,7 +698,7 @@ const deleteAddress = async (addressId: string) => {
                 <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <UIcon name="i-lucide-phone" class="size-4" />
                 </span>
-                <span class="text-muted flex-shrink-0">No. HP:</span>
+                <span class="text-muted flex-shrink-0">Phone No.:</span>
                 <span v-if="!isEditing" class="truncate">{{
                   patient.phone ?? "-"
                 }}</span>
@@ -736,7 +736,7 @@ const deleteAddress = async (addressId: string) => {
                 <span class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <UIcon name="i-lucide-id-card" class="size-4" />
                 </span>
-                <span class="text-muted whitespace-nowrap">Identitas:</span>
+                <span class="text-muted whitespace-nowrap">Identity:</span>
                 <!-- </div> -->
 
                 <div v-if="isEditing" class="flex flex-1 flex-wrap gap-2">
@@ -755,7 +755,7 @@ const deleteAddress = async (addressId: string) => {
                     v-model="editForm.idNumber"
                     size="sm"
                     class="flex-1 min-w-[120px]"
-                    placeholder="Nomor Identitas"
+                    placeholder="Identity Number"
                   />
                 </div>
 
@@ -774,7 +774,7 @@ const deleteAddress = async (addressId: string) => {
         <div class="px-4 py-3 bg-elevated border-b border-accented">
           <h3 class="text-sm font-medium flex items-center gap-2">
             <UIcon name="i-lucide-user-circle" />
-            Detail Pasien
+            Patient Details
           </h3>
         </div>
         <div
@@ -787,18 +787,18 @@ const deleteAddress = async (addressId: string) => {
                 <UIcon name="i-lucide-cake" class="size-3.5" />
               </span>
               <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
-                Usia
+                Age
               </p>
             </div>
             <p v-if="!isEditing" class="text-sm">
               {{
                 patient.dob
-                  ? `${new Date().getFullYear() - new Date(patient.dob).getFullYear()} tahun`
+                  ? `${new Date().getFullYear() - new Date(patient.dob).getFullYear()} years`
                   : "-"
               }}
             </p>
             <p v-else class="text-sm text-muted">
-              Akan dihitung otomatis
+              Calculated automatically
             </p>
           </div>
 
@@ -825,9 +825,9 @@ const deleteAddress = async (addressId: string) => {
               <USelect
                 v-model="editForm.maritalStatus"
                 :items="[
-                  { label: 'Belum Menikah', value: 'SINGLE' },
-                  { label: 'Menikah', value: 'MARRIED' },
-                  { label: 'Cerai', value: 'DIVORCED' }
+                  { label: 'Single', value: 'SINGLE' },
+                  { label: 'Married', value: 'MARRIED' },
+                  { label: 'Divorced', value: 'DIVORCED' }
                 ]"
                 class="w-32"
               />
@@ -841,7 +841,7 @@ const deleteAddress = async (addressId: string) => {
                 <UIcon name="i-lucide-droplets" class="size-3.5" />
               </span>
               <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
-                Golongan Darah
+                Blood Type
               </p>
             </div>
             <div v-if="!isEditing">
@@ -865,7 +865,7 @@ const deleteAddress = async (addressId: string) => {
                 <UIcon name="i-lucide-user" class="size-3.5" />
               </span>
               <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
-                Jenis Kelamin
+                Gender
               </p>
             </div>
             <div v-if="!isEditing">
@@ -877,8 +877,8 @@ const deleteAddress = async (addressId: string) => {
               <USelect
                 v-model="editForm.gender"
                 :items="[
-                  { label: 'Laki-laki', value: 'MALE' },
-                  { label: 'Perempuan', value: 'FEMALE' }
+                  { label: 'Male', value: 'MALE' },
+                  { label: 'Female', value: 'FEMALE' }
                 ]"
                 class="w-32"
               />
@@ -930,7 +930,7 @@ const deleteAddress = async (addressId: string) => {
                 />
                 <UBadge
                   v-else-if="policyExpiry?.status === 'soon'"
-                  :label="`Segera berakhir (${policyExpiry.days} hari)`"
+                  :label="`Expiring soon (${policyExpiry.days} days)`"
                   color="warning"
                   size="xs"
                 />
@@ -1009,11 +1009,11 @@ const deleteAddress = async (addressId: string) => {
           >
             <h3 class="text-sm font-medium flex items-center gap-2">
               <UIcon name="i-lucide-map-pin" />
-              Alamat
+              Address
             </h3>
             <div class="flex items-center gap-2">
               <UBadge
-                :label="`${patient.addresses?.length ?? 0} alamat`"
+                :label="`${patient.addresses?.length ?? 0} addresses`"
                 color="neutral"
                 variant="subtle"
                 size="xs"
@@ -1023,7 +1023,7 @@ const deleteAddress = async (addressId: string) => {
                 size="xs"
                 color="primary"
                 variant="ghost"
-                label="Tambah"
+                label="Add"
                 @click.stop="openAddAddress"
               />
               <UIcon
@@ -1040,7 +1040,7 @@ const deleteAddress = async (addressId: string) => {
             v-if="!patient.addresses?.length"
             class="p-6 text-sm text-muted text-center"
           >
-            Belum ada alamat.
+            No addresses yet.
           </div>
 
           <div v-else class="divide-y divide-accented">
@@ -1105,12 +1105,12 @@ const deleteAddress = async (addressId: string) => {
       <!-- Modal Tambah / Edit Address -->
       <UModal
         v-model:open="isAddressModalOpen"
-        :title="editingAddress?.id ? 'Edit Alamat' : 'Tambah Alamat'"
+        :title="editingAddress?.id ? 'Edit Address' : 'Add Address'"
       >
         <template #body>
           <div v-if="editingAddress" class="space-y-4">
             <!-- Tipe Alamat -->
-            <UFormField label="Tipe Alamat">
+            <UFormField label="Address Type">
               <USelect
                 v-model="editingAddress.type"
                 :items="addressTypeOptions"
@@ -1119,10 +1119,10 @@ const deleteAddress = async (addressId: string) => {
             </UFormField>
 
             <!-- Detail Alamat -->
-            <UFormField label="Alamat Lengkap">
+            <UFormField label="Full Address">
               <UTextarea
                 v-model="editingAddress.detail"
-                placeholder="Jl. Contoh No. 123, RT 01/RW 02"
+                placeholder="123 Example Street, RT 01/RW 02"
                 :rows="3"
                 class="w-full"
               />
@@ -1130,47 +1130,47 @@ const deleteAddress = async (addressId: string) => {
 
             <div class="grid grid-cols-2 gap-3">
               <!-- Kelurahan / Kecamatan -->
-              <UFormField label="Kecamatan / Kelurahan">
+              <UFormField label="District / Subdistrict">
                 <UInput
                   v-model="editingAddress.district"
-                  placeholder="Kecamatan"
+                  placeholder="District"
                   class="w-full"
                 />
               </UFormField>
 
               <!-- Kota -->
-              <UFormField label="Kota / Kabupaten">
+              <UFormField label="City / Regency">
                 <UInput
                   v-model="editingAddress.city"
-                  placeholder="Kota"
+                  placeholder="City"
                   class="w-full"
                 />
               </UFormField>
 
               <!-- Provinsi -->
-              <UFormField label="Provinsi">
+              <UFormField label="Province">
                 <UInput
                   v-model="editingAddress.province"
-                  placeholder="Provinsi"
+                  placeholder="Province"
                   class="w-full"
                 />
               </UFormField>
 
               <!-- Negara -->
-              <UFormField label="Negara">
+              <UFormField label="Country">
                 <UInput
                   v-model="editingAddress.country"
-                  placeholder="Negara"
+                  placeholder="Country"
                   class="w-full"
                 />
               </UFormField>
             </div>
 
             <!-- Catatan -->
-            <UFormField label="Catatan (opsional)">
+            <UFormField label="Note (optional)">
               <UInput
                 v-model="editingAddress.note"
-                placeholder="Patokan atau informasi tambahan..."
+                placeholder="Landmark or additional information..."
                 class="w-full"
               />
             </UFormField>
@@ -1180,14 +1180,14 @@ const deleteAddress = async (addressId: string) => {
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="ghost" @click="closeAddressModal">
-              Batal
+              Cancel
             </UButton>
             <UButton
               color="primary"
               :loading="isAddressLoading"
               @click="saveAddress"
             >
-              {{ editingAddress?.id ? "Simpan Perubahan" : "Tambah Alamat" }}
+              {{ editingAddress?.id ? "Save Changes" : "Add Address" }}
             </UButton>
           </div>
         </template>
@@ -1196,7 +1196,7 @@ const deleteAddress = async (addressId: string) => {
       <!-- Modal Kamera Foto -->
       <UModal
         v-model:open="cameraOpen"
-        title="Ambil Foto Pasien"
+        title="Take Patient Photo"
         :ui="{ content: 'sm:max-w-lg' }"
       >
         <template #body>
@@ -1226,7 +1226,7 @@ const deleteAddress = async (addressId: string) => {
               :description="cameraError"
             />
             <p class="text-[11px] text-muted">
-              Pastikan wajah pasien terlihat jelas di dalam frame, lalu klik Ambil Foto.
+              Make sure the patient's face is clearly visible in the frame, then click Take Photo.
             </p>
           </div>
         </template>
@@ -1235,14 +1235,14 @@ const deleteAddress = async (addressId: string) => {
             <UButton
               color="neutral"
               variant="ghost"
-              label="Batal"
+              label="Cancel"
               :disabled="cameraSaving"
               @click="closeCamera"
             />
             <UButton
               icon="i-lucide-camera"
               color="primary"
-              label="Ambil Foto"
+              label="Take Photo"
               :loading="cameraSaving"
               :disabled="cameraStarting || !!cameraError"
               @click="captureCamera"
@@ -1258,10 +1258,10 @@ const deleteAddress = async (addressId: string) => {
         >
           <h3 class="text-sm font-medium flex items-center gap-2">
             <UIcon name="i-lucide-briefcase" />
-            Riwayat Perusahaan
+            Company History
           </h3>
           <UBadge
-            :label="`${patient.histories?.length ?? 0} riwayat`"
+            :label="`${patient.histories?.length ?? 0} records`"
             color="neutral"
             variant="subtle"
             size="xs"
@@ -1272,7 +1272,7 @@ const deleteAddress = async (addressId: string) => {
           v-if="!patient.histories?.length"
           class="p-6 text-sm text-muted text-center"
         >
-          Belum ada riwayat perusahaan.
+          No company history yet.
         </div>
 
         <div v-else class="divide-y divide-accented">
@@ -1293,7 +1293,7 @@ const deleteAddress = async (addressId: string) => {
                 </p>
                 <UBadge
                   v-if="history.isCurrent"
-                  label="Aktif"
+                  label="Active"
                   color="success"
                   variant="subtle"
                   size="xs"
@@ -1308,7 +1308,7 @@ const deleteAddress = async (addressId: string) => {
                   history.endDate
                     ? `— ${formatDate(history.endDate)}`
                     : history.isCurrent
-                      ? "— Sekarang"
+                      ? "— Present"
                       : ""
                 }}
               </p>
