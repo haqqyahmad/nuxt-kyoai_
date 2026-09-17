@@ -25,7 +25,7 @@ const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
         :loading="startLoading"
         @click="emit('start')"
       >
-        Mulai Pemeriksaan
+        Start Examination
       </UButton>
       <UButton
         v-if="props.canDone && item.status === 'IN_PROGRESS'"
@@ -33,10 +33,10 @@ const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
         :loading="doneLoading"
         @click="emit('done')"
       >
-        Selesaikan Item
+        Complete Item
       </UButton>
       <UButton v-if="props.canManageActions && !isFinal" variant="soft" @click="emit('refuse')">
-        Pasien Menolak
+        Patient Refused
       </UButton>
     </div>
   </div>

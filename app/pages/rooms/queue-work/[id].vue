@@ -366,11 +366,11 @@ const currentRoomStageCodes = computed(() =>
 )
 
 const roomSessionLabel = computed(() => {
-  if (!activeRoomSession.value) return 'Sesi room tidak aktif'
+  if (!activeRoomSession.value) return 'Room session inactive'
   if (activeRoomSession.value.room?.name) {
     return `${activeRoomSession.value.room.code} - ${activeRoomSession.value.room.name}`
   }
-  return activeRoomSession.value.roomType?.name || 'Sesi room aktif'
+  return activeRoomSession.value.roomType?.name || 'Room session active'
 })
 
 function formatPatientName(patient?: Patient | null) {
@@ -397,14 +397,14 @@ function getStatusColor(status: string): BadgeColor {
 }
 
 function getStatusLabel(status: string) {
-  if (status === 'DONE') return 'Selesai'
-  if (status === 'IN_PROGRESS') return 'Sedang dikerjakan'
-  if (status === 'CALLED') return 'Sudah dipanggil'
-  if (status === 'SKIPPED') return 'Skip'
-  if (status === 'RESCHEDULED') return 'Reschedule'
-  if (status === 'REFUSED') return 'Pasien Menolak'
-  if (status === 'RETEXT') return 'Perlu Tes Ulang'
-  return 'Menunggu'
+  if (status === 'DONE') return 'Completed'
+  if (status === 'IN_PROGRESS') return 'In progress'
+  if (status === 'CALLED') return 'Called'
+  if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'RESCHEDULED') return 'Rescheduled'
+  if (status === 'REFUSED') return 'Patient refused'
+  if (status === 'RETEXT') return 'Retest needed'
+  return 'Waiting'
 }
 
 function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null) {
@@ -481,15 +481,15 @@ function selectedOptionRequiresDetail(inputan: ExamInput, selected: string): boo
 function formatProfileSuffix(sex?: string | null, ageMin?: number | null, ageMax?: number | null) {
   const parts: string[] = []
 
-  if (sex === 'MALE') parts.push('Laki-laki')
-  if (sex === 'FEMALE') parts.push('Perempuan')
+  if (sex === 'MALE') parts.push('Male')
+  if (sex === 'FEMALE') parts.push('Female')
 
   if (ageMin != null && ageMax != null) {
-    parts.push(`${ageMin}-${ageMax} th`)
+    parts.push(`${ageMin}-${ageMax} yrs`)
   } else if (ageMin != null) {
-    parts.push(`>= ${ageMin} th`)
+    parts.push(`>= ${ageMin} yrs`)
   } else if (ageMax != null) {
-    parts.push(`<= ${ageMax} th`)
+    parts.push(`<= ${ageMax} yrs`)
   }
 
   return parts.length > 0 ? ` (${parts.join(' · ')})` : ''
@@ -523,8 +523,8 @@ function formatNumericNormalRange(inputan: ExamInput, range: NumericNormalRange)
 
   if (range.criticalLow != null || range.criticalHigh != null) {
     const criticalParts: string[] = []
-    if (range.criticalLow != null) criticalParts.push(`kritikal bawah ${range.criticalLow}`)
-    if (range.criticalHigh != null) criticalParts.push(`kritikal atas ${range.criticalHigh}`)
+    if (range.criticalLow != null) criticalParts.push(`critical low ${range.criticalLow}`)
+    if (range.criticalHigh != null) criticalParts.push(`critical high ${range.criticalHigh}`)
     parts.push(criticalParts.join(' · '))
   }
 
@@ -563,7 +563,7 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
   if (matchedNormal) {
     return {
       status: 'normal' as const,
-      label: `Dalam batas normal${formatProfileSuffix(matchedNormal.sex, matchedNormal.ageMin, matchedNormal.ageMax)}`
+      label: `Within normal range${formatProfileSuffix(matchedNormal.sex, matchedNormal.ageMin, matchedNormal.ageMax)}`
     }
   }
 
@@ -576,13 +576,13 @@ function getNumberEvaluation(inputan: ExamInput, draftValue?: string) {
   if (matchedCritical) {
     return {
       status: 'critical' as const,
-      label: `Di luar batas kritikal${formatProfileSuffix(matchedCritical.sex, matchedCritical.ageMin, matchedCritical.ageMax)}`
+      label: `Outside critical range${formatProfileSuffix(matchedCritical.sex, matchedCritical.ageMin, matchedCritical.ageMax)}`
     }
   }
 
   return {
     status: 'out-of-range' as const,
-    label: 'Di luar nilai normal'
+    label: 'Outside normal range'
   }
 }
 
@@ -597,13 +597,13 @@ function getSelectedEvaluation(inputan: ExamInput, draftValue?: string) {
   if (matched) {
     return {
       status: 'normal' as const,
-      label: `Sesuai nilai normal${formatProfileSuffix(matched.sex, matched.ageMin, matched.ageMax)}`
+      label: `Matches normal value${formatProfileSuffix(matched.sex, matched.ageMin, matched.ageMax)}`
     }
   }
 
   return {
     status: 'out-of-range' as const,
-    label: 'Tidak sesuai nilai normal'
+    label: 'Does not match normal value'
   }
 }
 
@@ -700,7 +700,7 @@ async function loadPatientDetail(patientId?: string | number | null) {
     const status = (err as { response?: { status?: number } })?.response?.status
     patientDetailError.value = status === 403
       ? ''
-      : 'Detail pasien tidak dapat dimuat. Informasi dasar dari antrian tetap ditampilkan.'
+      : 'Patient details could not be loaded. Basic information from the queue is still shown.'
   } finally {
     patientDetailLoading.value = false
   }
@@ -733,8 +733,8 @@ async function saveMedicalNotes() {
       diseaseNotes: medicalNotesForm.diseaseNotes
     })
     toast.add({
-      title: 'Berhasil',
-      description: 'Catatan medis pasien disimpan',
+      title: 'Success',
+      description: 'Patient medical notes saved',
       color: 'success'
     })
     medicalNotesModalOpen.value = false
@@ -742,10 +742,10 @@ async function saveMedicalNotes() {
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status
     toast.add({
-      title: 'Gagal',
+      title: 'Failed',
       description: status === 403
-        ? 'Anda tidak punya akses mengubah catatan medis'
-        : 'Catatan medis gagal disimpan',
+        ? 'You do not have access to edit medical notes'
+        : 'Failed to save medical notes',
       color: 'error'
     })
   } finally {
@@ -844,8 +844,8 @@ function getStageDisplayName(stage?: QueueStageItem | null) {
   const code = stage.stage?.code
   const name = (code ? `${code} · ` : '') + (stage.stage?.name || `Stage ${stage.stageOrder ?? '-'}`)
   const otherRoom = stage.roomId && stage.roomId !== currentRoomId.value
-  const suffix = otherRoom ? ' (ruangan lain)' : ''
-  return (total > 1 ? `Stage ${stage.stageOrder} dari ${total}: ` : '') + name + suffix
+  const suffix = otherRoom ? ' (other room)' : ''
+  return (total > 1 ? `Stage ${stage.stageOrder} of ${total}: ` : '') + name + suffix
 }
 
 const stageSummary = computed(() => {
@@ -859,9 +859,9 @@ const stageSummary = computed(() => {
     .map((s) => {
       const code = s.stage?.code
       const otherRoom = s.roomId && s.roomId !== roomAssignment.value?.roomId
-      return (code ? `${code} · ` : '') + (s.stage?.name || `Stage ${s.stageOrder}`) + (otherRoom ? ' (ruangan lain)' : '')
+      return (code ? `${code} · ` : '') + (s.stage?.name || `Stage ${s.stageOrder}`) + (otherRoom ? ' (other room)' : '')
     })
-  return `Stage ${activeOrder} dari ${items.length} (${names.join(' → ')})`
+  return `Stage ${activeOrder} of ${items.length} (${names.join(' → ')})`
 })
 
 function isExamStageActive() {
@@ -878,7 +878,7 @@ function isReceiveStageActive() {
 
 function itemNameForId(itemId: string) {
   const found = roomExamItems.value.find(item => item.trxExamItem?.item?.id === itemId)
-  return found?.trxExamItem?.item?.name ?? 'Item pemeriksaan'
+  return found?.trxExamItem?.item?.name ?? 'Examination item'
 }
 
 function collectionHasOnlyRefusedItems(collection: SampleCollection) {
@@ -911,11 +911,11 @@ function canRejectCollection(collection: SampleCollection) {
 }
 
 function collectionStatusLabel(status: string) {
-  if (status === 'PENDING') return 'Belum diambil'
-  if (status === 'COLLECTED') return 'Sudah diambil'
-  if (status === 'RECEIVED') return 'Diterima lab'
-  if (status === 'REJECTED') return 'Ditolak'
-  if (status === 'RESCHEDULED') return 'Reschedule'
+  if (status === 'PENDING') return 'Not collected'
+  if (status === 'COLLECTED') return 'Collected'
+  if (status === 'RECEIVED') return 'Received by lab'
+  if (status === 'REJECTED') return 'Rejected'
+  if (status === 'RESCHEDULED') return 'Rescheduled'
   return status
 }
 
@@ -962,8 +962,8 @@ async function submitRejectSample() {
 
   if (!rejectSampleReason.value.trim()) {
     toast.add({
-      title: 'Alasan wajib diisi',
-      description: 'Isi alasan penolakan sample.',
+      title: 'Reason is required',
+      description: 'Enter the sample rejection reason.',
       color: 'warning'
     })
     return
@@ -976,15 +976,15 @@ async function submitRejectSample() {
     })
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: `Sample ${target.sampleName} ditolak.`,
+      title: 'Success',
+      description: `Sample ${target.sampleName} rejected.`,
       color: 'success'
     })
     closeRejectSampleModal()
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menolak sample',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menolak sample.'),
+      title: 'Failed to reject sample',
+      description: getErrorMessage(error, 'An error occurred while rejecting the sample.'),
       color: 'error'
     })
   } finally {
@@ -1231,13 +1231,13 @@ function canDoneItem(item: RoomExamItem) {
 function getExternalDoneBlockReason(item: RoomExamItem) {
   const assignment = item.trxExamItem?.externalAssignment
   if (!assignment || !['ASSIGNED', 'PROCESSING', 'FILLED'].includes(assignment.status)) {
-    return 'Tugaskan dokter luar terlebih dahulu.'
+    return 'Assign an external doctor first.'
   }
   if (
     item.trxExamItem?.item?.requiresAttachmentForDone
     && !assignment.attachmentUrl
   ) {
-    return 'PDF hasil wajib diunggah sebelum item diselesaikan.'
+    return 'The result PDF must be uploaded before the item can be completed.'
   }
   return null
 }
@@ -1308,9 +1308,9 @@ function getPhysicalLegacyRows(item: RoomExamItem): Array<{ id: string, label: s
 function getOperationalStatusLabel(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
 
-  if (item.operationalStatus === 'WAITING_SAMPLE') return 'Menunggu sample diterima'
-  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'Sample ditolak'
-  if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'Sample dijadwalkan ulang'
+  if (item.operationalStatus === 'WAITING_SAMPLE') return 'Waiting for sample to be received'
+  if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'Sample rejected'
+  if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'Sample rescheduled'
   return getStatusLabel(item.status)
 }
 
@@ -1327,24 +1327,24 @@ function getSampleActionDescription(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
 
   if (sampleStatus === 'REJECTED') {
-    return item.sampleImpact?.rejectReason || 'Sample ditolak dan perlu reschedule sebelum item bisa dikerjakan.'
+    return item.sampleImpact?.rejectReason || 'Sample rejected and must be rescheduled before the item can be processed.'
   }
 
   if (sampleStatus === 'RESCHEDULED') {
     return item.sampleImpact?.rescheduledAt
-      ? `Sample dijadwalkan ulang ke ${item.sampleImpact.rescheduledAt}.`
-      : 'Sample dijadwalkan ulang dan menunggu kunjungan berikutnya.'
+      ? `Sample rescheduled to ${item.sampleImpact.rescheduledAt}.`
+      : 'Sample rescheduled and awaiting the next visit.'
   }
 
   if (sampleStatus === 'COLLECTED') {
-    return 'Sample sudah diambil dan menunggu diterima oleh lab.'
+    return 'Sample collected and awaiting receipt by the lab.'
   }
 
   if (sampleStatus === 'RECEIVED') {
-    return 'Sample sudah diterima oleh lab dan siap diproses di stage exam.'
+    return 'Sample received by the lab and ready to be processed in the exam stage.'
   }
 
-  return 'Item ini masih mengikuti status sample terkait.'
+  return 'This item still follows the status of its related sample.'
 }
 
 function hasStructuredInputs(item: RoomExamItem) {
@@ -1547,14 +1547,14 @@ async function handleEnterRoom() {
     isEnterRoomModalOpen.value = false
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Berhasil masuk ke room aktif.',
+      title: 'Success',
+      description: 'Successfully entered the active room.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal masuk room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat masuk ke room aktif.'),
+      title: 'Failed to enter room',
+      description: getErrorMessage(error, 'An error occurred while entering the active room.'),
       color: 'error'
     })
   } finally {
@@ -1572,16 +1572,16 @@ async function handleExitRoom() {
     isExitRoomModalOpen.value = false
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Berhasil keluar dari room aktif.',
+      title: 'Success',
+      description: 'Successfully exited the active room.',
       color: 'success'
     })
 
     await router.push('/rooms/assignments')
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal keluar room',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat keluar dari room aktif.'),
+      title: 'Failed to exit room',
+      description: getErrorMessage(error, 'An error occurred while exiting the active room.'),
       color: 'error'
     })
   } finally {
@@ -1649,8 +1649,8 @@ async function loadPage(showRefreshState = false) {
     await fetchSelectedItemHistory()
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memuat data pemeriksaan',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memuat detail pekerjaan room.'),
+      title: 'Failed to load examination data',
+      description: getErrorMessage(error, 'An error occurred while loading the room work details.'),
       color: 'error'
     })
   } finally {
@@ -1729,14 +1729,14 @@ async function handleReturnPatient() {
     await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/return`, {})
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: 'Pasien dikembalikan ke waiting list.',
+      title: 'Success',
+      description: 'Patient returned to the waiting list.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal mengembalikan pasien',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengembalikan pasien ke waiting list.'),
+      title: 'Failed to return patient',
+      description: getErrorMessage(error, 'An error occurred while returning the patient to the waiting list.'),
       color: 'error'
     })
   } finally {
@@ -1758,14 +1758,14 @@ async function handleStartStage() {
     await api.patch(`/medical/exams/queue/stage/${activeStage.value.id}/start`)
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: 'Pemeriksaan room dimulai.',
+      title: 'Success',
+      description: 'Room examination started.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memulai pemeriksaan',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memulai pemeriksaan room.'),
+      title: 'Failed to start examination',
+      description: getErrorMessage(error, 'An error occurred while starting the room examination.'),
       color: 'error'
     })
   } finally {
@@ -1798,8 +1798,8 @@ async function handleFinishStage() {
     }
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Pemeriksaan room selesai.',
+      title: 'Success',
+      description: 'Room examination completed.',
       color: 'success'
     })
 
@@ -1810,8 +1810,8 @@ async function handleFinishStage() {
 
     if (deferredItems.length > 0) {
       toast.add({
-        title: 'Ada hasil yang perlu diinput',
-        description: `${deferredItems.length} item menunggu input hasil di halaman Hasil Exam.`,
+        title: 'Results need input',
+        description: `${deferredItems.length} item(s) awaiting result input on the Exam Results page.`,
         color: 'info'
       })
     }
@@ -1822,12 +1822,12 @@ async function handleFinishStage() {
     const response = (error as { response?: { data?: { errors?: { pendingItems?: Array<{ itemName?: string }> } } } }).response
     const pendingItems = response?.data?.errors?.pendingItems ?? []
     const pendingLabel = pendingItems.length > 0
-      ? ` Item belum final: ${pendingItems.map(item => item.itemName).filter(Boolean).join(', ')}.`
+      ? ` Pending items: ${pendingItems.map(item => item.itemName).filter(Boolean).join(', ')}.`
       : ''
 
     toast.add({
-      title: 'Belum bisa menyelesaikan room',
-      description: `${getErrorMessage(error, 'Masih ada item pemeriksaan yang belum selesai.')}${pendingLabel}`,
+      title: 'Cannot complete the room yet',
+      description: `${getErrorMessage(error, 'There are still examination items that are not finished.')}${pendingLabel}`,
       color: 'warning'
     })
   } finally {
@@ -1843,14 +1843,14 @@ async function handleStartItem(item: RoomExamItem) {
     await api.patch(`/medical/exams/queue/exam-item/${item.id}/start`, {})
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dimulai.`,
+      title: 'Success',
+      description: `Item ${item.trxExamItem?.item?.name ?? 'examination'} started.`,
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal memulai item',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memulai item pemeriksaan.'),
+      title: 'Failed to start item',
+      description: getErrorMessage(error, 'An error occurred while starting the examination item.'),
       color: 'error'
     })
   } finally {
@@ -1866,14 +1866,14 @@ async function handleCollectCollection(collectionId: string) {
     await api.patch(`/medical/exams/queue/samples/${collectionId}/collect`, {})
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: 'Sample berhasil diambil.',
+      title: 'Success',
+      description: 'Sample collected successfully.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal mengambil sample',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengambil sample.'),
+      title: 'Failed to collect sample',
+      description: getErrorMessage(error, 'An error occurred while collecting the sample.'),
       color: 'error'
     })
   } finally {
@@ -1889,14 +1889,14 @@ async function handleReceiveCollection(collectionId: string) {
     await api.patch(`/medical/exams/queue/samples/${collectionId}/receive`, {})
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: 'Sample berhasil diterima.',
+      title: 'Success',
+      description: 'Sample received successfully.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menerima sample',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menerima sample.'),
+      title: 'Failed to receive sample',
+      description: getErrorMessage(error, 'An error occurred while receiving the sample.'),
       color: 'error'
     })
   } finally {
@@ -1915,8 +1915,8 @@ async function saveResultsDraft(item: RoomExamItem, showToast = true) {
   }
   if (results.length === 0) {
     toast.add({
-      title: 'Belum ada hasil',
-      description: 'Isi minimal satu hasil exam sebelum disimpan.',
+      title: 'No results yet',
+      description: 'Enter at least one exam result before saving.',
       color: 'warning'
     })
     return false
@@ -1925,8 +1925,8 @@ async function saveResultsDraft(item: RoomExamItem, showToast = true) {
   await api.post(`/mcu/exams/${examId}/results`, { results })
   if (showToast) {
     toast.add({
-      title: 'Berhasil',
-      description: 'Draft hasil berhasil disimpan.',
+      title: 'Success',
+      description: 'Result draft saved successfully.',
       color: 'success'
     })
   }
@@ -1940,8 +1940,8 @@ async function handleSaveResults(item: RoomExamItem) {
     if (saved) await loadPage(true)
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menyimpan draft',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menyimpan draft hasil.'),
+      title: 'Failed to save draft',
+      description: getErrorMessage(error, 'An error occurred while saving the result draft.'),
       color: 'error'
     })
   } finally {
@@ -1964,14 +1964,14 @@ async function handleSubmitResults(item: RoomExamItem) {
     })
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: 'Hasil berhasil disubmit. Item sekarang bisa diselesaikan.',
+      title: 'Success',
+      description: 'Results submitted successfully. The item can now be completed.',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal submit hasil',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat submit hasil.'),
+      title: 'Failed to submit results',
+      description: getErrorMessage(error, 'An error occurred while submitting the results.'),
       color: 'error'
     })
   } finally {
@@ -1982,8 +1982,8 @@ async function handleDoneItem(item: RoomExamItem) {
   if (itemActionLoading.value[item.id]) return
   if (!currentUserId.value) {
     toast.add({
-      title: 'Akun pengguna tidak ditemukan',
-      description: 'Muat ulang halaman lalu coba lagi.',
+      title: 'User account not found',
+      description: 'Reload the page and try again.',
       color: 'error'
     })
     return
@@ -1997,14 +1997,14 @@ async function handleDoneItem(item: RoomExamItem) {
     })
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
-      description: `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} selesai.`,
+      title: 'Success',
+      description: `Item ${item.trxExamItem?.item?.name ?? 'examination'} completed.`,
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal menyelesaikan item',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat menyelesaikan item pemeriksaan.'),
+      title: 'Failed to complete item',
+      description: getErrorMessage(error, 'An error occurred while completing the examination item.'),
       color: 'error'
     })
   } finally {
@@ -2016,8 +2016,8 @@ async function handleSubmitItemAction() {
   if (!selectedItemAction.value || !selectedItemActionType.value || itemActionSubmitLoading.value) return
   if (!currentUserId.value) {
     toast.add({
-      title: 'Akun pengguna tidak ditemukan',
-      description: 'Muat ulang halaman lalu coba lagi.',
+      title: 'User account not found',
+      description: 'Reload the page and try again.',
       color: 'error'
     })
     return
@@ -2031,8 +2031,8 @@ async function handleSubmitItemAction() {
     if (actionType === 'skip') {
       if (!itemActionReason.value.trim()) {
         toast.add({
-          title: 'Alasan wajib diisi',
-          description: 'Isi alasan skip sebelum melanjutkan.',
+          title: 'Reason is required',
+          description: 'Enter the skip reason before continuing.',
           color: 'warning'
         })
         return
@@ -2046,8 +2046,8 @@ async function handleSubmitItemAction() {
     } else if (actionType === 'refuse') {
       if (!itemActionReason.value.trim()) {
         toast.add({
-          title: 'Alasan wajib diisi',
-          description: 'Isi alasan penolakan sebelum melanjutkan.',
+          title: 'Reason is required',
+          description: 'Enter the refusal reason before continuing.',
           color: 'warning'
         })
         return
@@ -2073,21 +2073,21 @@ async function handleSubmitItemAction() {
 
     await loadPage(true)
     toast.add({
-      title: 'Berhasil',
+      title: 'Success',
       description: actionType === 'skip'
-        ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditandai skip.`
+        ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} marked as skipped.`
         : actionType === 'refuse'
-          ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditolak pasien.`
+          ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} refused by patient.`
           : actionType === 'retest'
-            ? `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} ditandai perlu tes ulang.`
-            : `Item ${item.trxExamItem?.item?.name ?? 'pemeriksaan'} dijadwalkan ulang.`,
+            ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} marked for retest.`
+            : `Item ${item.trxExamItem?.item?.name ?? 'examination'} rescheduled.`,
       color: 'success'
     })
     closeItemActionModal()
   } catch (error: unknown) {
     toast.add({
-      title: actionType === 'skip' ? 'Gagal skip item' : actionType === 'refuse' ? 'Gagal menolak item' : actionType === 'retest' ? 'Gagal retest item' : 'Gagal reschedule item',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat memproses item pemeriksaan.'),
+      title: actionType === 'skip' ? 'Failed to skip item' : actionType === 'refuse' ? 'Failed to refuse item' : actionType === 'retest' ? 'Failed to retest item' : 'Failed to reschedule item',
+      description: getErrorMessage(error, 'An error occurred while processing the examination item.'),
       color: 'error'
     })
   } finally {
@@ -2100,8 +2100,8 @@ async function handleSubmitItemAction() {
   <UDashboardPanel id="room-queue-work">
     <template #header>
       <UDashboardNavbar
-        title="Pekerjaan Room"
-        :subtitle="roomQueueDetail?.queueEntry?.registration?.id_reg || 'Detail pemeriksaan petugas room'"
+        title="Room Work"
+        :subtitle="roomQueueDetail?.queueEntry?.registration?.id_reg || 'Room staff examination detail'"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -2111,7 +2111,7 @@ async function handleSubmitItemAction() {
           <UBadge
             :color="activeRoomSession ? 'success' : 'neutral'"
             variant="subtle"
-            :label="roomSessionPending ? 'Mengecek sesi room...' : roomSessionLabel"
+            :label="roomSessionPending ? 'Checking room session...' : roomSessionLabel"
           />
 
           <UButton
@@ -2120,7 +2120,7 @@ async function handleSubmitItemAction() {
             icon="i-lucide-arrow-left"
             @click="router.push('/rooms/queue')"
           >
-            Kembali ke Queue
+            Back to Queue
           </UButton>
 
           <UButton
@@ -2149,8 +2149,8 @@ async function handleSubmitItemAction() {
         <UAlert
           v-else-if="!roomQueueDetail"
           color="error"
-          title="Detail room queue tidak ditemukan"
-          description="Data pekerjaan tidak bisa dimuat. Coba kembali dari halaman queue room."
+          title="Room queue detail not found"
+          description="Work data could not be loaded. Please return from the room queue page."
         />
 
         <template v-else>
@@ -2161,13 +2161,13 @@ async function handleSubmitItemAction() {
                   type="button"
                   class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30"
                   :class="patientPhotoUrl ? 'cursor-zoom-in hover:ring-2 hover:ring-primary/40' : 'cursor-default'"
-                  :title="patientPhotoUrl ? 'Lihat foto' : undefined"
+                  :title="patientPhotoUrl ? 'View photo' : undefined"
                   @click="patientPhotoUrl && (photoViewerOpen = true)"
                 >
                   <img
                     v-if="patientPhotoUrl"
                     :src="patientPhotoUrl"
-                    alt="Foto pasien"
+                    alt="Patient photo"
                     class="h-full w-full object-cover"
                   >
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
@@ -2176,7 +2176,7 @@ async function handleSubmitItemAction() {
               <div class="md:flex-1">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-                    Pasien Aktif
+                    Active Patient
                   </span>
                   <span class="text-xs text-muted">• ID: {{ patient?.PatientId || '-' }}</span>
                 </div>
@@ -2188,7 +2188,7 @@ async function handleSubmitItemAction() {
                 </p>
                 <div v-if="patientDetailLoading" class="mt-2 flex items-center gap-2 text-xs text-muted">
                   <UIcon name="i-lucide-loader-circle" class="size-3 animate-spin" />
-                  Memuat detail pasien
+                  Loading patient details
                 </div>
                 <UAlert
                   v-else-if="patientDetailError"
@@ -2200,7 +2200,7 @@ async function handleSubmitItemAction() {
 
                 <div class="mt-3 flex flex-wrap gap-2">
                   <UBadge
-                    :label="`${activeStage ? getStageDisplayName(activeStage) : 'Selesai'}`"
+                    :label="`${activeStage ? getStageDisplayName(activeStage) : 'Completed'}`"
                     :color="activeStage ? getStatusColor(activeStage.status) : 'success'"
                     variant="subtle"
                   />
@@ -2210,7 +2210,7 @@ async function handleSubmitItemAction() {
                     :label="stageSummary"
                   />
                   <UBadge
-                    :label="`Status pekerjaan ruangan: ${getStatusLabel(currentRoomWorkStatus)}`"
+                    :label="`Room work status: ${getStatusLabel(currentRoomWorkStatus)}`"
                     :color="getStatusColor(currentRoomWorkStatus)"
                     variant="soft"
                   />
@@ -2219,12 +2219,12 @@ async function handleSubmitItemAction() {
 
               <div class="flex flex-wrap items-center gap-3">
                 <div class="hidden text-right sm:block">
-                  <span class="block text-[10px] font-medium text-muted">Status Room</span>
+                  <span class="block text-[10px] font-medium text-muted">Room Status</span>
                   <span
                     class="text-xs font-bold"
                     :class="allItemsFinal ? 'text-success' : 'text-warning'"
                   >
-                    {{ completedItemCount }}/{{ totalItemCount }} Item Selesai
+                    {{ completedItemCount }}/{{ totalItemCount }} Items Completed
                   </span>
                 </div>
                 <UButton
@@ -2234,7 +2234,7 @@ async function handleSubmitItemAction() {
                   icon="i-lucide-list-checks"
                   @click="toggleDrawer()"
                 >
-                  Pilih Item
+                  Select Item
                 </UButton>
                 <UButton
                   v-if="activeStage?.status === 'WAITING' && canUseAssignShortcut"
@@ -2253,7 +2253,7 @@ async function handleSubmitItemAction() {
                   :loading="stageActionLoading"
                   @click="handleStartStage"
                 >
-                  Mulai Pemeriksaan
+                  Start Examination
                 </UButton>
                 <UButton
                   v-if="activeStage?.status === 'CALLED'"
@@ -2263,7 +2263,7 @@ async function handleSubmitItemAction() {
                   :loading="stageActionLoading"
                   @click="handleReturnPatient"
                 >
-                  Kembalikan ke Waiting
+                  Return to Waiting
                 </UButton>
                 <UButton
                   v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
@@ -2272,7 +2272,7 @@ async function handleSubmitItemAction() {
                   :loading="stageActionLoading"
                   @click="handleFinishStage"
                 >
-                  Selesaikan Room
+                  Complete Room
                 </UButton>
               </div>
             </div>
@@ -2283,7 +2283,7 @@ async function handleSubmitItemAction() {
                 <div class="flex items-center gap-2">
                   <UIcon name="i-lucide-clipboard-plus" class="size-4 text-primary" />
                   <p class="text-sm font-bold text-highlighted">
-                    Catatan Medis
+                    Medical Notes
                   </p>
                 </div>
                 <UButton
@@ -2300,7 +2300,7 @@ async function handleSubmitItemAction() {
               <div class="mt-3 grid gap-3 sm:grid-cols-2">
                 <div class="min-w-0">
                   <p class="mb-1 text-xs text-muted">
-                    Catatan Alergi
+                    Allergy Notes
                   </p>
                   <p class="whitespace-pre-wrap text-sm font-medium">
                     {{ patientDetail?.allergyNotes || '-' }}
@@ -2308,7 +2308,7 @@ async function handleSubmitItemAction() {
                 </div>
                 <div class="min-w-0">
                   <p class="mb-1 text-xs text-muted">
-                    Catatan Penyakit
+                    Disease Notes
                   </p>
                   <p class="whitespace-pre-wrap text-sm font-medium">
                     {{ patientDetail?.diseaseNotes || '-' }}
@@ -2321,24 +2321,24 @@ async function handleSubmitItemAction() {
           <!-- Modal edit catatan medis -->
           <UModal
             v-model:open="medicalNotesModalOpen"
-            title="Catatan Medis"
-            description="Perbarui catatan alergi & penyakit pasien."
+            title="Medical Notes"
+            description="Update the patient's allergy & disease notes."
           >
             <template #body>
               <div class="space-y-4">
-                <UFormField label="Catatan Alergi">
+                <UFormField label="Allergy Notes">
                   <UTextarea
                     v-model="medicalNotesForm.allergyNotes"
                     :rows="3"
-                    placeholder="Contoh: seafood, kacang"
+                    placeholder="Example: seafood, nuts"
                     class="w-full"
                   />
                 </UFormField>
-                <UFormField label="Catatan Penyakit">
+                <UFormField label="Disease Notes">
                   <UTextarea
                     v-model="medicalNotesForm.diseaseNotes"
                     :rows="3"
-                    placeholder="Contoh: hipertensi"
+                    placeholder="Example: hypertension"
                     class="w-full"
                   />
                 </UFormField>
@@ -2351,7 +2351,7 @@ async function handleSubmitItemAction() {
                   variant="outline"
                   @click="medicalNotesModalOpen = false"
                 >
-                  Batal
+                  Cancel
                 </UButton>
                 <UButton
                   color="primary"
@@ -2360,7 +2360,7 @@ async function handleSubmitItemAction() {
                   :disabled="!medicalNotesDirty"
                   @click="saveMedicalNotes"
                 >
-                  Simpan
+                  Save
                 </UButton>
               </div>
             </template>
@@ -2373,15 +2373,15 @@ async function handleSubmitItemAction() {
                   <UIcon name="i-lucide-test-tubes" class="size-5 text-primary" />
                   <div>
                     <h3 class="text-sm font-bold text-highlighted">
-                      Sampel Pemeriksaan
+                      Examination Samples
                     </h3>
                     <p class="text-xs text-muted">
-                      Ambil/terima per jenis sampel. Banyak item bisa memakai satu sampel yang sama.
+                      Collect/receive per sample type. Multiple items can share the same sample.
                     </p>
                   </div>
                 </div>
                 <UBadge color="neutral" variant="subtle">
-                  {{ sampleCollectionCards.length }} sampel
+                  {{ sampleCollectionCards.length }} samples
                 </UBadge>
               </div>
             </template>
@@ -2407,7 +2407,7 @@ async function handleSubmitItemAction() {
                 </div>
 
                 <p class="mt-2 line-clamp-2 text-xs text-muted">
-                  {{ sample.items.length ? sample.items.join(', ') : 'Tanpa item terkait' }}
+                  {{ sample.items.length ? sample.items.join(', ') : 'No related items' }}
                 </p>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -2420,7 +2420,7 @@ async function handleSubmitItemAction() {
                     :loading="collectionActionLoading[sample.id]"
                     @click="handleCollectCollection(sample.id)"
                   >
-                    Ambil Sample
+                    Collect Sample
                   </UButton>
                   <UButton
                     v-else-if="sample.canReceive"
@@ -2431,7 +2431,7 @@ async function handleSubmitItemAction() {
                     :loading="collectionActionLoading[sample.id]"
                     @click="handleReceiveCollection(sample.id)"
                   >
-                    Terima Sample
+                    Receive Sample
                   </UButton>
 
                   <UButton
@@ -2442,7 +2442,7 @@ async function handleSubmitItemAction() {
                     icon="i-lucide-ban"
                     @click="openRejectSampleModal(sample)"
                   >
-                    Tolak Sample
+                    Reject Sample
                   </UButton>
 
                   <span
@@ -2450,12 +2450,12 @@ async function handleSubmitItemAction() {
                     class="text-xs text-muted"
                   >
                     {{ sample.status === 'RECEIVED'
-                      ? 'Selesai'
+                      ? 'Completed'
                       : sample.status === 'REJECTED'
-                        ? 'Sample ditolak'
+                        ? 'Sample rejected'
                         : sample.status === 'RESCHEDULED'
-                          ? 'Dijadwalkan ulang'
-                          : 'Menunggu tahap terkait' }}
+                          ? 'Rescheduled'
+                          : 'Awaiting related stage' }}
                   </span>
                 </div>
               </div>
@@ -2476,8 +2476,8 @@ async function handleSubmitItemAction() {
           <UAlert
             v-if="!canFinishWork"
             color="warning"
-            title="Room belum bisa diselesaikan"
-            description="Masih ada item pemeriksaan yang statusnya belum final. Lengkapi hasil atau dokumentasi lalu selesaikan setiap item."
+            title="Room cannot be completed yet"
+            description="Some examination items are not final yet. Complete the results or documentation, then finish each item."
           />
 
           <!-- Custom doctor renderer: navigasi item menjadi tab di bawah detail pasien. -->
@@ -2514,7 +2514,7 @@ async function handleSubmitItemAction() {
             >
               <div class="flex items-center justify-between border-b border-default/80 pb-3 lg:hidden">
                 <h3 class="text-sm font-bold text-highlighted">
-                  Daftar Item Pemeriksaan
+                  Examination Item List
                 </h3>
                 <UButton
                   color="neutral"
@@ -2557,7 +2557,7 @@ async function handleSubmitItemAction() {
                   </div>
                 </button>
                 <p v-if="masterItems.length === 0" class="px-1 py-3 text-sm text-muted">
-                  Tidak ada item pemeriksaan.
+                  No examination items.
                 </p>
               </div>
             </aside>
@@ -2635,7 +2635,7 @@ async function handleSubmitItemAction() {
                   <div class="flex items-center justify-between border-b border-default/80 bg-muted/30 px-5 py-3.5">
                     <div>
                       <span class="block text-[10px] font-bold uppercase text-muted">
-                        Form Detail · Item #{{ selectedMaster?.index }}
+                        Detail Form · Item #{{ selectedMaster?.index }}
                       </span>
                       <h3 class="text-sm font-bold text-highlighted">
                         {{ selectedItem.trxExamItem?.item?.name || '-' }}
@@ -2645,10 +2645,10 @@ async function handleSubmitItemAction() {
                         class="mt-1 text-xs text-muted"
                       >
                         <template v-if="queuePatient?.gender">
-                          {{ queuePatient.gender === 'MALE' ? 'Laki-laki' : 'Perempuan' }}
+                          {{ queuePatient.gender === 'MALE' ? 'Male' : 'Female' }}
                         </template>
                         <template v-if="queuePatient?.dob">
-                          · {{ getPatientAgeAtDate(queuePatient.dob, selectedItem.createdAt) }} tahun
+                          · {{ getPatientAgeAtDate(queuePatient.dob, selectedItem.createdAt) }} years old
                         </template>
                       </p>
                     </div>
@@ -2669,7 +2669,7 @@ async function handleSubmitItemAction() {
                         :loading="itemActionLoading[selectedItem.id]"
                         @click="handleStartItem(selectedItem)"
                       >
-                        Mulai Item
+                        Start Item
                       </UButton>
 
                       <UButton
@@ -2680,7 +2680,7 @@ async function handleSubmitItemAction() {
                         :loading="resultSaveLoading[selectedItem.id]"
                         @click="handleSaveResults(selectedItem)"
                       >
-                        Simpan Draft
+                        Save Draft
                       </UButton>
 
                       <UButton
@@ -2691,7 +2691,7 @@ async function handleSubmitItemAction() {
                         :loading="resultSaveLoading[selectedItem.id]"
                         @click="handleSubmitResults(selectedItem)"
                       >
-                        Submit Hasil
+                        Submit Results
                       </UButton>
 
                       <UButton
@@ -2703,7 +2703,7 @@ async function handleSubmitItemAction() {
                         :disabled="!canDoneItem(selectedItem)"
                         @click="handleDoneItem(selectedItem)"
                       >
-                        Selesaikan Item
+                        Complete Item
                       </UButton>
                     </div>
 
@@ -2717,7 +2717,7 @@ async function handleSubmitItemAction() {
                         :loading="itemActionLoading[selectedItem.id]"
                         @click="openItemActionModal(selectedItem, 'refuse')"
                       >
-                        Pasien Menolak
+                        Patient Refused
                       </UButton>
 
                       <UButton
@@ -2750,8 +2750,8 @@ async function handleSubmitItemAction() {
                     <UAlert
                       v-if="isSampleManagedItem(selectedItem) && !isExamStageActive()"
                       color="warning"
-                      title="Belum masuk tahap exam"
-                      :description="`Tahap aktif saat ini ${getStageDisplayName(activeStage)}. Item lab baru bisa diisi setelah sample collect dan receive selesai, lalu stage aktif berpindah ke EXAM.`"
+                      title="Not in the exam stage yet"
+                      :description="`Current active stage is ${getStageDisplayName(activeStage)}. Lab items can only be filled after sample collection and reception are complete, then the active stage moves to EXAM.`"
                     />
 
                     <UAlert
@@ -2777,13 +2777,13 @@ async function handleSubmitItemAction() {
                     >
                       <div class="flex items-center justify-between gap-3 px-0.5">
                         <p class="text-xs font-medium text-muted">
-                          {{ visibleItemInputans(selectedItem).length }} inputan
+                          {{ visibleItemInputans(selectedItem).length }} inputs
                         </p>
                         <UTabs
                           v-model="inputColumnsCount"
                           :items="[
-                            { label: '1 Kolom', value: 1 },
-                            { label: '2 Kolom', value: 2 }
+                            { label: '1 Column', value: 1 },
+                            { label: '2 Columns', value: 2 }
                           ]"
                           size="xs"
                         />
@@ -2830,7 +2830,7 @@ async function handleSubmitItemAction() {
                             class="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary"
                           >
                             <p class="font-medium">
-                              Nilai normal
+                              Normal value
                             </p>
                             <p
                               v-for="range in getSelectedNormalRanges(inputan)"
@@ -2845,7 +2845,7 @@ async function handleSubmitItemAction() {
                             v-model="getInputDraft(selectedItem.id, inputan.id).valueNumber"
                             type="number"
                             :class="getInputValueClass(selectedItem.id, inputan)"
-                            :placeholder="`Isi ${inputan.label}`"
+                            :placeholder="`Enter ${inputan.label}`"
                           >
 
                           <input
@@ -2853,7 +2853,7 @@ async function handleSubmitItemAction() {
                             v-model="getInputDraft(selectedItem.id, inputan.id).valueString"
                             type="text"
                             class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
-                            :placeholder="`Isi ${inputan.label}`"
+                            :placeholder="`Enter ${inputan.label}`"
                           >
 
                           <select
@@ -2862,7 +2862,7 @@ async function handleSubmitItemAction() {
                             class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm"
                           >
                             <option value="">
-                              Pilih hasil
+                              Select result
                             </option>
                             <option
                               v-for="opsi in inputan.opsis || []"
@@ -2884,7 +2884,7 @@ async function handleSubmitItemAction() {
                               v-model="getInputDraft(selectedItem.id, inputan.id).valueString"
                               type="text"
                               class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15"
-                              :placeholder="`Tuliskan detail ${inputan.label}`"
+                              :placeholder="`Enter detail for ${inputan.label}`"
                             >
                           </div>
 
@@ -2894,7 +2894,7 @@ async function handleSubmitItemAction() {
                               type="number"
                               disabled
                               class="w-full rounded-lg border border-default bg-muted/40 px-3 py-2 text-sm text-muted"
-                              placeholder="Dihitung otomatis"
+                              placeholder="Calculated automatically"
                             >
                             <p v-if="inputan.formula?.formula" class="mt-1 truncate text-[11px] text-muted">
                               {{ inputan.formula.formula }}
@@ -2906,13 +2906,13 @@ async function handleSubmitItemAction() {
 
                     <div v-if="canRenderItemNotes(selectedItem)">
                       <label class="mb-2 block text-sm font-medium text-highlighted">
-                        Dokumentasi hasil pemeriksaan
+                        Examination result documentation
                       </label>
                       <textarea
                         v-model="itemNotes[selectedItem.id]"
                         rows="4"
                         class="w-full rounded-xl border border-default bg-default px-3 py-2 text-sm"
-                        placeholder="Tuliskan dokumentasi atau kesimpulan hasil pemeriksaan item ini..."
+                        placeholder="Write documentation or conclusions for this item's examination results..."
                       />
                     </div>
 
@@ -2923,17 +2923,17 @@ async function handleSubmitItemAction() {
                       <div class="mb-3 flex items-center justify-between gap-3">
                         <div>
                           <p class="text-sm font-semibold text-highlighted">
-                            Dokumen hasil
+                            Result document
                           </p>
                           <p class="text-xs text-muted">
-                            {{ selectedItem.trxExamItem?.templateSnapshotAt ? formatDate(selectedItem.trxExamItem.templateSnapshotAt) : 'Draft hasil tersimpan' }}
+                            {{ selectedItem.trxExamItem?.templateSnapshotAt ? formatDate(selectedItem.trxExamItem.templateSnapshotAt) : 'Result draft saved' }}
                           </p>
                         </div>
                         <UBadge :color="selectedItem.trxExamItem?.resultStatus === 'SUBMITTED' ? 'warning' : 'success'" variant="soft" :label="selectedItem.trxExamItem?.resultStatus === 'SUBMITTED' ? 'Waiting Approval' : 'Submitted'" />
                       </div>
 
                       <p v-if="getSubmittedResultRows(selectedItem).length === 0" class="rounded-lg border border-dashed border-default bg-default px-3 py-2 text-sm text-muted">
-                        Hasil belum termuat di response. Refresh data atau buka kembali room ini.
+                        Results are not loaded in the response. Refresh the data or reopen this room.
                       </p>
 
                       <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -2959,7 +2959,7 @@ async function handleSubmitItemAction() {
                       v-if="selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.externalResult && getExternalDoneBlockReason(selectedItem)"
                       color="warning"
                       variant="soft"
-                      title="Item belum bisa diselesaikan"
+                      title="Item cannot be completed yet"
                       :description="getExternalDoneBlockReason(selectedItem) || undefined"
                     />
 
@@ -2973,7 +2973,7 @@ async function handleSubmitItemAction() {
               </template>
 
               <div v-else class="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted">
-                Belum ada item pemeriksaan untuk room ini.
+                No examination items for this room yet.
               </div>
             </div>
           </div>
@@ -2984,54 +2984,54 @@ async function handleSubmitItemAction() {
 
   <UModal
     v-model:open="isItemActionModalOpen"
-    :title="selectedItemActionType === 'skip' ? 'Skip Item' : selectedItemActionType === 'refuse' ? 'Pasien Menolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item'"
+    :title="selectedItemActionType === 'skip' ? 'Skip Item' : selectedItemActionType === 'refuse' ? 'Patient Refused Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item'"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
           :color="(selectedItemActionType === 'skip' || selectedItemActionType === 'refuse') ? 'error' : 'warning'"
-          :title="selectedItemAction?.trxExamItem?.item?.name || 'Item pemeriksaan'"
+          :title="selectedItemAction?.trxExamItem?.item?.name || 'Examination item'"
           :description="selectedItemActionType === 'skip'
-            ? 'Item ini akan ditandai skip (batal oleh admin/petugas).'
+            ? 'This item will be marked as skipped (cancelled by admin/staff).'
             : selectedItemActionType === 'refuse'
-              ? 'Item ini akan ditandai pasien menolak pemeriksaan.'
+              ? 'This item will be marked as refused by the patient.'
               : selectedItemActionType === 'retest'
-                ? 'Item ini akan dijadwalkan ulang untuk pemeriksaan ulang.'
-                : 'Item ini akan dijadwalkan ulang untuk kunjungan berikutnya.'"
+                ? 'This item will be rescheduled for re-examination.'
+                : 'This item will be rescheduled for the next visit.'"
         />
 
         <div v-if="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse'" class="space-y-2">
           <label class="block text-sm font-medium text-highlighted">
-            {{ selectedItemActionType === 'refuse' ? 'Alasan penolakan' : 'Alasan skip' }}
+            {{ selectedItemActionType === 'refuse' ? 'Refusal reason' : 'Skip reason' }}
           </label>
           <UTextarea
             v-model="itemActionReason"
             :rows="4"
             :placeholder="selectedItemActionType === 'refuse'
-              ? 'Contoh: pasien tidak ingin diperiksa, kondisi lain...'
-              : 'Contoh: sampel tidak tersedia, kondisi lain...'"
+              ? 'Example: patient does not want to be examined, other conditions...'
+              : 'Example: sample unavailable, other conditions...'"
           />
         </div>
 
         <div v-else-if="selectedItemActionType === 'retest'" class="space-y-2">
           <label class="block text-sm font-medium text-highlighted">
-            Alasan retest
+            Retest reason
           </label>
           <UTextarea
             v-model="itemActionReason"
             :rows="4"
-            placeholder="Contoh: hasil tidak valid, alat bermasalah, kondisi lain..."
+            placeholder="Example: invalid result, equipment issue, other conditions..."
           />
         </div>
 
         <div class="space-y-2">
           <label class="block text-sm font-medium text-highlighted">
-            Catatan
+            Notes
           </label>
           <UTextarea
             v-model="itemActionNote"
             :rows="4"
-            placeholder="Catatan tambahan opsional"
+            placeholder="Optional additional notes"
           />
         </div>
       </div>
@@ -3045,14 +3045,14 @@ async function handleSubmitItemAction() {
           :disabled="itemActionSubmitLoading"
           @click="closeItemActionModal"
         >
-          Batal
+          Cancel
         </UButton>
         <UButton
           :color="selectedItemActionType === 'skip' ? 'error' : selectedItemActionType === 'retest' ? 'primary' : 'warning'"
           :loading="itemActionSubmitLoading"
           @click="handleSubmitItemAction"
         >
-          {{ selectedItemActionType === 'skip' ? 'Tolak Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
+          {{ selectedItemActionType === 'skip' ? 'Refuse Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
         </UButton>
       </div>
     </template>
@@ -3060,24 +3060,24 @@ async function handleSubmitItemAction() {
 
   <UModal
     v-model:open="isRejectSampleModalOpen"
-    title="Tolak Sample"
+    title="Reject Sample"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
           color="error"
           :title="rejectSampleTarget?.sampleName || 'Sample'"
-          description="Sample ini akan ditolak. Item pemeriksaan yang memakai sample ini tidak bisa dikerjakan sampai sample diambil ulang."
+          description="This sample will be rejected. Examination items using this sample cannot be processed until the sample is re-collected."
         />
 
         <div class="space-y-2">
           <label class="block text-sm font-medium text-highlighted">
-            Alasan penolakan
+            Rejection reason
           </label>
           <UTextarea
             v-model="rejectSampleReason"
             :rows="4"
-            placeholder="Contoh: pasien menolak, sample hemolisis, volume kurang..."
+            placeholder="Example: patient refused, hemolyzed sample, insufficient volume..."
           />
         </div>
       </div>
@@ -3091,7 +3091,7 @@ async function handleSubmitItemAction() {
           :disabled="rejectSampleSubmitting"
           @click="closeRejectSampleModal"
         >
-          Batal
+          Cancel
         </UButton>
         <UButton
           color="error"
@@ -3099,7 +3099,7 @@ async function handleSubmitItemAction() {
           :loading="rejectSampleSubmitting"
           @click="submitRejectSample"
         >
-          Tolak Sample
+          Reject Sample
         </UButton>
       </div>
     </template>
@@ -3107,14 +3107,14 @@ async function handleSubmitItemAction() {
 
   <UModal
     v-model:open="isExitRoomModalOpen"
-    title="Keluar Room"
+    title="Exit Room"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
           color="warning"
-          title="Keluar dari sesi room aktif?"
-          :description="`Sesi aktif saat ini: ${roomSessionLabel}. Setelah keluar, kamu akan diarahkan ke halaman assignment room.`"
+          title="Exit the active room session?"
+          :description="`Current active session: ${roomSessionLabel}. After exiting, you will be directed to the room assignment page.`"
         />
       </div>
     </template>
@@ -3127,14 +3127,14 @@ async function handleSubmitItemAction() {
           :disabled="roomSessionActionLoading"
           @click="isExitRoomModalOpen = false"
         >
-          Batal
+          Cancel
         </UButton>
         <UButton
           color="warning"
           :loading="roomSessionActionLoading"
           @click="handleExitRoom"
         >
-          Keluar Room
+          Exit Room
         </UButton>
       </div>
     </template>
@@ -3142,14 +3142,14 @@ async function handleSubmitItemAction() {
 
   <UModal
     v-model:open="isEnterRoomModalOpen"
-    title="Masuk Room"
+    title="Enter Room"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
           color="info"
-          title="Masuk ke room assignment?"
-          :description="`Room assignment saat ini: ${roomAssignment?.room?.code ? `${roomAssignment.room.code} - ` : ''}${roomAssignment?.room?.name || roomAssignment?.roomType?.name || '-'}.`"
+          title="Enter the room assignment?"
+          :description="`Current room assignment: ${roomAssignment?.room?.code ? `${roomAssignment.room.code} - ` : ''}${roomAssignment?.room?.name || roomAssignment?.roomType?.name || '-'}.`"
         />
       </div>
     </template>
@@ -3162,33 +3162,33 @@ async function handleSubmitItemAction() {
           :disabled="roomEnterActionLoading"
           @click="isEnterRoomModalOpen = false"
         >
-          Batal
+          Cancel
         </UButton>
         <UButton
           color="primary"
           :loading="roomEnterActionLoading"
           @click="handleEnterRoom"
         >
-          Masuk Room
+          Enter Room
         </UButton>
       </div>
     </template>
   </UModal>
 
-  <UModal v-model:open="photoViewerOpen" title="Foto Pasien" :ui="{ content: 'sm:max-w-2xl' }">
+  <UModal v-model:open="photoViewerOpen" title="Patient Photo" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <div class="flex items-center justify-center">
         <img
           v-if="patientPhotoUrl"
           :src="patientPhotoUrl"
-          alt="Foto pasien"
+          alt="Patient photo"
           class="max-h-[70vh] w-auto rounded-xl border border-default"
         >
       </div>
     </template>
     <template #footer>
       <div class="flex justify-end">
-        <UButton color="primary" label="Tutup" @click="photoViewerOpen = false" />
+        <UButton color="primary" label="Close" @click="photoViewerOpen = false" />
       </div>
     </template>
   </UModal>

@@ -69,12 +69,12 @@ function onDentalSaved() {
           <div>
             <div class="flex items-center gap-2">
               <p class="text-xs font-semibold uppercase tracking-wide text-teal-600">
-                Khusus Dental
+                Dental Only
               </p>
-              <UBadge color="primary" variant="solid" label="Exam Gigi" />
+              <UBadge color="primary" variant="solid" label="Dental Exam" />
             </div>
             <h3 class="mt-0.5 text-lg font-bold text-highlighted">
-              {{ item.trxExamItem?.item?.name || 'Pemeriksaan Gigi' }}
+              {{ item.trxExamItem?.item?.name || 'Dental Examination' }}
             </h3>
             <p class="text-xs text-muted">
               {{ item.trxExamItem?.item?.code || 'DENTAL_EXAM' }}
@@ -92,10 +92,10 @@ function onDentalSaved() {
             icon="i-lucide-arrow-left"
             @click="emit('back')"
           >
-            Kembali
+            Back
           </UButton>
           <UBadge
-            :label="isFinal ? 'Selesai' : item.status === 'IN_PROGRESS' ? 'Sedang dikerjakan' : 'Menunggu'"
+            :label="isFinal ? 'Completed' : item.status === 'IN_PROGRESS' ? 'In Progress' : 'Waiting'"
             :color="item.status === 'DONE' ? 'success' : item.status === 'IN_PROGRESS' ? 'warning' : 'neutral'"
             variant="subtle"
           />
@@ -107,7 +107,7 @@ function onDentalSaved() {
             :loading="startLoading"
             @click="emit('start')"
           >
-            Mulai Item
+            Start Item
           </UButton>
 
           <UButton
@@ -118,7 +118,7 @@ function onDentalSaved() {
             :disabled="!canDone"
             @click="emit('done')"
           >
-            Selesaikan Item
+            Complete Item
           </UButton>
 
           <UButton
@@ -148,7 +148,7 @@ function onDentalSaved() {
             icon="i-lucide-ban"
             @click="emit('refuse')"
           >
-            Pasien Menolak
+            Patient Refused
           </UButton>
         </div>
       </div>
@@ -160,16 +160,16 @@ function onDentalSaved() {
         color="info"
         variant="soft"
         icon="i-lucide-info"
-        title="Menunggu tahap EXAM"
-        description="Item dental akan bisa dimulai setelah stage aktif berpindah ke EXAM dan tombol 'Mulai Item' tersedia."
+        title="Waiting for EXAM stage"
+        description="The dental item can be started once the active stage moves to EXAM and the 'Start Item' button is available."
       />
 
       <div class="rounded-xl border border-teal-500/30 bg-teal-50/60 p-3 text-sm text-teal-700 dark:bg-teal-500/5 dark:text-teal-300">
         <div class="flex items-start gap-2">
           <UIcon name="i-lucide-sparkles" class="mt-0.5 size-4 shrink-0" />
           <p>
-            Formulir pemeriksaan gigi mengikuti template department Dental. Di room ini simpan sebagai draft,
-            lalu selesaikan item dan room. Submit final hasil dental dilakukan dari menu Result setelah item selesai.
+            The dental examination form follows the Dental department template. In this room, save as a draft,
+            then complete the item and room. Final submission of dental results is done from the Result menu after the item is completed.
           </p>
         </div>
       </div>
@@ -187,7 +187,7 @@ function onDentalSaved() {
         color="neutral"
         variant="soft"
         icon="i-lucide-shield-alert"
-        description="Exam ID dental tidak ditemukan untuk item ini."
+        description="Dental exam ID not found for this item."
       />
     </div>
   </UCard>
