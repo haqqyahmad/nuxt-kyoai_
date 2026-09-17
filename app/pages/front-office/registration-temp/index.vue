@@ -84,16 +84,16 @@ async function deleteRegistrationTemp(id: string) {
     await api.delete(`/registration-temp/${id}`)
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Patient berhasil dihapus',
+      title: 'Success',
+      description: 'Patient deleted successfully',
       color: 'success'
     })
 
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus patient',
+      title: 'Failed',
+      description: 'Failed to delete patient',
       color: 'error'
     })
   }
@@ -120,8 +120,8 @@ async function deleteSelectedRegistrations() {
     )
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil dihapus',
+      title: 'Success',
+      description: 'Patient data deleted successfully',
       color: 'success'
     })
 
@@ -129,8 +129,8 @@ async function deleteSelectedRegistrations() {
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus data',
+      title: 'Failed',
+      description: 'Failed to delete data',
       color: 'error'
     })
   }
@@ -268,7 +268,7 @@ const columns: TableColumn<TempRegist>[] = [
       })
     },
     cell: ({ row }) =>
-      row.getValue('gender') === 'male' ? 'Laki-laki' : 'Perempuan'
+      row.getValue('gender') === 'male' ? 'Male' : 'Female'
   },
   {
     accessorKey: 'priorityRegist',
@@ -453,13 +453,13 @@ const columns: TableColumn<TempRegist>[] = [
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
         row.original.status === 'PROCESS'
           ? h(UButton, {
-              label: 'Lanjutkan',
+              label: 'Continue',
               icon: 'i-lucide-play',
               color: 'primary',
               variant: 'soft',
               size: 'xs',
               to: resumeCreateUrl(row.original),
-              title: 'Lanjutkan Registrasi'
+              title: 'Continue Registration'
             })
           : null,
         h(UButton, {

@@ -95,8 +95,8 @@ async function fetchResults() {
     results.value = data
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal memuat hasil questionnaire',
+      title: 'Failed',
+      description: 'Failed to load questionnaire results',
       color: 'error'
     })
     results.value = []
@@ -542,7 +542,7 @@ watch(results, () => {
 <template>
   <UDashboardPanel id="questionnaire-results">
     <template #header>
-      <UDashboardNavbar title="Hasil Questionnaire">
+      <UDashboardNavbar title="Questionnaire Results">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -573,7 +573,7 @@ watch(results, () => {
                 class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
-                  Semua company
+                  All companies
                 </option>
                 <option v-for="c in customers ?? []" :key="c.id" :value="String(c.id)">
                   {{ c.customerName }}
@@ -587,7 +587,7 @@ watch(results, () => {
                 class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
-                  Semua branch
+                  All branches
                 </option>
                 <option v-for="b in branches ?? []" :key="b.branchId" :value="String(b.branchId)">
                   {{ b.nameBranch }}
@@ -595,7 +595,7 @@ watch(results, () => {
               </select>
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Dari Tanggal</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">From Date</label>
               <input
                 v-model="filters.dateFrom"
                 type="date"
@@ -603,7 +603,7 @@ watch(results, () => {
               >
             </div>
             <div class="space-y-1">
-              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Sampai Tanggal</label>
+              <label class="text-[11px] font-medium text-slate-500 dark:text-neutral-400">To Date</label>
               <input
                 v-model="filters.dateTo"
                 type="date"
@@ -617,7 +617,7 @@ watch(results, () => {
                 class="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
               >
                 <option value="">
-                  Semua status
+                  All statuses
                 </option>
                 <option value="Completed">
                   Completed
@@ -642,7 +642,7 @@ watch(results, () => {
               :disabled="loading"
               @click="fetchResults"
             >
-              <UIcon name="i-lucide-filter" class="size-3.5" /> Terapkan
+              <UIcon name="i-lucide-filter" class="size-3.5" /> Apply
             </button>
           </div>
         </div>
@@ -650,8 +650,8 @@ watch(results, () => {
         <!-- Table card -->
         <div class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
           <div class="flex items-center justify-between border-b border-slate-100 p-4 dark:border-neutral-800">
-            <span class="text-xs font-medium text-slate-500 dark:text-neutral-400">{{ totalPatients }} Pasien ({{ totalQuestionnaires }} Total Questionnaire)</span>
-            <span class="hidden text-[11px] text-slate-400 sm:block dark:text-neutral-500">Klik baris untuk melihat rincian</span>
+            <span class="text-xs font-medium text-slate-500 dark:text-neutral-400">{{ totalPatients }} Patients ({{ totalQuestionnaires }} Total Questionnaires)</span>
+            <span class="hidden text-[11px] text-slate-400 sm:block dark:text-neutral-500">Click a row to view details</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -701,7 +701,7 @@ watch(results, () => {
                 </tr>
                 <tr v-else-if="!paginatedGroups.length">
                   <td colspan="6" class="py-10 text-center text-sm text-slate-400 dark:text-neutral-400">
-                    Tidak ada data
+                    No data
                   </td>
                 </tr>
 
@@ -749,7 +749,7 @@ watch(results, () => {
                       <div class="space-y-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between border-b border-slate-200 bg-slate-100/80 px-3.5 py-2 text-[11px] font-semibold text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                           <span class="flex items-center gap-1.5">
-                            <UIcon name="i-lucide-corner-down-right" class="size-3.5 text-blue-600 dark:text-blue-400" /> Rincian Questionnaire Pasien: {{ g.patientName }}
+                            <UIcon name="i-lucide-corner-down-right" class="size-3.5 text-blue-600 dark:text-blue-400" /> Patient Questionnaire Details: {{ g.patientName }}
                           </span>
                           <span class="font-mono text-[10px] text-slate-400 dark:text-neutral-500">{{ g.patientCode }}</span>
                         </div>
@@ -758,7 +758,7 @@ watch(results, () => {
                             <thead class="border-b border-slate-100 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-500">
                               <tr>
                                 <th class="p-2.5">
-                                  No. Registrasi
+                                  Registration No.
                                 </th>
                                 <th class="p-2.5">
                                   Questionnaire
@@ -770,7 +770,7 @@ watch(results, () => {
                                   Completion Time
                                 </th>
                                 <th class="p-2.5 text-center">
-                                  Aksi
+                                  Action
                                 </th>
                               </tr>
                             </thead>
@@ -818,7 +818,7 @@ watch(results, () => {
 
           <!-- Pagination footer -->
           <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-100 p-4 sm:flex-row dark:border-neutral-800">
-            <span class="text-xs font-medium text-slate-400 dark:text-neutral-500">{{ totalPatients }} Pasien Terdaftar</span>
+            <span class="text-xs font-medium text-slate-400 dark:text-neutral-500">{{ totalPatients }} Registered Patients</span>
 
             <div class="flex flex-wrap items-center gap-3">
               <USelect

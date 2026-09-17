@@ -110,12 +110,12 @@ const SERVICE_TYPE_LABEL: Record<string, string> = {
   Laboratorium: 'Lab',
   DoctorConsultation: 'Consultation',
   MCU: 'MCU',
-  Vaccine: 'Vaksin',
+  Vaccine: 'Vaccine',
   Antigen: 'Antigen',
   PCR: 'PCR',
   VitaminInjection: 'Vitamin',
-  Pharmacy: 'Farmasi',
-  Dental: 'Gigi'
+  Pharmacy: 'Pharmacy',
+  Dental: 'Dental'
 }
 
 const SERVICE_TYPE_COLOR: Record<string, string> = {
@@ -136,7 +136,7 @@ const STATUS_LABEL: Record<string, string> = {
   checkout: 'Check-out',
   partialexam: 'Partial Exam',
   reschedule: 'Reschedule',
-  cancel: 'Dibatalkan'
+  cancel: 'Cancelled'
 }
 const STATUS_COLOR: Record<string, string> = {
   open: 'success',
@@ -167,16 +167,16 @@ async function deletePatient(id: string) {
     await api.delete(`/patient/${id}`)
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Patient berhasil dihapus',
+      title: 'Success',
+      description: 'Patient deleted successfully',
       color: 'success'
     })
 
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus patient',
+      title: 'Failed',
+      description: 'Failed to delete patient',
       color: 'error'
     })
   }
@@ -201,8 +201,8 @@ async function deleteSelectedPatients() {
     )
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil dihapus',
+      title: 'Success',
+      description: 'Patient data deleted successfully',
       color: 'success'
     })
 
@@ -210,8 +210,8 @@ async function deleteSelectedPatients() {
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus data',
+      title: 'Failed',
+      description: 'Failed to delete data',
       color: 'error'
     })
   }
@@ -322,7 +322,7 @@ const columns: TableColumn<Patient>[] = [
           h('button', {
             type: 'button',
             class: 'text-left font-medium text-blue-600 hover:text-blue-700 hover:underline',
-            title: 'Klik untuk edit data pasien',
+            title: 'Click to edit patient data',
             onClick: () => openPatientEdit(p.id)
           }, fullName)
         ])
@@ -367,7 +367,7 @@ const columns: TableColumn<Patient>[] = [
       })
     },
     cell: ({ row }) =>
-      row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
+      row.getValue('gender') === 'MALE' ? 'Male' : 'Female'
   },
   {
     accessorKey: 'priorityRegist',
@@ -460,7 +460,7 @@ const columns: TableColumn<Patient>[] = [
         ]),
         p.rescheduleVisitDate
           ? h(UBadge, {
-              label: `Datang lagi: ${p.rescheduleVisitDate}`,
+              label: `Return on: ${p.rescheduleVisitDate}`,
               color: 'warning',
               variant: 'outline',
               icon: 'i-lucide-calendar-clock'

@@ -140,16 +140,16 @@ type Paket = {
 const SERVICE_TYPES = [
   {
     value: 'Laboratorium',
-    label: 'Laboratorium',
+    label: 'Laboratory',
     icon: 'i-lucide-flask-conical'
   },
   {
     value: 'DoctorConsultation',
-    label: 'Konsultasi Dokter',
+    label: 'Doctor Consultation',
     icon: 'i-lucide-stethoscope'
   },
   { value: 'MCU', label: 'MCU', icon: 'i-lucide-clipboard-list' },
-  { value: 'Vaccine', label: 'Vaksin', icon: 'i-lucide-syringe' },
+  { value: 'Vaccine', label: 'Vaccine', icon: 'i-lucide-syringe' },
   { value: 'Antigen', label: 'Antigen', icon: 'i-lucide-microscope' },
   { value: 'PCR', label: 'PCR', icon: 'i-lucide-dna' },
   {
@@ -157,13 +157,13 @@ const SERVICE_TYPES = [
     label: 'Vitamin Injection',
     icon: 'i-lucide-pill'
   },
-  { value: 'Pharmacy', label: 'Farmasi', icon: 'i-lucide-tablets' },
-  { value: 'Dental', label: 'Gigi', icon: 'i-lucide-smile' }
+  { value: 'Pharmacy', label: 'Pharmacy', icon: 'i-lucide-tablets' },
+  { value: 'Dental', label: 'Dental', icon: 'i-lucide-smile' }
 ] as const
 
 const PAYMENT_TYPES = [
   { value: 'Personal', label: 'Personal' },
-  { value: 'Insurance', label: 'Asuransi' },
+  { value: 'Insurance', label: 'Insurance' },
   { value: 'BillToCompany', label: 'Bill to Company' }
 ]
 
@@ -514,8 +514,8 @@ async function saveNewPatient() {
     selectPatient(patient)
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Pasien baru berhasil disimpan',
+      title: 'Success',
+      description: 'New patient saved successfully',
       color: 'success'
     })
 
@@ -526,8 +526,8 @@ async function saveNewPatient() {
     }
 
     toast.add({
-      title: 'Gagal',
-      description: error.response?.data?.message ?? 'Gagal menyimpan pasien',
+      title: 'Failed',
+      description: error.response?.data?.message ?? 'Failed to save patient',
       color: 'error'
     })
 
@@ -638,7 +638,7 @@ async function loadTempPrefill(temp: TempRegistration) {
       applyTempContact(temp)
       applyTempPersonal(temp)
     } catch {
-      tempLoadError.value = 'Gagal memuat data pasien'
+      tempLoadError.value = 'Failed to load patient data'
     }
   } else {
     // Patient baru dari portal → tampilkan form pasien baru terisi
@@ -688,7 +688,7 @@ async function loadFromTemp() {
       regForm.value.priorityRegist = String(route.query.priorityRegist)
     }
   } catch {
-    tempLoadError.value = 'Gagal memuat data registrasi sementara'
+    tempLoadError.value = 'Failed to load temporary registration data'
   } finally {
     tempLoading.value = false
   }
@@ -784,7 +784,7 @@ function formatNilaiNormal(
   }
   if (inp.inputType === 'selected') {
     const normals = inp.nilaiNormalSel
-    if (!normals.length) return 'Semua opsi valid'
+    if (!normals.length) return 'All options valid'
     const labels = [...new Set(normals.map(n => n.opsi.label))]
     return labels.slice(0, 3).join(', ') + (labels.length > 3 ? '...' : '')
   }
@@ -815,7 +815,7 @@ async function fetchDepartments() {
 }
 
 const departmentOptions = computed(() => [
-  { label: 'Semua Department', value: ALL_VALUE },
+  { label: 'All Departments', value: ALL_VALUE },
   ...departments.value.map(dep => ({ label: dep.name ?? '-', value: dep.id ?? '' }))
 ])
 
@@ -825,7 +825,7 @@ const groupOptions = computed(() => {
     if (item.group?.id && item.group?.name) map.set(item.group.id, item.group)
   }
   return [
-    { label: 'Semua Item Group', value: ALL_VALUE },
+    { label: 'All Item Groups', value: ALL_VALUE },
     ...Array.from(map.values())
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(group => ({ label: group.name, value: group.id }))
@@ -885,9 +885,9 @@ watch(additionalSearch, (val) => {
 function openAdditionalModal() {
   if (!selectedPaket.value) {
     toast.add({
-      title: 'Pilih Paket MCU',
+      title: 'Select MCU Package',
       description:
-        'Additional item hanya bisa ditambahkan setelah paket dipilih',
+        'Additional items can only be added after a package is selected',
       color: 'warning'
     })
 
@@ -943,7 +943,7 @@ const groupedAdditionalResults = computed(() => {
   const groups: Record<string, MstItem[]> = {}
 
   for (const item of filteredAdditionalResults.value) {
-    const groupName = item.group?.name ?? 'Tanpa Group'
+    const groupName = item.group?.name ?? 'No Group'
 
     if (!groups[groupName]) {
       groups[groupName] = []
@@ -1065,10 +1065,10 @@ async function submit() {
     }
 
     toast.add({
-      title: 'Berhasil',
+      title: 'Success',
       description: fromTemp.value
-        ? 'Registrasi & exam MCU berhasil dibuat'
-        : 'Registrasi berhasil dibuat',
+        ? 'Registration & MCU exam created successfully'
+        : 'Registration created successfully',
       color: 'success'
     })
     router.push('/front-office/registration-patient')
@@ -1077,8 +1077,8 @@ async function submit() {
       response?: { data?: { message?: string } }
     }
     toast.add({
-      title: 'Gagal',
-      description: error.response?.data?.message ?? 'Terjadi kesalahan',
+      title: 'Failed',
+      description: error.response?.data?.message ?? 'Something went wrong',
       color: 'error'
     })
   } finally {
@@ -1107,7 +1107,7 @@ async function cancel() {
   <UDashboardPanel id="registration-create">
     <!-- ── Header ── -->
     <template #header>
-      <UDashboardNavbar title="Buat Registrasi Baru">
+      <UDashboardNavbar title="Create New Registration">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -1128,8 +1128,8 @@ async function cancel() {
           icon="i-lucide-loader-circle"
           color="info"
           variant="soft"
-          title="Memuat data registrasi sementara..."
-          :description="`Mengambil data dari registrasi portal #${tempId}`"
+          title="Loading temporary registration data..."
+          :description="`Fetching data from portal registration #${tempId}`"
         />
 
         <UAlert
@@ -1137,8 +1137,8 @@ async function cancel() {
           icon="i-lucide-clipboard-check"
           color="success"
           variant="subtle"
-          title="Data registrasi sementara telah dimuat"
-          description="Data pasien, cabang, dan layanan sudah terisi otomatis dari portal. Pilih paket MCU lalu simpan untuk membuat exam."
+          title="Temporary registration data loaded"
+          description="Patient, branch, and service data have been auto-filled from the portal. Select an MCU package then save to create the exam."
         />
 
         <UAlert
@@ -1171,7 +1171,7 @@ async function cancel() {
                   />
                 </div>
                 <h3 class="text-sm font-semibold">
-                  Cabang
+                  Branch
                 </h3>
                 <UBadge
                   v-if="selectedBranch"
@@ -1199,10 +1199,10 @@ async function cancel() {
                   </div>
                   <div class="text-left flex-1">
                     <p class="text-sm font-medium">
-                      Pilih Cabang
+                      Select Branch
                     </p>
                     <p class="text-xs text-muted">
-                      Klik untuk memilih cabang tujuan
+                      Click to select the destination branch
                     </p>
                   </div>
                   <UIcon
@@ -1234,7 +1234,7 @@ async function cancel() {
                     color="primary"
                     variant="subtle"
                     icon="i-lucide-pencil"
-                    label="Ganti"
+                    label="Change"
                     @click="openBranchModal"
                   />
                 </div>
@@ -1254,11 +1254,11 @@ async function cancel() {
                   <UIcon name="i-lucide-user" class="text-primary text-xs" />
                 </div>
                 <h3 class="text-sm font-semibold">
-                  Pasien
+                  Patient
                 </h3>
                 <UBadge
                   v-if="isNewPatient"
-                  label="Baru"
+                  label="New"
                   color="warning"
                   variant="subtle"
                   size="xs"
@@ -1266,7 +1266,7 @@ async function cancel() {
                 />
                 <UBadge
                   v-else-if="selectedPatient"
-                  label="Terpilih"
+                  label="Selected"
                   color="success"
                   variant="subtle"
                   size="xs"
@@ -1281,7 +1281,7 @@ async function cancel() {
                     icon="i-lucide-search"
                     :loading="patientPending"
                     :disabled="!!selectedPatient"
-                    placeholder="Cari nama, nomor ID, atau kode pasien..."
+                    placeholder="Search name, ID number, or patient code..."
                     @focus="patientDropOpen = true"
                     @blur="handlePatientBlur"
                   />
@@ -1301,8 +1301,8 @@ async function cancel() {
                       <span class="text-xs text-muted">
                         {{
                           patientSearch.length >= 2
-                            ? "Hasil pencarian"
-                            : "Pasien terbaru"
+                            ? "Search results"
+                            : "Recent patients"
                         }}
                       </span>
                     </div>
@@ -1338,7 +1338,7 @@ async function cancel() {
                         @mousedown.prevent="useNewPatient"
                       >
                         <UIcon name="i-lucide-user-plus" />
-                        Pasien tidak ada? Tambah baru
+                        Patient not found? Add new
                       </button>
                     </div>
                   </div>
@@ -1354,7 +1354,7 @@ async function cancel() {
                     class="absolute z-[9999] left-0 right-0 mt-2 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl shadow-2xl"
                   >
                     <p class="px-3 py-2.5 text-xs text-muted">
-                      Tidak ditemukan untuk "<span class="text-default">{{
+                      Not found for "<span class="text-default">{{
                         patientSearch
                       }}</span>"
                     </p>
@@ -1364,7 +1364,7 @@ async function cancel() {
                         @mousedown.prevent="useNewPatient"
                       >
                         <UIcon name="i-lucide-user-plus" />
-                        Tambah sebagai pasien baru
+                        Add as new patient
                       </button>
                     </div>
                   </div>
@@ -1396,7 +1396,7 @@ async function cancel() {
                       color="neutral"
                       variant="ghost"
                       icon="i-lucide-x"
-                      label="Ganti"
+                      label="Change"
                       class="ml-auto"
                       @click="clearPatient"
                     />
@@ -1464,8 +1464,8 @@ async function cancel() {
                             :disabled="!personalChanged.gender"
                             class="w-full min-w-0"
                             :items="[
-                              { label: 'Laki-laki', value: 'MALE' },
-                              { label: 'Perempuan', value: 'FEMALE' }
+                              { label: 'Male', value: 'MALE' },
+                              { label: 'Female', value: 'FEMALE' }
                             ]"
                           />
                           <UBadge
@@ -1477,7 +1477,7 @@ async function cancel() {
                           />
                         </div>
                       </UFormField>
-                      <UFormField label="Tgl Lahir" class="min-w-0">
+                      <UFormField label="Date of Birth" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput
                             v-model="personalForm.dob"
@@ -1495,7 +1495,7 @@ async function cancel() {
                           />
                         </div>
                       </UFormField>
-                      <UFormField label="Tipe ID" class="min-w-0">
+                      <UFormField label="ID Type" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <USelect
                             v-model="personalForm.idType"
@@ -1518,7 +1518,7 @@ async function cancel() {
                           />
                         </div>
                       </UFormField>
-                      <UFormField label="Nomor ID" class="min-w-0">
+                      <UFormField label="ID Number" class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput
                             v-model="personalForm.idNumber"
@@ -1535,7 +1535,7 @@ async function cancel() {
                           />
                         </div>
                       </UFormField>
-                      <UFormField label="No. HP" class="min-w-0">
+                      <UFormField label="Phone No." class="min-w-0">
                         <div class="flex items-center gap-1">
                           <UInput
                             v-model="contactForm.phone"
@@ -1725,14 +1725,14 @@ async function cancel() {
                       class="text-xs font-semibold text-warning flex items-center gap-1.5"
                     >
                       <UIcon name="i-lucide-user-plus" />
-                      Pasien Baru
+                      New Patient
                     </p>
                     <UButton
                       size="xs"
                       color="neutral"
                       variant="ghost"
                       icon="i-lucide-x"
-                      label="Batal"
+                      label="Cancel"
                       @click="
                         isNewPatient = false;
                         patientSearch = '';
@@ -1744,7 +1744,7 @@ async function cancel() {
                       <UInput
                         v-model="newPatient.firstName"
                         size="sm"
-                        placeholder="Budi"
+                        placeholder="John"
                         class="w-full"
                       />
                     </UFormField>
@@ -1760,7 +1760,7 @@ async function cancel() {
                       <UInput
                         v-model="newPatient.lastName"
                         size="sm"
-                        placeholder="Santoso"
+                        placeholder="Doe"
                         class="w-full"
                       />
                     </UFormField>
@@ -1771,13 +1771,13 @@ async function cancel() {
                         v-model="newPatient.gender"
                         size="sm"
                         :items="[
-                          { label: 'Laki-laki', value: 'MALE' },
-                          { label: 'Perempuan', value: 'FEMALE' }
+                          { label: 'Male', value: 'MALE' },
+                          { label: 'Female', value: 'FEMALE' }
                         ]"
                         class="w-full"
                       />
                     </UFormField>
-                    <UFormField label="Tgl Lahir">
+                    <UFormField label="Date of Birth">
                       <UInput
                         v-model="newPatient.dob"
                         type="date"
@@ -1785,7 +1785,7 @@ async function cancel() {
                         class="w-full"
                       />
                     </UFormField>
-                    <UFormField label="Tipe ID">
+                    <UFormField label="ID Type">
                       <USelect
                         v-model="newPatient.idType"
                         size="sm"
@@ -1798,15 +1798,15 @@ async function cancel() {
                         class="w-full"
                       />
                     </UFormField>
-                    <UFormField label="Nomor ID *">
+                    <UFormField label="ID Number *">
                       <UInput
                         v-model="newPatient.idNumber"
                         size="sm"
-                        placeholder="Nomor identitas"
+                        placeholder="ID number"
                         class="w-full"
                       />
                     </UFormField>
-                    <UFormField label="No. HP">
+                    <UFormField label="Phone No.">
                       <UInput
                         v-model="newPatient.phone"
                         size="sm"
@@ -1851,8 +1851,8 @@ async function cancel() {
                     >
                       {{
                         selectedBranch
-                          ? 'Simpan pasien terlebih dahulu untuk melanjutkan registrasi.'
-                          : 'Pilih cabang terlebih dahulu sebelum menyimpan pasien.'
+                          ? 'Save the patient first to continue registration.'
+                          : 'Select a branch before saving the patient.'
                       }}
                     </p>
                     <UButton
@@ -1863,7 +1863,7 @@ async function cancel() {
                       :disabled="!canSaveNewPatient || newPatientSaving"
                       @click="saveNewPatient as any"
                     >
-                      Simpan Pasien
+                      Save Patient
                     </UButton>
                   </div>
                 </div>
@@ -1877,7 +1877,7 @@ async function cancel() {
                     @click="useNewPatient"
                   >
                     <UIcon name="i-lucide-user-plus" />
-                    Tambah pasien baru tanpa pencarian
+                    Add new patient without searching
                   </button>
                 </div>
               </div>
@@ -1897,11 +1897,11 @@ async function cancel() {
                   />
                 </div>
                 <h3 class="text-sm font-semibold">
-                  Data Registrasi
+                  Registration Data
                 </h3>
               </div>
               <div class="p-4 space-y-4">
-                <UFormField label="Perusahaan / Pembayar *">
+                <UFormField label="Company / Payer *">
                   <USelect
                     v-model="regForm.companyId"
                     :loading="companiesPending"
@@ -1911,26 +1911,26 @@ async function cancel() {
                         value: String(c.id)
                       }))
                     "
-                    placeholder="Pilih perusahaan..."
+                    placeholder="Select company..."
                     class="w-full"
                   />
                 </UFormField>
                 <UFormField label="Position">
                   <UInput
                     v-model="regForm.position"
-                    placeholder="Jabatan..."
+                    placeholder="Position..."
                     class="w-full"
                   />
                 </UFormField>
                 <div class="grid grid-cols-2 gap-3">
-                  <UFormField label="Tipe Pembayaran">
+                  <UFormField label="Payment Type">
                     <USelect
                       v-model="regForm.paymentType"
                       :items="PAYMENT_TYPES"
                       class="w-full"
                     />
                   </UFormField>
-                  <UFormField label="Prioritas">
+                  <UFormField label="Priority">
                     <USelect
                       v-model="regForm.priorityRegist"
                       :items="PRIORITY_TYPES"
@@ -1938,7 +1938,7 @@ async function cancel() {
                     />
                   </UFormField>
                 </div>
-                <UFormField label="Tanggal Periksa *">
+                <UFormField label="Examination Date *">
                   <UInput
                     v-model="regForm.examDate"
                     type="date"
@@ -1967,7 +1967,7 @@ async function cancel() {
                   />
                 </div>
                 <h3 class="text-sm font-semibold">
-                  Jenis Layanan
+                  Service Type
                 </h3>
                 <UBadge
                   v-if="selectedService"
@@ -2039,11 +2039,11 @@ async function cancel() {
                   <h3
                     class="text-sm font-semibold text-gray-900 dark:text-white"
                   >
-                    Paket MCU
+                    MCU Package
                   </h3>
                   <UBadge
                     v-if="selectedPaket"
-                    label="Terpilih"
+                    label="Selected"
                     color="success"
                     variant="subtle"
                     size="xs"
@@ -2051,7 +2051,7 @@ async function cancel() {
                   />
                   <UBadge
                     v-else
-                    label="Wajib"
+                    label="Required"
                     color="error"
                     variant="subtle"
                     size="xs"
@@ -2085,10 +2085,10 @@ async function cancel() {
                     </div>
                     <div class="text-left flex-1">
                       <p class="text-sm font-medium">
-                        Pilih Paket MCU
+                        Select MCU Package
                       </p>
                       <p class="text-xs text-muted">
-                        Klik untuk memilih paket pemeriksaan
+                        Click to select an examination package
                       </p>
                     </div>
                     <UIcon
@@ -2112,7 +2112,7 @@ async function cancel() {
                         </p>
                         <p class="text-xs text-muted">
                           {{ selectedPaket.paketItems.length }} item ·
-                          {{ totalInputan }} inputan
+                          {{ totalInputan }} inputs
                         </p>
                       </div>
                       <UButton
@@ -2120,7 +2120,7 @@ async function cancel() {
                         color="primary"
                         variant="subtle"
                         icon="i-lucide-pencil"
-                        label="Ganti"
+                        label="Change"
                         @click="openPaketModal"
                       />
                     </div>
@@ -2129,7 +2129,7 @@ async function cancel() {
                       <p
                         class="text-xs font-semibold text-muted uppercase tracking-wider px-0.5"
                       >
-                        Detail Item Pemeriksaan
+                        Examination Item Details
                       </p>
 
                       <div
@@ -2159,7 +2159,7 @@ async function cancel() {
                               <template v-if="getDepartmentName(pi.item)">
                                 · {{ getDepartmentName(pi.item) }}
                               </template>
-                              · {{ pi.item.inputans.length }} inputan
+                              · {{ pi.item.inputans.length }} inputs
                             </p>
                           </div>
                           <UIcon
@@ -2193,13 +2193,13 @@ async function cancel() {
                               >Label</span>
                               <span
                                 class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                              >Tipe</span>
+                              >Type</span>
                               <span
                                 class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                              >Satuan</span>
+                              >Unit</span>
                               <span
                                 class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                              >Nilai Normal</span>
+                              >Normal Value</span>
                             </div>
 
                             <div
@@ -2237,7 +2237,7 @@ async function cancel() {
                                   v-if="inp.inputType === 'string'"
                                   class="text-xs text-muted italic"
                                 >
-                                  Teks bebas
+                                  Free text
                                 </p>
                                 <p v-else class="text-xs text-default truncate">
                                   {{ formatNilaiNormal(inp) }}
@@ -2271,7 +2271,7 @@ async function cancel() {
                               class="px-3 py-3 text-center"
                             >
                               <p class="text-xs text-muted">
-                                Belum ada inputan
+                                No inputs yet
                               </p>
                             </div>
                           </div>
@@ -2283,7 +2283,7 @@ async function cancel() {
                         class="py-4 text-center rounded-lg border border-default border-dashed"
                       >
                         <p class="text-xs text-muted">
-                          Paket ini belum memiliki item
+                          This package has no items yet
                         </p>
                       </div>
                     </div>
@@ -2319,7 +2319,7 @@ async function cancel() {
                   <h3 class="text-sm font-semibold">
                     Additional Item
                   </h3>
-                  <span class="text-xs text-muted ml-0.5">(opsional)</span>
+                  <span class="text-xs text-muted ml-0.5">(optional)</span>
                   <UBadge
                     v-if="additionalItems.length"
                     :label="`${additionalItems.length} item`"
@@ -2331,7 +2331,7 @@ async function cancel() {
                   <!-- Info: belum diproses ke backend -->
                   <UTooltip
                     v-if="additionalItems.length"
-                    text="Item tambahan belum tersimpan ke backend — butuh endpoint exam-specific"
+                    text="Additional items are not saved to the backend yet — requires an exam-specific endpoint"
                   >
                     <UIcon
                       name="i-lucide-info"
@@ -2369,8 +2369,8 @@ async function cancel() {
                     >
                       {{
                         selectedPaket
-                          ? "Cari dan tambah item pemeriksaan..."
-                          : "Pilih paket MCU terlebih dahulu"
+                          ? "Search and add examination items..."
+                          : "Select an MCU package first"
                       }}
                     </span>
                     <UIcon
@@ -2384,9 +2384,9 @@ async function cancel() {
                       <p
                         class="text-xs font-semibold text-muted uppercase tracking-wider"
                       >
-                        Item Tambahan
+                        Additional Items
                       </p>
-                      <span class="text-[11px] text-muted">{{ totalAdditionalInputan }} inputan</span>
+                      <span class="text-[11px] text-muted">{{ totalAdditionalInputan }} inputs</span>
                     </div>
 
                     <div
@@ -2415,7 +2415,7 @@ async function cancel() {
                               {{ item.name }}
                             </p>
                             <UBadge
-                              label="Tambahan"
+                              label="Additional"
                               color="primary"
                               variant="subtle"
                               size="xs"
@@ -2428,7 +2428,7 @@ async function cancel() {
                             <template v-if="getDepartmentName(item)">
                               · {{ getDepartmentName(item) }}
                             </template>
-                            · {{ item.inputans.length }} inputan
+                            · {{ item.inputans.length }} inputs
                           </p>
                         </div>
 
@@ -2461,13 +2461,13 @@ async function cancel() {
                             >Label</span>
                             <span
                               class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                            >Tipe</span>
+                            >Type</span>
                             <span
                               class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                            >Satuan</span>
+                            >Unit</span>
                             <span
                               class="text-[10px] font-semibold text-muted uppercase tracking-wider"
-                            >Nilai Normal</span>
+                            >Normal Value</span>
                           </div>
 
                           <div
@@ -2503,7 +2503,7 @@ async function cancel() {
                                 v-if="inp.inputType === 'string'"
                                 class="text-xs text-muted italic"
                               >
-                                Teks bebas
+                                Free text
                               </p>
                               <p v-else class="text-xs text-default truncate">
                                 {{ formatNilaiNormal(inp) }}
@@ -2535,7 +2535,7 @@ async function cancel() {
                             class="px-3 py-3 text-center"
                           >
                             <p class="text-xs text-muted">
-                              Belum ada inputan
+                              No inputs yet
                             </p>
                           </div>
                         </div>
@@ -2545,10 +2545,10 @@ async function cancel() {
 
                   <div v-else class="py-3 text-center">
                     <p class="text-xs text-muted">
-                      Belum ada item tambahan
+                      No additional items yet
                     </p>
                     <p class="text-[11px] text-muted/60 mt-0.5">
-                      Item di luar paket yang diinput saat exam
+                      Items outside the package entered during the exam
                     </p>
                   </div>
                 </div>
@@ -2574,7 +2574,7 @@ async function cancel() {
               class="flex items-center gap-1 text-success"
             >
               <UIcon name="i-lucide-check-circle-2" />
-              {{ isNewPatient ? "Pasien baru" : fullName(selectedPatient!) }}
+              {{ isNewPatient ? "New patient" : fullName(selectedPatient!) }}
             </span>
             <span
               v-if="selectedService"
@@ -2597,14 +2597,14 @@ async function cancel() {
               class="flex items-center gap-1 text-warning"
             >
               <UIcon name="i-lucide-info" />
-              terdapat {{ additionalItems.length }} item tambahan
+              {{ additionalItems.length }} additional items
             </span>
             <span
               v-if="selectedService === 'MCU' && !selectedPaket"
               class="flex items-center gap-1 text-error"
             >
               <UIcon name="i-lucide-alert-circle" />
-              Paket MCU belum dipilih
+              MCU package not selected
             </span>
           </div>
           <div class="flex gap-2 flex-shrink-0">
@@ -2614,7 +2614,7 @@ async function cancel() {
               :loading="cancelLoading"
               @click="cancel"
             >
-              Batal
+              Cancel
             </UButton>
             <UButton
               color="primary"
@@ -2623,7 +2623,7 @@ async function cancel() {
               :disabled="!canSubmit || submitting"
               @click="submit"
             >
-              Simpan Registrasi
+              Save Registration
             </UButton>
           </div>
         </div>
@@ -2661,11 +2661,11 @@ async function cancel() {
                   <h2
                     class="text-[15px] font-semibold tracking-tight leading-snug text-gray-900 dark:text-white"
                   >
-                    Pilih Cabang
+                    Select Branch
                   </h2>
 
                   <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Cabang tujuan registrasi pasien
+                    Patient's registration destination branch
                   </p>
                 </div>
 
@@ -2687,7 +2687,7 @@ async function cancel() {
                 <input
                   v-model="branchSearch"
                   type="text"
-                  placeholder="Ketik nama atau kode cabang..."
+                  placeholder="Type branch name or code..."
                   autofocus
                   class="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg outline-none transition-all bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white border border-transparent focus:border-primary/40 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 >
@@ -2753,11 +2753,11 @@ async function cancel() {
 
               <div v-else class="py-8 text-center">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                  Tidak ada hasil
+                  No results
                 </p>
 
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Coba kata kunci lain
+                  Try another keyword
                 </p>
               </div>
             </div>
@@ -2766,14 +2766,14 @@ async function cancel() {
 
             <div class="px-5 py-3 flex items-center justify-between">
               <p class="text-[11px] text-gray-400 dark:text-gray-500">
-                {{ filteredBranches.length }} cabang tersedia
+                {{ filteredBranches.length }} branches available
               </p>
 
               <button
                 class="text-xs text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 @click="branchModalOpen = false"
               >
-                Tutup
+                Close
               </button>
             </div>
           </div>
@@ -2815,13 +2815,13 @@ async function cancel() {
                   <h2
                     class="text-base font-semibold tracking-tight text-gray-900 dark:text-white"
                   >
-                    Pilih Paket MCU
+                    Select MCU Package
                   </h2>
 
                   <p
                     class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
                   >
-                    Paket pemeriksaan yang akan dijalani pasien
+                    Examination package the patient will undergo
                   </p>
                 </div>
 
@@ -2844,7 +2844,7 @@ async function cancel() {
                 <input
                   v-model="paketSearch"
                   type="text"
-                  placeholder="Cari nama paket..."
+                  placeholder="Search package name..."
                   autofocus
                   class="w-full h-11 rounded-xl pl-10 pr-4 text-sm outline-none transition-all bg-white dark:bg-neutral-800/90 text-neutral-900 dark:text-white border border-black/10 dark:border-white/10 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                 >
@@ -2864,7 +2864,7 @@ async function cancel() {
                 />
 
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
-                  Memuat paket...
+                  Loading packages...
                 </p>
               </div>
 
@@ -2924,7 +2924,7 @@ async function cancel() {
                                     0
                                   )
                                 }}
-                                inputan
+                                inputs
                               </span>
                             </div>
                           </div>
@@ -2950,7 +2950,7 @@ async function cancel() {
                             v-if="p.paketItems.length > 4"
                             class="px-2 py-1 rounded-lg text-[10px] border border-primary/20 bg-primary/10 text-primary"
                           >
-                            +{{ p.paketItems.length - 4 }} lainnya
+                            +{{ p.paketItems.length - 4 }} more
                           </span>
                         </div>
                       </div>
@@ -2976,11 +2976,11 @@ async function cancel() {
                 <p
                   class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Tidak ada paket
+                  No packages
                 </p>
 
                 <p class="text-xs text-neutral-500 mt-1">
-                  Coba kata kunci lain
+                  Try another keyword
                 </p>
               </div>
             </div>
@@ -2990,14 +2990,14 @@ async function cancel() {
               class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
             >
               <p class="text-[11px] text-neutral-500">
-                {{ filteredPakets.length }} paket tersedia
+                {{ filteredPakets.length }} packages available
               </p>
 
               <button
                 class="px-4 h-9 rounded-xl bg-neutral-100 dark:bg-white/5 hover:bg-neutral-200 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-sm text-neutral-700 dark:text-neutral-300 transition-all"
                 @click="paketModalOpen = false"
               >
-                Tutup
+                Close
               </button>
             </div>
           </div>
@@ -3039,13 +3039,13 @@ async function cancel() {
                   <h2
                     class="text-base font-semibold tracking-tight text-gray-900 dark:text-white"
                   >
-                    Tambah Item Pemeriksaan
+                    Add Examination Item
                   </h2>
 
                   <p
                     class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
                   >
-                    Item ekstra di luar paket yang sudah dipilih
+                    Extra items outside the selected package
                   </p>
                 </div>
 
@@ -3062,7 +3062,7 @@ async function cancel() {
                 <USelect
                   v-model="selectedDepartmentId"
                   :items="departmentOptions"
-                  placeholder="Semua Department"
+                  placeholder="All Departments"
                   icon="i-lucide-building-2"
                   class="w-full"
                   :portal="true"
@@ -3072,7 +3072,7 @@ async function cancel() {
                 <USelect
                   v-model="selectedGroupId"
                   :items="groupOptions"
-                  placeholder="Semua Item Group"
+                  placeholder="All Item Groups"
                   icon="i-lucide-folder"
                   class="w-full"
                   :portal="true"
@@ -3090,7 +3090,7 @@ async function cancel() {
                 <input
                   v-model="additionalSearch"
                   type="text"
-                  placeholder="Ketik nama atau kode item..."
+                  placeholder="Type item name or code..."
                   autofocus
                   class="w-full h-11 rounded-xl bg-white dark:bg-neutral-800/90 border border-black/10 dark:border-white/10 pl-10 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 >
@@ -3147,11 +3147,11 @@ async function cancel() {
                 <p
                   class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Tidak ada item pemeriksaan
+                  No examination items
                 </p>
 
                 <p class="text-xs text-neutral-500 mt-1">
-                  Coba kata kunci lain atau periksa master item
+                  Try another keyword or check the item master
                 </p>
               </div>
 
@@ -3166,7 +3166,7 @@ async function cancel() {
                 />
 
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-3">
-                  Memuat item pemeriksaan...
+                  Loading examination items...
                 </p>
               </div>
 
@@ -3256,7 +3256,7 @@ async function cancel() {
 
                             <span>•</span>
 
-                            <span> {{ item.inputans.length }} inputan </span>
+                            <span> {{ item.inputans.length }} inputs </span>
                           </div>
                         </div>
 
@@ -3292,11 +3292,11 @@ async function cancel() {
                 <p
                   class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Tidak ditemukan
+                  Not found
                 </p>
 
                 <p class="text-xs text-neutral-500 mt-1">
-                  Coba kata kunci lain atau periksa master item
+                  Try another keyword or check the item master
                 </p>
               </div>
             </div>
@@ -3307,11 +3307,11 @@ async function cancel() {
             >
               <p class="text-[11px] text-neutral-500">
                 <template v-if="additionalItems.length">
-                  {{ additionalItems.length }} item ditambahkan
+                  {{ additionalItems.length }} items added
                 </template>
 
                 <template v-else>
-                  Belum ada item tambahan
+                  No additional items yet
                 </template>
               </p>
 
@@ -3322,7 +3322,7 @@ async function cancel() {
                 class="rounded-xl"
                 @click="additionalModalOpen = false"
               >
-                Selesai
+                Done
               </UButton>
             </div>
           </div>

@@ -823,7 +823,7 @@ async function confirmCheckin() {
     await loadCheckinPreview()
 
     toast.add({
-      title: 'Check-in berhasil',
+      title: 'Check-in successful',
       description: `Queue number: ${entry.queueCode}`,
       color: 'success'
     })

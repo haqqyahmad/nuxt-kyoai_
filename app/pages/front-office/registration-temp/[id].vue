@@ -115,25 +115,25 @@ const validate = () => {
 
   if (selectedStatus.value === 'APPROVED') {
     if (!formApprove.examDate && touched.examDate) {
-      errors.examDate = 'Exam Date wajib diisi'
+      errors.examDate = 'Exam Date is required'
     }
     if (!formApprove.priorityRegist && touched.priorityRegist) {
-      errors.priorityRegist = 'Priority wajib dipilih'
+      errors.priorityRegist = 'Priority is required'
     }
     if (formApprove.patientExists === null && touched.patientExists) {
-      errors.patientExists = 'Jawab dulu apakah pasien pernah MCU di Kyoai'
+      errors.patientExists = 'Please answer whether the patient has had an MCU at Kyoai before'
     }
     if (formApprove.patientExists === true && !selectedPatient.value && touched.patientExists) {
-      errors.patientExists = 'Pilih pasien existing terlebih dahulu'
+      errors.patientExists = 'Select an existing patient first'
     }
     if (formApprove.patientExists === true && !confirmOverwrite.value && touched.confirmOverwrite) {
-      errors.confirmOverwrite = 'Centang konfirmasi sebelum melanjutkan'
+      errors.confirmOverwrite = 'Check the confirmation before continuing'
     }
   }
 
   if (selectedStatus.value === 'REJECTED') {
     if (!formReject.rejectReason && touched.rejectReason) {
-      errors.rejectReason = 'Alasan wajib diisi'
+      errors.rejectReason = 'Reason is required'
     }
   }
 }
@@ -213,15 +213,15 @@ async function resetProcess() {
   try {
     await api.post(`/registration-temp/${String(route.params.id)}/reset`)
     toast.add({
-      title: 'Dibatalkan',
-      description: 'Status kembali ke PENDING',
+      title: 'Cancelled',
+      description: 'Status reverted to PENDING',
       color: 'info'
     })
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal membatalkan proses',
+      title: 'Failed',
+      description: 'Failed to cancel the process',
       color: 'error'
     })
   } finally {
@@ -392,7 +392,7 @@ async function confirmChangeStatus() {
   if (!isFormValid.value) {
     toast.add({
       title: 'Warning',
-      description: 'Form belum lengkap',
+      description: 'Form is incomplete',
       color: 'warning'
     })
     return
@@ -422,10 +422,10 @@ async function confirmChangeStatus() {
       // best-effort — redirect tetap jalan
     }
     toast.add({
-      title: 'Lanjutkan Registrasi',
+      title: 'Continue Registration',
       description: formApprove.patientExists
-        ? 'Pasien lama terpilih. Pilih paket MCU lalu simpan untuk membuat registrasi.'
-        : 'Pasien baru akan dibuat. Pilih paket MCU lalu simpan untuk membuat registrasi.',
+        ? 'Existing patient selected. Choose an MCU package and save to create the registration.'
+        : 'A new patient will be created. Choose an MCU package and save to create the registration.',
       color: 'info'
     })
     router.push(`/front-office/registration-patient/create?${query.toString()}`)
@@ -448,8 +448,8 @@ async function confirmChangeStatus() {
     }
 
     toast.add({
-      title: 'Berhasil',
-      description: `Status berubah dari ${oldStatus} → ${selectedStatus.value}`,
+      title: 'Success',
+      description: `Status changed from ${oldStatus} → ${selectedStatus.value}`,
       color: 'success'
     })
 
@@ -457,8 +457,8 @@ async function confirmChangeStatus() {
     isStatusModalOpen.value = false
   } catch (err) {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal mengubah status',
+      title: 'Failed',
+      description: 'Failed to change status',
       color: 'error'
     })
     console.error(err)
@@ -469,15 +469,15 @@ async function confirmChangeStatus() {
 // Helpers
 // ─────────────────────────────────────────────
 const SERVICE_LABEL: Record<string, string> = {
-  Laboratorium: 'Laboratorium',
-  DoctorConsultation: 'Konsultasi Dokter',
+  Laboratorium: 'Laboratory',
+  DoctorConsultation: 'Doctor Consultation',
   MCU: 'MCU (Medical Checkup)',
-  Vaccine: 'Vaksin',
+  Vaccine: 'Vaccine',
   Antigen: 'Antigen',
   PCR: 'PCR',
   VitaminInjection: 'Vitamin Injection',
-  Pharmacy: 'Farmasi',
-  Dental: 'Gigi'
+  Pharmacy: 'Pharmacy',
+  Dental: 'Dental'
 }
 
 const STATUS_COLOR: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'error'> = {
@@ -644,7 +644,7 @@ const statusHistoryDisplay = computed(() =>
 )
 
 function statusHistoryLabel(item: StatusHistoryItem): string {
-  if (item.action === 'CREATE') return 'Registrasi Dibuat'
+  if (item.action === 'CREATE') return 'Registration Created'
   if (item.action === 'STATUS_CHANGE') {
     const before = item.payloadBefore?.status
     const after = item.payloadAfter?.status
@@ -652,15 +652,15 @@ function statusHistoryLabel(item: StatusHistoryItem): string {
     const to = after?.to ?? after?.from
     if (from && to && from !== to) return `${from} → ${to}`
     if (to) return `Status: ${to}`
-    return 'Perubahan status'
+    return 'Status change'
   }
   return item.action
 }
 
 function statusHistoryDesc(item: StatusHistoryItem): string {
   if (item.notes) return item.notes
-  if (item.action === 'CREATE') return 'Registrasi dibuat.'
-  return 'Perubahan status registrasi.'
+  if (item.action === 'CREATE') return 'Registration created.'
+  return 'Registration status changed.'
 }
 
 onMounted(async () => {
@@ -779,7 +779,7 @@ function printModalAnswers() {
 <template>
   <UDashboardPanel :id="`registration-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar title="Detail Temporary Registrasi">
+      <UDashboardNavbar title="Temporary Registration Detail">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -814,7 +814,7 @@ function printModalAnswers() {
             />
             <UButton
               v-if="reg?.status === 'PROCESS' && resumeCreateUrl"
-              label="Lanjutkan Registrasi"
+              label="Continue Registration"
               color="primary"
               variant="solid"
               icon="i-lucide-play"
@@ -858,19 +858,19 @@ function printModalAnswers() {
           color="info"
           variant="subtle"
           icon="i-lucide-loader-circle"
-          title="Registrasi sedang diproses"
-          description="Pilihan approve sudah disimpan. Klik Lanjutkan Registrasi untuk memilih paket MCU dan membuat registrasi, atau Batalkan Proses untuk kembali ke PENDING."
+          title="Registration is being processed"
+          description="Your approval choice has been saved. Click Continue Registration to choose an MCU package and create the registration, or Cancel Process to revert to PENDING."
         >
           <template #actions>
             <UButton
               v-if="resumeCreateUrl"
-              label="Lanjutkan Registrasi"
+              label="Continue Registration"
               color="primary"
               icon="i-lucide-play"
               :to="resumeCreateUrl"
             />
             <UButton
-              label="Batalkan Proses"
+              label="Cancel Process"
               color="neutral"
               variant="outline"
               icon="i-lucide-rotate-ccw"
@@ -898,10 +898,10 @@ function printModalAnswers() {
                 :icon="policyExpiry.status === 'expired' ? 'i-lucide-shield-x' : 'i-lucide-shield-alert'"
                 :title="
                   policyExpiry.status === 'expired'
-                    ? 'Kartu polis sudah kadaluarsa'
-                    : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
+                    ? 'Policy card has expired'
+                    : `Policy card will expire in ${policyExpiry.days} days`
                 "
-                description="Mohon perbarui data polis sebelum registrasi diproses."
+                description="Please update the policy data before the registration is processed."
               />
             </div>
             <div v-if="reg.patientExists === true && changedCount > 0" class="px-5 pt-3">
@@ -909,10 +909,10 @@ function printModalAnswers() {
                 <UIcon name="i-lucide-alert-triangle" class="mt-0.5 text-warning shrink-0" />
                 <div>
                   <p class="font-semibold text-warning">
-                    Ada {{ changedCount }} data yang berbeda dari data pasien existing
+                    There are {{ changedCount }} fields that differ from the existing patient data
                   </p>
                   <p class="text-muted">
-                    Periksa perbedaan sebelum approve; data portal akan menimpa.
+                    Review the differences before approving; portal data will overwrite.
                   </p>
                 </div>
               </div>
@@ -949,7 +949,7 @@ function printModalAnswers() {
                 </div>
                 <div>
                   <p class="text-xs text-muted mb-1 flex items-center gap-1">
-                    Tanggal Lahir
+                    Date of Birth
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.dob"
                       label="Change"
@@ -979,7 +979,7 @@ function printModalAnswers() {
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p class="text-xs text-muted mb-1 flex items-center gap-1">
-                    Nomor HP
+                    Phone Number
                     <UBadge
                       v-if="reg.patientExists === true && isChanged.phone"
                       label="Change"
@@ -1027,7 +1027,7 @@ function printModalAnswers() {
                     />
                     <UBadge
                       v-else-if="policyExpiry?.status === 'soon'"
-                      :label="`Segera berakhir (${policyExpiry.days} hari)`"
+                      :label="`Expiring soon (${policyExpiry.days} days)`"
                       color="warning"
                       size="xs"
                     />
@@ -1036,7 +1036,7 @@ function printModalAnswers() {
               </div>
             </div>
             <div v-else class="p-6 text-center text-sm text-muted">
-              Data pasien tidak ditemukan
+              Patient data not found
             </div>
           </div>
 
@@ -1122,7 +1122,7 @@ function printModalAnswers() {
                 </div>
                 <div v-else-if="!statusHistory.length" class="py-6 text-center">
                   <p class="text-sm text-muted">
-                    Belum ada riwayat status.
+                    No status history yet.
                   </p>
                 </div>
                 <div v-else class="relative space-y-4">
@@ -1241,7 +1241,7 @@ function printModalAnswers() {
       <UModal v-model:open="modalOpen" :title="modalTitle">
         <template #body>
           <div v-if="!modalAnswers.length" class="text-sm text-muted">
-            Tidak ada jawaban tersimpan untuk questionnaire ini.
+            No saved answers for this questionnaire.
           </div>
           <div v-else class="space-y-3">
             <div
@@ -1280,8 +1280,8 @@ function printModalAnswers() {
         v-model:open="isStatusModalOpen"
         :count="1"
         entity="status"
-        title="Ubah Status"
-        description="Apakah yakin ingin mengubah status?"
+        title="Change Status"
+        description="Are you sure you want to change the status?"
         :disabled="!isFormValid"
         :variant="
           selectedStatus === 'APPROVED'
@@ -1297,7 +1297,7 @@ function printModalAnswers() {
             <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (hanya muncul saat Approve) -->
             <div v-if="selectedStatus === 'APPROVED'" class="space-y-2">
               <label class="text-sm font-medium text-muted">
-                Apakah pasien sudah pernah MCU di Kyoai?
+                Has the patient had an MCU at Kyoai before?
               </label>
               <div class="flex gap-2">
                 <UButton
@@ -1306,7 +1306,7 @@ function printModalAnswers() {
                   variant="soft"
                   @click="formApprove.patientExists = true; clearPatient(); touched.patientExists = true"
                 >
-                  Ya
+                  Yes
                 </UButton>
                 <UButton
                   size="xs"
@@ -1314,7 +1314,7 @@ function printModalAnswers() {
                   variant="soft"
                   @click="formApprove.patientExists = false; clearPatient(); touched.patientExists = true"
                 >
-                  Tidak
+                  No
                 </UButton>
               </div>
               <p v-if="touched.patientExists && errors.patientExists" class="text-xs text-red-500">
@@ -1328,14 +1328,14 @@ function printModalAnswers() {
               >
                 <div v-if="duplicateSuggestionsLoading" class="text-xs text-muted flex items-center gap-2">
                   <UIcon name="i-lucide-loader-circle" class="animate-spin" />
-                  Mencari kemungkinan pasien yang sama...
+                  Searching for possible matching patients...
                 </div>
                 <div
                   v-else-if="duplicateSuggestionsChecked && duplicateSuggestions.length"
                   class="border rounded-lg overflow-hidden bg-background"
                 >
                   <p class="px-3 py-2 text-xs font-medium text-muted bg-elevated border-b border-default">
-                    Kemungkinan pasien sudah terdaftar — pilih jika memang pasien yang sama:
+                    Possible existing patient — select if this is the same patient:
                   </p>
                   <div
                     v-for="p in duplicateSuggestions"
@@ -1355,18 +1355,18 @@ function printModalAnswers() {
                   v-else-if="duplicateSuggestionsChecked && !duplicateSuggestions.length"
                   class="text-xs text-muted"
                 >
-                  Tidak ada pasien serupa ditemukan untuk {{ duplicateSearchTerm }}.
+                  No similar patients found for {{ duplicateSearchTerm }}.
                 </div>
               </div>
 
               <div v-if="formApprove.patientExists && !selectedPatient" class="mt-2">
                 <UInput
                   v-model="patientSearchQuery"
-                  placeholder="Cari nama atau nomor RM pasien..."
+                  placeholder="Search patient name or medical record number..."
                   icon="i-lucide-search"
                 />
                 <div v-if="patientSearchLoading" class="mt-2 text-xs text-muted">
-                  Mencari...
+                  Searching...
                 </div>
                 <div v-else-if="patientResults.length" class="mt-2 border rounded-lg max-h-48 overflow-auto">
                   <div
@@ -1384,7 +1384,7 @@ function printModalAnswers() {
                   </div>
                 </div>
                 <div v-else-if="patientSearchQuery.length >= 2 && !patientSearchLoading" class="mt-2 text-xs text-muted">
-                  Tidak ada pasien ditemukan.
+                  No patients found.
                 </div>
               </div>
 
@@ -1400,7 +1400,7 @@ function printModalAnswers() {
                     class="ml-2"
                     @click="clearPatient"
                   >
-                    Ganti
+                    Change
                   </UButton>
                 </p>
               </div>
@@ -1417,12 +1417,12 @@ function printModalAnswers() {
                   color="warning"
                 />
                 <span class="text-amber-900 dark:text-amber-200">
-                  Pasien sudah pernah MCU di Kyoai. Data pasien yang ada (nama,
-                  gender, telepon, email, tanggal lahir) akan
+                  The patient has had an MCU at Kyoai before. The existing patient data (name,
+                  gender, phone, email, date of birth) will be
                   <strong class="font-semibold">
-                    ditimpa
+                    overwritten
                   </strong>
-                  dengan data dari pendaftaran ini saat disetujui. Centang untuk konfirmasi.
+                  with the data from this registration upon approval. Check to confirm.
                 </span>
               </label>
               <p v-if="touched.confirmOverwrite && errors.confirmOverwrite" class="text-xs text-red-500">
@@ -1432,7 +1432,7 @@ function printModalAnswers() {
 
             <!-- STATUS INFO -->
             <div class="text-sm text-muted">
-              Status akan diubah menjadi:
+              Status will be changed to:
               <span
                 :class="[
                   'ml-2 px-2 py-1 rounded-md text-xs font-semibold border',
@@ -1451,7 +1451,7 @@ function printModalAnswers() {
               class="space-y-4 border rounded-xl p-4 bg-muted/30"
             >
               <div class="text-sm font-medium text-muted">
-                Informasi Approval
+                Approval Information
               </div>
 
               <div class="grid grid-cols-2 gap-4">
@@ -1484,7 +1484,7 @@ function printModalAnswers() {
                       { label: 'Normal', value: 'Normal' },
                       { label: 'Emergency', value: 'Emergency' }
                     ]"
-                    placeholder="Pilih prioritas"
+                    placeholder="Select priority"
                     class="w-full min-w-[150px]"
                     :color="touched.priorityRegist && errors.priorityRegist ? 'error' : 'neutral'"
                     @update:model-value="() => touched.priorityRegist = true"
@@ -1503,7 +1503,7 @@ function printModalAnswers() {
               class="space-y-3 border rounded-xl p-4 bg-muted/30"
             >
               <div class="text-sm font-medium text-muted">
-                Alasan Penolakan
+                Rejection Reason
               </div>
 
               <div class="space-y-1 w-full">
@@ -1513,7 +1513,7 @@ function printModalAnswers() {
                 <UTextarea
                   ref="rejectReasonRef"
                   v-model="formReject.rejectReason"
-                  placeholder="Masukkan alasan penolakan..."
+                  placeholder="Enter rejection reason..."
                   :rows="5"
                   class="w-full min-h-[120px]"
                   :color="touched.rejectReason && errors.rejectReason ? 'error' : 'neutral'"
