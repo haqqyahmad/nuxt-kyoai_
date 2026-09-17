@@ -2759,12 +2759,11 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="selectedItem.status === 'IN_PROGRESS' && !isSampleOnlyItem(selectedItem)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && !isSampleOnlyItem(selectedItem) && canDoneItem(selectedItem)"
                         color="success"
                         variant="soft"
                         icon="i-lucide-check"
                         :loading="itemActionLoading[selectedItem.id]"
-                        :disabled="!canDoneItem(selectedItem)"
                         @click="handleDoneItem(selectedItem)"
                       >
                         Complete Item
