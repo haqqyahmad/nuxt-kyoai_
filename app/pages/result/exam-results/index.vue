@@ -65,6 +65,9 @@ type ExamResult = {
   status?: 'pending' | 'completed'
   resultStatus?: string | null
   departmentResultStatus?: string | null
+  departmentCurrentStepOrder?: number | null
+  itemApproved?: boolean | null
+  itemApprovedAt?: string | null
   checkinAt?: string | null
   completedAt?: string | null
   createdAt?: string
@@ -209,9 +212,15 @@ function getStatusLabel(status?: string) {
 function getRowStatus(result: ExamResult) {
   const itemStatus = result.resultStatus
   if (!itemStatus) return result.departmentResultStatus || result.status || ''
-  // Semua item sudah disubmit → tampilkan status approval department-nya.
-  if (itemStatus === 'SUBMITTED') return result.departmentResultStatus || 'SUBMITTED'
-  return itemStatus
+  // Belum submit → status item apa adanya (Ready/Draft/Returned/Not Ready).
+  if (itemStatus !== 'SUBMITTED') return itemStatus
+
+  const departmentStatus = result.departmentResultStatus
+  // Sudah dikirim ke dokter: event level exam → berlaku semua item submitted.
+  if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
+  // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
+  if (result.itemApproved) return 'DEPARTMENT_APPROVED'
+  return departmentStatus || 'SUBMITTED'
 }
 
 function getTypeLabel(type?: string) {
