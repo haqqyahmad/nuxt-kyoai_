@@ -2092,7 +2092,7 @@ async function cancel() {
                       </UFormField>
                     </div>
                     <p class="text-[11px] text-muted">
-                      On patient record: {{ selectedPatient.policyNumber || '-' }} / {{ selectedPatient.policyExpDate || '-' }}
+                      On patient record — No: {{ selectedPatient.policyNumber || '-' }} · Exp: {{ selectedPatient.policyExpDate || '-' }}
                     </p>
                   </div>
                 </div>
