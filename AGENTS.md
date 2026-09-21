@@ -6,6 +6,14 @@
 > ## ⚠️ CATATAN — Matikan service setelah selesai testing
 > Setelah selesai testing yang menggunakan service running (FE dan/atau BE dan/atau Portal), **langsung matikan kembali** servis tersebut (dengan tetap mengecualikan 9router). Jangan biarkan service berjalan jika tidak sedang dipakai.
 
+> ## ⚠️ CATATAN — Jangan jalankan check/typecheck saat dev server jalan
+> `pnpm typecheck` (dan `pnpm lint` yang memicu `nuxt prepare`) menulis ulang folder `.nuxt/` — termasuk menghapus `.nuxt/dev/index.mjs` yang sedang dipakai dev server. Akibatnya worker dev crash dengan error `Cannot find module '...\.nuxt\dev\index.mjs'` / halaman blank.
+> **Aturan:** hentikan `pnpm dev` → jalankan `pnpm typecheck`/`pnpm lint` → start `pnpm dev` lagi. Jangan biarkan dev server jalan saat perintah tersebut dieksekusi.
+> Jika ingin check tanpa menyentuh file generated (boleh saat dev jalan, tapi tidak memperbarui tipe untuk file/route baru): `corepack pnpm exec vue-tsc --noEmit -p .nuxt/tsconfig.json`.
+> Jika terlanjur terjadi: restart `pnpm dev` lalu hard refresh browser (Ctrl+Shift+R).
+>
+> **Gotcha icon:** icon lucide di-bundle (scan) saat dev server start. Menambah nama icon **baru** di template tidak akan tampil sampai dev server **restart**. Pakai icon yang sudah dipakai di proyek, atau restart FE.
+
 ---
 
 ## Tech Stack
