@@ -744,6 +744,10 @@ const activeQueue = computed(() => reg.value?.queue ?? null)
 const checkinSuccessOpen = ref(false)
 const checkinServiceNumber = ref('')
 const checkinPaketOpen = ref(false)
+const checkinQueueCode = ref('')
+const canProceedCheckin = computed(() =>
+  isMCU.value ? !!checkinPreview.value?.checkinEligibility.canCheckin : true
+)
 
 const serviceNumberModalOpen = ref(false)
 const serviceNumberInput = ref('')
@@ -809,12 +813,36 @@ async function confirmCheckin() {
   checkinLoading.value = true
 
   try {
+    if (!isMCU.value) {
+      const res = await api.post('/outpatient/encounters/checkin', {
+        registrationId: reg.value.id,
+        queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate
+      })
+
+      const encounter = res.data.data
+      checkinQueueCode.value = encounter.queueCode
+      await refresh()
+      await loadStatusHistory()
+
+      checkinModalOpen.value = false
+      checkinSuccessOpen.value = true
+      await loadCheckinPreview()
+
+      toast.add({
+        title: 'Check-in berhasil',
+        description: `Kode antrian: ${encounter.queueCode}`,
+        color: 'success'
+      })
+      return
+    }
+
     const res = await api.post(`/registration/${reg.value.id}/checkin`, {
       queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate,
       serviceNumber: checkinServiceNumber.value.trim() || undefined
     })
 
     const entry = res.data.data
+    checkinQueueCode.value = entry.queueCode
     await refresh()
     await loadStatusHistory()
 
@@ -2533,7 +2561,7 @@ watch(
               </div>
             </div>
 
-            <div class="space-y-1">
+            <div v-if="isMCU" class="space-y-1">
               <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
               <UInput
                 v-model="checkinServiceNumber"
@@ -2546,7 +2574,7 @@ watch(
               </p>
             </div>
 
-            <div class="rounded-xl border border-default bg-elevated/60 p-4">
+            <div v-if="isMCU" class="rounded-xl border border-default bg-elevated/60 p-4">
               <button
                 type="button"
                 class="w-full flex items-center justify-between gap-3 text-left"
@@ -2635,20 +2663,20 @@ watch(
             <div
               class="rounded-xl border p-4"
               :class="
-                checkinPreview?.checkinEligibility.canCheckin
+                canProceedCheckin
                   ? 'border-green-200 bg-green-50/80'
                   : 'border-amber-200 bg-amber-50/80'
               "
             >
               <p class="text-sm font-semibold">
                 {{
-                  checkinPreview?.checkinEligibility.canCheckin
-                    ? 'Data is ready to be checked in to the general queue'
+                  canProceedCheckin
+                    ? (isMCU ? 'Data is ready to be checked in to the general queue' : 'Patient is ready for outpatient check-in')
                     : 'Data is not ready for check-in'
                 }}
               </p>
               <ul
-                v-if="checkinPreview && checkinPreview.checkinEligibility.reasons.length"
+                v-if="isMCU && checkinPreview && checkinPreview.checkinEligibility.reasons.length"
                 class="mt-2 space-y-1 text-sm text-muted"
               >
                 <li v-for="reason in checkinPreview.checkinEligibility.reasons" :key="reason">
@@ -2656,7 +2684,9 @@ watch(
                 </li>
               </ul>
               <p v-else class="mt-2 text-sm text-muted">
-                The system will generate a queue number and place the patient in the general waiting room.
+                {{ isMCU
+                  ? 'The system will generate a queue number and place the patient in the general waiting room.'
+                  : 'The system will create an outpatient queue number and place the patient in the general waiting room.' }}
               </p>
             </div>
           </div>
@@ -2675,7 +2705,7 @@ watch(
               icon="i-lucide-user-check"
               label="Check-in to General Queue"
               :loading="checkinLoading"
-              :disabled="checkinPreviewLoading || !checkinPreview?.checkinEligibility.canCheckin"
+              :disabled="checkinPreviewLoading || !canProceedCheckin"
               @click="confirmCheckin"
             />
           </div>
@@ -2693,7 +2723,7 @@ watch(
                 Queue Number
               </p>
               <p class="text-5xl font-black text-primary tracking-tight">
-                {{ reg?.queue?.queueCode }}
+                {{ checkinQueueCode || reg?.queue?.queueCode }}
               </p>
             </div>
             <p class="text-sm text-muted max-w-xs">

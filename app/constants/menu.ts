@@ -12,6 +12,8 @@ export const restrictedAllowedRoutes: string[] = [
   '/result/exam-status',
   '/result/mr-review',
   '/rooms/queue-work',
+  '/outpatient/waiting',
+  '/outpatient/queue-list',
   '/settings',
   '/settings/roles',
   '/settings/permissions',
@@ -25,6 +27,7 @@ export const frontOfficeAllowedRoutes: string[] = [
   '/front-office/registration-temp',
   '/front-office/registration-patient',
   '/front-office/questionnaire-results',
+  '/outpatient/waiting',
   '/settings',
   '/settings/security',
   '/settings/notifications'
@@ -189,6 +192,26 @@ export function buildMenuTree(): MenuItem[] {
         { label: 'Temp Registration', icon: 'i-lucide-clipboard-pen-line', to: '/front-office/registration-temp' },
         { label: 'Patient Appointment', icon: 'i-lucide-calendar-clock', to: '/front-office/registration-patient' },
         { label: 'Hasil Questionnaire', icon: 'i-lucide-clipboard-check', to: '/front-office/questionnaire-results' }
+      ]
+    },
+    {
+      label: 'Outpatient',
+      icon: 'i-lucide-stethoscope',
+      children: [
+        { label: 'Waiting Room', icon: 'i-lucide-users', to: '/outpatient/waiting', permission: 'outpatient:read' },
+        { label: 'Queue', icon: 'i-lucide-list-ordered', to: '/outpatient/queue-list', permission: 'outpatient:read' }
+      ]
+    },
+    {
+      label: 'Pharmacy',
+      icon: 'i-lucide-pill',
+      children: [
+        { label: 'Order Obat', icon: 'i-lucide-clipboard-list', to: '/pharmacy/orders', permission: 'pharmacy:read' },
+        { label: 'Master Obat', icon: 'i-lucide-tablets', to: '/pharmacy/medicines', permission: 'medicine:read' },
+        { label: 'Gudang', icon: 'i-lucide-warehouse', to: '/pharmacy/warehouses', permission: 'warehouse:read' },
+        { label: 'Stok', icon: 'i-lucide-boxes', to: '/pharmacy/stock', permission: 'stock:read' },
+        { label: 'Price Tier', icon: 'i-lucide-percent', to: '/pharmacy/price-tiers', permission: 'medicine:price:read' },
+        { label: 'Aturan Pakai', icon: 'i-lucide-list-checks', to: '/pharmacy/prescription-options', permission: 'outpatient:read' }
       ]
     },
     {

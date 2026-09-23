@@ -1,6 +1,157 @@
 # Project Task Status
 
-Last updated: 2026-09-08
+Last updated: 2026-09-17
+
+## Completed — 2026-09-17: Tab Pemeriksaan (order Lab/Radiologi/Dental/Nurse) di encounter
+
+- **FE `app/components/outpatient/ExamOrderModal.vue`** (baru): modal pilih item dari master MCU (`GET /mcu/items?departmentCodes=LAB,RAD,NURSE,DENTAL`, search); multi-select checkbox; tombol **Tambahkan (n)** → emit `select(items)` lalu tutup (tidak kirim dari modal).
+- **FE `app/pages/outpatient/encounter/[id].vue`**: tab **Pemeriksaan**; tombol **Order Pemeriksaan** buka modal; item terpilih masuk daftar **"Item akan diorder"** (bisa hapus); tombol **Kirim Order** → `POST /outpatient/encounters/:id/exams`; list item + status via `GET .../exams`.
+- **FE `app/types/outpatient.ts`**: `OutpatientExamItem`, `OutpatientExamOrder`, `MstItemOption`.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0; E2E BE queue `OP001` (RAWAT_JALAN) sukses.
+
+## Fixed — 2026-09-17: Konfirmasi hapus custom di Master Aturan Pakai
+
+- **FE `app/pages/pharmacy/prescription-options.vue`**: ganti `window.confirm` dengan `UModal` konfirmasi custom (`isDeleteOpen`, `deleteTarget`, `deleting`); tombol Batal / Hapus (error, loading).
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Kolom label ID + simpan label (bukan kode) + master server-side
+
+- **FE `app/pages/pharmacy/prescription-options.vue`**: server-side (`page`, `limit=20`, `search`, tab tipe) + kolom **Label (EN)** & **Label (ID)**; form `labelEng`/`labelInd`; tombol pagination.
+- **FE `app/types/outpatient.ts`**: `PrescriptionOption` `label` → `labelEng`+`labelInd`; `PrescriptionItem.timing` jadi `string | null`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: dropdown pakai `labelInd || labelEng`; saat `pushItem`, `dose/frequency/route/method/timing/asNeededFor` dikonversi dari kode master → **label** (`optionLabel`), jadi pasien menyimpan label; tampilan item pakai label langsung (bukan `TIMING_LABEL`).
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0; DB `labelInd` kosong=0 (DOSE/FREQ/TIMING/ROUTE/METHOD/REASON).
+
+## Completed — 2026-09-17: Master rute/metode/alasan-perlu (FHIR) + dipasang di builder
+
+- **Master dari internet**: seed `mst_prescription_option` tipe `ROUTE` (161 kode SNOMED, `ValueSet/route-codes`), `METHOD` (64, `administration-method-codes`), `AS_NEEDED_REASON` (10 umum) via FHIR expansion `tx.fhir.org`.
+- **FE `app/types/outpatient.ts`**: `PrescriptionOptionType` +`ROUTE`/`METHOD`/`AS_NEEDED_REASON`; `PrescriptionItem` +`method`, `asNeededFor`.
+- **FE `app/pages/pharmacy/prescription-options.vue`**: tab + opsi tipe Rute/Metode/Alasan Perlu.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: builder pakai `USelect` `routeOptions`/`methodOptions`; field **Alasan Perlu** muncul saat `timing === 'AS_NEEDED'`; payload kirim `method`/`asNeededFor`; default `route` = '' (value master berupa kode).
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0; DB ROUTE=161 METHOD=64 REASON=10.
+
+## Fixed — 2026-09-17: Tampilan obat terpilih + qty manual di builder resep
+
+- **FE `app/pages/outpatient/encounter/[id].vue`**: kartu obat terpilih menampilkan **nama obat diperbesar** (`font-heading text-base sm:text-lg font-bold`), stok tersedia (uom + base). **Jumlah diambil = input manual**; **stok akhir read-only** (`stok tersedia − jumlah diambil`). Tombol "Pilih Obat" → "Ganti Obat"; validasi qty ≤ stok tersedia.
+- **FE `app/components/outpatient/MedicinePickerModal.vue`**: nama obat di modal diperbesar (`text-base font-semibold`).
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Modal pilih obat + stok akhir + master aturan pakai
+
+- **FE `app/components/outpatient/MedicinePickerModal.vue`** (baru): modal list obat (search, nama/kode, **satuan default**, **stok** gudang default) dari `GET /outpatient/encounters/:id/medicine-stock`; klik baris → emit `select`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: builder UNIT pakai tombol **Pilih Obat**; input **Stok akhir** → `quantity = stok tersedia − stok akhir` (konversi uom via `conversionFactor`), "Jumlah dipakai" read-only; input **Jumlah total dihapus**. Dosis/Frekuensi/Waktu Konsumsi jadi dropdown dari `GET /outpatient/prescription-options` (fallback `TIMING_OPTIONS`). Modal picker ditambahkan di template.
+- **FE `app/pages/pharmacy/prescription-options.vue`** (baru): CRUD master aturan pakai (tab Dosis/Frekuensi/Waktu; TIMING pilih dari enum). Menu Pharmacy → **Aturan Pakai** (`app/constants/menu.ts`).
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0; runtime BE master+stock+CRUD (ALL PASS).
+
+## Completed — 2026-09-17: Shortcut refresh encounter (Ctrl+R / Shift+Ctrl+R)
+
+- **FE `app/pages/outpatient/encounter/[id].vue`**: `loadAuditLogs()` dipisah dari `onMounted`. Global `keydown` (mount/unmount): **Ctrl+R** → `preventDefault` + refresh data (encounter + status farmasi); **Shift+Ctrl+R** → dibiarkan (tidak `preventDefault`) agar browser melakukan hard reload halaman. Tombol Refresh = refresh data + `title` shortcut.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Tombol Refresh status farmasi di tab Resep
+
+- **FE `app/pages/outpatient/encounter/[id].vue`**: header "Resep Aktif" tambah tombol **Refresh** (`i-lucide-refresh-cw`, loading `pending`) → `refresh()` memuat ulang encounter + status resep/item dari farmasi.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Modal Catatan Medis (tambah alergi/penyakit) di detail pasien
+
+- **FE `app/components/patient/MedicalNotesModal.vue`** (baru): modal 2 `UTextarea` (Catatan Alergi, Catatan Penyakit) → `PATCH /patient/:id`; emit `saved`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: kartu pasien selalu tampilkan baris `Alergi:` dan `Penyakit:` + tombol **Catatan Medis** (guard `patient:update`) → modal; `@saved` refresh.
+- **FE `app/pages/patients/[id].vue`**: header section Catatan Medis dapat tombol **Edit** → modal yang sama.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Fixed — 2026-09-17: Detail SOAP tidak terbaca saat encounter selesai
+
+- Penyebab: saat `DONE`, konten tab diberi `inert` sehingga tombol pilih section S/O/A/P tidak bisa diklik — hanya section aktif yang terlihat.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: `lockTabContent` kecualikan `soap`; saat `locked` tab SOAP tampilkan mode baca (semua section S/O/A/P + Tindak Lanjut dalam bentuk teks penuh), bukan textarea. Mode edit tetap seperti semula.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Dropdown status encounter di queue-list + catatan medis pasien
+
+- **FE `app/components/outpatient/EncounterStatusMenu.vue`** (baru): trigger `UButton` badge status + `UButton` dropdown; item menyesuaikan status — `Buka Detail` (selalu), `Kembalikan`/`Selesai` (IN_CONSULTATION), `Buka Kembali` (DONE). Emit `action`.
+- **FE `app/pages/outpatient/queue-list.vue`**: kolom **Aksi dihapus** (hemat tempat); kolom Status jadi dropdown `EncounterStatusMenu`; `handleStatusAction` dispatch ke `openEncounter`/`returnToWaiting`/`completeEncounter`/`reopenEncounter` (baru). colspan 6→5.
+- **FE `app/pages/patients/[id].vue`**: field `allergyNotes` + `diseaseNotes` di tipe Patient & `PatientForm`; alert `Catatan Alergi` di atas; section **Catatan Medis** (view + edit `UTextarea`).
+- **FE `app/pages/outpatient/encounter/[id].vue`** + `app/types/outpatient.ts`: tampilkan `Alergi:` / `Penyakit:` di kartu pasien.
+- **Verifikasi**: `eslint` bersih, `nuxt typecheck` EXIT=0.
+
+## Completed — 2026-09-17: Lock data saat encounter selesai + tombol Buka Kembali
+
+- **FE `app/pages/outpatient/encounter/[id].vue`**: computed `locked` (`DONE`/`CANCELLED`) + `lockTabContent`; konten tab (kecuali Audit) diberi `:inert` + `opacity-60` sehingga read-only. Banner "data tidak dapat diubah" + tombol **"Buka Kembali"** (status `DONE`) → `PATCH /outpatient/encounters/:id/reopen` lalu refresh.
+- **Verifikasi**: `npx eslint` bersih, `npx nuxt typecheck` hijau (EXIT=0).
+
+## Completed — 2026-09-17: Hapus tipe diagnosis ICD10 (PRIMARY/SECONDARY)
+
+- **FE `app/types/outpatient.ts`**: hapus `DiagnosisType` + field `type` di `Diagnosis`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: hapus ref `diagnosisType`, `USelect` "Tipe", kolom tabel Tipe, dan payload `type` saat POST diagnosis.
+- **Verifikasi**: `npx eslint` bersih, `npx nuxt typecheck` hijau (EXIT=0).
+
+## Completed — 2026-09-16: ICD10 unik per encounter + multi-select dengan label chip
+
+- **BE drift/constraint**: `schema.prisma` `OutpatientDiagnosis` dapat `@@unique([encounterId, icd10Code])`. Migration `prisma/migrations/20260916140000_add_unique_icd10_per_encounter/migration.sql`: hapus duplikat lama (simpan `id` terkecil) lalu `ADD UNIQUE INDEX outpatient_diagnosis_encounterId_icd10Code_key`; di-apply via `prisma db execute` + `migrate resolve --applied`.
+- **BE `outpatient.repository.js`**: `findDiagnosisByCode(encounterId, icd10Code)`.
+- **BE `outpatient.service.js` `addDiagnosis`**: pre-check duplikat → `AppError 409 "ICD10 ... sudah ada di encounter ini"`; fallback tangkap `P2002`.
+- **FE `app/components/outpatient/Icd10PickerModal.vue`**: multi-select (toggle baris), panel "Dipilih (n)" berisi label/chip kode ICD10 dengan tombol silang (X) untuk hapus salah pilih, tombol "Bersihkan", footer "Selesai (n)". Prop `exclude` menandai kode yang sudah ada ("Sudah ada", tidak bisa dipilih). Emit `select: Icd10[]`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: `addDiagnosis` → `addDiagnoses(list)` (loop POST, refresh sekali, lewati yang sudah ada); modal diberi `:exclude="encounter.diagnoses.map(d => d.icd10Code)"`.
+- **Verifikasi**: API duplikat → 409; live modal pilih A00.1+A00.9 → "Dipilih (2)"/"Selesai (2)"; hapus 1 chip → "Dipilih (1)"; Selesai → A00.9 masuk; cleanup. Tanpa error konsol.
+- **Catatan**: `prisma generate` gagal `EPERM` karena query engine DLL di-lock proses BE yang sedang jalan — jalankan saat BE berhenti (atau otomatis saat restart/install). Runtime tidak terpengaruh (index DB + pre-check service sudah aktif).
+
+## Fixed — 2026-09-16: Check-in registrasi non-MCU dari halaman Front Office
+
+- **Gejala**: `REG-20260916-01-0002` (`serviceType: DoctorConsultation`) tidak bisa check-in di `/front-office/registration-patient/[id]`. Modal menampilkan `canCheckin: false` — alasan "Belum ada data exam untuk diverifikasi FO".
+- **Akar masalah**: tombol "Patient Check-in" selalu memakai flow MCU `POST /registration/:id/checkin` + preview `buildCheckinEligibility` yang mensyaratkan `trxExam` + paket + item. Registrasi non-MCU tidak punya `TrxExam`, jadi selalu ditolak. Padahal per `docs/bmad/13-outpatient-flow.md` check-in non-MCU harus lewat `POST /outpatient/encounters/checkin` (buat `OutpatientEncounter`).
+- **Fix FE `app/pages/front-office/registration-patient/[id].vue`**:
+  - `confirmCheckin()` bercabang: `!isMCU` → `POST /outpatient/encounters/checkin` (`registrationId`, `queueDate`); `isMCU` → flow lama.
+  - Computed `canProceedCheckin` (non-MCU selalu boleh setelah cek tanggal).
+  - Modal: blok "MCU Package" + "Service Number" hanya `v-if="isMCU"`; panel eligibility pakai `canProceedCheckin` dan pesan khusus outpatient (alasan MCU tidak ditampilkan untuk non-MCU); tombol konfirmasi pakai `canProceedCheckin`.
+  - `checkinQueueCode` dipakai di modal sukses (OP encounter code tidak ada di `reg.queue`).
+- Terverifikasi live: modal menampilkan "Patient is ready for outpatient check-in", tombol konfirmasi aktif, tanpa error konsol. Check-in aktual belum dijalankan (menunggu klik user).
+
+## Completed — 2026-09-16: Pharmacy Order dikelompokkan per kode antrian + flag tambahan
+
+- **BE `src/repositories/outpatient/outpatient.repository.js`**: `findPharmacyOrdersByEncounter(encounterId)` — order non-DRAFT + items per encounter.
+- **BE `src/services/outpatient/pharmacy.service.js`**: `getEncounterOrders(encounterId)` → `{ encounter, orders }` (harga di-strip).
+- **BE `src/controller/outpatient/outpatient.controller.js`** + **`src/routers/outpatient/outpatient.route.js`**: `GET /outpatient/pharmacy/encounters/:encounterId` (`pharmacy:read`).
+- **FE `app/pages/pharmacy/orders/index.vue`**: satu baris per kode antrian. Kolom: Kode Antrian (+ ID encounter), Pasien, Layanan, jumlah Order, flag **Ada Tambahan**, badges status, Terakhir, Detail → `/pharmacy/orders/{encounterId}`.
+- **FE `app/pages/pharmacy/orders/[id].vue`**: detail per antrian (`GET /outpatient/pharmacy/encounters/:id`) — info encounter + semua order; order dengan `isAdditional` diberi badge **Tambahan**, header dapat flag **Ada Order Tambahan**.
+- **FE `app/types/outpatient.ts`**: `PharmacyEncounterDetail = { encounter, orders }`.
+- Terverifikasi live: list 1 baris (`OPD-20260916-0001`, 3 order, flag Ada Tambahan); detail menampilkan Order #1 (Selesai) + #3/#4 (Tambahan, Dibatalkan); tanpa error konsol.
+
+## Completed — 2026-09-16: Pharmacy Order jadi list table + halaman detail
+
+- **FE `app/pages/pharmacy/orders/index.vue`** (pindahan dari `orders.vue`): daftar order jadi `UTable` (Order #, Kode Antrian, Pasien, Layanan, Status, Item, Terkirim, aksi Detail) + filter (search/status/tanggal) + pagination client-side. Data dari `GET /outpatient/pharmacy/orders` (dikelompokkan per encounter) di-flatten jadi baris per order.
+- **FE `app/pages/pharmacy/orders/[id].vue`** (baru): detail order via `GET /outpatient/pharmacy/orders/:id` — info pasien/encounter/registrasi + tabel item + aksi Proses, Cancel Process, item (Siap/Serahkan/Gudang/Batal) + modal override gudang.
+- **FE `app/types/outpatient.ts`**: tipe baru `PharmacyOrderDetail = Prescription & { encounter }`.
+- **Fix**: struktur route harus `orders/index.vue` + `orders/[id].vue` (kalau `orders.vue` + `orders/[id].vue`, Nuxt menjadikan `orders.vue` parent nested tanpa `<NuxtPage/>` sehingga detail tidak render). Filter status pakai `'ALL'` (SelectItem tidak boleh `value: ''`).
+- Terverifikasi live: list 3 order, klik Detail → `/pharmacy/orders/{id}` menampilkan Order #4, pasien, item; tanpa error konsol.
+
+## Fixed — 2026-09-16: Item MCU kosong (drift DB: mst_sample_type.mealPrerequisite)
+
+- **Gejala**: `/items/mcu` tampil "No data" walau API punya 400 item. FE loop fetch semua halaman; halaman ke-4 `GET /mcu/items?page=4&limit=100` balas 500 → `useAsyncData` gagal total → tabel kosong.
+- **Akar masalah**: DB `mst_sample_type` tidak punya kolom `mealPrerequisite` (ada di `schema.prisma` `MstSampleType` baris 621, tapi tidak ada migration-nya). Prisma `mstItem.findMany` (include sampleTypes) error `The column db_express.mst_sample_type.mealPrerequisite does not exist`.
+- **Fix**: `ALTER TABLE mst_sample_type ADD COLUMN mealPrerequisite BOOLEAN NOT NULL DEFAULT false;` via `prisma db execute`.
+- **Catatan**: `prisma migrate diff` menunjukkan drift lain yang **belum** disentuh (beberapa destruktif, mis. `DROP TABLE mst_icd10`): `exam_item_approval` belum ada, unique index `master_blood_types.kode`, FK `Patient.bloodTypeId`, index `queue_entry.registrationId`, nullable `mst_paket.code/type`, enum `trx_exam_result.externalStatus`, `patient.dob`, kolom extra `qst_question.showIfOptionId`, tabel extra `registration_additional_exam`.
+- **Migrasi lanjutan (tanpa kehilangan data)** — `prisma/migrations/20260916130000_reconcile_schema_drift_no_data_loss/migration.sql` (di-apply via `prisma db execute`, di-record `prisma migrate resolve --applied`):
+  - `CREATE TABLE exam_item_approval` (dipakai `exam.service.js`/`exam.repository.js`; sebelumnya hilang → berpotensi 500 di alur approval).
+  - `trx_exam_result.externalStatus` enum + nilai `PROCESSING` (pelebaran).
+  - FK `Patient.bloodTypeId` → `master_blood_types.id` (0 orphan).
+  - `queue_entry.registrationId`: unique index → index biasa (buat index baru dulu, baru drop unique, karena FK `queue_entry_registrationId_fkey` butuh index pendukung).
+  - `mst_paket.code/type` → `VARCHAR(191)` + rename index `code` → `mst_paket_code_key`.
+- **Sengaja dilewati (berisiko hapus data)**: `DROP TABLE mst_icd10` (13.861 baris), `DROP TABLE registration_additional_exam`, `DROP COLUMN qst_question.showIfOptionId`, `patient.dob`→`DATE` (5 baris punya waktu), unique index `master_blood_types.kode` (12 kode duplikat × 8 baris).
+- **Verifikasi pasca-migrasi**: `mst_icd10` 13.861, `patient` 5, `queue_entry` 41, `master_blood_types` 96 — tidak ada baris hilang; `exam_item_approval` bisa di-query; `/items/mcu` kembali normal (semua halaman 200).
+
+## Completed — 2026-09-16: ICD10 picker modal + server-side pagination
+
+- **BE `src/repositories/outpatient/icd10.repository.js`**: `searchIcd10(search, page, limit)` kini mengembalikan `{ data, meta }` — query `LIMIT/OFFSET` + `COUNT(*)` paralel, cap `limit` 100.
+- **BE `src/services/outpatient/outpatient.service.js`**: `searchIcd10(search, page, limit)`.
+- **BE `src/controller/outpatient/outpatient.controller.js`**: `searchIcd10` pakai `response.paginated(res, msg, data, meta)` (shape `{ data: [...], meta: { total, page, limit } }`).
+- **FE `app/components/outpatient/Icd10PickerModal.vue`** (baru): modal pencarian ICD10 server-side — debounce 300ms, tabel EN/ID, UPagination + page size (10/25/50), klik baris/tombol Tambah → emit `select`.
+- **FE `app/pages/outpatient/encounter/[id].vue`**: panel Diagnosis kiri diganti tombol "Cari Diagnosis ICD10" + select tipe (Primary/Secondary); hapus `icdSearch/icdResults/icdSearching/searchIcd`; handler `addDiagnosis` dipakai `@select`.
+- Terverifikasi live: total 13.861 → search "kolera" total 4 → "asdfgzzz" total 0; pilih baris menutup modal, diagnosis bertambah, lalu dibersihkan kembali.
+
+## Completed — 2026-09-16: Redesign halaman encounter outpatient (workspace 2 kolom ala mockup outpatien.svg)
+
+- **FE `app/pages/outpatient/encounter/[id].vue`**: layout diubah dari tab bertumpuk menjadi workspace 2 kolom. Header pasien (identitas + chip tanda vital + badge status/prioritas + aksi encounter), bar tab segmented, lalu grid `xl:grid-cols-[480px_minmax(0,1fr)]` (kiri list, kanan detail) untuk tiap tab. Design token mockup (#00355F, #0F4C81, #F2F3FF, #E2E7FF, #00553A, rounded 4px).
+- Fitur dipertahankan: Vital Sign (ringkasan + form bernomor), SOAP (navigasi S/O/A/P + editor + tindak lanjut), Diagnosis (pencarian ICD10 + tabel), Resep (daftar order aktif + builder bernomor + draft + harga + kirim farmasi), Audit (timeline + detail + tabel).
+- Script: tambah state UI (`tabs`, `soapSection`, `selectedAuditId`) + computed (`patientAge`, `genderLabel`, `bmiCategory`, `vitalChips`, `vitalsSummary`, `draftTotal`) + helper `sendFirstDraft()`.
 
 ## Completed — 2026-09-08: MR flow bertahap persis BMAD (MR_REVIEW & READY_TO_RELEASE)
 

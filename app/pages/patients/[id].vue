@@ -40,6 +40,8 @@ type Patient = {
   bloodType?: { id: number, kode: string } | null
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   createdAt: string
   addresses: Address[]
   histories: CompanyHistory[]
@@ -48,10 +50,12 @@ type Patient = {
 
 type PatientForm = Omit<
   Partial<Patient>,
-  'policyNumber' | 'policyExpDate'
+  'policyNumber' | 'policyExpDate' | 'allergyNotes' | 'diseaseNotes'
 > & {
   policyNumber?: string
   policyExpDate?: string
+  allergyNotes?: string
+  diseaseNotes?: string
   updatedAt?: string
 }
 
@@ -72,6 +76,7 @@ const bloodTypeOptions = computed(() =>
 
 // State untuk edit mode
 const isEditing = ref(false)
+const medicalNotesOpen = ref(false)
 const selectedPhotoFile = ref<File | null>(null)
 const photoPreview = ref<string | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -163,7 +168,9 @@ const startEditing = () => {
       bloodTypeId: patient.value.bloodTypeId ?? null,
       dob: formatDateForInput(patient.value.dob),
       policyNumber: patient.value.policyNumber ?? undefined,
-      policyExpDate: patient.value.policyExpDate ?? undefined
+      policyExpDate: patient.value.policyExpDate ?? undefined,
+      allergyNotes: patient.value.allergyNotes ?? '',
+      diseaseNotes: patient.value.diseaseNotes ?? ''
     }
 
     photoPreview.value = patient.value.photoUrl || null
@@ -535,6 +542,15 @@ const deleteAddress = async (addressId: string) => {
             : `Kartu polis akan berakhir dalam ${policyExpiry.days} hari`
         "
         description="Mohon perbarui data polis pada pasien ini."
+      />
+
+      <UAlert
+        v-if="!isEditing && patient.allergyNotes"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-alert-triangle"
+        title="Catatan Alergi"
+        :description="patient.allergyNotes"
       />
 
       <!-- Header dengan foto di kiri -->
@@ -940,6 +956,67 @@ const deleteAddress = async (addressId: string) => {
         </div>
       </div>
 
+      <!-- Catatan Medis -->
+      <div class="rounded-xl border border-accented overflow-hidden">
+        <div class="px-4 py-3 bg-elevated border-b border-accented flex items-center justify-between">
+          <h3 class="text-sm font-medium flex items-center gap-2">
+            <UIcon name="i-lucide-heart-pulse" />
+            Catatan Medis
+          </h3>
+          <UButton
+            icon="i-lucide-pencil"
+            size="xs"
+            color="primary"
+            variant="ghost"
+            label="Edit"
+            @click="medicalNotesOpen = true"
+          />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 bg-accented p-2">
+          <div class="bg-background p-3 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-alert-triangle" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Catatan Alergi
+              </p>
+            </div>
+            <p v-if="!isEditing" class="text-sm whitespace-pre-line">
+              {{ patient.allergyNotes || "-" }}
+            </p>
+            <UTextarea
+              v-else
+              v-model="editForm.allergyNotes"
+              :rows="3"
+              class="w-full"
+              placeholder="cth. Alergi penisilin, seafood"
+            />
+          </div>
+
+          <div class="bg-background p-3 flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                <UIcon name="i-lucide-clipboard-list" class="size-3.5" />
+              </span>
+              <p class="text-[11px] uppercase tracking-wide text-muted font-medium">
+                Catatan Penyakit
+              </p>
+            </div>
+            <p v-if="!isEditing" class="text-sm whitespace-pre-line">
+              {{ patient.diseaseNotes || "-" }}
+            </p>
+            <UTextarea
+              v-else
+              v-model="editForm.diseaseNotes"
+              :rows="3"
+              class="w-full"
+              placeholder="cth. Riwayat hipertensi, diabetes"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Alamat -->
       <UCollapsible
         :default-open="true"
@@ -1258,6 +1335,14 @@ const deleteAddress = async (addressId: string) => {
           </div>
         </div>
       </div>
+
+      <PatientMedicalNotesModal
+        v-model:open="medicalNotesOpen"
+        :patient-id="patient?.id"
+        :allergy-notes="patient?.allergyNotes"
+        :disease-notes="patient?.diseaseNotes"
+        @saved="refresh()"
+      />
     </div>
   </UDashboardPanel>
 </template>
