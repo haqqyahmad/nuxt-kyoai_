@@ -67,7 +67,7 @@ watch(() => examId.value, loadOverview, { immediate: true })
         :loading="startLoading"
         @click="emit('start')"
       >
-        Mulai Pemeriksaan
+        Start Examination
       </UButton>
       <UButton
         v-if="canDoneItem"
@@ -75,10 +75,10 @@ watch(() => examId.value, loadOverview, { immediate: true })
         :loading="doneLoading"
         @click="emit('done')"
       >
-        Selesaikan Item
+        Complete Item
       </UButton>
       <UButton v-if="props.canManageActions && !isFinal" variant="soft" @click="emit('refuse')">
-        Pasien Menolak
+        Patient Refused
       </UButton>
     </div>
 

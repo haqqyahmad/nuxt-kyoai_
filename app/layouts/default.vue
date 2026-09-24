@@ -20,6 +20,17 @@ const userDefaultDepartment = computed(() => roleDefaultDepartment[currentRoleNa
 const open = ref(false)
 const openPrivacyPolicy = ref(false)
 
+const isMedicalRecordUser = computed(() =>
+  roles.value.some(role => role.toLowerCase() === 'medical-record')
+)
+
+const sidebarCollapsed = ref(false)
+const sidebarStorageId = computed(() => isMedicalRecordUser.value ? 'default-medical-record' : 'default')
+
+watch(isMedicalRecordUser, (value) => {
+  if (value) sidebarCollapsed.value = true
+}, { immediate: true })
+
 // Update active menu berdasarkan route
 const menuGroups: Record<string, string[]> = {
   'Master Data': [
@@ -409,8 +420,9 @@ onMounted(() => {
     <UDashboardGroup unit="rem">
       <UDashboardSidebar
         v-if="!hideSidebar"
-        id="default"
+        :id="sidebarStorageId"
         v-model:open="open"
+        v-model:collapsed="sidebarCollapsed"
         collapsible
         resizable
         class="bg-elevated/25"

@@ -48,16 +48,16 @@ async function deletePatient(id: string) {
     await api.delete(`/patient/${id}`)
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Patient berhasil dihapus',
+      title: 'Success',
+      description: 'Patient deleted successfully',
       color: 'success'
     })
 
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus patient',
+      title: 'Failed',
+      description: 'Failed to delete patient',
       color: 'error'
     })
   }
@@ -82,8 +82,8 @@ async function deleteSelectedPatients() {
     )
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil dihapus',
+      title: 'Success',
+      description: 'Patient data deleted successfully',
       color: 'success'
     })
 
@@ -91,8 +91,8 @@ async function deleteSelectedPatients() {
     await refresh()
   } catch {
     toast.add({
-      title: 'Gagal',
-      description: 'Gagal menghapus data',
+      title: 'Failed',
+      description: 'Failed to delete data',
       color: 'error'
     })
   }
@@ -187,7 +187,7 @@ const columns: TableColumn<Patient>[] = [
     accessorKey: 'gender',
     header: 'Gender',
     cell: ({ row }) =>
-      row.getValue('gender') === 'MALE' ? 'Laki-laki' : 'Perempuan'
+      row.getValue('gender') === 'MALE' ? 'Male' : 'Female'
   },
   {
     accessorKey: 'idNumber',

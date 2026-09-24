@@ -44,7 +44,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
           </div>
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-primary">
-              Pemeriksaan Dokter
+              Doctor Examination
             </p>
             <h3 class="mt-0.5 text-lg font-bold text-highlighted">
               {{ item.trxExamItem?.item?.name || 'Physical Examination' }}
@@ -63,9 +63,9 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             icon="i-lucide-arrow-left"
             @click="emit('back')"
           >
-            Kembali
+            Back
           </UButton>
-          <UBadge :label="isFinal ? 'Selesai' : item.status === 'IN_PROGRESS' ? 'Sedang dikerjakan' : 'Menunggu'" :color="item.status === 'DONE' ? 'success' : item.status === 'IN_PROGRESS' ? 'warning' : 'neutral'" variant="subtle" />
+          <UBadge :label="isFinal ? 'Completed' : item.status === 'IN_PROGRESS' ? 'In Progress' : 'Waiting'" :color="item.status === 'DONE' ? 'success' : item.status === 'IN_PROGRESS' ? 'warning' : 'neutral'" variant="subtle" />
           <UButton
             v-if="canStartItem"
             color="primary"
@@ -73,7 +73,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             :loading="startLoading"
             @click="emit('start')"
           >
-            Mulai Item
+            Start Item
           </UButton>
           <UButton
             v-if="canDoneItem"
@@ -83,7 +83,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             :disabled="!canDone"
             @click="emit('done')"
           >
-            Selesaikan Item
+            Complete Item
           </UButton>
           <UButton
             v-if="canManageActions && !isFinal"
@@ -110,7 +110,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             icon="i-lucide-ban"
             @click="emit('refuse')"
           >
-            Pasien Menolak
+            Patient Refused
           </UButton>
         </div>
       </div>
@@ -122,8 +122,8 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
         color="info"
         variant="soft"
         icon="i-lucide-info"
-        title="Menunggu tahap EXAM"
-        description="Pemeriksaan fisik dapat dimulai setelah stage aktif berpindah ke EXAM."
+        title="Waiting for EXAM stage"
+        description="Physical examination can be started once the active stage moves to EXAM."
       />
 
       <PhysicalExamPanel
@@ -141,7 +141,7 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
         color="neutral"
         variant="soft"
         icon="i-lucide-shield-alert"
-        description="Data exam untuk item ini belum tersedia."
+        description="Exam data for this item is not yet available."
       />
     </div>
   </UCard>

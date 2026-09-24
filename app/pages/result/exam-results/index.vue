@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { toDepartmentMenuKey } from '~/constants/menu'
 
 type Department = {
   id: string
@@ -62,7 +63,11 @@ type ExamResult = {
   } | null
   resultTiming?: 'inline' | 'deferred'
   status?: 'pending' | 'completed'
+  resultStatus?: string | null
   departmentResultStatus?: string | null
+  departmentCurrentStepOrder?: number | null
+  itemApproved?: boolean | null
+  itemApprovedAt?: string | null
   checkinAt?: string | null
   completedAt?: string | null
   createdAt?: string
@@ -180,9 +185,9 @@ function formatDateTime(dateString?: string | null) {
 
 function getStatusColor(status?: string) {
   if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
-  if (status === 'pending' || status === 'DEPARTMENT_REVIEW') return 'warning'
-  if (status === 'RETURNED_TO_DEPARTMENT') return 'error'
-  if (status === 'DRAFT') return 'neutral'
+  if (status === 'pending' || status === 'DEPARTMENT_REVIEW' || status === 'SUBMITTED' || status === 'PARTIAL') return 'warning'
+  if (status === 'RETURNED_TO_DEPARTMENT' || status === 'RETURNED') return 'error'
+  if (status === 'DRAFT' || status === 'READY' || status === 'NOT_READY') return 'neutral'
   return 'neutral'
 }
 
@@ -193,8 +198,29 @@ function getStatusLabel(status?: string) {
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
   if (status === 'SUBMITTED_TO_DOCTOR') return 'Approved · Sent to Doctor'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
+  if (status === 'SUBMITTED') return 'Pending Approval'
+  if (status === 'PARTIAL') return 'Partially Submitted'
+  if (status === 'READY') return 'Ready'
+  if (status === 'NOT_READY') return 'Not Ready'
+  if (status === 'RETURNED') return 'Returned'
   if (status === 'DRAFT') return 'Draft'
   return status || '-'
+}
+
+// Status per item: pakai status item bila belum disubmit; bila sudah disubmit,
+// tampilkan status approval department-nya.
+function getRowStatus(result: ExamResult) {
+  const itemStatus = result.resultStatus
+  if (!itemStatus) return result.departmentResultStatus || result.status || ''
+  // Belum submit → status item apa adanya (Ready/Draft/Returned/Not Ready).
+  if (itemStatus !== 'SUBMITTED') return itemStatus
+
+  const departmentStatus = result.departmentResultStatus
+  // Sudah dikirim ke dokter: event level exam → berlaku semua item submitted.
+  if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
+  // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
+  if (result.itemApproved) return 'DEPARTMENT_APPROVED'
+  return departmentStatus || 'SUBMITTED'
 }
 
 function getTypeLabel(type?: string) {
@@ -498,8 +524,9 @@ watch(results, () => {
 // View detail
 async function viewDetail(result: ExamResult) {
   // Gunakan department milik baris (bukan filter halaman) agar query detail
-  // selalu konsisten dengan examId & roomTypeId-nya.
-  const departmentCode = result.item?.department?.code?.toLowerCase()
+  // selalu konsisten dengan examId & roomTypeId-nya. Key menu (bukan kode) agar
+  // tombol Back di halaman detail kembali dengan filter yang benar.
+  const departmentCode = toDepartmentMenuKey(result.item?.department?.code)
     || getQueryValue(route.query.department)
 
   await router.push({
@@ -804,8 +831,8 @@ onMounted(async () => {
                   </td>
                   <td class="px-4 py-3 text-sm">
                     <UBadge
-                      :label="getStatusLabel(result.departmentResultStatus || result.status)"
-                      :color="getStatusColor(result.departmentResultStatus || result.status)"
+                      :label="getStatusLabel(getRowStatus(result))"
+                      :color="getStatusColor(getRowStatus(result))"
                       variant="subtle"
                     />
                   </td>

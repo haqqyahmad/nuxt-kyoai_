@@ -55,8 +55,8 @@ type PatientFormData = {
 }
 
 const genderOptions = [
-  { label: 'Laki-laki', value: 'MALE' },
-  { label: 'Perempuan', value: 'FEMALE' }
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' }
 ]
 
 const idTypeOptions = [
@@ -66,9 +66,9 @@ const idTypeOptions = [
 ]
 
 const maritalOptions = [
-  { label: 'Belum Menikah', value: 'SINGLE' },
-  { label: 'Menikah', value: 'MARRIED' },
-  { label: 'Cerai', value: 'DIVORCED' }
+  { label: 'Single', value: 'SINGLE' },
+  { label: 'Married', value: 'MARRIED' },
+  { label: 'Divorced', value: 'DIVORCED' }
 ]
 
 // ✅ submit dipisah (ini yang dipanggil BaseFormModal)
@@ -92,8 +92,8 @@ async function submit(data: PatientFormData) {
 
 <template>
   <BaseFormModal
-    title="Tambah Pasien"
-    description="Isi data pasien"
+    title="Add Patient"
+    description="Enter patient data"
     :schema="schema"
     :state="state"
     :submit="submit"
@@ -101,7 +101,7 @@ async function submit(data: PatientFormData) {
   >
     <!-- 🔥 Trigger -->
     <template #trigger>
-      <UButton label="Tambah Pasien" icon="i-lucide-user-plus" />
+      <UButton label="Add Patient" icon="i-lucide-user-plus" />
     </template>
 
     <!-- 🔥 FORM ISI -->
@@ -111,19 +111,19 @@ async function submit(data: PatientFormData) {
     <!-- Nama -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <UFormField label="First Name" name="firstName" required>
-        <UInput v-model="state.firstName" placeholder="Budi" class="w-full" />
+        <UInput v-model="state.firstName" placeholder="John" class="w-full" />
       </UFormField>
 
       <UFormField label="Middle Name" name="middleName">
         <UInput
           v-model="state.middleName"
-          placeholder="Santoso"
+          placeholder="Michael"
           class="w-full"
         />
       </UFormField>
 
       <UFormField label="Last Name" name="lastName" required>
-        <UInput v-model="state.lastName" placeholder="Wijaya" class="w-full" />
+        <UInput v-model="state.lastName" placeholder="Doe" class="w-full" />
       </UFormField>
     </div>
 
@@ -133,16 +133,16 @@ async function submit(data: PatientFormData) {
         <USelect
           v-model="state.gender"
           :items="genderOptions"
-          placeholder="Pilih gender"
+          placeholder="Select gender"
           class="w-full"
         />
       </UFormField>
 
-      <UFormField label="Status Pernikahan" name="maritalStatus">
+      <UFormField label="Marital Status" name="maritalStatus">
         <USelect
           v-model="state.maritalStatus"
           :items="maritalOptions"
-          placeholder="Pilih status"
+          placeholder="Select status"
           class="w-full"
         />
       </UFormField>
@@ -150,17 +150,17 @@ async function submit(data: PatientFormData) {
 
     <!-- ID Type & ID Number -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <UFormField label="Jenis ID" name="idType">
+      <UFormField label="ID Type" name="idType">
         <USelect
           v-model="state.idType"
           :items="idTypeOptions"
-          placeholder="Pilih jenis"
+          placeholder="Select type"
           class="w-full"
         />
       </UFormField>
 
       <UFormField
-        label="Nomor Identitas"
+        label="ID Number"
         name="idNumber"
         required
         class="sm:col-span-2"
@@ -174,13 +174,13 @@ async function submit(data: PatientFormData) {
     </div>
 
     <!-- DOB -->
-    <UFormField label="Tanggal Lahir" name="dob" required>
+    <UFormField label="Date of Birth" name="dob" required>
       <UInput v-model="state.dob" type="date" class="w-full" />
     </UFormField>
 
     <!-- Kontak -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <UFormField label="No. HP" name="phone">
+      <UFormField label="Phone No." name="phone">
         <UInput
           v-model="state.phone"
           placeholder="081234567890"
@@ -190,7 +190,7 @@ async function submit(data: PatientFormData) {
       <UFormField label="Email" name="email">
         <UInput
           v-model="state.email"
-          placeholder="budi@email.com"
+          placeholder="john@email.com"
           class="w-full"
         />
       </UFormField>

@@ -17,18 +17,20 @@ const emit = defineEmits<{
 }>()
 
 const schema = z.object({
-  firstName: z.string().min(1, 'First name wajib diisi'),
+  firstName: z.string().min(1, 'First name is required'),
   middleName: z.string().optional(),
-  lastName: z.string().min(1, 'Last name wajib diisi'),
+  lastName: z.string().min(1, 'Last name is required'),
   gender: z.enum(['MALE', 'FEMALE']),
   idType: z.enum(['KTP', 'PASSPORT', 'SIM']),
-  idNumber: z.string().min(1, 'Nomor identitas wajib diisi'),
-  email: z.string().email('Email tidak valid').optional().or(z.literal('')),
-  dob: z.string().min(1, 'Tanggal lahir wajib diisi'),
+  idNumber: z.string().min(1, 'ID number is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  dob: z.string().min(1, 'Date of birth is required'),
   maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED']).optional(),
   phone: z.string().optional(),
   policyNumber: z.string().optional(),
-  policyExpDate: z.string().optional()
+  policyExpDate: z.string().optional(),
+  allergyNotes: z.string().optional(),
+  diseaseNotes: z.string().optional()
 })
 
 type Schema = z.output<typeof schema>
@@ -45,7 +47,9 @@ const state = reactive<Partial<Schema>>({
   maritalStatus: undefined,
   phone: '',
   policyNumber: '',
-  policyExpDate: ''
+  policyExpDate: '',
+  allergyNotes: '',
+  diseaseNotes: ''
 })
 
 type AddressType = 'HOME' | 'OFFICE' | 'BILLING' | 'OTHER'
@@ -87,15 +91,15 @@ const isAddressFormValid = computed(() =>
 )
 
 const ADDRESS_TYPE_LABEL: Record<AddressType, string> = {
-  HOME: 'Rumah',
-  OFFICE: 'Kantor',
-  BILLING: 'Tagihan',
-  OTHER: 'Lainnya'
+  HOME: 'Home',
+  OFFICE: 'Office',
+  BILLING: 'Billing',
+  OTHER: 'Other'
 }
 
 const genderOptions = [
-  { label: 'Laki-laki', value: 'MALE' },
-  { label: 'Perempuan', value: 'FEMALE' }
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' }
 ]
 
 const idTypeOptions = [
@@ -105,16 +109,16 @@ const idTypeOptions = [
 ]
 
 const maritalOptions = [
-  { label: 'Belum Menikah', value: 'SINGLE' },
-  { label: 'Menikah', value: 'MARRIED' },
-  { label: 'Cerai', value: 'DIVORCED' }
+  { label: 'Single', value: 'SINGLE' },
+  { label: 'Married', value: 'MARRIED' },
+  { label: 'Divorced', value: 'DIVORCED' }
 ]
 
 const addressTypeOptions = [
-  { label: 'Rumah', value: 'HOME' },
-  { label: 'Kantor', value: 'OFFICE' },
-  { label: 'Tagihan', value: 'BILLING' },
-  { label: 'Lainnya', value: 'OTHER' }
+  { label: 'Home', value: 'HOME' },
+  { label: 'Office', value: 'OFFICE' },
+  { label: 'Billing', value: 'BILLING' },
+  { label: 'Other', value: 'OTHER' }
 ]
 
 const loading = ref(false)
@@ -134,6 +138,8 @@ type PatientDetail = {
   phone?: string | null
   policyNumber?: string | null
   policyExpDate?: string | null
+  allergyNotes?: string | null
+  diseaseNotes?: string | null
   addresses?: PatientAddress[]
 }
 
@@ -143,7 +149,7 @@ function formatDateForInput(date?: string | null) {
 }
 
 function addressTypeLabel(type?: AddressType | null) {
-  return type ? ADDRESS_TYPE_LABEL[type] ?? type : 'Lainnya'
+  return type ? ADDRESS_TYPE_LABEL[type] ?? type : 'Other'
 }
 
 function addressLine(item: PatientAddress) {
@@ -163,6 +169,8 @@ function resetIdentity() {
   state.phone = ''
   state.policyNumber = ''
   state.policyExpDate = ''
+  state.allergyNotes = ''
+  state.diseaseNotes = ''
 }
 
 function startNewAddress() {
@@ -200,6 +208,8 @@ function fillForm(patient: PatientDetail) {
   state.phone = patient.phone ?? ''
   state.policyNumber = patient.policyNumber ?? ''
   state.policyExpDate = patient.policyExpDate ?? ''
+  state.allergyNotes = patient.allergyNotes ?? ''
+  state.diseaseNotes = patient.diseaseNotes ?? ''
 
   addresses.value = patient.addresses ?? []
 
@@ -255,8 +265,8 @@ async function saveAddressForm() {
     if (savedId) editingAddressId.value = savedId
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Alamat berhasil disimpan',
+      title: 'Success',
+      description: 'Address saved successfully',
       color: 'success'
     })
     emit('updated')
@@ -278,8 +288,8 @@ async function removeAddress(id: string) {
     if (editingAddressId.value === id) startNewAddress()
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Alamat berhasil dihapus',
+      title: 'Success',
+      description: 'Address deleted successfully',
       color: 'success'
     })
     emit('updated')
@@ -318,12 +328,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       maritalStatus: data.maritalStatus || undefined,
       phone: data.phone || undefined,
       policyNumber: data.policyNumber || undefined,
-      policyExpDate: data.policyExpDate || undefined
+      policyExpDate: data.policyExpDate || undefined,
+      allergyNotes: data.allergyNotes || undefined,
+      diseaseNotes: data.diseaseNotes || undefined
     })
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Data pasien berhasil diperbarui',
+      title: 'Success',
+      description: 'Patient data updated successfully',
       color: 'success'
     })
 
@@ -340,8 +352,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 <template>
   <UModal
     v-model:open="open"
-    title="Edit Data Pasien"
-    description="Perbarui identitas dan alamat pasien"
+    title="Edit Patient Data"
+    description="Update patient identity and address"
   >
     <template #body>
       <UForm
@@ -356,7 +368,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <UInput
               v-model="state.firstName"
               :disabled="loading"
-              placeholder="Budi"
+              placeholder="John"
               class="w-full"
             />
           </UFormField>
@@ -365,7 +377,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <UInput
               v-model="state.middleName"
               :disabled="loading"
-              placeholder="Santoso"
+              placeholder="Michael"
               class="w-full"
             />
           </UFormField>
@@ -374,7 +386,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <UInput
               v-model="state.lastName"
               :disabled="loading"
-              placeholder="Wijaya"
+              placeholder="Doe"
               class="w-full"
             />
           </UFormField>
@@ -386,35 +398,35 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               v-model="state.gender"
               :items="genderOptions"
               :disabled="loading"
-              placeholder="Pilih gender"
+              placeholder="Select gender"
               class="w-full"
             />
           </UFormField>
 
-          <UFormField label="Status Pernikahan" name="maritalStatus">
+          <UFormField label="Marital Status" name="maritalStatus">
             <USelect
               v-model="state.maritalStatus"
               :items="maritalOptions"
               :disabled="loading"
-              placeholder="Pilih status"
+              placeholder="Select status"
               class="w-full"
             />
           </UFormField>
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <UFormField label="Jenis ID" name="idType" required>
+          <UFormField label="ID Type" name="idType" required>
             <USelect
               v-model="state.idType"
               :items="idTypeOptions"
               :disabled="loading"
-              placeholder="Pilih jenis"
+              placeholder="Select type"
               class="w-full"
             />
           </UFormField>
 
           <UFormField
-            label="Nomor Identitas"
+            label="ID Number"
             name="idNumber"
             required
             class="sm:col-span-2"
@@ -428,7 +440,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           </UFormField>
         </div>
 
-        <UFormField label="Tanggal Lahir" name="dob" required>
+        <UFormField label="Date of Birth" name="dob" required>
           <UInput
             v-model="state.dob"
             type="date"
@@ -438,7 +450,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UFormField>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <UFormField label="No. HP" name="phone">
+          <UFormField label="Phone No." name="phone">
             <UInput
               v-model="state.phone"
               :disabled="loading"
@@ -451,14 +463,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <UInput
               v-model="state.email"
               :disabled="loading"
-              placeholder="budi@email.com"
+              placeholder="john@email.com"
               class="w-full"
             />
           </UFormField>
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <UFormField label="No. Polis" name="policyNumber">
+          <UFormField label="Policy Number" name="policyNumber">
             <UInput
               v-model="state.policyNumber"
               :disabled="loading"
@@ -467,7 +479,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             />
           </UFormField>
 
-          <UFormField label="Polis Berlaku s/d" name="policyExpDate">
+          <UFormField label="Policy Valid Until" name="policyExpDate">
             <UInput
               v-model="state.policyExpDate"
               type="date"
@@ -477,12 +489,34 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           </UFormField>
         </div>
 
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <UFormField label="Allergy Notes" name="allergyNotes">
+            <UTextarea
+              v-model="state.allergyNotes"
+              :disabled="loading"
+              :rows="3"
+              placeholder="e.g. Seafood, peanut"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Disease Notes" name="diseaseNotes">
+            <UTextarea
+              v-model="state.diseaseNotes"
+              :disabled="loading"
+              :rows="3"
+              placeholder="e.g. Hypertension"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
         <div class="space-y-3 rounded-lg border border-default p-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium">Alamat</span>
+            <span class="text-sm font-medium">Address</span>
             <UButton
               icon="i-lucide-plus"
-              label="Alamat Baru"
+              label="New Address"
               size="xs"
               color="primary"
               variant="soft"
@@ -520,16 +554,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             </div>
           </div>
           <p v-else class="text-xs text-muted">
-            Belum ada alamat.
+            No addresses yet.
           </p>
 
           <div class="space-y-3 rounded-md bg-elevated/40 p-2.5">
             <p class="text-xs font-medium text-muted">
-              {{ editingAddressId ? 'Edit alamat terpilih' : 'Tambah alamat baru' }}
+              {{ editingAddressId ? 'Edit selected address' : 'Add new address' }}
             </p>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-              <UFormField label="Tipe">
+              <UFormField label="Type">
                 <USelect
                   v-model="addressForm.type"
                   :items="addressTypeOptions"
@@ -540,14 +574,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               <UFormField label="Detail" class="sm:col-span-3">
                 <UInput
                   v-model="addressForm.detail"
-                  placeholder="Jl. Merdeka No. 1, RT 01"
+                  placeholder="123 Main St, Apt 1"
                   class="w-full"
                 />
               </UFormField>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <UFormField label="Kota">
+              <UFormField label="City">
                 <UInput
                   v-model="addressForm.city"
                   placeholder="Jakarta"
@@ -555,7 +589,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                 />
               </UFormField>
 
-              <UFormField label="Provinsi">
+              <UFormField label="Province">
                 <UInput
                   v-model="addressForm.province"
                   placeholder="DKI Jakarta"
@@ -565,7 +599,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <UFormField label="Kecamatan">
+              <UFormField label="District">
                 <UInput
                   v-model="addressForm.district"
                   placeholder="Menteng"
@@ -573,7 +607,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                 />
               </UFormField>
 
-              <UFormField label="Negara">
+              <UFormField label="Country">
                 <UInput
                   v-model="addressForm.country"
                   placeholder="Indonesia"
@@ -582,29 +616,29 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
               </UFormField>
             </div>
 
-            <UFormField label="Catatan">
+            <UFormField label="Note">
               <UInput
                 v-model="addressForm.note"
-                placeholder="Opsional"
+                placeholder="Optional"
                 class="w-full"
               />
             </UFormField>
 
             <div class="flex items-center justify-between gap-2">
               <p class="text-xs text-muted">
-                Detail, Kota, Provinsi, Kecamatan, Negara wajib diisi.
+                Detail, City, Province, District, Country are required.
               </p>
               <div class="flex gap-2">
                 <UButton
                   v-if="editingAddressId"
-                  label="Batal"
+                  label="Cancel"
                   size="xs"
                   color="neutral"
                   variant="subtle"
                   @click="startNewAddress"
                 />
                 <UButton
-                  label="Simpan Alamat"
+                  label="Save Address"
                   size="xs"
                   color="primary"
                   :loading="addressSaving"
@@ -618,13 +652,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
         <div class="flex justify-end gap-2 pt-2">
           <UButton
-            label="Batal"
+            label="Cancel"
             color="neutral"
             variant="subtle"
             @click="open = false"
           />
           <UButton
-            label="Simpan"
+            label="Save"
             color="primary"
             type="submit"
             :loading="saving"

@@ -14,6 +14,7 @@ type Step = {
   reviewerUserId?: number | null
   reviewerRoleId?: string | null
   reviewerRoleIds?: number[] | null
+  requireFourEyes?: boolean
   isActive?: boolean
 }
 
@@ -123,10 +124,11 @@ const userNameById = computed<Record<string, string>>(() => {
   return map
 })
 function reviewerLabel(s: Step): string {
-  if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}`
+  const suffix = s.requireFourEyes ? ' (four-eyes)' : ''
+  if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}${suffix}`
   const roles = (s.reviewerRoleIds?.length ? s.reviewerRoleIds : s.reviewerRoleId ? [Number(s.reviewerRoleId)] : [])
-  if (roles.length) return `role: ${roles.map(rid => roleNameById.value[String(rid)] ?? rid).join(', ')}`
-  return 'anyone'
+  if (roles.length) return `role: ${roles.map(rid => roleNameById.value[String(rid)] ?? rid).join(', ')}${suffix}`
+  return `anyone${suffix}`
 }
 
 // ── Edit modal ────────────────────────────────────────────────────
@@ -144,13 +146,14 @@ function openEdit(department: Department) {
     ...s,
     reviewerUserId: s.reviewerUserId ?? null,
     reviewerRoleId: s.reviewerRoleId ?? null,
-    reviewerRoleIds: s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : [])
+    reviewerRoleIds: s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : []),
+    requireFourEyes: s.requireFourEyes === true
   }))
   editOpen.value = true
 }
 
 function addStep() {
-  editSteps.value.push({ stepOrder: editSteps.value.length + 1, label: `Step ${editSteps.value.length + 1}`, reviewerUserId: null, reviewerRoleId: null, reviewerRoleIds: [] })
+  editSteps.value.push({ stepOrder: editSteps.value.length + 1, label: `Step ${editSteps.value.length + 1}`, reviewerUserId: null, reviewerRoleId: null, reviewerRoleIds: [], requireFourEyes: false })
   renumber()
 }
 
@@ -172,7 +175,8 @@ async function saveWorkflow() {
         label: s.label,
         reviewerUserId: s.reviewerUserId ? Number(s.reviewerUserId) : null,
         reviewerRoleId: s.reviewerRoleId ? String(s.reviewerRoleId) : null,
-        reviewerRoleIds: (s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : []))
+        reviewerRoleIds: (s.reviewerRoleIds?.length ? s.reviewerRoleIds : (s.reviewerRoleId != null ? [Number(s.reviewerRoleId)] : [])),
+        requireFourEyes: s.requireFourEyes === true
       }))
     }
     await api.put(`/settings/result-workflow/${editDeptId.value}`, payload)
@@ -306,6 +310,10 @@ const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
                 @update:model-value="(v: string[] | null) => { step.reviewerRoleIds = (v ?? []).map(Number); step.reviewerRoleId = (v?.[0]) || null }"
               />
             </div>
+            <UCheckbox
+              v-model="step.requireFourEyes"
+              label="Four-eyes (submitter tidak boleh approve hasilnya sendiri)"
+            />
           </div>
           <UButton
             label="Tambah Step"

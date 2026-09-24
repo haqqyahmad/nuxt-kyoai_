@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
+import { EXAM_STATUS_LABEL, MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
 import type { DoctorResultResponse, DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
 
 definePageMeta({ title: 'MR Review Detail' })
@@ -34,6 +34,10 @@ function statusColor(status?: string) {
 }
 function statusLabel(status?: string) {
   return MR_STATUS_LABEL[status ?? ''] ?? status ?? '-'
+}
+function examStatusLabel(status?: string | null) {
+  if (!status) return '-'
+  return EXAM_STATUS_LABEL[status] ?? status
 }
 
 const canVerify = computed(() => {
@@ -103,7 +107,7 @@ async function loadDoctorResult(examId: string) {
     doctorResult.value = res.data?.data ?? res.data
   } catch (err) {
     const e = err as { response?: { data?: { message?: string } }, message?: string }
-    toast.add({ title: 'Gagal memuat detail hasil dokter', description: e?.response?.data?.message || e?.message || 'Gagal memuat doctor result', color: 'error' })
+    toast.add({ title: 'Failed to load doctor result detail', description: e?.response?.data?.message || e?.message || 'Failed to load doctor result', color: 'error' })
   } finally {
     doctorResultLoading.value = false
   }
@@ -116,7 +120,7 @@ async function loadAll() {
 
 async function handleVerify() {
   if (!detail.value) return
-  const ok = await verify(detail.value.id)
+  const ok = await verify(detail.value.id, detail.value.status === 'DOCTOR_APPROVED' ? 'start' : 'verify')
   if (ok) await loadAll()
 }
 
@@ -142,7 +146,7 @@ async function handleReturn() {
 
 async function handleRelease() {
   if (!detail.value) return
-  const ok = await release(detail.value.id)
+  const ok = await release(detail.value.id, detail.value.status === 'MR_VERIFIED' ? 'ready' : 'release')
   if (ok) await loadAll()
 }
 
@@ -187,12 +191,12 @@ onMounted(loadAll)
               variant="subtle"
             />
             <span class="text-sm text-muted">Exam: <strong class="font-mono">{{ detail.examCode }}</strong></span>
-            <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ detail.examStatus }}</span>
+            <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ examStatusLabel(detail.examStatus) }}</span>
           </div>
           <div class="flex gap-2">
             <UButton
               v-if="canVerify"
-              :label="detail.status === 'DOCTOR_APPROVED' ? 'Mulai Review' : 'Verifikasi'"
+              :label="detail.status === 'DOCTOR_APPROVED' ? 'Start Review' : 'Verify'"
               icon="i-lucide-check-circle"
               color="success"
               :loading="submitting"
@@ -200,7 +204,7 @@ onMounted(loadAll)
             />
             <UButton
               v-if="canReturn"
-              label="Return ke Dokter"
+              label="Return to Doctor"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
@@ -209,7 +213,7 @@ onMounted(loadAll)
             />
             <UButton
               v-if="canRelease"
-              :label="detail.status === 'MR_VERIFIED' ? 'Siap Rilis' : 'Rilis'"
+              :label="detail.status === 'MR_VERIFIED' ? 'Ready to Release' : 'Release'"
               icon="i-lucide-send"
               color="primary"
               :loading="submitting"
@@ -224,14 +228,14 @@ onMounted(loadAll)
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-user" class="size-5 text-primary" />
               <h2 class="text-lg font-semibold">
-                Informasi Pasien
+                Patient Information
               </h2>
             </div>
           </template>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
               <div class="text-xs text-muted">
-                Nama
+                Name
               </div>
               <div class="font-medium">
                 {{ detail.patient?.name ?? '-' }}
@@ -259,9 +263,9 @@ onMounted(loadAll)
             </div>
             <div>
               <div class="text-xs text-muted">
-                Perusahaan
+                Company
               </div>
-              <div>{{ detail.company ?? '-' }}</div>
+              <div>{{ detail.companyName ?? detail.company ?? '-' }}</div>
             </div>
             <div>
               <div class="text-xs text-muted">
@@ -278,7 +282,7 @@ onMounted(loadAll)
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-stethoscope" class="size-5 text-primary" />
               <h2 class="text-lg font-semibold">
-                Grading Dokter
+                Doctor Grading
               </h2>
             </div>
           </template>
@@ -452,7 +456,7 @@ onMounted(loadAll)
           </div>
 
           <div v-else class="py-8 text-center text-sm text-muted">
-            Detail Doctor Result tidak tersedia
+            Doctor result detail is not available
           </div>
         </UCard>
 
@@ -467,7 +471,7 @@ onMounted(loadAll)
             </div>
           </template>
           <div v-if="detail.actions.length === 0" class="text-sm text-muted">
-            Belum ada aksi
+            No actions yet
           </div>
           <div v-else class="space-y-2">
             <div v-for="(action, i) in detail.actions" :key="i" class="flex items-start gap-3 rounded border p-3">
@@ -487,27 +491,27 @@ onMounted(loadAll)
 
       <!-- Error -->
       <div v-else-if="!loading" class="py-20 text-center text-muted">
-        Data tidak ditemukan
+        Data not found
       </div>
 
       <!-- Return modal -->
-      <UModal v-model:open="showReturnModal" title="Return ke Dokter" description="Alasan wajib diisi. Centang item yang perlu diperbaiki dan beri catatan.">
+      <UModal v-model:open="showReturnModal" title="Return to Doctor" description="Reason is required. Check the items that need fixing and add notes.">
         <template #body>
           <div class="space-y-4">
             <div>
-              <label class="mb-1 block text-xs font-semibold text-muted">Alasan Return</label>
+              <label class="mb-1 block text-xs font-semibold text-muted">Return Reason</label>
               <UTextarea
                 v-model="returnReason"
-                placeholder="Tulis alasan return..."
+                placeholder="Write the return reason..."
                 :rows="3"
                 class="w-full"
               />
             </div>
 
             <div>
-              <label class="mb-1 block text-xs font-semibold text-muted">Item yang Harus Diperbaiki</label>
+              <label class="mb-1 block text-xs font-semibold text-muted">Items to Fix</label>
               <div v-if="returnItems.length === 0" class="text-sm text-muted">
-                Tidak ada item gradable untuk dipilih.
+                No gradable items to select.
               </div>
               <div v-else class="max-h-72 space-y-1.5 overflow-y-auto rounded border p-2">
                 <div
@@ -528,7 +532,7 @@ onMounted(loadAll)
                     <UInput
                       v-if="item.checked"
                       v-model="item.note"
-                      placeholder="Catatan untuk item ini (opsional)"
+                      placeholder="Note for this item (optional)"
                       size="sm"
                       class="mt-1"
                     />
@@ -540,7 +544,7 @@ onMounted(loadAll)
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton label="Batal" variant="outline" @click="showReturnModal = false" />
+            <UButton label="Cancel" variant="outline" @click="showReturnModal = false" />
             <UButton
               label="Return"
               color="warning"

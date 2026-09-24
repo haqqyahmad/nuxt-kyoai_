@@ -37,9 +37,18 @@ export const queueSearchAllowedRoutes: string[] = [
   '/queue-search'
 ]
 
+export const medicalRecordAllowedRoutes: string[] = [
+  '/',
+  '/result/mr-review',
+  '/settings',
+  '/settings/security',
+  '/settings/notifications'
+]
+
 export function getAllowedRoutes(roleName: string): string[] {
   if (roleName === 'queue-search') return queueSearchAllowedRoutes
   if (roleName === 'front-office') return frontOfficeAllowedRoutes
+  if (roleName === 'medical-record') return medicalRecordAllowedRoutes
   return restrictedAllowedRoutes
 }
 
@@ -56,7 +65,8 @@ export const restrictedRoles: string[] = [
   'dokter-gigi',
   'nurse',
   'front-office',
-  'queue-search'
+  'queue-search',
+  'medical-record'
 ]
 
 export const externalRoles: string[] = [
@@ -243,4 +253,18 @@ export function buildMenuTree(): MenuItem[] {
       to: '/settings'
     }
   ]
+}
+
+export const departmentMenuKeyByCode: Record<string, string> = {
+  LAB: 'lab',
+  RAD: 'radiology',
+  NURSE: 'nurse',
+  DOK: 'dokter',
+  DENTAL: 'dental'
+}
+
+export function toDepartmentMenuKey(code?: string | null): string | null {
+  if (!code) return null
+  const upper = String(code).trim().toUpperCase()
+  return departmentMenuKeyByCode[upper] ?? upper.toLowerCase()
 }

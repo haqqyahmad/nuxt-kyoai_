@@ -74,6 +74,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const isExternalDoctor = Boolean(res.data.data.isExternal) || roles.includes(externalRole)
     const frontOfficeRole = 'front-office'
     const queueSearchRole = 'queue-search'
+    const medicalRecordRole = 'medical-record'
     const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
     const target = isExternalDoctor
@@ -82,9 +83,11 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         ? '/queue-search'
         : roles.includes(frontOfficeRole)
           ? '/front-office/registration-temp'
-          : roles.some(r => staffRoles.includes(r))
-            ? '/rooms/assignments'
-            : '/'
+          : roles.includes(medicalRecordRole)
+            ? '/result/mr-review'
+            : roles.some(r => staffRoles.includes(r))
+              ? '/rooms/assignments'
+              : '/'
 
     await navigateTo(target)
   } catch (err: unknown) {
