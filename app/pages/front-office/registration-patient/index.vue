@@ -227,6 +227,19 @@ function openPatientEdit(id: string) {
   isPatientEditOpen.value = true
 }
 
+const isPatientHistoryOpen = ref(false)
+const historyPatient = ref<Patient | null>(null)
+
+function openPatientHistory(patient: Patient) {
+  historyPatient.value = patient
+  isPatientHistoryOpen.value = true
+}
+
+function handleHistoryEdit(id: string) {
+  isPatientHistoryOpen.value = false
+  openPatientEdit(id)
+}
+
 function getRowItems(row: Row<Patient>) {
   return [
     {
@@ -322,8 +335,8 @@ const columns: TableColumn<Patient>[] = [
           h('button', {
             type: 'button',
             class: 'text-left font-medium text-blue-600 hover:text-blue-700 hover:underline',
-            title: 'Click to edit patient data',
-            onClick: () => openPatientEdit(p.id)
+            title: 'Click to view patient MR history',
+            onClick: () => openPatientHistory(p)
           }, fullName)
         ])
       ])
@@ -706,6 +719,12 @@ watch(currentPage, (page) => {
         v-model:open="isPatientEditOpen"
         :patient-id="patientEditId"
         @updated="refresh()"
+      />
+      <FrontOfficePatientHistoryModal
+        v-model:open="isPatientHistoryOpen"
+        :patient-id="historyPatient?.id ?? null"
+        :patient="historyPatient"
+        @edit="handleHistoryEdit"
       />
     </template>
   </UDashboardPanel>
