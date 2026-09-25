@@ -50,6 +50,7 @@ export type DepartmentSnapshot = {
 export type MedicalReportDetail = {
   id: string
   examId: string
+  createdAt?: string | null
   examCode: string | null
   examDate: string | null
   examStatus: string | null

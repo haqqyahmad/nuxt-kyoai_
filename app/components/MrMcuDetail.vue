@@ -23,19 +23,11 @@ type HistoryRow = {
   id: string
   regNumber: string | null
   examDate: string | null
+  createdAt: string | null
   status: string
   finalGrade: string | null
   fitnessLevel: string | null
-}
-
-const MR_STATUS_LABEL: Record<string, string> = {
-  DOCTOR_REVIEW: 'Doctor Review',
-  DOCTOR_APPROVED: 'Waiting for MR',
-  MR_REVIEW: 'MR Review',
-  MR_RETURNED_TO_DOCTOR: 'Returned to Doctor',
-  MR_VERIFIED: 'MR Verified',
-  READY_TO_RELEASE: 'Ready to Release',
-  RELEASED: 'Released'
+  finalComment: string | null
 }
 
 const loading = ref(true)
@@ -55,6 +47,8 @@ const activeTab = ref<string>('summary')
 
 const mr = computed(() => detail.value?.medicalReport ?? null)
 const dr = computed(() => detail.value?.doctorResult ?? null)
+const FINAL_STATUSES = ['MR_VERIFIED', 'READY_TO_RELEASE', 'RELEASED']
+const isReportFinal = computed(() => FINAL_STATUSES.includes(mr.value?.status ?? ''))
 const departments = computed<DoctorResultDepartment[]>(() => dr.value?.departments ?? [])
 
 function deptByCode(pattern: RegExp) {
@@ -126,10 +120,6 @@ const initials = computed(() =>
     .join('')
 )
 
-function statusLabel(status?: string | null) {
-  return MR_STATUS_LABEL[status ?? ''] ?? status ?? '-'
-}
-
 function formatDate(value?: string | null) {
   if (!value) return '-'
   const d = new Date(value)
@@ -169,6 +159,53 @@ function printPage() {
   if (import.meta.client) window.print()
 }
 
+const rootRef = ref<HTMLElement | null>(null)
+const tabsRef = ref<HTMLElement | null>(null)
+const panelsRef = ref<HTMLElement | null>(null)
+
+function selectTab(key: string) {
+  activeTab.value = key
+  nextTick(() => {
+    const scroller = rootRef.value?.closest('[data-slot="body"]') as HTMLElement | null
+    const tabs = tabsRef.value
+    const panels = panelsRef.value
+    if (!scroller || !tabs || !panels) return
+    const gap = 24
+    const panelsTop
+      = panels.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top
+        + scroller.scrollTop
+    const target = Math.max(0, panelsTop - tabs.offsetHeight - gap)
+    scroller.scrollTo({ top: target, behavior: 'smooth' })
+  })
+}
+
+function toTime(value?: string | null) {
+  if (!value) return null
+  const t = new Date(value).getTime()
+  return Number.isNaN(t) ? null : t
+}
+
+function buildHistory(rows: HistoryRow[]): HistoryRow[] {
+  const curDate = toTime(mr.value?.examDate ?? null)
+  const curCreated = toTime(mr.value?.createdAt ?? null)
+  return rows
+    .filter(r => r.id !== props.reportId)
+    .filter((r) => {
+      const rDate = toTime(r.examDate)
+      const rCreated = toTime(r.createdAt)
+      if (rDate != null && curDate != null && rDate !== curDate) return rDate < curDate
+      if (rCreated != null && curCreated != null) return rCreated < curCreated
+      return false
+    })
+    .sort((a, b) => {
+      const diff = (toTime(b.examDate) ?? 0) - (toTime(a.examDate) ?? 0)
+      return diff !== 0
+        ? diff
+        : (toTime(b.createdAt) ?? 0) - (toTime(a.createdAt) ?? 0)
+    })
+}
+
 async function load() {
   loading.value = true
   try {
@@ -179,7 +216,7 @@ async function load() {
     if (patientId) {
       const listRes = await api.get(`/front-office/patients/${patientId}/medical-records`)
       const rows = (listRes.data?.data ?? []) as HistoryRow[]
-      history.value = rows.filter(r => r.id !== props.reportId)
+      history.value = buildHistory(rows)
     }
   } catch {
     toast.add({
@@ -204,7 +241,7 @@ watch(
 </script>
 
 <template>
-  <div class="mr-doc">
+  <div ref="rootRef" class="mr-doc">
     <div v-if="loading" class="mr-loading">
       <span class="mr-spinner" />
       <span>Memuat medical record...</span>
@@ -219,7 +256,7 @@ watch(
           <div>
             <h1>Medical Record (MR) MCU</h1>
             <div class="mr-code">
-              {{ mr.examCode || reportId }}
+              {{ mr.queueCode || '-' }}
             </div>
           </div>
         </div>
@@ -232,7 +269,7 @@ watch(
 
       <div class="card">
         <div class="card-body">
-          <div class="identity-wrap">
+          <div class="identity-wrap" :class="{ 'no-result': !isReportFinal }">
             <div class="identity">
               <div class="patient-avatar">
                 <img v-if="detail.patientPhotoUrl" :src="detail.patientPhotoUrl" alt="Patient">
@@ -251,317 +288,325 @@ watch(
                 <span class="label">Tanggal MCU</span><span class="value">{{ formatDate(examDate) }}</span>
               </div>
             </div>
-            <div class="result-box" :class="fitTone">
-              <div class="result-title">
-                <span class="check">✓</span>{{ fitnessLevel }}
+            <div v-if="isReportFinal" class="result-col">
+              <div class="result-box" :class="fitTone">
+                <div class="result-title">
+                  <span class="check">✓</span>{{ fitnessLevel }}
+                </div>
+                <p>{{ finalComment }}</p>
               </div>
-              <p>{{ finalComment }}</p>
-              <div class="result-tags">
-                <span class="tag">{{ statusLabel(mr.status) }}</span>
-                <span class="tag">Grade {{ finalGrade }}</span>
+              <div class="grade-box">
+                <div class="grade-label">
+                  Grade
+                </div>
+                <div class="grade-value">
+                  {{ finalGrade }}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="tabs">
+      <div ref="tabsRef" class="tabs">
         <button
           v-for="t in TABS"
           :key="t.key"
           class="tab"
           :class="{ active: activeTab === t.key }"
           type="button"
-          @click="activeTab = t.key"
+          @click="selectTab(t.key)"
         >
           {{ t.label }}
         </button>
       </div>
 
-      <!-- Ringkasan -->
-      <div class="tab-panel" :class="{ active: activeTab === 'summary' }">
-        <div class="grid">
-          <div>
-            <div class="card">
-              <div class="card-head">
-                2. Pemeriksaan Awal (Vital Sign)
-              </div>
-              <div class="card-body" style="padding: 10px">
-                <div v-if="!vitalItems.length" class="empty">
-                  Tidak ada data.
+      <div ref="panelsRef" class="mr-panels">
+        <!-- Ringkasan -->
+        <div class="tab-panel" :class="{ active: activeTab === 'summary' }">
+          <div class="grid">
+            <div>
+              <div class="card">
+                <div class="card-head">
+                  2. Pemeriksaan Awal (Vital Sign)
                 </div>
-                <div v-else class="vitals">
-                  <div v-for="item in vitalItems" :key="item.inputanId" class="metric">
-                    <span class="name">{{ item.inputanLabel }}</span>
-                    <span class="val">{{ resultText(item) }}</span>
+                <div class="card-body" style="padding: 10px">
+                  <div v-if="!vitalItems.length" class="empty">
+                    Tidak ada data.
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                3. Pemeriksaan Fisik
-              </div>
-              <div class="card-body">
-                <div v-if="!physicalItems.length" class="empty">
-                  Tidak ada data.
-                </div>
-                <table v-else>
-                  <tbody>
-                    <tr v-for="item in physicalItems" :key="item.inputanId">
-                      <td>{{ item.inputanLabel }}</td>
-                      <td><span class="status" :class="flagClass(item.flag)">{{ resultText(item) }}</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                4. Pemeriksaan Laboratorium
-              </div>
-              <div class="card-body">
-                <div v-if="!labDept.length" class="empty">
-                  Tidak ada data.
-                </div>
-                <div v-for="dept in labDept" :key="dept.departmentId">
-                  <div v-for="group in dept.groups" :key="group.groupName">
-                    <table>
-                      <thead>
-                        <tr><th>Pemeriksaan</th><th>Hasil</th><th>Nilai Rujukan</th><th>Status</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="item in group.items" :key="item.inputanId">
-                          <td>{{ item.inputanLabel }}</td>
-                          <td>{{ resultText(item) }}</td>
-                          <td>{{ normalRange(item) }}</td>
-                          <td><span class="status" :class="flagClass(item.flag)">{{ flagLabel(item.flag) }}</span></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div class="card">
-              <div class="card-head">
-                5. Pemeriksaan Penunjang
-              </div>
-              <div class="card-body">
-                <div v-if="!supportDept.length" class="empty">
-                  Tidak ada data.
-                </div>
-                <div v-for="dept in supportDept" :key="dept.departmentId">
-                  <div v-for="group in dept.groups" :key="group.groupName">
-                    <div class="sub-title">
-                      {{ dept.departmentName }} — {{ group.groupName }}
+                  <div v-else class="vitals">
+                    <div v-for="item in vitalItems" :key="item.inputanId" class="metric">
+                      <span class="name">{{ item.inputanLabel }}</span>
+                      <span class="val">{{ resultText(item) }}</span>
                     </div>
-                    <table>
-                      <thead>
-                        <tr><th>Jenis</th><th>Hasil</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="item in group.items" :key="item.inputanId">
-                          <td>{{ item.inputanLabel }}</td>
-                          <td>{{ resultText(item) }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  3. Pemeriksaan Fisik
+                </div>
+                <div class="card-body">
+                  <div v-if="!physicalItems.length" class="empty">
+                    Tidak ada data.
+                  </div>
+                  <table v-else>
+                    <tbody>
+                      <tr v-for="item in physicalItems" :key="item.inputanId">
+                        <td>{{ item.inputanLabel }}</td>
+                        <td><span class="status" :class="flagClass(item.flag)">{{ resultText(item) }}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  4. Pemeriksaan Laboratorium
+                </div>
+                <div class="card-body">
+                  <div v-if="!labDept.length" class="empty">
+                    Tidak ada data.
+                  </div>
+                  <div v-for="dept in labDept" :key="dept.departmentId">
+                    <div v-for="group in dept.groups" :key="group.groupName">
+                      <table>
+                        <thead>
+                          <tr><th>Pemeriksaan</th><th>Hasil</th><th>Nilai Rujukan</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="item in group.items" :key="item.inputanId">
+                            <td>{{ item.inputanLabel }}</td>
+                            <td>{{ resultText(item) }}</td>
+                            <td>{{ normalRange(item) }}</td>
+                            <td><span class="status" :class="flagClass(item.flag)">{{ flagLabel(item.flag) }}</span></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="card">
-              <div class="card-head">
-                6. Pemeriksaan Dokter
-              </div>
-              <div class="card-body">
-                <div class="info-grid">
-                  <span class="label">Keluhan</span><span>Tidak ada keluhan khusus.</span>
-                  <span class="label">Pemeriksaan Fisik</span><span>Dalam batas normal.</span>
+            <div>
+              <div class="card">
+                <div class="card-head">
+                  5. Pemeriksaan Penunjang
                 </div>
-                <div class="note" style="margin-top: 13px">
-                  <b>Kesimpulan Sementara</b><br>{{ finalComment }}
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                8. Kesimpulan MCU
-              </div>
-              <div class="card-body">
-                <div class="conclusion" :class="fitTone">
-                  <div>
-                    <strong>✓ {{ fitnessLevel }}</strong><br>
-                    <span class="conclusion-sub">{{ finalComment }}</span>
+                <div class="card-body">
+                  <div v-if="!supportDept.length" class="empty">
+                    Tidak ada data.
                   </div>
-                  <div class="signature">
-                    {{ formatDate(examDate) }}<br>
-                    <div class="line">
-                      {{ detail.doctorName || '-' }}
-                    </div><b>Dokter Pemeriksa</b>
+                  <div v-for="dept in supportDept" :key="dept.departmentId">
+                    <div v-for="group in dept.groups" :key="group.groupName">
+                      <div class="sub-title">
+                        {{ dept.departmentName }} — {{ group.groupName }}
+                      </div>
+                      <table>
+                        <thead>
+                          <tr><th>Jenis</th><th>Hasil</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="item in group.items" :key="item.inputanId">
+                            <td>{{ item.inputanLabel }}</td>
+                            <td>{{ resultText(item) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="card">
-              <div class="card-head">
-                Riwayat MCU Sebelumnya
-              </div>
-              <div class="card-body">
-                <div v-if="!history.length" class="empty">
-                  Tidak ada riwayat MCU sebelumnya.
+              <div class="card">
+                <div class="card-head">
+                  6. Pemeriksaan Dokter
                 </div>
-                <table v-else>
-                  <thead>
-                    <tr><th>Tanggal</th><th>No. Registrasi</th><th>Hasil</th><th>Status</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="row in history" :key="row.id">
-                      <td>{{ formatDate(row.examDate) }}</td>
-                      <td>{{ row.regNumber || '-' }}</td>
-                      <td>{{ row.fitnessLevel || '-' }} ({{ row.finalGrade || '-' }})</td>
-                      <td><span class="status is-normal">{{ statusLabel(row.status) }}</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pemeriksaan -->
-      <div class="tab-panel" :class="{ active: activeTab === 'exam' }">
-        <div class="card">
-          <div class="card-head">
-            Pemeriksaan Fisik Lengkap
-          </div>
-          <div class="card-body">
-            <div v-if="!physicalGroup || !physicalItems.length" class="empty">
-              Tidak ada data.
-            </div>
-            <table v-else>
-              <thead>
-                <tr><th>Area</th><th>Hasil</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in physicalItems" :key="item.inputanId">
-                  <td>{{ item.inputanLabel }}</td>
-                  <td>{{ resultText(item) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Laboratorium -->
-      <div class="tab-panel" :class="{ active: activeTab === 'lab' }">
-        <div class="card">
-          <div class="card-head">
-            Hasil Laboratorium
-          </div>
-          <div class="card-body">
-            <div v-if="!labDept.length" class="empty">
-              Tidak ada data.
-            </div>
-            <div v-for="dept in labDept" :key="dept.departmentId">
-              <div v-for="group in dept.groups" :key="group.groupName">
-                <div class="sub-title">
-                  {{ group.groupName }}
+                <div class="card-body">
+                  <div class="info-grid">
+                    <span class="label">Keluhan</span><span>Tidak ada keluhan khusus.</span>
+                    <span class="label">Pemeriksaan Fisik</span><span>Dalam batas normal.</span>
+                  </div>
+                  <div class="note" style="margin-top: 13px">
+                    <b>Kesimpulan Sementara</b><br>{{ finalComment }}
+                  </div>
                 </div>
-                <table>
-                  <thead>
-                    <tr><th>Pemeriksaan</th><th>Hasil</th><th>Unit</th><th>Nilai Rujukan</th><th>Status</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in group.items" :key="item.inputanId">
-                      <td>{{ item.inputanLabel }}</td>
-                      <td>{{ item.displayValue ?? item.resultValue ?? '-' }}</td>
-                      <td>{{ item.uom || '-' }}</td>
-                      <td>{{ normalRange(item) }}</td>
-                      <td><span class="status" :class="flagClass(item.flag)">{{ flagLabel(item.flag) }}</span></td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Penunjang -->
-      <div class="tab-panel" :class="{ active: activeTab === 'support' }">
-        <div class="card">
-          <div class="card-head">
-            Pemeriksaan Penunjang
-          </div>
-          <div class="card-body">
-            <div v-if="!supportDept.length" class="empty">
-              Tidak ada data.
-            </div>
-            <div v-for="dept in supportDept" :key="dept.departmentId">
-              <div v-for="group in dept.groups" :key="group.groupName">
-                <div class="sub-title">
-                  {{ dept.departmentName }} — {{ group.groupName }}
+              <div class="card">
+                <div class="card-head">
+                  8. Kesimpulan MCU
                 </div>
-                <table>
-                  <thead>
-                    <tr><th>Jenis</th><th>Hasil</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in group.items" :key="item.inputanId">
-                      <td>{{ item.inputanLabel }}</td>
-                      <td>{{ resultText(item) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div class="card-body">
+                  <div class="conclusion" :class="fitTone">
+                    <div>
+                      <strong>✓ {{ fitnessLevel }}</strong><br>
+                      <span class="conclusion-sub">{{ finalComment }}</span>
+                    </div>
+                    <div class="signature">
+                      {{ formatDate(examDate) }}<br>
+                      <div class="line">
+                        {{ detail.doctorName || '-' }}
+                      </div><b>Dokter Pemeriksa</b>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  Riwayat MCU Sebelumnya
+                </div>
+                <div class="card-body">
+                  <div v-if="!history.length" class="empty">
+                    Tidak ada riwayat MCU sebelumnya.
+                  </div>
+                  <table v-else>
+                    <thead>
+                      <tr><th>Tanggal</th><th>No. Registrasi</th><th>Hasil</th><th>Catatan</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in history" :key="row.id">
+                        <td>{{ formatDate(row.examDate) }}</td>
+                        <td>{{ row.regNumber || '-' }}</td>
+                        <td>{{ row.fitnessLevel || '-' }} ({{ row.finalGrade || '-' }})</td>
+                        <td>{{ row.finalComment || '-' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Dokter -->
-      <div class="tab-panel" :class="{ active: activeTab === 'doctor' }">
-        <div class="card">
-          <div class="card-head">
-            Catatan Dokter
-          </div>
-          <div class="card-body">
-            <div class="note">
-              {{ finalComment }}
+        <!-- Pemeriksaan -->
+        <div class="tab-panel" :class="{ active: activeTab === 'exam' }">
+          <div class="card">
+            <div class="card-head">
+              Pemeriksaan Fisik Lengkap
+            </div>
+            <div class="card-body">
+              <div v-if="!physicalGroup || !physicalItems.length" class="empty">
+                Tidak ada data.
+              </div>
+              <table v-else>
+                <thead>
+                  <tr><th>Area</th><th>Hasil</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in physicalItems" :key="item.inputanId">
+                    <td>{{ item.inputanLabel }}</td>
+                    <td>{{ resultText(item) }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Kesimpulan -->
-      <div class="tab-panel" :class="{ active: activeTab === 'conclusion' }">
-        <div class="card">
-          <div class="card-head">
-            Kesimpulan Akhir MCU
-          </div>
-          <div class="card-body">
-            <div class="conclusion" :class="fitTone">
-              <div>
-                <strong>✓ {{ fitnessLevel }}</strong><br>
-                <span class="conclusion-sub">{{ finalComment }}</span>
+        <!-- Laboratorium -->
+        <div class="tab-panel" :class="{ active: activeTab === 'lab' }">
+          <div class="card">
+            <div class="card-head">
+              Hasil Laboratorium
+            </div>
+            <div class="card-body">
+              <div v-if="!labDept.length" class="empty">
+                Tidak ada data.
               </div>
-              <div class="signature">
-                {{ formatDate(examDate) }}<br>
-                <div class="line">
-                  {{ detail.doctorName || '-' }}
-                </div><b>Dokter Pemeriksa</b>
+              <div v-for="dept in labDept" :key="dept.departmentId">
+                <div v-for="group in dept.groups" :key="group.groupName">
+                  <div class="sub-title">
+                    {{ group.groupName }}
+                  </div>
+                  <table>
+                    <thead>
+                      <tr><th>Pemeriksaan</th><th>Hasil</th><th>Unit</th><th>Nilai Rujukan</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in group.items" :key="item.inputanId">
+                        <td>{{ item.inputanLabel }}</td>
+                        <td>{{ item.displayValue ?? item.resultValue ?? '-' }}</td>
+                        <td>{{ item.uom || '-' }}</td>
+                        <td>{{ normalRange(item) }}</td>
+                        <td><span class="status" :class="flagClass(item.flag)">{{ flagLabel(item.flag) }}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Penunjang -->
+        <div class="tab-panel" :class="{ active: activeTab === 'support' }">
+          <div class="card">
+            <div class="card-head">
+              Pemeriksaan Penunjang
+            </div>
+            <div class="card-body">
+              <div v-if="!supportDept.length" class="empty">
+                Tidak ada data.
+              </div>
+              <div v-for="dept in supportDept" :key="dept.departmentId">
+                <div v-for="group in dept.groups" :key="group.groupName">
+                  <div class="sub-title">
+                    {{ dept.departmentName }} — {{ group.groupName }}
+                  </div>
+                  <table>
+                    <thead>
+                      <tr><th>Jenis</th><th>Hasil</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in group.items" :key="item.inputanId">
+                        <td>{{ item.inputanLabel }}</td>
+                        <td>{{ resultText(item) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dokter -->
+        <div class="tab-panel" :class="{ active: activeTab === 'doctor' }">
+          <div class="card">
+            <div class="card-head">
+              Catatan Dokter
+            </div>
+            <div class="card-body">
+              <div class="note">
+                {{ finalComment }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kesimpulan -->
+        <div class="tab-panel" :class="{ active: activeTab === 'conclusion' }">
+          <div class="card">
+            <div class="card-head">
+              Kesimpulan Akhir MCU
+            </div>
+            <div class="card-body">
+              <div class="conclusion" :class="fitTone">
+                <div>
+                  <strong>✓ {{ fitnessLevel }}</strong><br>
+                  <span class="conclusion-sub">{{ finalComment }}</span>
+                </div>
+                <div class="signature">
+                  {{ formatDate(examDate) }}<br>
+                  <div class="line">
+                    {{ detail.doctorName || '-' }}
+                  </div><b>Dokter Pemeriksa</b>
+                </div>
               </div>
             </div>
           </div>
@@ -679,8 +724,11 @@ h1 {
 
 .identity-wrap {
   display: grid;
-  grid-template-columns: 1fr 270px;
+  grid-template-columns: 1fr 360px;
   gap: 16px;
+}
+.identity-wrap.no-result {
+  grid-template-columns: 1fr;
 }
 .identity {
   display: grid;
@@ -771,8 +819,44 @@ h1 {
   border-radius: 20px;
   padding: 3px 9px;
 }
+.result-col {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+.result-box {
+  flex: 1 1 auto;
+}
+.grade-box {
+  flex: 0 0 auto;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 18px;
+  text-align: center;
+}
+.grade-label {
+  font-size: 12px;
+  color: #708496;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.grade-value {
+  margin-top: 4px;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--navy);
+}
 
 .tabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   gap: 0;
   background: #fff;
@@ -780,6 +864,7 @@ h1 {
   border-radius: 8px;
   overflow: auto;
   margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(20, 50, 80, 0.08);
 }
 .tab {
   border: 0;
@@ -804,6 +889,9 @@ h1 {
 }
 .tab-panel.active {
   display: block;
+}
+.mr-panels {
+  padding-top: 8px;
 }
 
 .grid {

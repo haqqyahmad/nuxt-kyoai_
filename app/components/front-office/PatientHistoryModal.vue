@@ -34,7 +34,6 @@ type PatientDetail = PatientLite & {
 type MedicalRecordRow = {
   id: string
   examId: string
-  examCode: string | null
   examDate: string | null
   regNumber: string | null
   status: string
@@ -58,16 +57,6 @@ const rows = ref<MedicalRecordRow[]>([])
 
 const mrModalOpen = ref(false)
 const selectedReportId = ref<string | null>(null)
-
-const MR_STATUS_LABEL: Record<string, string> = {
-  DOCTOR_REVIEW: 'Doctor Review',
-  DOCTOR_APPROVED: 'Waiting for MR',
-  MR_REVIEW: 'MR Review',
-  MR_RETURNED_TO_DOCTOR: 'Returned to Doctor',
-  MR_VERIFIED: 'MR Verified',
-  READY_TO_RELEASE: 'Ready to Release',
-  RELEASED: 'Released'
-}
 
 const patientInfo = computed<PatientLite>(() => {
   const p = detail.value ?? props.patient ?? null
@@ -103,10 +92,6 @@ function getAge(dob?: string | null) {
   const monthDiff = now.getMonth() - birth.getMonth()
   if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1
   return `${age} th`
-}
-
-function statusLabel(status?: string | null) {
-  return MR_STATUS_LABEL[status ?? ''] ?? status ?? '-'
 }
 
 async function load(patientId: string) {
@@ -238,9 +223,6 @@ function openEdit() {
               <thead>
                 <tr class="border-b border-default text-left text-muted">
                   <th class="py-2 pr-4 font-medium">
-                    Exam Code
-                  </th>
-                  <th class="py-2 pr-4 font-medium">
                     Regist ID
                   </th>
                   <th class="py-2 pr-4 font-medium">
@@ -251,9 +233,6 @@ function openEdit() {
                   </th>
                   <th class="py-2 pr-4 font-medium">
                     Company
-                  </th>
-                  <th class="py-2 pr-4 font-medium">
-                    Status
                   </th>
                   <th class="py-2 pr-2 text-right font-medium">
                     Action
@@ -267,9 +246,6 @@ function openEdit() {
                   class="border-b border-default/60 last:border-0"
                 >
                   <td class="py-2.5 pr-4 font-mono">
-                    {{ row.examCode || '-' }}
-                  </td>
-                  <td class="py-2.5 pr-4 font-mono">
                     {{ row.regNumber || '-' }}
                   </td>
                   <td class="py-2.5 pr-4">
@@ -281,9 +257,6 @@ function openEdit() {
                   </td>
                   <td class="py-2.5 pr-4">
                     {{ row.companyName || '-' }}
-                  </td>
-                  <td class="py-2.5 pr-4">
-                    <UBadge :label="statusLabel(row.status)" color="success" variant="subtle" />
                   </td>
                   <td class="py-2.5 pr-2 text-right">
                     <UButton
