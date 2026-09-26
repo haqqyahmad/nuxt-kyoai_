@@ -666,15 +666,20 @@ watch(
 <style scoped>
 .mr-doc {
   --navy: #173b5c;
-  --navy2: #0f2e49;
   --blue: #1f5f91;
-  --green: #16845b;
   --green-soft: #eaf8f1;
-  --border: #dce5ed;
-  --text: #263746;
-  --muted: #718096;
+  --border: var(--ui-border);
+  --text: var(--ui-text);
+  --muted: var(--ui-text-muted);
+  --surface: var(--ui-bg);
+  --surface-elev: var(--ui-bg-elevated);
   color: var(--text);
   font-size: 14px;
+}
+.dark .mr-doc {
+  --navy: #a9c9ea;
+  --blue: #7cb0dd;
+  --green-soft: #10251c;
 }
 
 .mr-loading {
@@ -711,7 +716,7 @@ watch(
 .title-icon {
   width: 36px;
   height: 36px;
-  background: #e5f1fb;
+  background: var(--surface-elev);
   color: var(--blue);
   display: grid;
   place-items: center;
@@ -721,7 +726,7 @@ watch(
 h1 {
   font-size: 22px;
   margin: 0;
-  color: #183b5a;
+  color: var(--navy);
 }
 .mr-code {
   font-size: 12px;
@@ -732,9 +737,9 @@ h1 {
   gap: 8px;
 }
 .btn {
-  border: 1px solid #cbd8e3;
-  background: #fff;
-  color: #334e64;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   padding: 9px 14px;
   border-radius: 6px;
   cursor: pointer;
@@ -747,18 +752,18 @@ h1 {
 }
 
 .card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(20, 50, 80, 0.06);
   margin-bottom: 16px;
 }
 .card-head {
-  background: linear-gradient(#f4f9fd, #edf6fc);
+  background: var(--surface-elev);
   padding: 11px 15px;
-  color: #174d77;
+  color: var(--blue);
   font-weight: 700;
-  border-bottom: 1px solid #d9e8f4;
+  border-bottom: 1px solid var(--border);
   border-radius: 8px 8px 0 0;
 }
 .card-body {
@@ -782,12 +787,12 @@ h1 {
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: #eef3f7;
+  background: var(--surface-elev);
   display: grid;
   place-items: center;
   font-size: 24px;
   font-weight: 700;
-  color: #9aafbf;
+  color: var(--muted);
   overflow: hidden;
 }
 .patient-avatar img {
@@ -802,7 +807,7 @@ h1 {
   align-content: start;
 }
 .info-grid .label {
-  color: #708496;
+  color: var(--muted);
 }
 .info-grid .value {
   font-weight: 600;
@@ -877,14 +882,14 @@ h1 {
   flex-direction: column;
   justify-content: center;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
   padding: 16px 18px;
   text-align: center;
 }
 .grade-label {
   font-size: 12px;
-  color: #708496;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -902,7 +907,7 @@ h1 {
   z-index: 20;
   display: flex;
   gap: 0;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: auto;
@@ -911,9 +916,9 @@ h1 {
 }
 .tab {
   border: 0;
-  background: #fff;
+  background: transparent;
   padding: 13px 18px;
-  color: #71869a;
+  color: var(--muted);
   border-bottom: 3px solid transparent;
   cursor: pointer;
   white-space: nowrap;
@@ -923,7 +928,7 @@ h1 {
 }
 .tab.active {
   color: var(--blue);
-  border-bottom-color: #2475ad;
+  border-bottom-color: var(--blue);
   font-weight: 700;
 }
 
@@ -948,18 +953,18 @@ h1 {
 }
 .metric {
   padding: 12px;
-  border: 1px solid #e1e9ef;
+  border: 1px solid var(--border);
   margin: -1px 0 0 -1px;
   display: flex;
   justify-content: space-between;
   gap: 8px;
 }
 .metric .name {
-  color: #71869a;
+  color: var(--muted);
 }
 .metric .val {
   font-weight: 700;
-  color: #315875;
+  color: var(--navy);
 }
 .mr-summary .card {
   margin-bottom: 16px;
@@ -970,22 +975,22 @@ h1 {
   gap: 10px;
 }
 .dept-item {
-  border: 1px solid #e1e9ef;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
 }
 .dept-name {
   font-weight: 700;
-  color: #315875;
+  color: var(--navy);
 }
 .dept-meta {
   font-size: 12px;
-  color: #71869a;
+  color: var(--muted);
   margin: 4px 0 8px;
 }
 .finding-source {
   font-size: 11px;
-  color: #71869a;
+  color: var(--muted);
 }
 .conclusion-grade {
   font-size: 20px;
@@ -1001,22 +1006,22 @@ table {
 th,
 td {
   padding: 10px 9px;
-  border-bottom: 1px solid #e3eaf0;
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #667e91;
-  background: #f7fafc;
+  color: var(--muted);
+  background: var(--surface-elev);
 }
 td {
   font-size: 13px;
 }
 .sub-title {
   font-weight: 700;
-  color: #315875;
+  color: var(--navy);
   margin: 10px 0 6px;
 }
 .status {
@@ -1041,8 +1046,8 @@ td {
   color: #1d4ed8;
 }
 .note {
-  background: #f5f9fc;
-  border: 1px solid #e1eaf1;
+  background: var(--surface-elev);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 13px;
   line-height: 1.55;
@@ -1078,19 +1083,76 @@ td {
 }
 .signature {
   text-align: right;
-  color: #617789;
+  color: var(--muted);
   font-size: 12px;
 }
 .signature .line {
   font-family: cursive;
   font-size: 24px;
-  color: #294d69;
+  color: var(--navy);
   margin: 7px 0;
 }
 .empty {
   color: var(--muted);
   font-size: 13px;
   padding: 6px 0;
+}
+
+/* Dark mode: warna status/tonal */
+.dark .mr-doc .result-box {
+  border-color: #1f4a39;
+  background: #10251c;
+  color: #8fe0b6;
+}
+.dark .mr-doc .result-box.tone-warning {
+  border-color: #5b4a16;
+  background: #2a2110;
+  color: #f0c66b;
+}
+.dark .mr-doc .result-box.tone-danger {
+  border-color: #5b2222;
+  background: #2a1414;
+  color: #f3a1a1;
+}
+.dark .mr-doc .conclusion {
+  background: #0f2620;
+  border-color: #1f4a39;
+}
+.dark .mr-doc .conclusion.tone-warning {
+  background: #2a2110;
+  border-color: #5b4a16;
+}
+.dark .mr-doc .conclusion.tone-danger {
+  background: #2a1414;
+  border-color: #5b2222;
+}
+.dark .mr-doc .conclusion strong {
+  color: #8fe0b6;
+}
+.dark .mr-doc .tone-warning strong {
+  color: #f0c66b;
+}
+.dark .mr-doc .tone-danger strong {
+  color: #f3a1a1;
+}
+.dark .mr-doc .conclusion-sub {
+  color: #9fb8ac;
+}
+.dark .mr-doc .status {
+  background: #10251c;
+  color: #8fe0b6;
+}
+.dark .mr-doc .status.is-high {
+  background: #2a1414;
+  color: #f3a1a1;
+}
+.dark .mr-doc .status.is-low {
+  background: #2a2110;
+  color: #f0c66b;
+}
+.dark .mr-doc .status.is-qual {
+  background: #12233a;
+  color: #8fbcff;
 }
 
 @media (max-width: 1050px) {

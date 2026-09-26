@@ -28,6 +28,12 @@ function esc(value: unknown): string {
     .replace(/"/g, '&quot;')
 }
 
+function cssStr(value: unknown): string {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+}
+
 function formatDate(value?: string | null): string {
   if (!value) return '-'
   const d = new Date(value)
@@ -154,8 +160,9 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 <style>
   @page {
     size: A4;
-    margin: 14mm 16mm;
-    @bottom-right { content: "Halaman " counter(page) " dari " counter(pages); font-size: 8.5pt; color: #64748b; }
+    margin: 14mm 16mm 20mm;
+    @bottom-left { content: "No. Registrasi: ${cssStr(regNumber)} | Kyoai Medical Services"; font-size: 8.5pt; color: #64748b; }
+    @bottom-right { content: "${cssStr(patientName)} | " counter(page) " of " counter(pages); font-size: 8.5pt; color: #64748b; }
   }
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; }
@@ -190,8 +197,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
   .result-banner h3 { margin: 0 0 4px; color: #16845b; font-size: 16pt; text-transform: uppercase; }
   .result-banner p { margin: 0; color: #176c4d; font-size: 10.5pt; }
   .section-title { font-size: 11.5pt; color: #173b5c; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin: 16px 0 10px; font-weight: bold; break-after: avoid; page-break-after: avoid; }
-  .mr-section { break-before: page; page-break-before: always; }
-  .mr-section:first-of-type { break-before: auto; page-break-before: auto; }
+  .mr-section:last-of-type { break-inside: avoid; page-break-inside: avoid; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
   th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 9.5pt; vertical-align: top; }
   th { background: #f8fafc; font-weight: bold; color: #475569; text-transform: uppercase; font-size: 8.5pt; letter-spacing: .5px; }
@@ -209,13 +215,11 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
   .signature-name { font-weight: bold; font-size: 10pt; color: #1e293b; margin: 0; }
   .signature-role { font-size: 9pt; color: #64748b; margin: 0; }
   .muted { color: #94a3b8; font-style: italic; }
-  .page-footer { display: flex; justify-content: space-between; align-items: center; font-size: 8.5pt; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 18px; }
   .print-frame { width: 100%; border-collapse: collapse; margin: 0; }
   .print-frame > thead > tr > th,
-  .print-frame > tfoot > tr > th,
   .print-frame > tbody > tr > td { border: 0; padding: 0; background: transparent; text-transform: none; letter-spacing: normal; }
   .print-frame > thead > tr > th { padding-bottom: 10px; }
-  .print-frame > tbody > tr > td { vertical-align: top; }
+  .print-frame > tbody > tr > td { vertical-align: top; padding-bottom: 10px; }
   @media print {
     body { padding: 0; background: none; }
     .page { width: auto; min-height: auto; margin: 0; border: none; box-shadow: none; padding: 0; }
@@ -315,14 +319,6 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 
         </td></tr>
       </tbody>
-      <tfoot>
-        <tr><th>
-          <div class="page-footer">
-            <span>No. Registrasi: ${esc(regNumber)} | Kyoai Medical Services</span>
-            <span>${esc(patientName)}</span>
-          </div>
-        </th></tr>
-      </tfoot>
     </table>
   </div>
 </body>
