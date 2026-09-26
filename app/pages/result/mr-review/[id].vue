@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { EXAM_STATUS_LABEL, MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
 import type { DoctorResultResponse, DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
+import type { McuExamItem, McuSampleCollection } from '~/composables/mr/useMcuBreakdown'
 
 definePageMeta({ title: 'MR Review Detail' })
 
@@ -10,6 +11,45 @@ const router = useRouter()
 const reportId = String(route.params.id)
 const api = useApi()
 const toast = useToast()
+
+const { roles } = await useCurrentUser()
+const isMrReviewRole = computed(() =>
+  roles.value.some(role => role.toLowerCase().replace(/[\s_-]+/g, '') === 'medicalrecord')
+)
+const activeTab = ref<'result' | 'exam'>('result')
+const breakdown = ref<{ examItems: McuExamItem[], sampleCollections: McuSampleCollection[] }>({
+  examItems: [],
+  sampleCollections: []
+})
+const breakdownLoading = ref(false)
+const breakdownLoaded = ref(false)
+
+async function loadBreakdown() {
+  breakdownLoading.value = true
+  try {
+    const res = await api.get(`/medical-reports/${reportId}/exam-breakdown`)
+    const data = res.data?.data ?? res.data
+    breakdown.value = {
+      examItems: data?.examItems ?? [],
+      sampleCollections: data?.sampleCollections ?? []
+    }
+    breakdownLoaded.value = true
+  } catch (err) {
+    const e = err as { response?: { data?: { message?: string } }, message?: string }
+    toast.add({
+      title: 'Failed to load exam breakdown',
+      description: e?.response?.data?.message || e?.message || 'Failed to load exam breakdown',
+      color: 'error'
+    })
+  } finally {
+    breakdownLoading.value = false
+  }
+}
+
+function setTab(tab: 'result' | 'exam') {
+  activeTab.value = tab
+  if (tab === 'exam' && !breakdownLoaded.value) void loadBreakdown()
+}
 
 const {
   detail,
@@ -276,8 +316,39 @@ onMounted(loadAll)
           </div>
         </UCard>
 
+        <div
+          v-if="isMrReviewRole"
+          class="flex flex-wrap gap-2 border-b border-default pb-4"
+        >
+          <UButton
+            :variant="activeTab === 'result' ? 'solid' : 'outline'"
+            :color="activeTab === 'result' ? 'primary' : 'neutral'"
+            @click="setTab('result')"
+          >
+            Result
+          </UButton>
+          <UButton
+            :variant="activeTab === 'exam' ? 'solid' : 'outline'"
+            :color="activeTab === 'exam' ? 'primary' : 'neutral'"
+            @click="setTab('exam')"
+          >
+            Exam
+          </UButton>
+        </div>
+
+        <div v-if="activeTab === 'exam'" class="flex flex-col gap-4">
+          <div v-if="breakdownLoading" class="flex items-center justify-center py-10">
+            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-primary" />
+          </div>
+          <MrMcuBreakdown
+            v-else
+            :exam-items="breakdown.examItems"
+            :sample-collections="breakdown.sampleCollections"
+          />
+        </div>
+
         <!-- Doctor grading meta -->
-        <UCard>
+        <UCard v-if="activeTab === 'result'">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-stethoscope" class="size-5 text-primary" />
@@ -321,7 +392,7 @@ onMounted(loadAll)
         </UCard>
 
         <!-- Doctor Result detail: same data as Doctor Result page, read-only for MR -->
-        <UCard>
+        <UCard v-if="activeTab === 'result'">
           <template #header>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
@@ -461,7 +532,7 @@ onMounted(loadAll)
         </UCard>
 
         <!-- Audit trail -->
-        <UCard>
+        <UCard v-if="activeTab === 'result'">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-history" class="size-5 text-primary" />
