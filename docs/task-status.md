@@ -1,6 +1,15 @@
 # Project Task Status
 
-Last updated: 2026-09-17
+Last updated: 2026-09-28
+
+## Fixed — 2026-09-28: False-positive "perubahan" nomor HP (+62 vs 0)
+
+- Akar: `norm()` hanya trim+lowercase → temp `+6281200000003` vs pasien `081200000003` dianggap beda (nomor sama, format beda).
+- **FE `app/utils/phone.ts`** (baru): `normalizePhone` (simpan → `+62…`), `phoneKey`/`isSamePhone` (banding digit; prefix negara dilipat).
+- **FE**: `registration-temp/[id].vue` (`isChanged.phone`) + `registration-patient/create.vue` (`contactChanged.phone`) pakai `isSamePhone` (tetap flag bila satu sisi kosong).
+- **BE**: `src/utils/phone.js` (baru); simpan dinormalisasi di `patient.service` (create/update) + `public-registration.service` (approve create/update pasien; submit temp mengandalkan `phoneSchema` yang sudah ada); `patient.validation` tanpa transform (satu lapis per jalur, sesuai Opsi 2); `findPatientByPhone` cari varian `0…/62…/+62…`.
+- Verifikasi: `eslint` + `nuxt typecheck` bersih; `npm test` 45 pass / 3 fail (pre-existing di grading/checkout, terkonfirmasi via stash bersih).
+- Catatan: temp `9f077ceb` hilang dari `db_express` di tengah sesi + phone pasien berubah (`updatedAt` 2026-09-09, sebelum sesi); perubahan kode ini read/test-only terhadap DB tsb — kemungkinan aktivitas paralel/restore di luar sesi.
 
 ## Completed — 2026-09-17: Tab Pemeriksaan (order Lab/Radiologi/Dental/Nurse) di encounter
 

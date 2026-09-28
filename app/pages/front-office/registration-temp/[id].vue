@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isSamePhone } from '~/utils/phone'
+
 const route = useRoute()
 const api = useApi()
 const toast = useToast()
@@ -193,7 +195,7 @@ const isChanged = computed(() => {
     name: !p ? false : norm(fullName.value) !== norm(patientFullName(p)),
     gender: !p ? false : norm(reg.value?.gender) !== norm(p.gender),
     dob: !p ? false : normDateStr(reg.value?.dob) !== normDateStr(p.dob),
-    phone: !p ? false : norm(reg.value?.phone) !== norm(p.phone),
+    phone: !p ? false : !!(reg.value?.phone || p.phone) && !isSamePhone(reg.value?.phone, p.phone),
     email: !p ? false : norm(reg.value?.email) !== norm(p.email),
     idNumber: !p ? false : norm(reg.value?.idValue) !== norm(p.idNumber)
   }

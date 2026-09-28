@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // definePageMeta({ layout: 'dashboard' })
+import { isSamePhone } from '~/utils/phone'
 
 const api = useApi()
 const toast = useToast()
@@ -403,7 +404,7 @@ const allergyChanged = computed(() => {
 })
 
 const contactChanged = computed(() => ({
-  phone: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.phone) !== nrm(selectedPatient.value.phone),
+  phone: !!selectedPatient.value && fromTemp.value && !!(contactForm.value.phone || selectedPatient.value.phone) && !isSamePhone(contactForm.value.phone, selectedPatient.value.phone),
   email: !!selectedPatient.value && fromTemp.value && nrm(contactForm.value.email) !== nrm(selectedPatient.value.email)
 }))
 const addrChanged = computed(() => {
