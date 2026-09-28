@@ -1028,9 +1028,11 @@ async function submit() {
     let patientId = selectedPatient.value?.id
 
     let registrationId: number
+    let examIdFromApprove: string | null = null
     if (fromTemp.value && tempId.value) {
       // Alur portal: approve backend dipanggil saat simpan →
       // backend membuat patient (jika baru) + Registration + address + company history
+      // + TrxExam (paket + additional, atomik)
       const approveRes = await api.post(`/registration-temp/${tempId.value}/approve`, {
         examDate: regForm.value.examDate,
         scheduleDateExam: regForm.value.scheduleDateExam,
@@ -1071,10 +1073,21 @@ async function submit() {
           : undefined,
         diseaseNotes: updateNotesFromQuery.value
           ? (medicalNotesForm.value.diseaseNotes.trim() || undefined)
-          : undefined
+          : undefined,
+        // [A1] Paket + additional ikut di approve → backend membuat exam atomik
+        ...(selectedService.value === 'MCU' && selectedPaket.value
+          ? {
+              paketId: selectedPaket.value.id,
+              additionalItems: additionalItems.value.map((item, index) => ({
+                itemId: item.id,
+                sortOrder: selectedPaket.value!.paketItems.length + index
+              }))
+            }
+          : {})
       })
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
+      examIdFromApprove = approveRes.data.data.examId ?? null
     } else {
       if (isNewPatient.value) {
         const patient = await saveNewPatient()
@@ -1097,7 +1110,9 @@ async function submit() {
       registrationId = regRes.data.data.id
     }
 
-    if (selectedService.value === 'MCU' && selectedPaket.value && patientId) {
+    // Jalur lama (backend tanpa exam): buat exam terpisah. Diabaikan bila
+    // approve sudah membuat exam (A1).
+    if (selectedService.value === 'MCU' && selectedPaket.value && patientId && !examIdFromApprove) {
       const examRes = await api.post('/mcu/exams', {
         paketId: selectedPaket.value.id,
         patientId,

@@ -20,6 +20,7 @@ type ExamItem = {
   templateSnapshotAt?: string | null
   resultSubmittedAt?: string | null
   resultSubmittedBy?: number | null
+  itemApproved?: boolean
   roomExamItems?: Array<{
     id: string
     status: string
@@ -66,6 +67,15 @@ type Registration = {
     status: string
     paket?: { id: string, name: string } | null
     examItems: ExamItem[]
+  } | null
+  queue?: {
+    sampleCollections?: Array<{
+      id: string
+      status: string
+      rejectReason?: string | null
+      sampleType?: { name?: string | null, code?: string | null } | null
+      items?: Array<{ itemId: string }>
+    }>
   } | null
 }
 
@@ -162,19 +172,19 @@ function getStatusColor(s: string): 'success' | 'warning' | 'info' | 'error' | '
 function getResultStatusLabel(s: string) {
   const map: Record<string, string> = {
     NOT_READY: 'Belum siap',
+    READY: 'Siap',
     DRAFT: 'Draft',
     SUBMITTED: 'Tersubmit',
-    APPROVED: 'Disetujui',
-    REJECTED: 'Ditolak'
+    RETURNED: 'Dikembalikan'
   }
   return map[s] ?? s
 }
 
 function getResultStatusColor(s: string): 'success' | 'warning' | 'info' | 'error' | 'neutral' {
-  if (s === 'APPROVED') return 'success'
   if (s === 'SUBMITTED') return 'info'
+  if (s === 'READY') return 'success'
   if (s === 'DRAFT') return 'warning'
-  if (s === 'REJECTED') return 'error'
+  if (s === 'RETURNED') return 'error'
   return 'neutral'
 }
 
@@ -192,16 +202,23 @@ function getWorkDoneAt(ei: ExamItem) {
   return ei.workDoneAt ?? getLatestDone(ei)
 }
 
+// [C3] Sample status dibaca dari queue.sampleCollections (bukan roomExamItems).
+function getSamplesForItem(ei: ExamItem) {
+  return (reg.value?.queue?.sampleCollections ?? []).filter(collection =>
+    collection.items?.some(item => item.itemId === ei.item.id)
+  )
+}
+
 function isRoomDone(ei: ExamItem) {
   return getExamItemStatus(ei) === 'DONE'
 }
 
 function isResultSent(ei: ExamItem) {
-  return ['SUBMITTED', 'APPROVED'].includes(ei.resultStatus)
+  return ei.resultStatus === 'SUBMITTED'
 }
 
 function isResultFinal(ei: ExamItem) {
-  return ei.resultStatus === 'APPROVED'
+  return Boolean(ei.itemApproved)
 }
 
 function getExternalSlaDays(ei: ExamItem) {
@@ -274,7 +291,7 @@ const overallStats = computed(() => {
   const pending = total - done - inProgress
   const inline = items.filter(ei => ei.item.resultTiming !== 'deferred').length
   const deferred = items.filter(ei => ei.item.resultTiming === 'deferred').length
-  const submitted = items.filter(ei => ['SUBMITTED', 'APPROVED'].includes(ei.resultStatus)).length
+  const submitted = items.filter(ei => ei.resultStatus === 'SUBMITTED').length
   return { total, done, inProgress, pending, inline, deferred, submitted }
 })
 </script>
@@ -492,11 +509,11 @@ const overallStats = computed(() => {
 
                 <!-- Sample Status -->
                 <div
-                  v-if="ei.roomExamItems?.some(r => ['COLLECTED', 'REJECTED', 'RESCHEDULED'].includes(r.status))"
+                  v-if="getSamplesForItem(ei).some(s => ['REJECTED', 'RESCHEDULED', 'PENDING'].includes(s.status))"
                   class="mt-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-1.5 text-xs text-muted"
                 >
                   Sample perlu perhatian —
-                  {{ ei.roomExamItems?.find(r => r.status === 'REJECTED') ? 'ditolak' : ei.roomExamItems?.find(r => r.status === 'RESCHEDULED') ? 'dijadwalkan ulang' : 'menunggu diterima lab' }}
+                  {{ getSamplesForItem(ei).some(s => s.status === 'REJECTED') ? 'ditolak' : getSamplesForItem(ei).some(s => s.status === 'RESCHEDULED') ? 'dijadwalkan ulang' : 'menunggu diterima lab' }}
                 </div>
               </div>
             </div>

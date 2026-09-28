@@ -1667,10 +1667,18 @@ onBeforeUnmount(() => {
           color="success"
           :loading="approvingItem"
           icon="i-lucide-check-circle"
+          :disabled="result?.departmentCanApprove === false"
+          :title="result?.departmentApproveDisableReason || undefined"
           @click="handleApproveItem"
         >
           Approve Item
         </UButton>
+        <span
+          v-if="result?.departmentCanApprove === false && result?.departmentApproveDisableReason"
+          class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
+        >
+          {{ result.departmentApproveDisableReason }}
+        </span>
 
         <UButton
           v-if="!embedded"

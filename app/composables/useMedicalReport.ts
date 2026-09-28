@@ -1,7 +1,6 @@
 import type {
   MedicalReportDetail,
-  MedicalReportListItem,
-  MedicalReportStatus
+  MedicalReportListItem
 } from '~/types/medical-report'
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -31,7 +30,7 @@ export function useMedicalReport() {
 
   // ── list ──────────────────────────────────────────────────────────
   async function loadList(params: {
-    status?: MedicalReportStatus | ''
+    status?: string
     page?: number
     limit?: number
   } = {}) {

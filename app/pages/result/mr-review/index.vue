@@ -31,8 +31,10 @@ const statusOptions = [
   { label: 'Released', value: 'RELEASED' }
 ]
 
-function currentStatusParam(): MedicalReportStatus | undefined {
-  return statusFilter.value === 'all' ? undefined : statusFilter.value
+// [B5] Tab "all" memakai daftar status eksplisit karena BE men-gate default DOCTOR_APPROVED.
+const ALL_MR_STATUSES = 'DOCTOR_APPROVED,MR_REVIEW,MR_RETURNED_TO_DOCTOR,MR_VERIFIED,READY_TO_RELEASE,RELEASED'
+function currentStatusParam(): string {
+  return statusFilter.value === 'all' ? ALL_MR_STATUSES : statusFilter.value
 }
 
 const filteredList = computed(() => {

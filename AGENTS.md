@@ -264,3 +264,9 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Koreksi Dokumentasi (2026-09-28)
+
+- Bagian "Sample Collection Flow" menyebut `/rooms/sample-collection` + komponen `SampleCollectionPickModal`/`SampleCollectionHistoryTable` yang **tidak ada** di tree saat ini. Room lab memakai alur self-assign → `/rooms/sample-reception` (+ `SampleReceptionPanel` untuk RECEIVE) dan aksi sample di `rooms/queue-work/[id].vue` (COLLECT/RECEIVE/REJECT/RESCHEDULE).
+- Audit alur MCU end-to-end (Portal → MR → Checkout) + daftar temuan & perbaikan: lihat `docs/mcu-flow-audit.md`.
+

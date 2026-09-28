@@ -77,6 +77,8 @@ const departmentTabs = computed(() => departments.value.map(department => ({
 
 // [MR] Revisi dari MR — item yang harus diperbaiki + alasan
 const mrReturned = computed(() => data.value?.submission?.status === 'MR_RETURNED_TO_DOCTOR')
+// [B7] Sudah diteruskan ke department — menunggu revisi department.
+const mrReturnedToDept = computed(() => data.value?.submission?.status === 'RETURNED_TO_DEPARTMENT')
 const mrReturnReason = computed(() => data.value?.mrReturnReason ?? null)
 const mrReturnRevisions = computed(() => data.value?.mrReturnRevisions ?? [])
 const revisionMap = computed<Record<string, string>>(() => {
@@ -550,6 +552,16 @@ onBeforeUnmount(() => {
             </div>
           </template>
         </UAlert>
+
+        <!-- [B7] Sudah diteruskan ke department -->
+        <UAlert
+          v-if="mrReturnedToDept"
+          icon="i-lucide-share-2"
+          color="info"
+          variant="soft"
+          title="Returned to department — awaiting department revision"
+          :description="mrReturnReason || 'This report was sent to the department for revision.'"
+        />
 
         <UCard v-if="loading" class="w-full min-w-0">
           <div class="space-y-4">

@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-28
 
+## Audit & Perbaikan — 2026-09-28: Alur MCU end-to-end (A1–C7)
+
+- Audit Portal → registrasi → queue → ruangan → hasil → department → dokter → MR → checkout; laporan di **`docs/mcu-flow-audit.md`**.
+- **BE**: A1 approve atomik (`TrxExam`+items di transaksi `approve`), A2 buang `registrationId ?? 19`, A3 `_calculateFlag` kembalikan arah + `computeItemGrading(flag,direction)`, A4 aktifkan job `expire-temp`, B2 `ExamDepartmentResult.returnedStepOrder` (resume level return), B3 tegakkan `gradingMode`, B4 normal value filter `examCode` di doctor result, B5 MR list default gate `DOCTOR_APPROVED` (+multi-status koma), B6 MR return tidak buat revisi department, B7 pakai `RETURNED_TO_DEPARTMENT`, C2 pesan error, C3 `itemApproved` di registration detail; fix 500 multi-status di `getExamResultsLight`.
+- **FE**: approve 1 call (paket di payload), tombol Approve pakai `departmentCanApprove`, worklist dokter terima `RETURNED_TO_DEPARTMENT`, banner return-to-department, `exam-status` pakai enum + sample dari `queue.sampleCollections`.
+- Migrasi manual: `ALTER TABLE exam_department_result ADD COLUMN returnedStepOrder INT NULL` (hindari `db push` yang mau drop `mst_icd10`).
+- Verifikasi: lint + typecheck FE bersih; BE import OK; `npm test` 45/3 (pre-existing); runtime API A1/A2/A4/B4/B5/B7/C3 ✅.
+- Docs: `12-mcu-flow.md` §20 (koreksi drift) + catatan `AGENTS.md`.
+
 ## Fixed — 2026-09-28: False-positive "perubahan" nomor HP (+62 vs 0)
 
 - Akar: `norm()` hanya trim+lowercase → temp `+6281200000003` vs pasien `081200000003` dianggap beda (nomor sama, format beda).
