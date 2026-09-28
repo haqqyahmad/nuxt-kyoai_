@@ -143,6 +143,9 @@ watch(() => form.roomTypeId, async (value) => {
 })
 
 watch(open, (value) => {
+  // Muat ulang master tiap modal dibuka, supaya perubahan kode audio
+  // langsung terlihat tanpa reload halaman.
+  if (value) loadAudioCodes()
   if (!value && !isEdit.value) resetForm()
 })
 
