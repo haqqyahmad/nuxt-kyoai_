@@ -2,6 +2,12 @@
 
 Last updated: 2026-09-28
 
+## Handoff — 2026-09-28: Status commit & langkah resume (pindah komputer)
+
+- Semua commit sesi sudah di-push ke `origin/feature/dev`: FE `8e85f35`/`cec4639`, BE `1560792`/`cd1acfb`.
+- BE sempat ada push user lain (`6c743ee`, `e8d5d69`, `a6aabe5`) → di-rebase bersih tanpa konflik; `npm test` 45 pass / 3 fail (pre-existing).
+- Langkah resume lengkap, langkah DB manual (`ALTER TABLE exam_department_result ADD COLUMN returnedStepOrder`, jangan `prisma db push` karena `mst_icd10`), env & cara start service: **`docs/handoff-20260928.md`**.
+
 ## Audit & Perbaikan — 2026-09-28: Alur MCU end-to-end (A1–C7)
 
 - Audit Portal → registrasi → queue → ruangan → hasil → department → dokter → MR → checkout; laporan di **`docs/mcu-flow-audit.md`**.
