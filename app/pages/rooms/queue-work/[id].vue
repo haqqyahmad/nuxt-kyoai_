@@ -1809,6 +1809,28 @@ async function handleCancelStartStage() {
   }
 }
 
+async function handleRecallStage() {
+  if (!activeStage.value || stageActionLoading.value) return
+
+  stageActionLoading.value = true
+  try {
+    await api.post(`/medical/exams/queue/stage/${activeStage.value.id}/recall`, {})
+    toast.add({
+      title: 'Panggilan diulang',
+      description: 'Nomor dipanggil ulang ke speaker ruangan.',
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Gagal mengulang panggilan',
+      description: getErrorMessage(error, 'Terjadi kesalahan saat mengulang panggilan.'),
+      color: 'error'
+    })
+  } finally {
+    stageActionLoading.value = false
+  }
+}
+
 async function handleStartStage() {
   if (!activeStage.value || stageActionLoading.value) return
 
@@ -2413,6 +2435,16 @@ async function handleSubmitItemAction() {
                 @click="handleStartStage"
               >
                 Start Examination
+              </UButton>
+              <UButton
+                v-if="activeStage?.status === 'CALLED'"
+                color="primary"
+                variant="soft"
+                icon="i-lucide-volume-2"
+                :loading="stageActionLoading"
+                @click="handleRecallStage"
+              >
+                Panggil Ulang
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED'"
