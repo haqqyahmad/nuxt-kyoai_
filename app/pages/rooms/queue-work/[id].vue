@@ -1809,18 +1809,49 @@ async function handleCancelStartStage() {
   }
 }
 
+// Countdown tombol "Panggil Ulang": server menolak ulangan < 15 detik.
+const RECALL_COOLDOWN_SECONDS = 15
+const recallCooldown = ref(0)
+let recallTimer: ReturnType<typeof setInterval> | null = null
+
+function stopRecallCooldown() {
+  if (recallTimer) {
+    clearInterval(recallTimer)
+    recallTimer = null
+  }
+}
+
+function startRecallCooldown(seconds = RECALL_COOLDOWN_SECONDS) {
+  stopRecallCooldown()
+  recallCooldown.value = seconds
+  recallTimer = setInterval(() => {
+    recallCooldown.value -= 1
+    if (recallCooldown.value <= 0) {
+      recallCooldown.value = 0
+      stopRecallCooldown()
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(stopRecallCooldown)
+
 async function handleRecallStage() {
-  if (!activeStage.value || stageActionLoading.value) return
+  if (!activeStage.value || stageActionLoading.value || recallCooldown.value > 0) return
 
   stageActionLoading.value = true
   try {
     await api.post(`/medical/exams/queue/stage/${activeStage.value.id}/recall`, {})
+    startRecallCooldown()
     toast.add({
       title: 'Panggilan diulang',
       description: 'Nomor dipanggil ulang ke speaker ruangan.',
       color: 'success'
     })
   } catch (error: unknown) {
+    // 429 = server menahan (baru saja diulang) → selaraskan countdown.
+    if ((error as { response?: { status?: number } })?.response?.status === 429) {
+      startRecallCooldown()
+    }
     toast.add({
       title: 'Gagal mengulang panggilan',
       description: getErrorMessage(error, 'Terjadi kesalahan saat mengulang panggilan.'),
@@ -2440,11 +2471,12 @@ async function handleSubmitItemAction() {
                 v-if="activeStage?.status === 'CALLED'"
                 color="primary"
                 variant="soft"
-                icon="i-lucide-volume-2"
+                :icon="recallCooldown > 0 ? 'i-lucide-timer' : 'i-lucide-volume-2'"
                 :loading="stageActionLoading"
+                :disabled="recallCooldown > 0"
                 @click="handleRecallStage"
               >
-                Panggil Ulang
+                {{ recallCooldown > 0 ? `Panggil Ulang (${recallCooldown}s)` : 'Panggil Ulang' }}
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED'"
