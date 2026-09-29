@@ -11,7 +11,7 @@ Kondisi aktual codebase frontend Nuxt 4, sebagai baseline untuk desain arsitektu
 | UI | @nuxt/ui v4 (Tailwind CSS v4), reka-nova (shadcn) | `nuxt.config.ts:6`, `components.json` |
 | State | `useState` + `useAsyncData` (tanpa Pinia/Vuex) | `app/composables/*`, `app/stores/*` |
 | HTTP | Axios (satu instance global) | `app/plugins/api.ts`, `app/composables/useApi.ts` |
-| Package Manager | pnpm | `package.json:52` |
+| Package Manager | npm | `package.json:52` |
 | Modules | `@nuxt/eslint`, `@nuxt/ui`, `@vueuse/nuxt` | `nuxt.config.ts:4-8` |
 | Runtime Config (public) | `apiBase`, `apiKey`, `portalUrl` | `nuxt.config.ts:18-24` |
 | Icons | @iconify-json/lucide + @lucide/vue | `package.json` |

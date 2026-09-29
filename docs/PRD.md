@@ -1238,11 +1238,11 @@ Teknologi yang digunakan:
 
 Script project:
 
-- `pnpm dev`: menjalankan development server.
-- `pnpm build`: build production.
-- `pnpm preview`: preview production build.
-- `pnpm lint`: lint.
-- `pnpm typecheck`: typecheck Nuxt.
+- `npm run dev`: menjalankan development server.
+- `npm run build`: build production.
+- `npm run preview`: preview production build.
+- `npm run lint`: lint.
+- `npm run typecheck`: typecheck Nuxt.
 
 Catatan implementasi:
 

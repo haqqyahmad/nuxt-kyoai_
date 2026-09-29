@@ -601,7 +601,7 @@ Halaman pengaturan alur approval sudah ada (`/settings/result-workflow` + BE `re
   - Tombol "Mulai Pemeriksaan" kini tampil saat `activeStage?.status === 'CALLED' || canAutoStartExam`.
   - Perluas `handleStartStage`: jika status stage `WAITING`, panggil `PATCH /medical/exams/queue/stage/:id/call` (payload `roomId` + `roomTypeId` dari `activeRoomSession`) dulu, lalu `PATCH .../start` → EXAM jadi `IN_PROGRESS` tanpa balik ke index.
 - **Alur setelah fix:** "Mulai Pemeriksaan" → EXAM `IN_PROGRESS` → "Mulai Item" → item `IN_PROGRESS` → "Selesaikan Item" → `DONE` → "Selesaikan Room" → EXAM `DONE` → kembali ke `/rooms/queue`. Item deferred (Diff Count) diinput hasilnya di halaman exam-results setelah room selesai.
-- **Verifikasi:** `pnpm lint` & typecheck — tidak ada error baru pada baris yang diubah (error yang ada adalah pre-existing baseline proyek).
+- **Verifikasi:** `npm run lint` & typecheck — tidak ada error baru pada baris yang diubah (error yang ada adalah pre-existing baseline proyek).
 
 Dokumen ini menurunkan PRD frontend menjadi urutan kerja yang bisa dieksekusi tanpa lompat-lompat.
 
