@@ -54,6 +54,8 @@ const menuGroups: Record<string, string[]> = {
   'Examination': [
     '/rooms/assignments',
     '/rooms/queue',
+    '/rooms/queue-work',
+    '/rooms/internal-questionnaires',
     '/queue-search'
   ],
   'Results': [
@@ -78,6 +80,18 @@ const menuGroups: Record<string, string[]> = {
   'Front Office': [
     '/front-office'
   ],
+  'Outpatient': [
+    '/outpatient/waiting',
+    '/outpatient/queue-list'
+  ],
+  'Pharmacy': [
+    '/pharmacy/orders',
+    '/pharmacy/medicines',
+    '/pharmacy/warehouses',
+    '/pharmacy/stock',
+    '/pharmacy/price-tiers',
+    '/pharmacy/prescription-options'
+  ],
   'Settings': [
     '/settings'
   ],
@@ -86,7 +100,8 @@ const menuGroups: Record<string, string[]> = {
     '/hris/employees',
     '/hris/leaves',
     '/hris/reimbursement',
-    '/hris/recruitment'
+    '/hris/recruitment',
+    '/hris/national-holidays'
     // '/hris/shifts'
   ],
   'Attendance': [

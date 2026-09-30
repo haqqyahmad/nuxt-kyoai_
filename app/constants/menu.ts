@@ -28,7 +28,6 @@ export const frontOfficeAllowedRoutes: string[] = [
   '/front-office/registration-temp',
   '/front-office/registration-patient',
   '/front-office/questionnaire-results',
-  '/rooms/internal-questionnaires',
   '/outpatient/waiting',
   '/settings',
   '/settings/security',
