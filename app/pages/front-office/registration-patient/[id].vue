@@ -1012,11 +1012,12 @@ function questionnaireLink(questionnaireId?: string): string {
   if (reg.value?.branch?.branchId) params.set('branchId', reg.value.branch.branchId)
   if (questionnaireId) {
     params.set('questionnaireId', questionnaireId)
-    // Token bertanda tangan — mengikat link ke registrasi + questionnaire ini.
+    // One-time link code — mengikat link ke registrasi + questionnaire ini.
+    // Pasien menukarnya menjadi session saat membuka halaman portal.
     const questionnaire = questionnaires.value.find(
       item => item.questionnaire_id === questionnaireId
     )
-    if (questionnaire?.token) params.set('token', questionnaire.token)
+    if (questionnaire?.token) params.set('code', questionnaire.token)
   }
   // Registrasi final punya id numerik; jawaban ter-backfill ke registrationId.
   params.set('registrationId', String(reg.value?.id ?? ''))
@@ -1031,6 +1032,34 @@ function waShareLink(questionnaireId?: string): string {
   const questUrl = questionnaireLink(questionnaireId)
   const message = `Hello, please fill out your medical questionnaire at: ${questUrl}`
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
+
+const revisionLoading = ref<Record<string, boolean>>({})
+
+async function openQuestionnaireRevision(questionnaireId?: string) {
+  if (!questionnaireId || !route.params.id) return
+  if (!confirm('Buka revisi kuesioner? Pasien bisa mengisi ulang sekali via link baru.')) return
+  revisionLoading.value = { ...revisionLoading.value, [questionnaireId]: true }
+  try {
+    const res = await api.post(
+      `/registration/number/${route.params.id}/questionnaires/${questionnaireId}/revision-link`
+    )
+    const code = res.data?.data?.code
+    if (!code) {
+      toast.add({ title: 'Failed', description: 'Revision link tidak tersedia', color: 'error' })
+      return
+    }
+    const params = new URLSearchParams(questionnaireLink(questionnaireId).split('?')[1] ?? '')
+    params.set('code', code)
+    const link = `${questionnairePortalUrl.value}?${params.toString()}`
+    await navigator.clipboard.writeText(link)
+    toast.add({ title: 'Success', description: 'Link revisi disalin — bagikan ke pasien', color: 'success' })
+    await loadQuestionnaires()
+  } catch {
+    toast.add({ title: 'Failed', description: 'Gagal membuat link revisi', color: 'error' })
+  } finally {
+    revisionLoading.value = { ...revisionLoading.value, [questionnaireId]: false }
+  }
 }
 
 function shareQuestionnaireViaWa(questionnaireId?: string) {
@@ -2086,6 +2115,16 @@ watch(
                           size="xs"
                           title="Copy Link"
                           @click="copyQuestionnaireLink(q.questionnaire_id)"
+                        />
+                        <UButton
+                          icon="i-lucide-rotate-ccw"
+                          color="warning"
+                          variant="ghost"
+                          size="xs"
+                          title="Buka Revisi"
+                          :disabled="q.status !== 'Completed' || revisionLoading[q.questionnaire_id]"
+                          :loading="revisionLoading[q.questionnaire_id]"
+                          @click="openQuestionnaireRevision(q.questionnaire_id)"
                         />
                         <UButton
                           icon="i-lucide-eye"
