@@ -1035,10 +1035,22 @@ function waShareLink(questionnaireId?: string): string {
 }
 
 const revisionLoading = ref<Record<string, boolean>>({})
+const revisionConfirmOpen = ref(false)
+const revisionTargetId = ref<string | null>(null)
 
-async function openQuestionnaireRevision(questionnaireId?: string) {
+const revisionTargetName = computed(() =>
+  questionnaires.value.find(item => item.questionnaire_id === revisionTargetId.value)?.questionnaire_name ?? ''
+)
+
+function askQuestionnaireRevision(questionnaireId?: string) {
   if (!questionnaireId || !route.params.id) return
-  if (!confirm('Buka revisi kuesioner? Pasien bisa mengisi ulang sekali via link baru.')) return
+  revisionTargetId.value = questionnaireId
+  revisionConfirmOpen.value = true
+}
+
+async function doQuestionnaireRevision() {
+  const questionnaireId = revisionTargetId.value
+  if (!questionnaireId || !route.params.id) return
   revisionLoading.value = { ...revisionLoading.value, [questionnaireId]: true }
   try {
     const res = await api.post(
@@ -1046,17 +1058,17 @@ async function openQuestionnaireRevision(questionnaireId?: string) {
     )
     const code = res.data?.data?.code
     if (!code) {
-      toast.add({ title: 'Failed', description: 'Revision link tidak tersedia', color: 'error' })
+      toast.add({ title: 'Failed', description: 'Revision link not available', color: 'error' })
       return
     }
     const params = new URLSearchParams(questionnaireLink(questionnaireId).split('?')[1] ?? '')
     params.set('code', code)
     const link = `${questionnairePortalUrl.value}?${params.toString()}`
     await navigator.clipboard.writeText(link)
-    toast.add({ title: 'Success', description: 'Link revisi disalin — bagikan ke pasien', color: 'success' })
+    toast.add({ title: 'Success', description: 'Revision link copied — share it with the patient', color: 'success' })
     await loadQuestionnaires()
   } catch {
-    toast.add({ title: 'Failed', description: 'Gagal membuat link revisi', color: 'error' })
+    toast.add({ title: 'Failed', description: 'Failed to create revision link', color: 'error' })
   } finally {
     revisionLoading.value = { ...revisionLoading.value, [questionnaireId]: false }
   }
@@ -2121,10 +2133,10 @@ watch(
                           color="warning"
                           variant="ghost"
                           size="xs"
-                          title="Buka Revisi"
+                          title="Open Revision"
                           :disabled="q.status !== 'Completed' || revisionLoading[q.questionnaire_id]"
                           :loading="revisionLoading[q.questionnaire_id]"
-                          @click="openQuestionnaireRevision(q.questionnaire_id)"
+                          @click="askQuestionnaireRevision(q.questionnaire_id)"
                         />
                         <UButton
                           icon="i-lucide-eye"
@@ -2508,6 +2520,14 @@ watch(
           </div>
         </template>
       </UModal>
+
+      <BaseConfirmModal
+        v-model:open="revisionConfirmOpen"
+        title="Open Questionnaire Revision?"
+        :description="`The patient can refill ${revisionTargetName} once through a new link.`"
+        variant="warning"
+        @confirm="doQuestionnaireRevision"
+      />
 
       <UModal v-model:open="showRescheduleModal" title="Reschedule Visit Date">
         <template #body>
