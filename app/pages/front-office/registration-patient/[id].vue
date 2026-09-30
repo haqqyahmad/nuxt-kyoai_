@@ -1107,6 +1107,57 @@ function copyQuestionnaireLink(questionnaireId?: string) {
     })
 }
 
+const shareAllLoading = ref(false)
+
+async function shareAllQuestionnaires() {
+  if (!route.params.id || !reg.value) return
+  shareAllLoading.value = true
+  try {
+    const res = await api.post(`/registration/number/${route.params.id}/questionnaires/share-link`)
+    const code = res.data?.data?.code
+    if (!code) {
+      toast.add({ title: 'Failed', description: 'Share link not available', color: 'error' })
+      return
+    }
+    const link = `${questionnairePortalUrl.value}?code=${code}&registrationId=${reg.value.id}&gender=${reg.value.patient?.gender ?? ''}`
+    await navigator.clipboard.writeText(link)
+    toast.add({ title: 'Success', description: 'All questionnaires link copied', color: 'success' })
+  } catch {
+    toast.add({ title: 'Failed', description: 'Failed to create share link', color: 'error' })
+  } finally {
+    shareAllLoading.value = false
+  }
+}
+
+async function shareAllQuestionnairesViaWa() {
+  const phone = normalizeWaPhone(reg.value?.patient?.phone)
+  if (!phone) {
+    toast.add({
+      title: 'Failed',
+      description: 'Patient phone number is not available',
+      color: 'error'
+    })
+    return
+  }
+  if (!route.params.id || !reg.value) return
+  shareAllLoading.value = true
+  try {
+    const res = await api.post(`/registration/number/${route.params.id}/questionnaires/share-link`)
+    const code = res.data?.data?.code
+    if (!code) {
+      toast.add({ title: 'Failed', description: 'Share link not available', color: 'error' })
+      return
+    }
+    const link = `${questionnairePortalUrl.value}?code=${code}&registrationId=${reg.value.id}&gender=${reg.value.patient?.gender ?? ''}`
+    const message = `Hello, please fill out your medical questionnaires at: ${link}`
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+  } catch {
+    toast.add({ title: 'Failed', description: 'Failed to create share link', color: 'error' })
+  } finally {
+    shareAllLoading.value = false
+  }
+}
+
 const resampling = ref(false)
 const mealTimerNow = ref(Date.now())
 const mealTimerDuration = ref<number | null>(null)
@@ -2046,13 +2097,34 @@ watch(
                 <UIcon name="i-lucide-clipboard-check" class="text-primary" />
                 Medical Questionnaires List
               </h3>
-              <UButton
-                icon="i-lucide-printer"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                label="Print All Results"
-              />
+              <div class="flex items-center gap-2">
+                <UButton
+                  icon="i-lucide-message-circle"
+                  color="success"
+                  variant="outline"
+                  size="xs"
+                  label="WA All"
+                  :disabled="!reg?.patient?.phone"
+                  :loading="shareAllLoading"
+                  @click="shareAllQuestionnairesViaWa"
+                />
+                <UButton
+                  icon="i-lucide-share-2"
+                  color="primary"
+                  variant="outline"
+                  size="xs"
+                  label="Share All"
+                  :loading="shareAllLoading"
+                  @click="shareAllQuestionnaires"
+                />
+                <UButton
+                  icon="i-lucide-printer"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  label="Print All Results"
+                />
+              </div>
             </div>
             <div class="overflow-x-auto">
               <div v-if="questionnairesLoading" class="flex items-center justify-center py-10">
