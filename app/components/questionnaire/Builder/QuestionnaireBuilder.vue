@@ -29,7 +29,7 @@ const emit = defineEmits<{
   ): void
 
   (
-    e: 'update:title' | 'update:description' | 'update:portalKey' | 'add-question',
+    e: 'update:title' | 'update:description' | 'update:portalKey' | 'update:scope' | 'add-question',
     value: string
   ): void
 
@@ -48,6 +48,7 @@ const props = defineProps<{
   title: string
   description: string
   portalKey?: string
+  scope?: string
   saving?: boolean
 }>()
 
@@ -66,6 +67,10 @@ const questionnaireDescription = ref(
 
 const questionnairePortalKey = ref(
   props.portalKey || ''
+)
+
+const questionnaireScope = ref(
+  props.scope || 'EXTERNAL'
 )
 
 /**
@@ -92,6 +97,13 @@ watch(
   }
 )
 
+watch(
+  () => props.scope,
+  (value) => {
+    questionnaireScope.value = value || 'EXTERNAL'
+  }
+)
+
 /**
  * emit to parent
  */
@@ -105,6 +117,10 @@ watch(questionnaireDescription, (value) => {
 
 watch(questionnairePortalKey, (value) => {
   emit('update:portalKey', value)
+})
+
+watch(questionnaireScope, (value) => {
+  emit('update:scope', value)
 })
 
 /**
@@ -345,6 +361,27 @@ function saveDescription() {
               class="text-xs text-muted"
             >
               Portal akan pakai questionaire ini sebagai default
+            </p>
+          </div>
+
+          <!-- TYPE -->
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-shield"
+              class="size-4 text-muted"
+            />
+            <USelect
+              v-model="questionnaireScope"
+              :items="[
+                { label: 'External (general)', value: 'EXTERNAL' },
+                { label: 'Internal (staff only)', value: 'INTERNAL' }
+              ]"
+              size="sm"
+              class="max-w-56"
+            />
+            <p class="text-xs text-muted">
+              Internal questionnaires are tied to a package/exam item and filled by medical staff.
+              External can be filled by patients/Front Office.
             </p>
           </div>
         </div>

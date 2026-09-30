@@ -326,6 +326,7 @@ const additionalItems = computed(() =>
 type PatientQuestionnaire = {
   questionnaire_id: string
   questionnaire_name: string
+  scope?: string | null
   status: 'Completed' | 'Pending'
   completionDate: string | null
   print_template?: string | null
@@ -342,6 +343,10 @@ type PatientQuestionnaire = {
 
 const questionnaires = ref<PatientQuestionnaire[]>([])
 const questionnairesLoading = ref(false)
+
+const externalQuestionnaires = computed(() =>
+  questionnaires.value.filter(q => q.scope !== 'INTERNAL')
+)
 
 async function loadQuestionnaires() {
   questionnairesLoading.value = true
@@ -1111,6 +1116,10 @@ const shareAllLoading = ref(false)
 
 async function shareAllQuestionnaires() {
   if (!route.params.id || !reg.value) return
+  if (!externalQuestionnaires.value.length) {
+    toast.add({ title: 'No external questionnaires to share.', color: 'warning' })
+    return
+  }
   shareAllLoading.value = true
   try {
     const res = await api.post(`/registration/number/${route.params.id}/questionnaires/share-link`)
@@ -1140,6 +1149,10 @@ async function shareAllQuestionnairesViaWa() {
     return
   }
   if (!route.params.id || !reg.value) return
+  if (!externalQuestionnaires.value.length) {
+    toast.add({ title: 'No external questionnaires to share.', color: 'warning' })
+    return
+  }
   shareAllLoading.value = true
   try {
     const res = await api.post(`/registration/number/${route.params.id}/questionnaires/share-link`)
@@ -2165,7 +2178,16 @@ watch(
                     class="hover:bg-elevated transition-colors"
                   >
                     <td class="px-5 py-3">
-                      <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
+                        <UBadge
+                          v-if="q.scope === 'INTERNAL'"
+                          label="Internal"
+                          color="warning"
+                          variant="subtle"
+                          size="sm"
+                        />
+                      </div>
                     </td>
                     <td class="px-5 py-3 text-center">
                       <span v-if="q.completionDate" class="text-sm text-muted">{{
@@ -2183,33 +2205,35 @@ watch(
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
-                        <UButton
-                          icon="i-lucide-message-circle"
-                          color="success"
-                          variant="ghost"
-                          size="xs"
-                          title="Send via WhatsApp"
-                          :disabled="!reg?.patient?.phone"
-                          @click="shareQuestionnaireViaWa(q.questionnaire_id)"
-                        />
-                        <UButton
-                          icon="i-lucide-link"
-                          color="neutral"
-                          variant="ghost"
-                          size="xs"
-                          title="Copy Link"
-                          @click="copyQuestionnaireLink(q.questionnaire_id)"
-                        />
-                        <UButton
-                          icon="i-lucide-rotate-ccw"
-                          color="warning"
-                          variant="ghost"
-                          size="xs"
-                          title="Open Revision"
-                          :disabled="q.status !== 'Completed' || revisionLoading[q.questionnaire_id]"
-                          :loading="revisionLoading[q.questionnaire_id]"
-                          @click="askQuestionnaireRevision(q.questionnaire_id)"
-                        />
+                        <template v-if="q.scope !== 'INTERNAL'">
+                          <UButton
+                            icon="i-lucide-message-circle"
+                            color="success"
+                            variant="ghost"
+                            size="xs"
+                            title="Send via WhatsApp"
+                            :disabled="!reg?.patient?.phone"
+                            @click="shareQuestionnaireViaWa(q.questionnaire_id)"
+                          />
+                          <UButton
+                            icon="i-lucide-link"
+                            color="neutral"
+                            variant="ghost"
+                            size="xs"
+                            title="Copy Link"
+                            @click="copyQuestionnaireLink(q.questionnaire_id)"
+                          />
+                          <UButton
+                            icon="i-lucide-rotate-ccw"
+                            color="warning"
+                            variant="ghost"
+                            size="xs"
+                            title="Open Revision"
+                            :disabled="q.status !== 'Completed' || revisionLoading[q.questionnaire_id]"
+                            :loading="revisionLoading[q.questionnaire_id]"
+                            @click="askQuestionnaireRevision(q.questionnaire_id)"
+                          />
+                        </template>
                         <UButton
                           icon="i-lucide-eye"
                           color="primary"

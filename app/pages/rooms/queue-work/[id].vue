@@ -223,6 +223,7 @@ type RoomExamItem = {
       requiresAttachmentForDone?: boolean
       mealPrerequisite?: boolean
       rendererKey?: string | null
+      clearanceQuestionnaireId?: string | null
       inputans?: ExamInput[]
       department?: {
         id: string
@@ -1042,6 +1043,14 @@ function isDoctorTestExamItem(item: RoomExamItem) {
 
 function isTreadmillScreeningExamItem(item: RoomExamItem) {
   return rendererFor(item) === TreadmillScreeningWorkPanel
+}
+
+function hasClearanceQuestionnaire(item: RoomExamItem) {
+  return Boolean(item.trxExamItem?.item?.clearanceQuestionnaireId)
+}
+
+function clearanceExamId(item: RoomExamItem) {
+  return item.trxExamItem?.exam?.id ?? item.trxExamItem?.examId ?? ''
 }
 
 const dentalItems = computed(() => roomExamItems.value.filter(isDentalExamItem))
@@ -2827,6 +2836,14 @@ async function handleSubmitItemAction() {
                       :color="getOperationalStatusColor(selectedItem)"
                       :title="getOperationalStatusLabel(selectedItem)"
                       :description="selectedItem.blockedReason || getSampleActionDescription(selectedItem)"
+                    />
+
+                    <ClearanceQuestionnairePanel
+                      v-if="hasClearanceQuestionnaire(selectedItem) && clearanceExamId(selectedItem)"
+                      :exam-id="clearanceExamId(selectedItem)"
+                      :exam-item-id="selectedItem.trxExamItem?.id ?? selectedItem.id"
+                      :disabled="selectedItem.status !== 'IN_PROGRESS'"
+                      @submitted="loadPage(true)"
                     />
 
                     <ErpExternalResultPanel

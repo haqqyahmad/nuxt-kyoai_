@@ -20,6 +20,7 @@ type Questionnaire = {
   description: string
   version: string
   portalKey?: string | null
+  scope?: string | null
   printTemplate?: string | null
   isActive?: boolean
   createdAt: string
@@ -96,6 +97,7 @@ async function deleteSelectedQuestionnaires() {
 
 const isDeleteModalOpen = ref(false)
 const printTemplateRow = ref<Questionnaire | null>(null)
+const usageRow = ref<Questionnaire | null>(null)
 
 function getRowItems(row: Row<Questionnaire>) {
   return [
@@ -126,6 +128,14 @@ function getRowItems(row: Row<Questionnaire>) {
         nextTick(() => {
           printTemplateRow.value = row.original
         })
+      }
+    },
+
+    {
+      label: 'Where used',
+      icon: 'i-lucide-map-pin',
+      onSelect() {
+        usageRow.value = row.original
       }
     },
 
@@ -236,6 +246,27 @@ const columns: TableColumn<Questionnaire>[] = [
         variant: 'soft',
         size: 'sm',
         label: key
+      })
+    }
+  },
+  {
+    accessorKey: 'scope',
+    header: 'Type',
+    cell: ({ row }) => {
+      const scope = row.getValue('scope') as string | undefined
+      if (scope === 'INTERNAL') {
+        return h(UBadge, {
+          color: 'warning',
+          variant: 'soft',
+          size: 'sm',
+          label: 'Internal'
+        })
+      }
+      return h(UBadge, {
+        color: 'info',
+        variant: 'soft',
+        size: 'sm',
+        label: 'External'
       })
     }
   },
@@ -496,6 +527,10 @@ watch(currentPage, (page) => {
       <QuestionnairePrintTemplateModal
         :row="printTemplateRow"
         @saved="refresh"
+      />
+      <QuestionnaireUsageModal
+        :row="usageRow"
+        @close="usageRow = null"
       />
     </template>
   </UDashboardPanel>

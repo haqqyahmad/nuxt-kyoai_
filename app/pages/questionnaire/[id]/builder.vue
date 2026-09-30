@@ -38,13 +38,15 @@ const questionnaireDescription = ref(
 
 const questionnairePortalKey = ref('')
 
+const questionnaireScope = ref('EXTERNAL')
+
 /**
  * Autosave header (nama + deskripsi) → PUT /questionnaire/:id
  */
 let loaded = false
 
 watchDebounced(
-  [questionnaireTitle, questionnaireDescription, questionnairePortalKey],
+  [questionnaireTitle, questionnaireDescription, questionnairePortalKey, questionnaireScope],
   async () => {
     if (!loaded) return
 
@@ -52,7 +54,8 @@ watchDebounced(
       await api.put(`/questionnaire/${questionnaireId}`, {
         questionnaire_name: questionnaireTitle.value,
         description: questionnaireDescription.value,
-        portalKey: questionnairePortalKey.value || null
+        portalKey: questionnairePortalKey.value || null,
+        scope: questionnaireScope.value
       })
     } catch {
       // abaikan — gagal update header tidak memblokir builder
@@ -99,6 +102,8 @@ onMounted(async () => {
       || 'Form description'
 
     questionnairePortalKey.value = data.portalKey || ''
+
+    questionnaireScope.value = data?.scope ?? 'EXTERNAL'
 
     setSections(data.sections ?? [])
   } catch {
@@ -159,6 +164,7 @@ async function saveQuestionnaire() {
     :title="questionnaireTitle"
     :description="questionnaireDescription"
     :portal-key="questionnairePortalKey"
+    :scope="questionnaireScope"
     :saving="saving"
     @update:sections="onUpdateSections"
     @update:title="questionnaireTitle = $event"
@@ -166,6 +172,7 @@ async function saveQuestionnaire() {
       questionnaireDescription = $event
     "
     @update:portal-key="questionnairePortalKey = $event"
+    @update:scope="questionnaireScope = $event"
     @add-section="handleAddSection"
     @add-question="addQuestion"
     @preview="isPreviewOpen = true"

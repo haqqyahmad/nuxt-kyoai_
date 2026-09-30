@@ -16,7 +16,8 @@ const schema = z.object({
   description: z.string().optional(),
   version: z.string().min(1, 'Version is required'),
   isActive: z.boolean(),
-  portalKey: z.string().optional()
+  portalKey: z.string().optional(),
+  scope: z.enum(['EXTERNAL', 'INTERNAL']).default('EXTERNAL')
 })
 
 // Infer type dari schema
@@ -29,7 +30,8 @@ const state = reactive<Schema>({
   description: '',
   version: '',
   isActive: true,
-  portalKey: ''
+  portalKey: '',
+  scope: 'EXTERNAL'
 })
 
 // Submit
@@ -41,7 +43,8 @@ async function submit(data: Schema) {
       description: data.description,
       version: data.version,
       isActive: data.isActive,
-      portalKey: data.portalKey || null
+      portalKey: data.portalKey || null,
+      scope: data.scope
     })
 
     emit('created')
@@ -152,6 +155,26 @@ async function submit(data: Schema) {
         <p class="text-xs text-muted">
           Portal key untuk mengidentifikasi questionaire ini di portal registrasi.
           Gunakan <code class="text-xs">MCU</code> sebagai default.
+        </p>
+      </UFormField>
+
+      <!-- Type -->
+      <UFormField
+        label="Type"
+        name="scope"
+        class="sm:col-span-2"
+      >
+        <USelect
+          v-model="state.scope"
+          :items="[
+            { label: 'External (general)', value: 'EXTERNAL' },
+            { label: 'Internal (staff only)', value: 'INTERNAL' }
+          ]"
+          class="w-full"
+        />
+        <p class="text-xs text-muted">
+          Internal questionnaires are tied to a package/exam item and filled by medical staff.
+          External can be filled by patients/Front Office.
         </p>
       </UFormField>
     </div>

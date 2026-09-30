@@ -7,6 +7,7 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/assignments',
   '/rooms/queue',
   '/rooms/sample-reception',
+  '/rooms/internal-questionnaires',
   '/result/exam-results',
   '/result/doctor-result',
   '/result/exam-status',
@@ -27,6 +28,7 @@ export const frontOfficeAllowedRoutes: string[] = [
   '/front-office/registration-temp',
   '/front-office/registration-patient',
   '/front-office/questionnaire-results',
+  '/rooms/internal-questionnaires',
   '/outpatient/waiting',
   '/settings',
   '/settings/security',
@@ -132,6 +134,7 @@ export function buildMenuTree(): MenuItem[] {
       children: [
         { label: 'Room Assignment', icon: 'i-lucide-clipboard-list', to: '/rooms/assignments' },
         { label: 'Room Queue', icon: 'i-lucide-list-ordered', to: '/rooms/queue' },
+        { label: 'Internal Questionnaires', icon: 'i-lucide-clipboard-list', to: '/rooms/internal-questionnaires' },
         { label: 'Queue Search', icon: 'i-lucide-scan-barcode', to: '/queue-search' }
       ]
     },
