@@ -45,6 +45,7 @@ type MedicalRecordRow = {
 const props = defineProps<{
   patientId?: string | null
   patient?: PatientLite | null
+  canEdit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -187,6 +188,7 @@ function openEdit() {
               </div>
             </div>
             <UButton
+              v-if="canEdit !== false"
               icon="i-lucide-pencil"
               label="Edit Patient"
               color="neutral"

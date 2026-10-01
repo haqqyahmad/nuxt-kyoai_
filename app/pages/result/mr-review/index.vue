@@ -70,12 +70,27 @@ function openDetail(report: MedicalReportListItem) {
   router.push(`/result/mr-review/${report.id}`)
 }
 
+const historyOpen = ref(false)
+const historyPatient = ref<MedicalReportListItem['patient']>(null)
+
+function openHistory(patient: MedicalReportListItem['patient']) {
+  if (!patient?.id) return
+  historyPatient.value = patient
+  historyOpen.value = true
+}
+
 const columns: TableColumn<MedicalReportListItem>[] = [
   {
     id: 'patient',
     header: 'Patient',
-    cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
-      h('span', { class: 'font-medium text-highlighted' }, row.original.patient?.name ?? '-'),
+    cell: ({ row }) => h('div', { class: 'flex flex-col items-start' }, [
+      h(UButton, {
+        variant: 'link',
+        color: 'primary',
+        class: 'h-auto justify-start p-0 text-left font-medium',
+        label: row.original.patient?.name ?? '-',
+        onClick: () => openHistory(row.original.patient)
+      }),
       h('span', { class: 'text-xs text-muted' }, row.original.patient?.PatientId ?? '-')
     ])
   },
@@ -256,6 +271,15 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
             />
           </div>
         </div>
+
+        <FrontOfficePatientHistoryModal
+          v-model:open="historyOpen"
+          :patient-id="historyPatient?.id != null ? String(historyPatient.id) : null"
+          :patient="historyPatient
+            ? { id: String(historyPatient.id), patientCode: historyPatient.PatientId, patientName: historyPatient.name }
+            : null"
+          :can-edit="false"
+        />
       </div>
     </template>
   </UDashboardPanel>
