@@ -106,7 +106,21 @@ const PRINT_CSS = `
   @media screen { h1 { display: none; } }
 `
 
-function legacyPrintHtml(row: QuestionnairePrintRow): string {
+const BATCH_CSS = `
+  .batch-doc { page-break-after: always; break-after: page; }
+  .batch-doc:last-child { page-break-after: auto; break-after: auto; }
+  .batch-doc-title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 12px 0 10px; }
+`
+
+export type QuestionnaireDocument = {
+  title: string
+  content: string
+  extraStyles: string
+  image: string | null
+  logoUrl: string
+}
+
+function legacyDocContent(row: QuestionnairePrintRow): string {
   const answers = (row.answers ?? []).filter(a => a.answered === true)
   const questionsHtml = answers.length
     ? answers.map(a => `
@@ -164,7 +178,10 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
           </div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
               </div>`
+  return docContent
+}
 
+function legacyPrintHtml(row: QuestionnairePrintRow): string {
   const sideImageCss = row.questionnaire_image ? documentImageCss() : ''
   return `
     <html lang="id">
@@ -179,7 +196,7 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
           </thead>
           <tbody>
             <tr><td>
-              ${wrapDocumentImage(docContent, row.questionnaire_image)}
+              ${wrapDocumentImage(legacyDocContent(row), row.questionnaire_image)}
             </td></tr>
           </tbody>
         </table>
@@ -188,7 +205,7 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
   `
 }
 
-function templatePrintHtml(row: QuestionnairePrintRow, tpl: string): string {
+function templateDocParts(row: QuestionnairePrintRow, tpl: string) {
   const ctx = buildQuestionnairePrintContext({
     documentTitle: row.questionnaire_name,
     patientName: row.patientName,
@@ -231,30 +248,110 @@ function templatePrintHtml(row: QuestionnairePrintRow, tpl: string): string {
   const content = wrapDocumentImage(`<div class="document-page">
                 ${rendered}
               </div>`, ctx.image)
+  return { ctx, styles, logoUrl, rendered, headerCtx, pageCss, sideImageCss, content }
+}
+
+function templatePrintHtml(row: QuestionnairePrintRow, tpl: string): string {
+  const t = templateDocParts(row, tpl)
   return `
     <html lang="id">
       <head>
-        <title>${ctx.documentTitle} - ${ctx.patientName}</title>
+        <title>${t.ctx.documentTitle} - ${t.ctx.patientName}</title>
         <style>${PRINT_CSS}</style>
-        ${styles}
+        ${t.styles}
         <style>${printHeaderCss()}</style>
-        <style>${sideImageCss}</style>
-        <style>${pageCss}</style>
+        <style>${t.sideImageCss}</style>
+        <style>${t.pageCss}</style>
       </head>
       <body>
         <table class="printwrap">
           <thead>
-            <tr><th>${printHeaderHtml(headerCtx)}</th></tr>
+            <tr><th>${printHeaderHtml(t.headerCtx)}</th></tr>
           </thead>
           <tbody>
             <tr><td>
-              ${content}
+              ${t.content}
             </td></tr>
           </tbody>
         </table>
       </body>
     </html>
   `
+}
+
+function rowDocument(row: QuestionnairePrintRow): QuestionnaireDocument {
+  const tpl = row.print_template?.trim()
+  if (tpl) {
+    const t = templateDocParts(row, tpl)
+    return {
+      title: String(t.ctx.documentTitle ?? row.questionnaire_name),
+      content: t.content,
+      extraStyles: t.styles,
+      image: (t.ctx.image as string | null | undefined) ?? null,
+      logoUrl: t.logoUrl
+    }
+  }
+  return {
+    title: row.questionnaire_name,
+    content: wrapDocumentImage(legacyDocContent(row), row.questionnaire_image),
+    extraStyles: '',
+    image: row.questionnaire_image ?? null,
+    logoUrl: questionnaireDocumentLogoUrl()
+  }
+}
+
+export function buildAllQuestionnaireResultsHtml(rows: QuestionnairePrintRow[]): string {
+  if (!rows.length) return ''
+  const docs = rows.map(rowDocument)
+  const first: QuestionnairePrintRow = rows[0] as QuestionnairePrintRow
+  const patientCode = first.patientCode || '-'
+  const sideImageCss = docs.some(d => d.image) ? documentImageCss() : ''
+  const pageCss = pageSetupCss(first.patientName, patientCode)
+  const extraStyles = docs.map(d => d.extraStyles).filter(Boolean).join('\n')
+  const bodyDocs = docs.map(d => `
+    <div class="batch-doc">
+      <div class="batch-doc-title">${d.title}</div>
+      ${d.content}
+    </div>`).join('')
+  return `
+    <html lang="id">
+      <head>
+        <title>Questionnaire Results - ${first.patientName}</title>
+        <style>${PRINT_CSS}</style>
+        ${extraStyles}
+        <style>${printHeaderCss()}</style>
+        <style>${sideImageCss}</style>
+        <style>${pageCss}</style>
+        <style>${BATCH_CSS}</style>
+      </head>
+      <body>
+        <table class="printwrap">
+          <thead>
+            <tr><th>${printHeaderHtml({ documentTitle: 'Questionnaire Results', patientName: first.patientName, patientCode, logoUrl: questionnaireDocumentLogoUrl() })}</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>
+              ${bodyDocs}
+            </td></tr>
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+}
+
+export function printAllQuestionnaireResults(rows: QuestionnairePrintRow[]): boolean {
+  if (!import.meta.client || !rows.length) return false
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return false
+
+  printWindow.document.write(buildAllQuestionnaireResultsHtml(rows))
+  printWindow.document.close()
+  printWindow.onload = () => {
+    printWindow.focus()
+    printWindow.print()
+  }
+  return true
 }
 
 export function buildQuestionnaireResultHtml(row: QuestionnairePrintRow): string {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { examTypeBadgeColor } from '~/constants/room-types'
 import type { ExamType } from '~/types/room'
-import { printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
+import { printAllQuestionnaireResults, printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
+import type { QuestionnairePrintRow } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
 const api = useApi()
@@ -441,12 +442,12 @@ function openModal(q: PatientQuestionnaire) {
   modalOpen.value = true
 }
 
-function printQuestionnaire(q: PatientQuestionnaire) {
+function buildQuestionnaireRow(q: PatientQuestionnaire): QuestionnairePrintRow {
   const p = reg.value?.patient
   const fullName = p
     ? (p.patientName || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' '))
     : '-'
-  printQuestionnaireResult({
+  return {
     questionnaire_name: q.questionnaire_name,
     patientName: fullName,
     patientGender: p?.gender ?? null,
@@ -463,7 +464,22 @@ function printQuestionnaire(q: PatientQuestionnaire) {
     examDate: reg.value?.examDate ?? null,
     print_template: q.print_template ?? null,
     answers: q.answers ?? []
-  })
+  }
+}
+
+function printQuestionnaire(q: PatientQuestionnaire) {
+  printQuestionnaireResult(buildQuestionnaireRow(q))
+}
+
+function printAllQuestionnaires() {
+  const rows = questionnaires.value
+    .filter(q => q.status === 'Completed')
+    .map(buildQuestionnaireRow)
+  if (!rows.length) {
+    toast.add({ title: 'No completed questionnaires to print.', color: 'warning' })
+    return
+  }
+  printAllQuestionnaireResults(rows)
 }
 
 function printQueueTicket() {
@@ -2136,6 +2152,7 @@ watch(
                   variant="outline"
                   size="xs"
                   label="Print All Results"
+                  @click="printAllQuestionnaires"
                 />
               </div>
             </div>
