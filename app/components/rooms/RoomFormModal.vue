@@ -28,6 +28,7 @@ const form = reactive<RoomForm>({
   code: '',
   name: '',
   roomTypeId: undefined,
+  voiceCode: null,
   staffCapacity: null,
   isActive: true,
   stageIds: []
@@ -35,6 +36,27 @@ const form = reactive<RoomForm>({
 
 const stageOptions = ref<RoomTypeStage[]>([])
 const stagesLoading = ref(false)
+
+// Master kode audio ruangan (untuk speaker pemanggilan).
+const audioCodeOptions = ref<{ label: string, value: string }[]>([])
+const audioCodesLoading = ref(false)
+
+async function loadAudioCodes() {
+  audioCodesLoading.value = true
+  try {
+    const res = await api.get('/medical/rooms/audio-codes')
+    const list = (res.data?.data ?? res.data ?? []) as { code: string, label?: string, isActive?: boolean }[]
+    audioCodeOptions.value = list
+      .filter(c => c.isActive !== false)
+      .map(c => ({ label: c.label || c.code, value: c.code }))
+  } catch {
+    audioCodeOptions.value = []
+  } finally {
+    audioCodesLoading.value = false
+  }
+}
+
+onMounted(loadAudioCodes)
 
 const isEdit = computed(() => !!props.room?.id)
 
@@ -77,6 +99,7 @@ function resetForm() {
   form.code = ''
   form.name = ''
   form.roomTypeId = undefined
+  form.voiceCode = null
   form.staffCapacity = null
   form.isActive = true
   form.stageIds = []
@@ -87,6 +110,7 @@ function fillForm(room: Room) {
   form.code = room.code
   form.name = room.name
   form.roomTypeId = room.roomTypeId
+  form.voiceCode = room.voiceCode ?? null
   form.staffCapacity = room.staffCapacity || null
   form.isActive = room.isActive
   form.stageIds = (room.stageLinks ?? [])
@@ -119,6 +143,9 @@ watch(() => form.roomTypeId, async (value) => {
 })
 
 watch(open, (value) => {
+  // Muat ulang master tiap modal dibuka, supaya perubahan kode audio
+  // langsung terlihat tanpa reload halaman.
+  if (value) loadAudioCodes()
   if (!value && !isEdit.value) resetForm()
 })
 
@@ -129,6 +156,7 @@ function submit() {
     code: form.code.trim(),
     name: form.name.trim(),
     roomTypeId: form.roomTypeId,
+    voiceCode: form.voiceCode || null,
     staffCapacity: Number(form.staffCapacity || 1),
     isActive: form.isActive,
     stageIds: form.stageIds ?? []
@@ -200,6 +228,19 @@ function submit() {
                   v-model="form.roomTypeId"
                   :items="roomTypeOptions"
                   placeholder="Pilih room type"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Kode Audio Ruangan"
+                description="Kode audio yang diputar speaker saat pasien dipanggil ke ruangan ini."
+              >
+                <USelect
+                  v-model="form.voiceCode"
+                  :items="audioCodeOptions"
+                  :loading="audioCodesLoading"
+                  placeholder="Pilih kode audio"
                   class="w-full"
                 />
               </UFormField>

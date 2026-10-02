@@ -49,6 +49,7 @@ export type Room = {
   code: string
   name: string
   type?: string
+  voiceCode?: string | null
   staffCapacity: number
   isActive: boolean
   createdAt: string
@@ -63,6 +64,7 @@ export type RoomForm = {
   code: string
   name: string
   roomTypeId: string | undefined
+  voiceCode?: string | null
   staffCapacity: number | null
   isActive: boolean
   stageIds?: string[]

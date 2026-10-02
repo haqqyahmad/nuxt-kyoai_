@@ -123,6 +123,15 @@ function getRoomTypeColor(serviceType?: string | null) {
 
         <div class="rounded-lg bg-muted/40 p-3">
           <p class="text-xs text-muted">
+            Kode Audio Ruangan
+          </p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ room.voiceCode || '-' }}
+          </p>
+        </div>
+
+        <div class="rounded-lg bg-muted/40 p-3">
+          <p class="text-xs text-muted">
             Status
           </p>
           <p class="mt-1 font-medium text-highlighted">
