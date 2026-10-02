@@ -344,8 +344,8 @@ type PatientQuestionnaire = {
 const questionnaires = ref<PatientQuestionnaire[]>([])
 const questionnairesLoading = ref(false)
 
-const externalQuestionnaires = computed(() =>
-  questionnaires.value.filter(q => q.scope !== 'INTERNAL')
+const externalPendingQuestionnaires = computed(() =>
+  questionnaires.value.filter(q => q.scope !== 'INTERNAL' && q.status === 'Pending')
 )
 
 async function loadQuestionnaires() {
@@ -1116,8 +1116,8 @@ const shareAllLoading = ref(false)
 
 async function shareAllQuestionnaires() {
   if (!route.params.id || !reg.value) return
-  if (!externalQuestionnaires.value.length) {
-    toast.add({ title: 'No external questionnaires to share.', color: 'warning' })
+  if (!externalPendingQuestionnaires.value.length) {
+    toast.add({ title: 'No pending external questionnaires to share.', color: 'warning' })
     return
   }
   shareAllLoading.value = true
@@ -1149,8 +1149,8 @@ async function shareAllQuestionnairesViaWa() {
     return
   }
   if (!route.params.id || !reg.value) return
-  if (!externalQuestionnaires.value.length) {
-    toast.add({ title: 'No external questionnaires to share.', color: 'warning' })
+  if (!externalPendingQuestionnaires.value.length) {
+    toast.add({ title: 'No pending external questionnaires to share.', color: 'warning' })
     return
   }
   shareAllLoading.value = true
@@ -2205,7 +2205,7 @@ watch(
                     </td>
                     <td class="px-5 py-3 text-right">
                       <div class="flex justify-end gap-1">
-                        <template v-if="q.scope !== 'INTERNAL'">
+                        <template v-if="q.scope !== 'INTERNAL' && q.status !== 'Completed'">
                           <UButton
                             icon="i-lucide-message-circle"
                             color="success"
@@ -2223,13 +2223,14 @@ watch(
                             title="Copy Link"
                             @click="copyQuestionnaireLink(q.questionnaire_id)"
                           />
+                        </template>
+                        <template v-if="q.scope !== 'INTERNAL' && q.status === 'Completed'">
                           <UButton
                             icon="i-lucide-rotate-ccw"
                             color="warning"
                             variant="ghost"
                             size="xs"
                             title="Open Revision"
-                            :disabled="q.status !== 'Completed' || revisionLoading[q.questionnaire_id]"
                             :loading="revisionLoading[q.questionnaire_id]"
                             @click="askQuestionnaireRevision(q.questionnaire_id)"
                           />
