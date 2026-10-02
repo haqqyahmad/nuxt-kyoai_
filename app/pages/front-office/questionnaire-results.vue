@@ -1,17 +1,6 @@
 <script setup lang="ts">
-import {
-  renderQuestionnaireTemplate,
-  buildQuestionnairePrintContext,
-  pageSetupCss,
-  printHeaderCss,
-  printHeaderHtml,
-  extractTemplateStyles,
-  extractTemplateLogo,
-  normalizeTemplateLogo,
-  extractBranchCity,
-  wrapDocumentImage,
-  documentImageCss
-} from '~/composables/questionnaire/useQuestionnairePrint'
+import { buildQuestionnaireResultHtml, printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
+import type { QuestionnairePrintRow } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const api = useApi()
 const toast = useToast()
@@ -154,29 +143,6 @@ async function loadQuestionnaireDetail(row: QuestionnaireResult) {
   }
 }
 
-function genderLabel(g?: string | null): string {
-  if (!g) return '-'
-  if (g === 'MALE') return 'Laki-laki'
-  if (g === 'FEMALE') return 'Perempuan'
-  return g
-}
-
-function maritalLabel(m?: string | null): string {
-  if (!m) return '-'
-  const map: Record<string, string> = {
-    SINGLE: 'Belum Menikah',
-    MARRIED: 'Menikah',
-    DIVORCED: 'Cerai',
-    WIDOWED: 'Janda/Duda'
-  }
-  return map[m] ?? m
-}
-
-function documentLogoUrl(): string {
-  if (!import.meta.client) return '/logo.png'
-  return new URL('/logo.png', window.location.origin).toString()
-}
-
 function formatDateTime(d?: string | null) {
   if (!d) return '-'
   return new Date(d).toLocaleString('id-ID', {
@@ -205,125 +171,9 @@ function fmtDate(d?: string) {
   return d
 }
 
-const printCss = `
-  * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; }
-  body { background-color: #f0f2f5; margin: 0; padding: 20px; }
-  .document-page { background: white; width: 100%; max-width: 800px; margin: 0 auto; padding: 30px 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-  h1 { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; margin-top: 0; margin-bottom: 25px; text-transform: uppercase; }
-  .section-title { font-weight: bold; text-decoration: underline; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }
-  .section-subtitle { font-weight: bold; margin-top: 10px; margin-bottom: 6px; }
-  .data-diri-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-  .data-diri-table td { padding: 2px 0; vertical-align: top; }
-  .data-diri-table td.label { width: 180px; }
-  .data-diri-table td.colon { width: 15px; }
-  .question-list { margin: 0; padding-left: 20px; }
-  .question-item { margin-bottom: 6px; line-height: 1.3; }
-  .answer { font-weight: bold; }
-  .flex-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  .signature-area { margin-top: 40px; text-align: right; padding-right: 40px; }
-  .signature-block { display: inline-block; min-width: 220px; text-align: center; }
-  .sign-city { font-weight: 500; }
-  .signature-space { height: 70px; }
-  .sign-ttd { margin: 0; }
-  .sign-name { margin-top: 4px; font-weight: 700; }
-  .consent-section { margin-top: 20px; line-height: 1.3; }
-  .consent-signature { page-break-inside: avoid; break-inside: avoid; }
-  .consent-list { margin: 5px 0 0 0; padding-left: 20px; }
-  .consent-list li { margin-bottom: 5px; }
-  .document-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid #d9dee7; color: #6b7280; font-size: 7.5pt; page-break-inside: avoid; }
-  @media print {
-    body { background-color: white; padding: 0; }
-    .document-page { box-shadow: none; padding: 20px; width: 100%; max-width: 100%; }
-    h1 { display: none; }
-  }
-  @media screen { h1 { display: none; } }
-`
-
-function legacyPrintHtml(row: QuestionnaireResult): string {
-  const answers = (modalData.value?.answers ?? []).filter(a => a.answered === true)
-  const questionsHtml = answers.length
-    ? answers.map(a => `
-        <li class="question-item">
-          <div class="flex-row">
-            <span>${a.questionText}</span>
-            <span class="answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</span>
-          </div>
-        </li>
-      `).join('')
-    : ''
-
-  const docContent = `
-              <div class="document-page">
-                <div class="section-title">DATA DIRI</div>
-          <table class="data-diri-table">
-            <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td>${row.patientName} &nbsp;&nbsp;&nbsp; ( ${genderLabel(row.patientGender)} )</td></tr>
-            <tr><td class="label">Tgl, Bln, Tahun Lahir</td><td class="colon">:</td><td>${row.patientDob ? fmtDate(row.patientDob) : '-'} &nbsp;&nbsp;&nbsp; ( Umur : ${row.patientAge != null ? `${row.patientAge} Tahun` : '-'} )</td></tr>
-            <tr><td class="label">Perusahaan</td><td class="colon">:</td><td>${row.companyName || '-'}</td></tr>
-            <tr><td class="label">Status Pernikahan</td><td class="colon">:</td><td>${maritalLabel(row.patientMaritalStatus)}</td></tr>
-            <tr><td class="label">Alamat Rumah</td><td class="colon">:</td><td>${row.patientAddress || '-'}</td></tr>
-            <tr><td class="label">Telepon</td><td class="colon">:</td><td>${row.patientPhone || '-'}</td></tr>
-            <tr><td class="label">Posisi Pekerjaan</td><td class="colon">:</td><td>${row.patientPosition || '-'}</td></tr>
-            <tr><td class="label">No. RM / Registrasi</td><td class="colon">:</td><td>${row.patientCode || '-'} / ${row.registrationRef}</td></tr>
-          </table>
-
-          ${questionsHtml
-            ? `<div class="section-title">ISILAH PERTANYAAN DIBAWAH DENGAN SEBENARNYA</div>
-          <ol class="question-list">
-            ${questionsHtml}
-          </ol>
-
-          <div class="consent-signature">
-            <div class="consent-section">
-              <strong>Isian diatas telah saya isi dengan sadar dan benar</strong><br>
-              <strong>Dengan menandatangani surat untuk melakukan MCU ini, saya memberikan izin kepada:</strong>
-              <ol class="consent-list">
-                <li><strong>Pemeriksa kesehatan tersebut diatas untuk melakukan pemeriksaan kesehatan dengan komponen yang telah ditentukan dan mengolah hasil pemeriksaan kesehatan tersebut</strong></li>
-                <li><strong>Memberikan hasil pemeriksaan tersebut kepada bagian HRD / Dokter perusahaan tempat saya bekerja atau akan bekerja, untuk disimpan dan dikelola pada fasilitas perusahaan (Jika MCU difasilitasi oleh perusahaan)</strong></li>
-              </ol>
-            </div>
-
-            <div class="signature-area">
-              <div class="signature-block">
-                <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                <div class="signature-space"></div>
-                <div class="sign-ttd">( ttd )</div>
-                <div class="sign-name">${row.patientName}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="document-footer">
-            <div>${row.patientName} &nbsp;|&nbsp; ${row.patientCode || '-'}</div>
-          </div>`
-            : '<div>Belum ada jawaban tersimpan.</div>'}
-              </div>`
-
-  const sideImageCss = row.questionnaire_image ? documentImageCss() : ''
-  return `
-    <html lang="id">
-      <head>
-        <title>${row.questionnaire_name} - ${row.patientName}</title>
-        <style>${printCss}${printHeaderCss()}${sideImageCss}${pageSetupCss(row.patientName, row.patientCode)}</style>
-      </head>
-      <body>
-        <table class="printwrap">
-          <thead>
-            <tr><th>${printHeaderHtml({ documentTitle: row.questionnaire_name, patientName: row.patientName, patientCode: row.patientCode, logoUrl: documentLogoUrl() })}</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>
-              ${wrapDocumentImage(docContent, row.questionnaire_image)}
-            </td></tr>
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `
-}
-
-function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
-  const ctx = buildQuestionnairePrintContext({
-    documentTitle: modalData.value?.questionnaire_name || row.questionnaire_name,
+function buildResultRow(row: QuestionnaireResult): QuestionnairePrintRow {
+  return {
+    questionnaire_name: row.questionnaire_name,
     patientName: row.patientName,
     patientGender: row.patientGender,
     patientDob: row.patientDob,
@@ -337,7 +187,8 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
     companyName: row.companyName,
     branchName: row.branchName,
     examDate: row.examDate,
-    image: row.questionnaire_image,
+    questionnaire_image: row.questionnaire_image,
+    print_template: modalData.value?.print_template ?? null,
     answers: (modalData.value?.answers ?? []).map(a => ({
       questionId: a.questionId,
       questionText: a.questionText,
@@ -348,62 +199,6 @@ function templatePrintHtml(row: QuestionnaireResult, tpl: string): string {
       answerText: a.answerText,
       answered: a.answered
     }))
-  })
-  const { styles, body } = extractTemplateStyles(tpl)
-  const logoUrl = extractTemplateLogo(tpl)
-  ctx.logoUrl = logoUrl
-  const rendered = renderQuestionnaireTemplate(normalizeTemplateLogo(body, logoUrl), ctx)
-  const headerCtx = {
-    documentTitle: ctx.documentTitle,
-    patientName: ctx.patientName,
-    patientCode: ctx.patientCode,
-    logoUrl: ctx.logoUrl
-  }
-  const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
-  const sideImageCss = ctx.image ? documentImageCss() : ''
-  const content = wrapDocumentImage(`<div class="document-page">
-                ${rendered}
-              </div>`, ctx.image)
-  return `
-    <html lang="id">
-      <head>
-        <title>${ctx.documentTitle} - ${ctx.patientName}</title>
-        <style>${printCss}</style>
-        ${styles}
-        <style>${printHeaderCss()}</style>
-        <style>${sideImageCss}</style>
-        <style>${pageCss}</style>
-      </head>
-      <body>
-        <table class="printwrap">
-          <thead>
-            <tr><th>${printHeaderHtml(headerCtx)}</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>
-              ${content}
-            </td></tr>
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `
-}
-
-function printSingle(row: QuestionnaireResult) {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
-
-  const tpl = modalData.value?.print_template?.trim()
-  const html = tpl
-    ? templatePrintHtml(row, tpl)
-    : legacyPrintHtml(row)
-
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.onload = () => {
-    printWindow.focus()
-    printWindow.print()
   }
 }
 
@@ -411,7 +206,27 @@ async function printResult(row: QuestionnaireResult) {
   if (!modalData.value || modalData.value.questionnaire_id !== row.questionnaire_id) {
     await loadQuestionnaireDetail(row)
   }
-  printSingle(row)
+  printQuestionnaireResult(buildResultRow(row))
+}
+
+const previewOpen = ref(false)
+const previewTitle = ref('')
+const previewHtml = ref('')
+const previewRow = ref<QuestionnaireResult | null>(null)
+
+async function openPreview(row: QuestionnaireResult) {
+  if (!modalData.value || modalData.value.questionnaire_id !== row.questionnaire_id) {
+    await loadQuestionnaireDetail(row)
+  }
+  previewTitle.value = row.questionnaire_name
+  previewRow.value = row
+  previewHtml.value = buildQuestionnaireResultHtml(buildResultRow(row))
+  previewOpen.value = true
+}
+
+function closePreview() {
+  previewOpen.value = false
+  previewHtml.value = ''
 }
 
 type PatientGroup = {
@@ -795,14 +610,24 @@ watch(results, () => {
                                   {{ q.completionDate ? formatDateTime(q.completionDate) : '-' }}
                                 </td>
                                 <td class="p-2.5 text-center">
-                                  <button
-                                    class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:text-neutral-400 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
-                                    title="Print"
-                                    :disabled="loading"
-                                    @click="printResult(q)"
-                                  >
-                                    <UIcon name="i-lucide-file-down" class="size-3.5" />
-                                  </button>
+                                  <div class="inline-flex items-center gap-1">
+                                    <button
+                                      class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:text-neutral-400 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
+                                      title="View"
+                                      :disabled="loading"
+                                      @click="openPreview(q)"
+                                    >
+                                      <UIcon name="i-lucide-eye" class="size-3.5" />
+                                    </button>
+                                    <button
+                                      class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:text-neutral-400 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
+                                      title="Print"
+                                      :disabled="loading"
+                                      @click="printResult(q)"
+                                    >
+                                      <UIcon name="i-lucide-file-down" class="size-3.5" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             </tbody>
@@ -842,4 +667,31 @@ watch(results, () => {
       </div>
     </template>
   </UDashboardPanel>
+
+  <UModal v-model:open="previewOpen" :title="previewTitle" :ui="{ content: 'sm:max-w-4xl w-full' }">
+    <template #body>
+      <iframe
+        :srcdoc="previewHtml"
+        title="Questionnaire preview"
+        class="h-[75vh] w-full rounded-lg border border-default bg-white"
+      />
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Close"
+          @click="closePreview"
+        />
+        <UButton
+          color="primary"
+          icon="i-lucide-printer"
+          label="Print"
+          :disabled="!previewRow"
+          @click="previewRow && printResult(previewRow)"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>

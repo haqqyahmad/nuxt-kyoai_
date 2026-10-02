@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { examTypeBadgeColor } from '~/constants/room-types'
 import type { ExamType } from '~/types/room'
-import { printAllQuestionnaireResults, printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
+import { buildQuestionnaireResultHtml, printAllQuestionnaireResults, printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 import type { QuestionnairePrintRow } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
@@ -424,22 +424,21 @@ function currentPatientPosition(): string | null {
   return current.position || current.company || null
 }
 
-type PatientAnswer = NonNullable<PatientQuestionnaire['answers']>[number]
+const previewOpen = ref(false)
+const previewTitle = ref('')
+const previewHtml = ref('')
+const previewQuestion = ref<PatientQuestionnaire | null>(null)
 
-function formatAnswer(q: PatientAnswer): string {
-  if (q.answerText != null && q.answerText !== '') return q.answerText
-  if (q.optionText) return q.optionText
-  if (q.optionId) return q.optionId
-  return '-'
+function openPreview(q: PatientQuestionnaire) {
+  previewTitle.value = q.questionnaire_name
+  previewQuestion.value = q
+  previewHtml.value = buildQuestionnaireResultHtml(buildQuestionnaireRow(q))
+  previewOpen.value = true
 }
 
-const modalOpen = ref(false)
-const modalTitle = ref('')
-const modalAnswers = ref<NonNullable<PatientQuestionnaire['answers']>>([])
-function openModal(q: PatientQuestionnaire) {
-  modalTitle.value = q.questionnaire_name
-  modalAnswers.value = q.answers ?? []
-  modalOpen.value = true
+function closePreview() {
+  previewOpen.value = false
+  previewHtml.value = ''
 }
 
 function buildQuestionnaireRow(q: PatientQuestionnaire): QuestionnairePrintRow {
@@ -2258,7 +2257,7 @@ watch(
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openModal(q)"
+                          @click="q.status === 'Completed' && openPreview(q)"
                         />
                         <UButton
                           icon="i-lucide-printer"
@@ -2605,23 +2604,13 @@ watch(
         </template>
       </UModal>
 
-      <UModal v-model:open="modalOpen" :title="modalTitle">
+      <UModal v-model:open="previewOpen" :title="previewTitle" :ui="{ content: 'sm:max-w-4xl w-full' }">
         <template #body>
-          <div class="space-y-3">
-            <div v-if="modalAnswers.length" class="space-y-3">
-              <div v-for="a in modalAnswers" :key="a.questionId" class="p-3 bg-elevated rounded-lg">
-                <p class="text-xs text-muted mb-1">
-                  {{ a.questionText }}
-                </p>
-                <p class="text-sm font-semibold">
-                  {{ formatAnswer(a) }}
-                </p>
-              </div>
-            </div>
-            <p v-else class="text-sm text-muted text-center py-4">
-              No answers.
-            </p>
-          </div>
+          <iframe
+            :srcdoc="previewHtml"
+            title="Questionnaire preview"
+            class="h-[75vh] w-full rounded-lg border border-default bg-white"
+          />
         </template>
         <template #footer>
           <div class="flex justify-end gap-2">
@@ -2629,7 +2618,14 @@ watch(
               color="neutral"
               variant="ghost"
               label="Close"
-              @click="modalOpen = false"
+              @click="closePreview"
+            />
+            <UButton
+              color="primary"
+              icon="i-lucide-printer"
+              label="Print"
+              :disabled="!previewQuestion"
+              @click="previewQuestion && printQuestionnaire(previewQuestion)"
             />
           </div>
         </template>
