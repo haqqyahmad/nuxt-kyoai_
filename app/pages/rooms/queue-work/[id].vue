@@ -90,6 +90,8 @@ type RoomSession = {
 
 type CurrentRoom = {
   id: string
+  name?: string | null
+  voiceCode?: string | null
   stageLinks?: Array<{
     stageId: string
     stage?: {
@@ -1115,6 +1117,12 @@ const selectedItemIsMealPrereq = computed(() =>
 )
 
 const selectedQueueCode = computed(() => roomQueueDetail.value?.queueEntry?.queueCode ?? '')
+
+const roomAudioCode = computed(() =>
+  currentRoomData.value?.voiceCode
+  ?? currentRoomData.value?.name
+  ?? '-'
+)
 
 async function fetchSelectedItemHistory() {
   const item = selectedItem.value
@@ -2226,30 +2234,33 @@ async function handleSubmitItemAction() {
         </template>
 
         <template #right>
-          <UBadge
-            :color="activeRoomSession ? 'success' : 'neutral'"
-            variant="subtle"
-            :label="roomSessionPending ? 'Checking room session...' : roomSessionLabel"
-          />
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <UBadge
+              :color="activeRoomSession ? 'success' : 'neutral'"
+              variant="subtle"
+              :label="roomSessionPending ? 'Checking room session...' : roomSessionLabel"
+              class="max-w-40 truncate sm:max-w-none"
+            />
 
-          <UButton
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-arrow-left"
-            @click="router.push('/rooms/queue')"
-          >
-            Back to Queue
-          </UButton>
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-arrow-left"
+              @click="router.push('/rooms/queue')"
+            >
+              <span class="hidden sm:inline">Back to Queue</span>
+            </UButton>
 
-          <UButton
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-refresh-cw"
-            :loading="refreshing"
-            @click="loadPage(true)"
-          >
-            Refresh
-          </UButton>
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-refresh-cw"
+              :loading="refreshing"
+              @click="loadPage(true)"
+            >
+              <span class="hidden sm:inline">Refresh</span>
+            </UButton>
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
@@ -2273,8 +2284,8 @@ async function handleSubmitItemAction() {
 
         <template v-else>
           <div class="rounded-2xl border border-default/80 bg-default p-4 shadow-sm sm:p-5">
-            <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-5">
-              <div class="mx-auto shrink-0 md:mx-0">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
+              <div class="mx-auto shrink-0 lg:mx-0">
                 <button
                   type="button"
                   class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-default bg-muted/30"
@@ -2291,7 +2302,7 @@ async function handleSubmitItemAction() {
                   <UIcon v-else name="i-lucide-user" class="size-9 text-muted" />
                 </button>
               </div>
-              <div class="md:flex-1">
+              <div class="w-full lg:min-w-0 lg:flex-1">
                 <div class="flex items-center gap-2">
                   <span class="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
                     Active Patient
@@ -2335,7 +2346,18 @@ async function handleSubmitItemAction() {
                 </div>
               </div>
 
-              <div class="flex w-full flex-col items-end gap-3 md:w-72">
+              <div class="mx-auto w-full max-w-xs shrink-0 lg:mx-0 lg:w-56 lg:max-w-none">
+                <div class="relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-primary/40 bg-primary/5 p-4 text-center backdrop-blur-xl sm:p-5 shadow-[0_0_35px_-4px_color-mix(in_oklab,var(--ui-primary)_55%,transparent),inset_0_0_22px_-8px_color-mix(in_oklab,var(--ui-primary)_45%,transparent)]">
+                  <p class="text-4xl font-bold text-primary sm:text-5xl drop-shadow-[0_0_12px_color-mix(in_oklab,var(--ui-primary)_75%,transparent)]">
+                    {{ selectedQueueCode || '-' }}
+                  </p>
+                  <code class="rounded-lg border border-primary/40 bg-primary/10 px-3 py-1 font-mono text-base font-semibold text-primary shadow-[0_0_14px_-2px_color-mix(in_oklab,var(--ui-primary)_50%,transparent)]">
+                    {{ roomAudioCode }}
+                  </code>
+                </div>
+              </div>
+
+              <div class="flex w-full flex-col gap-3 lg:w-72">
                 <UButton
                   class="lg:hidden"
                   color="primary"
