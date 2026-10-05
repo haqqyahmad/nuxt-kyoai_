@@ -20,7 +20,7 @@ defineProps<{
 
     <UCard variant="subtle">
       <p class="text-sm text-muted">
-        Assignment Aktif
+        Active Assignments
       </p>
       <p class="mt-1 text-2xl font-semibold text-success">
         {{ active }}
@@ -29,7 +29,7 @@ defineProps<{
 
     <UCard variant="subtle">
       <p class="text-sm text-muted">
-        Assignment Nonaktif
+        Inactive Assignments
       </p>
       <p class="mt-1 text-2xl font-semibold text-muted">
         {{ inactive }}
@@ -38,7 +38,7 @@ defineProps<{
 
     <UCard variant="subtle">
       <p class="text-sm text-muted">
-        Petugas Terlibat
+        Staff Involved
       </p>
       <p class="mt-1 text-2xl font-semibold text-highlighted">
         {{ uniqueUsers }}

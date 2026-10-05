@@ -14,14 +14,14 @@ const emit = defineEmits<{
 const statusConfig = computed(() => {
   if (props.assignment.isActive) {
     return {
-      label: 'Aktif',
+      label: 'Active',
       color: 'success' as const,
       icon: 'i-lucide-check-circle'
     }
   }
 
   return {
-    label: 'Nonaktif',
+    label: 'Inactive',
     color: 'neutral' as const,
     icon: 'i-lucide-circle-off'
   }
@@ -89,7 +89,7 @@ function formatRoomTypeName() {
     <div class="grid gap-3 p-4 text-sm">
       <div class="rounded-lg bg-muted/40 p-3">
         <p class="text-xs text-muted">
-          Tanggal Assignment
+          Assignment Date
         </p>
         <p class="mt-1 font-medium text-highlighted">
           {{ assignment.assignedDate }}
@@ -116,7 +116,7 @@ function formatRoomTypeName() {
 
       <div class="rounded-lg bg-muted/40 p-3">
         <p class="text-xs text-muted">
-          Catatan
+          Notes
         </p>
         <p class="mt-1 line-clamp-2 font-medium text-highlighted">
           {{ assignment.notes || '-' }}
@@ -159,7 +159,7 @@ function formatRoomTypeName() {
         v-if="assignment.isActive"
         class="border-t border-default px-3 pb-3 text-xs text-muted"
       >
-        Transfer baru bisa dilakukan setelah assignment dinonaktifkan.
+        Transfer is only allowed after the assignment is deactivated.
       </p>
     </template>
   </UCard>

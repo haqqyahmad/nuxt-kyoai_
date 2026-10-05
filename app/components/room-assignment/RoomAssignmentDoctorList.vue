@@ -18,10 +18,10 @@ function getRoomLabel(assignment: RoomAssignmentRecord) {
       <div class="flex items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-semibold text-highlighted">
-            {{ title || 'Petugas di Room Ini' }}
+            {{ title || 'Staff in This Room' }}
           </h3>
           <p class="text-sm text-muted">
-            Daftar petugas aktif berdasarkan assignment hari ini
+            List of active staff based on today's assignments
           </p>
         </div>
       </div>
@@ -60,7 +60,7 @@ function getRoomLabel(assignment: RoomAssignmentRecord) {
       v-else
       class="rounded-xl border border-dashed border-default p-6 text-center text-sm text-muted"
     >
-      Belum ada assignment aktif.
+      No active assignments yet.
     </div>
   </UCard>
 </template>

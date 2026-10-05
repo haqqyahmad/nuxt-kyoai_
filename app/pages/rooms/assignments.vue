@@ -168,7 +168,7 @@ const selfRoomOptions = computed(() => {
 
 const roomFilterOptions = computed(() => [
   {
-    label: 'Semua room',
+    label: 'All rooms',
     value: 'ALL'
   },
   ...rooms.value.map(room => ({
@@ -179,7 +179,7 @@ const roomFilterOptions = computed(() => [
 
 const roomTypeFilterOptions = computed(() => [
   {
-    label: 'Semua room type',
+    label: 'All room types',
     value: 'ALL'
   },
   ...roomTypes.value.map(roomType => ({
@@ -190,7 +190,7 @@ const roomTypeFilterOptions = computed(() => [
 
 const userFilterOptions = computed(() => [
   {
-    label: 'Semua user',
+    label: 'All users',
     value: 'ALL'
   },
   ...users.value.map(user => ({
@@ -272,21 +272,21 @@ const endingSessionId = ref<string | null>(null)
 
 async function handleEndSession(sessionId: string, staffName: string) {
   if (endingSessionId.value) return
-  if (!confirm(`Akhiri sesi room ${staffName}? Sesi akan diakhiri paksa dan room terbebas dari petugas ini.`)) return
+  if (!confirm(`End the room session for ${staffName}? The session will be force-ended and the room freed from this staff member.`)) return
 
   endingSessionId.value = sessionId
   try {
     await api.post(`/medical/rooms/sessions/${sessionId}/exit`, {})
     toast.add({
-      title: 'Berhasil',
-      description: `Sesi room ${staffName} berhasil diakhiri.`,
+      title: 'Success',
+      description: `Room session for ${staffName} ended successfully.`,
       color: 'success'
     })
     await refreshActiveSessions()
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal mengakhiri sesi',
-      description: getErrorMessage(error, 'Terjadi kesalahan saat mengakhiri sesi room.'),
+      title: 'Failed to end session',
+      description: getErrorMessage(error, 'An error occurred while ending the room session.'),
       color: 'error'
     })
   } finally {
@@ -309,8 +309,8 @@ function resetBatchForm() {
 function openTransferModal(assignment: RoomAssignmentRecord) {
   if (assignment.isActive) {
     toast.add({
-      title: 'Tidak bisa transfer',
-      description: 'Nonaktifkan assignment dulu sebelum dipindahkan ke room lain.',
+      title: 'Transfer not allowed',
+      description: 'Deactivate the assignment first before moving it to another room.',
       color: 'error'
     })
     return
@@ -344,8 +344,8 @@ async function submitSingleAssignment() {
   if (singleSaving.value) return
   if (!singleForm.userId || !singleForm.roomId || !singleForm.assignedDate) {
     toast.add({
-      title: 'Validasi gagal',
-      description: 'User, room, dan tanggal wajib diisi.',
+      title: 'Validation failed',
+      description: 'User, room, and date are required.',
       color: 'error'
     })
     return
@@ -355,8 +355,8 @@ async function submitSingleAssignment() {
   try {
     const roomId = singleForm.roomId
     const assignedUserId = Number(singleForm.userId)
-    // Khusus superadmin yang meng-assign dirinya sendiri: langsung masuk room
-    // dan arahkan ke /rooms/queue agar bisa langsung ambil pasien.
+    // For superadmin assigning themselves: enter the room directly
+    // and navigate to /rooms/queue so they can immediately take patients.
     const shouldEnterQueue = isSuperAdmin.value
       && assignedUserId === Number(currentUser.value?.id)
 
@@ -368,8 +368,8 @@ async function submitSingleAssignment() {
     })
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Assignment berhasil dibuat',
+      title: 'Success',
+      description: 'Assignment created successfully',
       color: 'success'
     })
 
@@ -380,8 +380,8 @@ async function submitSingleAssignment() {
         await enterRoomSession({ roomId })
       } catch (error: unknown) {
         toast.add({
-          title: 'Sesi room belum aktif',
-          description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
+          title: 'Room session not active',
+          description: getErrorMessage(error, 'Assignment created, but failed to auto-enter the room. Please enter manually from the queue page.'),
           color: 'warning'
         })
       }
@@ -389,8 +389,8 @@ async function submitSingleAssignment() {
     }
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal membuat assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to create assignment'),
       color: 'error'
     })
   } finally {
@@ -411,8 +411,8 @@ async function submitBatchAssignment() {
 
   if (!batchForm.assignedDate || !assignmentsPayload.length) {
     toast.add({
-      title: 'Validasi gagal',
-      description: 'Tanggal dan minimal 1 assignment wajib diisi.',
+      title: 'Validation failed',
+      description: 'Date and at least 1 assignment are required.',
       color: 'error'
     })
     return
@@ -428,18 +428,18 @@ async function submitBatchAssignment() {
     const summary = result?.data?.summary
 
     toast.add({
-      title: 'Berhasil',
+      title: 'Success',
       description: summary
-        ? `${summary.assigned} assignment berhasil, ${summary.failed} gagal`
-        : 'Batch assignment berhasil diproses',
+        ? `${summary.assigned} assignment(s) created, ${summary.failed} failed`
+        : 'Batch assignment processed successfully',
       color: 'success'
     })
 
     resetBatchForm()
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal menjalankan batch assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to submit batch assignment'),
       color: 'error'
     })
   } finally {
@@ -467,12 +467,12 @@ async function handleExitRoom() {
   exitRoomSaving.value = true
   try {
     await exitRoomSession({})
-    toast.add({ title: 'Berhasil', description: 'Room session berhasil diakhiri', color: 'success' })
+    toast.add({ title: 'Success', description: 'Room session ended successfully', color: 'success' })
     await refreshMyAssignment()
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal keluar dari room'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to exit the room'),
       color: 'error'
     })
   } finally {
@@ -484,8 +484,8 @@ async function submitSelfAssignment() {
   if (selfSaving.value) return
   if (!selfForm.roomId || !selfForm.assignedDate) {
     toast.add({
-      title: 'Validasi gagal',
-      description: 'Room dan tanggal wajib diisi.',
+      title: 'Validation failed',
+      description: 'Room and date are required.',
       color: 'error'
     })
     return
@@ -500,21 +500,21 @@ async function submitSelfAssignment() {
     })
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Assignment diri sendiri berhasil dibuat',
+      title: 'Success',
+      description: 'Self assignment created successfully',
       color: 'success'
     })
 
     await refreshMyAssignment()
 
-    // [SELF-ASSIGN] aktifkan sesi room otomatis utk room yang dipilih,
-    // lalu arahkan ke /rooms/queue agar langsung bisa ambil pasien.
+    // [SELF-ASSIGN] automatically activate the room session for the selected room,
+    // then navigate to /rooms/queue so they can immediately take patients.
     try {
       await enterRoomSession({ roomId: selfForm.roomId })
     } catch (error: unknown) {
       toast.add({
-        title: 'Sesi room belum aktif',
-        description: getErrorMessage(error, 'Assignment dibuat, tapi gagal masuk ke room otomatis. Coba masuk manual dari halaman antrean.'),
+        title: 'Room session not active',
+        description: getErrorMessage(error, 'Assignment created, but failed to auto-enter the room. Please enter manually from the queue page.'),
         color: 'warning'
       })
     }
@@ -522,8 +522,8 @@ async function submitSelfAssignment() {
     await navigateTo('/rooms/queue')
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal membuat self assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to create self assignment'),
       color: 'error'
     })
   } finally {
@@ -542,8 +542,8 @@ async function submitTransfer() {
     })
 
     toast.add({
-      title: 'Berhasil',
-      description: 'Assignment berhasil dipindahkan',
+      title: 'Success',
+      description: 'Assignment moved successfully',
       color: 'success'
     })
 
@@ -551,8 +551,8 @@ async function submitTransfer() {
     selectedTransfer.value = null
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal memindahkan assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to move assignment'),
       color: 'error'
     })
   } finally {
@@ -567,16 +567,16 @@ async function handleToggleActive(assignment: RoomAssignmentRecord) {
   try {
     await toggleAssignmentActive(assignment.id, !assignment.isActive)
     toast.add({
-      title: 'Berhasil',
+      title: 'Success',
       description: assignment.isActive
-        ? 'Assignment dinonaktifkan'
-        : 'Assignment diaktifkan',
+        ? 'Assignment deactivated'
+        : 'Assignment activated',
       color: 'success'
     })
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal mengubah status assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to update assignment status'),
       color: 'error'
     })
   } finally {
@@ -591,16 +591,16 @@ async function handleDeleteAssignment() {
   try {
     await deleteAssignment(selectedDelete.value.id)
     toast.add({
-      title: 'Berhasil',
-      description: 'Assignment berhasil dihapus',
+      title: 'Success',
+      description: 'Assignment deleted successfully',
       color: 'success'
     })
     selectedDelete.value = null
     isDeleteOpen.value = false
   } catch (error: unknown) {
     toast.add({
-      title: 'Gagal',
-      description: getErrorMessage(error, 'Gagal menghapus assignment'),
+      title: 'Failed',
+      description: getErrorMessage(error, 'Failed to delete assignment'),
       color: 'error'
     })
   } finally {
@@ -631,7 +631,7 @@ onMounted(async () => {
     <template #header>
       <UDashboardNavbar
         title="Room Assignment"
-        subtitle="Kelola petugas, room, dan assignment harian"
+        subtitle="Manage staff, rooms, and daily assignments"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -697,13 +697,13 @@ onMounted(async () => {
           color="warning"
           variant="soft"
           icon="i-lucide-door-open"
-          :title="`Room session aktif: ${activeSession.room?.code || ''} - ${activeSession.room?.name || ''}`"
-          description="Kamu masih berada di room ini. Exit dulu sebelum membuat/mengubah assignment hari ini."
+          :title="`Active room session: ${activeSession.room?.code || ''} - ${activeSession.room?.name || ''}`"
+          description="You are still in this room. Exit first before creating/changing today's assignments."
         >
           <template #actions>
             <UButton
               :loading="exitRoomSaving"
-              label="Exit Room Sekarang"
+              label="Exit Room Now"
               icon="i-lucide-log-out"
               color="error"
               size="sm"
@@ -718,10 +718,10 @@ onMounted(async () => {
           :title="`Mode akses: ${assignmentModeLabel}`"
           :description="
             isPic
-              ? 'Akun ini dapat mengelola single assignment, batch assignment, transfer, dan room access.'
+              ? 'This account can manage single assignments, batch assignments, transfers, and room access.'
               : canSelfAssign
-                ? 'Akun ini hanya bisa self assignment ke room yang diizinkan.'
-                : 'Akun ini belum memiliki akses room assignment.'
+                ? 'This account can only self-assign to allowed rooms.'
+                : 'This account does not have room assignment access yet.'
           "
         />
 
@@ -730,10 +730,10 @@ onMounted(async () => {
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 class="text-lg font-semibold text-highlighted">
-                  Room Terisi Saat Ini
+                  Currently Occupied Rooms
                 </h2>
                 <p class="text-sm text-muted">
-                  Daftar room yang sedang ada petugas aktif di dalamnya
+                  List of rooms with active staff inside
                 </p>
               </div>
               <UButton
@@ -762,10 +762,10 @@ onMounted(async () => {
           >
             <UIcon name="i-lucide-door-open" class="mb-2 size-8 text-muted" />
             <p class="text-sm font-medium text-highlighted">
-              Tidak ada room yang terisi
+              No occupied rooms
             </p>
             <p class="mt-1 text-xs text-muted">
-              Belum ada petugas yang masuk room saat ini.
+              No staff have entered a room yet.
             </p>
           </div>
 
@@ -813,7 +813,7 @@ onMounted(async () => {
                     color="error"
                     variant="ghost"
                     :loading="endingSessionId === staff.sessionId"
-                    title="Akhiri sesi paksa"
+                    title="Force end session"
                     @click="handleEndSession(staff.sessionId, staff.name)"
                   />
                 </div>
@@ -833,7 +833,7 @@ onMounted(async () => {
                   Single Assignment
                 </h2>
                 <p class="text-sm text-muted">
-                  Assign satu user ke satu room untuk tanggal tertentu
+                  Assign one user to one room for a specific date
                 </p>
               </div>
             </template>
@@ -843,7 +843,7 @@ onMounted(async () => {
               @submit.prevent="submitSingleAssignment"
             >
               <UFormField
-                label="Tanggal"
+                label="Date"
                 required
               >
                 <UInput
@@ -860,7 +860,7 @@ onMounted(async () => {
                 <USelect
                   v-model="singleForm.userId"
                   :items="userOptions"
-                  placeholder="Pilih user"
+                  placeholder="Select user"
                   class="w-full"
                 />
               </UFormField>
@@ -872,7 +872,7 @@ onMounted(async () => {
                 <USelect
                   v-model="singleForm.roomId"
                   :items="activeRoomOptions"
-                  placeholder="Pilih room aktif"
+                  placeholder="Select an active room"
                   class="w-full"
                 />
               </UFormField>
@@ -892,7 +892,7 @@ onMounted(async () => {
                 <UTextarea
                   v-model="singleForm.notes"
                   :rows="3"
-                  placeholder="Catatan assignment"
+                  placeholder="Assignment notes"
                 />
               </UFormField>
 
@@ -911,7 +911,7 @@ onMounted(async () => {
                   :loading="singleSaving"
                   icon="i-lucide-user-plus"
                 >
-                  Simpan Assignment
+                  Save Assignment
                 </UButton>
               </div>
             </form>
@@ -924,14 +924,14 @@ onMounted(async () => {
                   Batch Assignment
                 </h2>
                 <p class="text-sm text-muted">
-                  Buat assignment banyak user sekaligus untuk tanggal yang sama
+                  Create assignments for multiple users at once for the same date
                 </p>
               </div>
             </template>
 
             <div class="space-y-4">
               <UFormField
-                label="Tanggal Batch"
+                label="Batch Date"
                 required
               >
                 <UInput
@@ -969,7 +969,7 @@ onMounted(async () => {
                       <USelect
                         v-model="row.userId"
                         :items="userOptions"
-                        placeholder="Pilih user"
+                        placeholder="Select user"
                         class="w-full"
                       />
                     </UFormField>
@@ -981,7 +981,7 @@ onMounted(async () => {
                       <USelect
                         v-model="row.roomId"
                         :items="activeRoomOptions"
-                        placeholder="Pilih room"
+                        placeholder="Select a room"
                         class="w-full"
                       />
                     </UFormField>
@@ -993,7 +993,7 @@ onMounted(async () => {
                       <UTextarea
                         v-model="row.notes"
                         :rows="2"
-                        placeholder="Catatan assignment"
+                        placeholder="Assignment notes"
                       />
                     </UFormField>
                   </div>
@@ -1007,7 +1007,7 @@ onMounted(async () => {
                   icon="i-lucide-plus"
                   @click="addBatchRow"
                 >
-                  Tambah Row
+                  Add Row
                 </UButton>
 
                 <div class="flex gap-2">
@@ -1024,7 +1024,7 @@ onMounted(async () => {
                     icon="i-lucide-layers-3"
                     @click="submitBatchAssignment"
                   >
-                    Simpan Batch
+                    Save Batch
                   </UButton>
                 </div>
               </div>
@@ -1041,8 +1041,8 @@ onMounted(async () => {
               color="warning"
               variant="soft"
               icon="i-lucide-alert-triangle"
-              title="Belum ada room yang tersedia"
-              description="Saat ini tidak ada room yang bisa dipilih untuk self assignment. Hubungi admin untuk mendapatkan akses room."
+              title="No rooms available"
+              description="There are currently no rooms available for self assignment. Contact an admin to get room access."
               class="xl:col-span-2"
             />
           </template>
@@ -1055,7 +1055,7 @@ onMounted(async () => {
                     Self Assignment
                   </h2>
                   <p class="text-sm text-muted">
-                    Pilih room yang diizinkan untuk tugas hari ini
+                    Select an allowed room for today's duty
                   </p>
                 </div>
               </template>
@@ -1065,7 +1065,7 @@ onMounted(async () => {
                 @submit.prevent="submitSelfAssignment"
               >
                 <UFormField
-                  label="Tanggal"
+                  label="Date"
                   required
                 >
                   <UInput
@@ -1075,7 +1075,7 @@ onMounted(async () => {
                   />
                 </UFormField>
 
-                <UFormField label="Petugas">
+                <UFormField label="Staff">
                   <UInput
                     :model-value="currentUser?.name || 'Current user'"
                     disabled
@@ -1091,12 +1091,12 @@ onMounted(async () => {
                   <USelect
                     v-model="selfForm.roomId"
                     :items="selfRoomOptions"
-                    placeholder="Pilih room yang diizinkan"
+                    placeholder="Select an allowed room"
                     class="w-full"
                   />
                 </UFormField>
 
-                <UFormField label="Preview Room Type">
+                <UFormField label="Room Type Preview">
                   <UInput
                     :model-value="selectedSelfRoomTypeName"
                     disabled
@@ -1111,7 +1111,7 @@ onMounted(async () => {
                   <UTextarea
                     v-model="selfForm.notes"
                     :rows="3"
-                    placeholder="Catatan self assignment"
+                    placeholder="Self assignment notes"
                   />
                 </UFormField>
 
@@ -1130,7 +1130,7 @@ onMounted(async () => {
                     :loading="selfSaving"
                     icon="i-lucide-user-check"
                   >
-                    Simpan Assignment
+                    Save Assignment
                   </UButton>
                 </div>
               </form>
@@ -1140,10 +1140,10 @@ onMounted(async () => {
               <template #header>
                 <div>
                   <h2 class="text-lg font-semibold text-highlighted">
-                    Assignment Saya
+                    My Assignment
                   </h2>
                   <p class="text-sm text-muted">
-                    Status assignment aktif milik kamu hari ini
+                    Your active assignment status for today
                   </p>
                 </div>
               </template>
@@ -1189,13 +1189,13 @@ onMounted(async () => {
 
                 <div class="rounded-xl border border-default p-4">
                   <p class="text-xs text-muted">
-                    Status Sesi
+                    Session Status
                   </p>
                   <p
                     class="mt-1 font-medium"
                     :class="activeSession ? 'text-success' : 'text-muted'"
                   >
-                    {{ activeSession ? 'Aktif - sedang di room' : 'Tidak aktif' }}
+                    {{ activeSession ? 'Active - currently in room' : 'Inactive' }}
                   </p>
                 </div>
               </div>
@@ -1204,7 +1204,7 @@ onMounted(async () => {
                 v-else
                 class="rounded-xl border border-dashed border-default p-6 text-sm text-muted"
               >
-                Belum ada assignment hari ini. Silakan pilih room yang diizinkan.
+                No assignment today. Please select an allowed room.
               </div>
             </UCard>
           </template>
@@ -1213,8 +1213,8 @@ onMounted(async () => {
         <UAlert
           v-else
           color="warning"
-          title="Room assignment tidak tersedia"
-          description="Akun ini belum punya akses PIC maupun self assignment."
+          title="Room assignment unavailable"
+          description="This account has neither PIC nor self assignment access."
         />
 
         <UCard v-if="canManageAssignments">
@@ -1222,17 +1222,17 @@ onMounted(async () => {
             <div class="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 class="text-lg font-semibold text-highlighted">
-                  Filters Assignment
+                  Assignment Filters
                 </h2>
                 <p class="text-sm text-muted">
-                  Filter assignment berdasarkan tanggal, room, room type, user, dan status
+                  Filter assignments by date, room, room type, user, and status
                 </p>
               </div>
             </div>
           </template>
 
           <div class="grid gap-3 lg:grid-cols-5">
-            <UFormField label="Tanggal">
+            <UFormField label="Date">
               <UInput
                 v-model="filters.assignedDate"
                 type="date"
@@ -1243,7 +1243,7 @@ onMounted(async () => {
               <USelect
                 v-model="filters.roomTypeId"
                 :items="roomTypeFilterOptions"
-                placeholder="Semua room type"
+                placeholder="All room types"
               />
             </UFormField>
 
@@ -1251,7 +1251,7 @@ onMounted(async () => {
               <USelect
                 v-model="filters.roomId"
                 :items="roomFilterOptions"
-                placeholder="Semua room"
+                placeholder="All rooms"
               />
             </UFormField>
 
@@ -1259,7 +1259,7 @@ onMounted(async () => {
               <USelect
                 v-model="filters.userId"
                 :items="userFilterOptions"
-                placeholder="Semua user"
+                placeholder="All users"
               />
             </UFormField>
 
@@ -1267,9 +1267,9 @@ onMounted(async () => {
               <USelect
                 v-model="filters.isActive"
                 :items="[
-                  { label: 'Semua status', value: 'ALL' },
-                  { label: 'Aktif', value: 'true' },
-                  { label: 'Nonaktif', value: 'false' }
+                  { label: 'All statuses', value: 'ALL' },
+                  { label: 'Active', value: 'true' },
+                  { label: 'Inactive', value: 'false' }
                 ]"
               />
             </UFormField>
@@ -1288,7 +1288,7 @@ onMounted(async () => {
                     Assignment List
                   </h2>
                   <p class="text-sm text-muted">
-                    Semua assignment sesuai filter aktif
+                    All assignments matching the active filters
                   </p>
                 </div>
                 <UButton
@@ -1324,11 +1324,11 @@ onMounted(async () => {
               />
 
               <h3 class="text-base font-semibold text-highlighted">
-                Belum ada assignment
+                No assignments yet
               </h3>
 
               <p class="mt-1 max-w-lg text-sm text-muted">
-                Silakan buat single assignment atau batch assignment terlebih dahulu.
+                Please create a single or batch assignment first.
               </p>
             </div>
 
@@ -1348,7 +1348,7 @@ onMounted(async () => {
           </UCard>
 
           <RoomAssignmentDoctorList
-            title="Petugas Aktif Hari Ini"
+            title="Active Staff Today"
             :assignments="activeAssignments"
           />
         </div>
@@ -1367,7 +1367,7 @@ onMounted(async () => {
                     Transfer Assignment
                   </h2>
                   <p class="text-sm text-muted">
-                    Pindahkan assignment ke room lain
+                    Move the assignment to another room
                   </p>
                 </div>
 
@@ -1398,13 +1398,13 @@ onMounted(async () => {
 
               <div class="grid gap-4">
                 <UFormField
-                  label="Room Baru"
+                  label="New Room"
                   required
                 >
                   <USelect
                     v-model="transferForm.roomId"
                     :items="activeRoomOptions"
-                    placeholder="Pilih room baru"
+                    placeholder="Select a new room"
                   />
                 </UFormField>
 
@@ -1412,7 +1412,7 @@ onMounted(async () => {
                   <UTextarea
                     v-model="transferForm.notes"
                     :rows="3"
-                    placeholder="Catatan transfer"
+                    placeholder="Transfer notes"
                   />
                 </UFormField>
               </div>
@@ -1423,7 +1423,7 @@ onMounted(async () => {
                   variant="soft"
                   @click="isTransferOpen = false"
                 >
-                  Batal
+                  Cancel
                 </UButton>
 
                 <UButton
@@ -1445,7 +1445,7 @@ onMounted(async () => {
         :count="1"
         entity="assignment"
         title="Delete assignment"
-        description="Assignment yang dihapus tidak bisa dikembalikan."
+        description="Deleted assignments cannot be restored."
         @confirm="handleDeleteAssignment"
       />
     </template>
