@@ -237,11 +237,12 @@ function submit() {
                 description="Kode audio yang diputar speaker saat pasien dipanggil ke ruangan ini."
               >
                 <USelect
-                  v-model="form.voiceCode"
+                  :model-value="form.voiceCode ?? undefined"
                   :items="audioCodeOptions"
                   :loading="audioCodesLoading"
                   placeholder="Pilih kode audio"
                   class="w-full"
+                  @update:model-value="(val) => form.voiceCode = (val as string) ?? null"
                 />
               </UFormField>
 

@@ -3,6 +3,7 @@
 import type { Room, RoomForm } from '~/types/room'
 
 const toast = useToast()
+const { isSuperAdmin } = await useCurrentUser()
 
 const {
   filteredRooms,
@@ -20,6 +21,7 @@ const {
 
 const isFormOpen = ref(false)
 const isDeleteOpen = ref(false)
+const isAudioMappingOpen = ref(false)
 
 const saving = ref(false)
 const deleting = ref(false)
@@ -163,6 +165,15 @@ onBeforeUnmount(() => {
 
         <template #right>
           <UButton
+            v-if="isSuperAdmin"
+            label="Audio Mapping"
+            icon="i-lucide-audio-lines"
+            color="neutral"
+            variant="soft"
+            @click="isAudioMappingOpen = true"
+          />
+
+          <UButton
             to="/rooms/assignments"
             label="Room Assignment"
             icon="i-lucide-users-round"
@@ -264,6 +275,8 @@ onBeforeUnmount(() => {
         :loading="saving"
         @submit="handleSubmit"
       />
+
+      <RoomsRoomAudioMappingModal v-model:open="isAudioMappingOpen" />
 
       <BaseDeleteModal
         v-model:open="isDeleteOpen"
