@@ -646,6 +646,52 @@ const serviceNumberModalOpen = ref(false)
 const serviceNumberInput = ref('')
 const serviceNumberSaving = ref(false)
 
+const LOCKER_RANGES: Array<[string, number]> = [['A', 100], ['B', 120], ['C', 120]]
+const ALL_LOCKER_NUMBERS = LOCKER_RANGES.flatMap(([prefix, max]) =>
+  Array.from({ length: max }, (_, i) => `${prefix} ${String(i + 1).padStart(3, '0')}`)
+)
+
+const occupiedServiceNumbers = ref<Set<string>>(new Set())
+const lockerLoading = ref(false)
+
+const lockerOptions = computed(() => {
+  const self = String(
+    checkinPreview.value?.registration?.serviceNumber ?? reg.value?.serviceNumber ?? ''
+  ).trim()
+  return ALL_LOCKER_NUMBERS.map((number) => {
+    const occupied = occupiedServiceNumbers.value.has(number) && number !== self
+    return {
+      label: number,
+      value: number,
+      disabled: occupied,
+      description: occupied ? 'Occupied' : undefined
+    }
+  })
+})
+
+async function loadOccupiedServiceNumbers() {
+  const branchId = checkinPreview.value?.branch?.branchId ?? reg.value?.branch?.branchId
+  const date = String(
+    checkinPreview.value?.registration?.scheduleDateExam
+    ?? checkinPreview.value?.registration?.examDate
+    ?? reg.value?.scheduleDateExam
+    ?? reg.value?.examDate
+    ?? ''
+  ).slice(0, 10)
+  if (!branchId || !date) return
+  lockerLoading.value = true
+  try {
+    const res = await api.get('/registration/occupied-service-numbers', {
+      params: { branchId, date }
+    })
+    occupiedServiceNumbers.value = new Set(res.data.data.serviceNumbers ?? [])
+  } catch {
+    occupiedServiceNumbers.value = new Set()
+  } finally {
+    lockerLoading.value = false
+  }
+}
+
 const photoModalOpen = ref(false)
 const photoStream = ref<MediaStream | null>(null)
 const photoVideoEl = ref<HTMLVideoElement | null>(null)
@@ -696,6 +742,7 @@ async function openCheckinModal() {
   }
 
   await loadCheckinPreview()
+  await loadOccupiedServiceNumbers()
   checkinServiceNumber.value = ''
   checkinPaketOpen.value = false
   checkinModalOpen.value = true
@@ -731,7 +778,7 @@ async function confirmCheckin() {
 
     const res = await api.post(`/registration/${reg.value.id}/checkin`, {
       queueDate: checkinPreview.value?.queueStatus?.suggestedQueueDate,
-      serviceNumber: checkinServiceNumber.value.trim() || undefined
+      serviceNumber: String(checkinServiceNumber.value ?? '').trim() || undefined
     })
 
     const entry = res.data.data
@@ -758,14 +805,15 @@ async function confirmCheckin() {
   }
 }
 
-function openServiceNumberModal() {
+async function openServiceNumberModal() {
   serviceNumberInput.value = reg.value?.serviceNumber ?? ''
+  await loadOccupiedServiceNumbers()
   serviceNumberModalOpen.value = true
 }
 
 async function saveServiceNumber() {
   if (!reg.value || serviceNumberSaving.value) return
-  const value = serviceNumberInput.value.trim()
+  const value = String(serviceNumberInput.value ?? '').trim()
   if (!value) {
     toast.add({ title: 'Required', description: 'Service Number cannot be empty', color: 'warning' })
     return
@@ -1349,8 +1397,11 @@ async function handleCompleteReturnVisit() {
     completingReturnVisit.value = false
   }
 }
-async function handleResampleCheckin() {
-  if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
+const resampleModalOpen = ref(false)
+const resampleLockerInput = ref('')
+
+async function openResampleModal() {
+  if (!reg.value || !reg.value.queue?.id || !reg.value.branch?.branchId) {
     toast.add({
       title: 'Failed',
       description: 'Incomplete resample data (queue/branch).',
@@ -1367,6 +1418,13 @@ async function handleResampleCheckin() {
     })
     return
   }
+  resampleLockerInput.value = String(reg.value?.serviceNumber ?? '')
+  await loadOccupiedServiceNumbers()
+  resampleModalOpen.value = true
+}
+
+async function submitResample() {
+  if (!reg.value || resampling.value || !reg.value.queue?.id || !reg.value.branch?.branchId) return
   resampling.value = true
   try {
     const today = new Date().toISOString().slice(0, 10)
@@ -1374,13 +1432,15 @@ async function handleResampleCheckin() {
       registrationId: reg.value.id,
       branchId: reg.value.branch.branchId,
       queueDate: today,
-      parentQueueEntryId: reg.value.queue.id
+      parentQueueEntryId: reg.value.queue.id,
+      serviceNumber: String(resampleLockerInput.value ?? '').trim() || undefined
     })
     toast.add({
       title: 'Success',
-      description: 'Patient rescheduled (resample) — can be processed again.',
+      description: 'Patient resampled — can be processed again.',
       color: 'success'
     })
+    resampleModalOpen.value = false
     await refresh()
     await loadStatusHistory()
     await loadCheckoutEligibility()
@@ -1552,7 +1612,7 @@ watch(
               :loading="resampling"
               :disabled="!canResampleNow"
               :title="canResampleNow ? undefined : 'Can only be resampled on the return visit date'"
-              @click="handleResampleCheckin"
+              @click="openResampleModal"
             />
             <UButton
               v-if="hasRescheduleItem"
@@ -2395,10 +2455,15 @@ watch(
 
             <div v-if="isMCU" class="space-y-1">
               <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
-              <UInput
+              <USelectMenu
                 v-model="checkinServiceNumber"
+                :items="lockerOptions"
+                value-key="value"
+                search-input
+                clearable
+                :loading="lockerLoading"
                 icon="i-lucide-key-round"
-                placeholder="Patient locker number"
+                placeholder="Search / select locker number…"
                 class="w-full"
               />
               <p class="text-[11px] text-muted">
@@ -2688,12 +2753,15 @@ watch(
           <div class="space-y-3">
             <div class="space-y-1">
               <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
-              <UInput
+              <USelectMenu
                 v-model="serviceNumberInput"
+                :items="lockerOptions"
+                value-key="value"
+                search-input
+                :loading="lockerLoading"
                 icon="i-lucide-key-round"
-                placeholder="Locker number / service number"
+                placeholder="Search / select locker number…"
                 class="w-full"
-                @keyup.enter="saveServiceNumber"
               />
             </div>
             <p class="text-[11px] text-muted">
@@ -2715,6 +2783,46 @@ watch(
               label="Save"
               :loading="serviceNumberSaving"
               @click="saveServiceNumber"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="resampleModalOpen" title="Patient Return Visit">
+        <template #body>
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-muted">Service Number (Locker No.)</label>
+              <USelectMenu
+                v-model="resampleLockerInput"
+                :items="lockerOptions"
+                value-key="value"
+                search-input
+                :loading="lockerLoading"
+                icon="i-lucide-key-round"
+                placeholder="Search / select locker number…"
+                class="w-full"
+              />
+              <p class="text-[11px] text-muted">
+                Choose the locker number for this return visit. It becomes the Queue Number. Leave blank to keep the current number.
+              </p>
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Cancel"
+              :disabled="resampling"
+              @click="resampleModalOpen = false"
+            />
+            <UButton
+              color="primary"
+              label="Resample"
+              :loading="resampling"
+              @click="submitResample"
             />
           </div>
         </template>
