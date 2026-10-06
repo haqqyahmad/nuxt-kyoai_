@@ -53,6 +53,8 @@ export type McuBreakdownCategory = {
   completed: number
   total: number
   pending: number
+  rejectedCount: number
+  refusedCount: number
   completedItems: McuBreakdownItem[]
   pendingItems: McuBreakdownItem[]
   updatedAt: string | null
@@ -232,6 +234,8 @@ export function buildMcuCategories(
     const pendingItems = category.items.filter(item => !item.done)
     const completed = completedItems.length
     const total = category.items.length
+    const rejectedCount = category.items.filter(item => item.status === 'REJECTED').length
+    const refusedCount = category.items.filter(item => item.status === 'REFUSED').length
     const updatedAt = category.items.reduce<string | null>(
       (latest, item) =>
         item.updatedAt && (!latest || item.updatedAt > latest) ? item.updatedAt : latest,
@@ -242,6 +246,8 @@ export function buildMcuCategories(
       completed,
       total,
       pending: pendingItems.length,
+      rejectedCount,
+      refusedCount,
       completedItems,
       pendingItems,
       updatedAt,
@@ -252,9 +258,11 @@ export function buildMcuCategories(
             ? 'RETEXT'
             : category.items.some(item => item.status === 'RESCHEDULED')
               ? 'RESCHEDULED'
-              : category.items.some(item => ['REFUSED', 'REJECTED'].includes(item.status))
-                ? 'REFUSED'
-                : 'PENDING'
+              : rejectedCount > 0
+                ? 'REJECTED'
+                : refusedCount > 0
+                  ? 'REFUSED'
+                  : 'PENDING'
     }
   })
 }

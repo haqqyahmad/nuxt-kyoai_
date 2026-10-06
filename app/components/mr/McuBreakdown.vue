@@ -8,7 +8,7 @@ import {
   getSampleStatusColor,
   getSampleStatusLabel
 } from '~/composables/mr/useMcuBreakdown'
-import type { McuExamItem, McuSampleCollection } from '~/composables/mr/useMcuBreakdown'
+import type { McuBreakdownCategory, McuExamItem, McuSampleCollection } from '~/composables/mr/useMcuBreakdown'
 
 const props = defineProps<{
   examItems: McuExamItem[]
@@ -34,6 +34,23 @@ function formatDateTime(value?: string | null) {
 
 function rescheduleDate(id: string) {
   return getRescheduleVisitDate(props.examItems, id)
+}
+
+function categoryBadgeLabel(cat: McuBreakdownCategory): string {
+  if (cat.status === 'REJECTED') {
+    return cat.rejectedCount > 1 ? `${cat.rejectedCount} Sample Rejected` : 'Sample Rejected'
+  }
+  if (cat.status === 'REFUSED') {
+    return cat.refusedCount > 1 ? `${cat.refusedCount} Rejected` : 'Rejected'
+  }
+  return getExamItemStatusLabel(cat.status)
+}
+
+function categoryBadgeIcon(cat: McuBreakdownCategory): string {
+  if (cat.status === 'DONE') return 'i-lucide-check-circle-2'
+  if (cat.status === 'REJECTED' || cat.status === 'REFUSED') return 'i-lucide-ban'
+  if (cat.status === 'RESCHEDULED' || cat.status === 'RETEXT') return 'i-lucide-rotate-ccw'
+  return 'i-lucide-clock'
 }
 </script>
 
@@ -62,11 +79,11 @@ function rescheduleDate(id: string) {
                 {{ cat.label }}
               </h4>
               <UBadge
-                :label="getExamItemStatusLabel(cat.status)"
+                :label="categoryBadgeLabel(cat)"
                 :color="getExamItemStatusColor(cat.status)"
                 variant="soft"
                 size="xs"
-                :icon="cat.status === 'DONE' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'"
+                :icon="categoryBadgeIcon(cat)"
               />
               {{ cat.updatedAt ? formatDateTime(cat.updatedAt) : '' }}
             </div>
