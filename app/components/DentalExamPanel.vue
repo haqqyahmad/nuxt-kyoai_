@@ -5,10 +5,13 @@ import {
   INTRA_ORAL_OPTIONS,
   DENTAL_CONDITIONS,
   OTHER_DENTAL_OPTIONS,
-  DENTAL_GRADE_CONFIG,
-  DENTAL_CHART_GROUPS
+  DENTAL_CHART_GROUPS,
+  buildGradeMeta,
+  normalizeDentalGrades,
+  dedupeSentences,
+  buildDentalGradeSummary
 } from '~/types/dental'
-import type { DentalExamData, DentalFinding, DentalGrade } from '~/types/dental'
+import type { DentalExamData, DentalFinding, DentalGradeGroup } from '~/types/dental'
 
 const props = withDefaults(defineProps<{
   examId: string
@@ -34,9 +37,7 @@ const state = reactive<{
   otherNote: string
   findings: FindingMap
   selectedTooth: string | null
-  suggestedGrade: DentalGrade | undefined
-  suggestedOverride: boolean
-  finalGrade: DentalGrade | undefined
+  finalGrades: string[]
   doctorComment: string
   commentsManual: boolean
 }>({
@@ -48,9 +49,7 @@ const state = reactive<{
   otherNote: '',
   findings: {},
   selectedTooth: null,
-  suggestedGrade: undefined,
-  suggestedOverride: false,
-  finalGrade: undefined,
+  finalGrades: [],
   doctorComment: '',
   commentsManual: false
 })
@@ -80,20 +79,19 @@ function seed() {
   state.intraOral = d.intraOral?.length ? [...d.intraOral] : ['Normal']
   state.extraOralNote = d.extraOralNote ?? ''
   state.intraOralNote = d.intraOralNote ?? ''
-  state.otherDental = d.otherDental ?? []
+  state.otherDental = d.otherDental ? [...d.otherDental] : []
   state.otherNote = d.otherNote ?? ''
-  state.finalGrade = d.finalGrade ?? undefined
   state.doctorComment = d.doctorComment ?? ''
-  state.commentsManual = Boolean(d.doctorComment)
-  state.suggestedOverride = d.suggestedGrade
-    ? d.suggestedGrade !== suggested.value.grade || d.gradeReason === 'Suggested grade selected manually by the doctor.'
-    : false
-  state.suggestedGrade = d.suggestedGrade ?? undefined
+  state.commentsManual = d.commentsManual ?? Boolean(d.doctorComment)
   const findings: FindingMap = {}
   for (const f of d.findings ?? []) {
-    findings[f.toothNumber] = { toothNumber: f.toothNumber, conditions: [...f.conditions], note: f.note ?? '' }
+    findings[f.toothNumber] = { toothNumber: f.toothNumber, conditions: [...(f.conditions ?? [])], note: (f as { note?: string }).note ?? '' }
   }
   state.findings = findings
+  // Kontrak array + kompat legacy string tunggal.
+  const stored = d.finalGrades?.length ? [...d.finalGrades] : (d.finalGrade ? [d.finalGrade] : [])
+  state.finalGrades = normalizeDentalGrades(stored, gradeMeta.value)
+  if (!state.commentsManual) regenAutoComment()
 }
 
 // Toggle exclusive Normal — Normal is removed automatically when an abnormal
@@ -140,7 +138,7 @@ function toggleFindingCondition(condition: string) {
   const idx = finding.conditions.indexOf(condition)
   if (idx >= 0) finding.conditions.splice(idx, 1)
   else finding.conditions.push(condition)
-  if (finding.conditions.length === 0) Reflect.deleteProperty(state.findings, tooth)
+  if (finding.conditions.length === 0 && !finding.note) Reflect.deleteProperty(state.findings, tooth)
 }
 
 function clearTooth() {
@@ -167,72 +165,95 @@ const findingsList = computed(() =>
     .sort((a, b) => Number(a.toothNumber) - Number(b.toothNumber))
 )
 
-const allFindingConditions = computed(() =>
-  Object.values(state.findings).flatMap(f => f.conditions)
-)
+// Config + meta + grup murni dari master BE (`scope='dental'`).
+// Kosong bila master dental belum di-seed — panel tampil kosong, tanpa fallback.
+const gradeConfig = computed(() => displayData.value?.gradeConfig ?? {})
+const gradeMeta = computed(() => buildGradeMeta(gradeConfig.value))
+const gradeGroups = computed<DentalGradeGroup[]>(() => displayData.value?.gradeOptions ?? [])
 
-const suggested = computed(() => {
-  const urgent = ['Abscess', 'Fistula', 'Fracture', 'Tooth Mobility']
-  const treatment = ['Caries', 'Broken Crown', 'Broken Filling', 'Loose Crown', 'Loose Filling', 'Radix', 'Impaction']
-  const oralAbnormal = [...state.extraOral, ...state.intraOral].filter(v => v !== 'Normal')
-
-  if (allFindingConditions.value.some(c => urgent.includes(c))) {
-    return { grade: 'D' as DentalGrade, label: DENTAL_GRADE_CONFIG.D.label, reason: 'There is a finding that requires immediate evaluation.' }
+// ── Select induk/anak (tanpa suggest — murni pilihan dokter) ──
+// INDUK SINGLE-SELECT: hanya satu induk aktif. Anak di bawah induk aktif
+// bisa multi. Pilih anak dari induk lain -> induk berpindah. Unknowns
+// dipertahankan; hasil ter-sort seperti normalize BE.
+function activeParentGrade(grades: string[]): string | null {
+  for (const g of grades) {
+    const cfg = gradeConfig.value[g]
+    if (!cfg) continue
+    return cfg.parent ?? g
   }
-  if (allFindingConditions.value.some(c => treatment.includes(c)) || oralAbnormal.length >= 2) {
-    return { grade: 'C' as DentalGrade, label: DENTAL_GRADE_CONFIG.C.label, reason: 'There is a dental or oral condition that requires treatment.' }
-  }
-  if (allFindingConditions.value.length || state.otherDental.length || oralAbnormal.length) {
-    return { grade: 'B' as DentalGrade, label: DENTAL_GRADE_CONFIG.B.label, reason: 'There are minor findings or routine treatment needs.' }
-  }
-  return { grade: 'A' as DentalGrade, label: DENTAL_GRADE_CONFIG.A.label, reason: 'No abnormal findings yet.' }
-})
-
-const gradeConfig = computed(() => displayData.value?.gradeConfig ?? DENTAL_GRADE_CONFIG)
-
-// Effective suggested grade: auto-computed unless the doctor overrides manually.
-const effectiveSuggestedGrade = computed(() =>
-  state.suggestedOverride && state.suggestedGrade
-    ? state.suggestedGrade
-    : suggested.value.grade
-)
-
-function resetSuggestedToAuto() {
-  state.suggestedGrade = undefined
-  state.suggestedOverride = false
+  return null
 }
 
-// Sync auto-suggested to state when not overridden.
-watch(suggested, (auto) => {
-  if (!state.suggestedOverride) state.suggestedGrade = auto.grade
-}, { immediate: true })
+function toggleParentGrade(parent: string) {
+  const active = activeParentGrade(state.finalGrades)
+  if (active === parent) {
+    // Matikan: buang induk + seluruh anaknya.
+    state.finalGrades = []
+    return
+  }
+  // Ganti induk: hanya induk ini (anak dipilih manual lagi).
+  state.finalGrades = normalizeDentalGrades([parent], gradeMeta.value)
+}
 
-// Opsi select grade (FE pakai {label,value})
-const gradeOptions = computed(() =>
-  (Object.keys(DENTAL_GRADE_CONFIG) as DentalGrade[]).map(g => ({ label: `${g} — ${DENTAL_GRADE_CONFIG[g]?.label ?? '-'}`, value: g }))
-)
+function toggleChildGrade(child: string) {
+  const parent = gradeConfig.value[child]?.parent
+  if (!parent) return
+  const active = activeParentGrade(state.finalGrades)
+  if (active !== parent) {
+    // Pindah induk: set induk + anak ini saja.
+    state.finalGrades = normalizeDentalGrades([parent, child], gradeMeta.value)
+    return
+  }
+  state.finalGrades = normalizeDentalGrades(
+    state.finalGrades.includes(child)
+      ? state.finalGrades.filter(g => g !== child)
+      : [...state.finalGrades, child],
+    gradeMeta.value
+  )
+}
+
+// ── Komentar dokter: auto dari grade terpilih kecuali diketik manual ──
+function regenAutoComment() {
+  const blocks = buildDentalGradeSummary(state.finalGrades, gradeConfig.value, gradeMeta.value)
+  state.doctorComment = dedupeSentences(blocks.map(b => b.comment).join(' '))
+}
 
 function useAutoComment() {
-  if (!state.finalGrade) state.finalGrade = suggested.value.grade
-  state.doctorComment = gradeConfig.value[state.finalGrade as DentalGrade]?.comment ?? ''
+  regenAutoComment()
   state.commentsManual = false
 }
 
-function onFinalGradeChange() {
-  if (!state.commentsManual && state.finalGrade) {
-    state.doctorComment = gradeConfig.value[state.finalGrade]?.comment ?? ''
-  }
+function onDoctorCommentInput() {
+  state.commentsManual = true
 }
 
+watch(() => state.finalGrades, () => {
+  if (!state.commentsManual) regenAutoComment()
+})
+
+const gradeSummaryBlocks = computed(() =>
+  buildDentalGradeSummary(state.finalGrades, gradeConfig.value, gradeMeta.value)
+)
+
 const selectedSummary = computed(() => {
+  const extraNote = state.extraOralNote.trim()
+  const intraNote = state.intraOralNote.trim()
+  const otherNote = state.otherNote.trim()
   const parts = [
-    `Extra Oral: ${state.extraOral.join(', ')}`,
-    `Intra Oral: ${state.intraOral.join(', ')}`,
-    `Dental Findings: ${findingsList.value.length ? findingsList.value.map(f => `Tooth ${f.toothNumber}: ${f.conditions.join(', ')}`).join(' | ') : 'None'}`,
-    `Other Dental: ${state.otherDental.join(', ') || 'None'}`,
-    `Suggested Grade: ${effectiveSuggestedGrade.value} — ${gradeConfig.value[effectiveSuggestedGrade.value as DentalGrade]?.label ?? suggested.value.label}`,
-    `Final Grade: ${state.finalGrade ?? '-'} — ${state.finalGrade ? gradeConfig.value[state.finalGrade]?.label : ''}`
+    `Extra Oral: ${state.extraOral.join(', ')}${extraNote ? ` — ${extraNote}` : ''}`,
+    `Intra Oral: ${state.intraOral.join(', ')}${intraNote ? ` — ${intraNote}` : ''}`,
+    `Dental Findings: ${findingsList.value.length ? findingsList.value.map(f => `Tooth ${f.toothNumber}: ${f.conditions.join(', ')}${f.note ? ` (${f.note})` : ''}`).join(' | ') : 'None'}`,
+    `Other Dental: ${state.otherDental.join(', ') || 'None'}${otherNote ? ` — ${otherNote}` : ''}`
   ]
+  if (!gradeSummaryBlocks.value.length) {
+    parts.push('Final Grades: -')
+  } else {
+    parts.push('Final Grades:')
+    for (const b of gradeSummaryBlocks.value) {
+      const kids = b.children.length ? ` [${b.children.map(k => `${k.code}: ${k.label}`).join('; ')}]` : ''
+      parts.push(`- ${b.parent} — ${b.label}${kids}`)
+    }
+  }
   return parts.join('\n')
 })
 
@@ -245,9 +266,10 @@ function buildPayload() {
     otherDental: state.otherDental,
     otherNote: state.otherNote.trim() || null,
     findings: Object.values(state.findings).filter(f => f.conditions.length > 0),
-    suggestedGrade: state.suggestedOverride ? state.suggestedGrade : null,
-    finalGrade: state.finalGrade,
-    doctorComment: state.doctorComment.trim() || null
+    // Kontrak array; tanpa suggestedGrade dan tanpa finalGrade (BE yang menurunkan).
+    finalGrades: state.finalGrades,
+    doctorComment: state.doctorComment.trim() || null,
+    commentsManual: state.commentsManual
   }
 }
 
@@ -298,7 +320,7 @@ if (props.data) seed()
               Dental Examination
             </h3>
           </div>
-          <UBadge label="Automated grading, doctor can override" color="primary" variant="soft" />
+          <UBadge label="Multi-grade, doctor decides" color="primary" variant="soft" />
         </div>
       </template>
 
@@ -337,7 +359,13 @@ if (props.data) seed()
             </button>
           </div>
           <UFormField label="Additional note" class="mt-4">
-            <UInput v-model="state.extraOralNote" :disabled="disabled" placeholder="e.g. mild edema on the left side" />
+            <UTextarea
+              v-model="state.extraOralNote"
+              :disabled="disabled"
+              :rows="4"
+              class="w-full"
+              placeholder="e.g. mild edema on the left side"
+            />
           </UFormField>
         </div>
 
@@ -374,7 +402,13 @@ if (props.data) seed()
             </button>
           </div>
           <UFormField label="Additional note" class="mt-4">
-            <UInput v-model="state.intraOralNote" :disabled="disabled" placeholder="e.g. lesion on the buccal mucosa" />
+            <UTextarea
+              v-model="state.intraOralNote"
+              :disabled="disabled"
+              :rows="4"
+              class="w-full"
+              placeholder="e.g. lesion on the buccal mucosa"
+            />
           </UFormField>
         </div>
       </div>
@@ -609,70 +643,80 @@ if (props.data) seed()
         <UTextarea
           v-model="state.otherNote"
           :disabled="disabled"
-          :rows="3"
+          :rows="6"
+          class="w-full"
           placeholder="Add location or description of the finding"
         />
       </UFormField>
     </UCard>
 
-    <!-- Grade & Comment -->
+    <!-- Grade & Comment (multi-select per induk) -->
     <UCard class="border border-default/80 shadow-sm">
       <template #header>
-        <h3 class="text-base font-semibold text-highlighted">
-          Grade & Comment
-        </h3>
-      </template>
-
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="rounded-xl border border-default p-4">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <p class="text-xs text-muted">
-              Suggested Grade · {{ state.suggestedOverride ? 'Manual' : 'Auto' }}
-            </p>
-            <UButton
-              v-if="state.suggestedOverride && !disabled"
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-rotate-ccw"
-              @click="resetSuggestedToAuto"
-            >
-              Auto
-            </UButton>
-          </div>
-          <USelect
-            v-model="state.suggestedGrade"
-            :disabled="disabled"
-            :items="gradeOptions"
-            placeholder="Auto — not selected"
-            @change="state.suggestedOverride = true"
-          />
-          <p class="mt-2 text-xs text-muted">
-            {{ suggested.reason }}
-          </p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-base font-semibold text-highlighted">
+            Grade & Comment
+          </h3>
           <UBadge
-            :label="gradeConfig[effectiveSuggestedGrade as DentalGrade]?.label ?? '-'"
-            color="primary"
-            variant="soft"
-            class="mt-2"
+            :label="state.finalGrades.length ? `${state.finalGrades.length} selected` : 'No grade selected'"
+            color="neutral"
+            variant="subtle"
           />
         </div>
-        <div class="rounded-xl border border-default p-4">
-          <UFormField label="Final Grade">
-            <USelect
-              v-model="state.finalGrade"
+      </template>
+
+      <p v-if="gradeGroups.length" class="mb-3 text-xs text-muted">
+        Pilih satu grade induk, lalu boleh pilih beberapa anak di bawahnya. Anak otomatis membawa induknya; memilih induk lain mengganti induk yang aktif.
+      </p>
+      <div v-if="!gradeGroups.length" class="rounded-xl border border-dashed border-default py-8 text-center text-sm text-muted">
+        Master grade dental belum tersedia. Hubungi admin untuk mengaktifkan daftar grade.
+      </div>
+      <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div
+          v-for="group in gradeGroups"
+          :key="group.parent"
+          class="rounded-xl border p-3"
+          :class="state.finalGrades.includes(group.parent) ? 'border-primary/50 bg-primary/5' : 'border-default'"
+        >
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 text-left"
+            :disabled="disabled"
+            @click="toggleParentGrade(group.parent)"
+          >
+            <span
+              class="flex size-5 shrink-0 items-center justify-center rounded-md border"
+              :class="state.finalGrades.includes(group.parent) ? 'border-primary bg-primary text-white' : 'border-default'"
+            >
+              <UIcon v-if="state.finalGrades.includes(group.parent)" name="i-lucide-check" class="size-3.5" />
+            </span>
+            <span class="text-xl font-extrabold text-highlighted">{{ group.parent }}</span>
+            <span class="min-w-0 flex-1 truncate text-sm text-muted">{{ group.label }}</span>
+          </button>
+          <div class="mt-2 flex flex-wrap gap-1.5">
+            <button
+              v-for="child in group.children"
+              :key="child.code"
+              type="button"
+              :title="child.label"
+              class="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition"
+              :class="state.finalGrades.includes(child.code) ? 'border-primary bg-primary text-white' : 'border-default hover:border-primary'"
               :disabled="disabled"
-              :items="gradeOptions"
-              placeholder="Select final grade"
-              @change="onFinalGradeChange"
-            />
-          </UFormField>
+              @click="toggleChildGrade(child.code)"
+            >
+              <UIcon v-if="state.finalGrades.includes(child.code)" name="i-lucide-check" class="size-3" />
+              {{ child.code }}
+            </button>
+          </div>
+          <p class="mt-2 truncate text-xs text-muted" :title="group.children.map(c => `${c.code}: ${c.label}`).join('; ')">
+            {{ group.children.map(c => c.code).join(' · ') }}
+          </p>
         </div>
       </div>
 
       <div class="mt-4">
         <div class="mb-2 flex items-center justify-between gap-3">
-          <label class="text-sm font-semibold">Doctor Comment</label>
+          <label class="text-sm font-semibold">Doctor Comment {{ state.commentsManual ? '' : '(auto)' }}</label>
           <UButton
             size="xs"
             color="neutral"
@@ -683,7 +727,13 @@ if (props.data) seed()
             Use auto comment
           </UButton>
         </div>
-        <UTextarea v-model="state.doctorComment" :disabled="disabled" :rows="4" />
+        <UTextarea
+          v-model="state.doctorComment"
+          :disabled="disabled"
+          :rows="8"
+          class="w-full"
+          @input="onDoctorCommentInput"
+        />
       </div>
 
       <div class="mt-4 rounded-xl border-l-4 border-primary bg-primary/5 p-4">

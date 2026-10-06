@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DENTAL_GRADE_CONFIG, DENTAL_CHART_GROUPS } from '~/types/dental'
+import {
+  DENTAL_CHART_GROUPS,
+  buildGradeMeta,
+  normalizeDentalGrades,
+  dedupeSentences,
+  buildDentalGradeSummary
+} from '~/types/dental'
 import type { DentalExamData } from '~/types/dental'
 
 const props = defineProps<{ data: DentalExamData | null }>()
@@ -10,18 +16,22 @@ function formatDate(value: string | null | undefined) {
   return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const grading = computed(() => {
-  const config = props.data?.gradeConfig ?? DENTAL_GRADE_CONFIG
-  const finalGrade = props.data?.finalGrade ?? props.data?.suggestedGrade
-  return {
-    suggestedGrade: props.data?.suggestedGrade,
-    suggestedLabel: props.data?.suggestedLabel,
-    gradeReason: props.data?.gradeReason,
-    finalGrade,
-    finalLabel: finalGrade ? config[finalGrade as keyof typeof config]?.label : null,
-    doctorComment: props.data?.doctorComment ?? (finalGrade ? config[finalGrade as keyof typeof config]?.comment : null)
-  }
-})
+// Config + meta dari master BE; kosong bila belum di-seed (kode tampil apa adanya).
+const config = computed(() => props.data?.gradeConfig ?? {})
+const meta = computed(() => buildGradeMeta(config.value))
+
+// Grade terpilih (finals saja — suggest yang belum diputuskan JANGAN
+// ditampilkan sebagai grade). Kompat legacy string tunggal.
+const finalGrades = computed(() =>
+  normalizeDentalGrades(props.data?.finalGrades?.length ? props.data.finalGrades : (props.data?.finalGrade ? [props.data.finalGrade] : []), meta.value)
+)
+
+const gradeBlocks = computed(() => buildDentalGradeSummary(finalGrades.value, config.value, meta.value))
+
+const grading = computed(() => ({
+  doctorComment: props.data?.doctorComment
+    ?? (gradeBlocks.value.length ? dedupeSentences(gradeBlocks.value.map(b => b.comment).join(' ')) : null)
+}))
 
 function findingCount(tooth: string) {
   return props.data?.findings?.filter(f => f.toothNumber === tooth).length ?? 0
@@ -256,34 +266,39 @@ const conditionSummary = computed<Record<string, string[]>>(() => {
       </p>
     </div>
 
-    <!-- Grade & Comment -->
+    <!-- Grade & Comment (blok per induk terpilih) -->
     <div class="rounded-xl border border-default p-4">
       <h4 class="mb-3 text-sm font-semibold text-highlighted">
         Grade & Comment
       </h4>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <p class="text-xs text-muted">
-            Suggested Grade
-          </p>
-          <div class="mt-1 flex items-center gap-2">
-            <span class="text-2xl font-extrabold text-highlighted">{{ grading.suggestedGrade ?? '-' }}</span>
-            <span v-if="grading.suggestedLabel" class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">{{ grading.suggestedLabel }}</span>
+      <div v-if="!gradeBlocks.length" class="rounded-lg border border-dashed border-default py-6 text-center text-sm text-muted">
+        No grade selected yet.
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="block in gradeBlocks"
+          :key="block.parent"
+          class="rounded-xl border border-primary/30 bg-primary/5 p-3"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-2xl font-extrabold text-primary">{{ block.parent }}</span>
+            <span class="text-sm font-medium text-highlighted">{{ block.label }}</span>
           </div>
-        </div>
-        <div>
-          <p class="text-xs text-muted">
-            Final Grade
-          </p>
-          <div class="mt-1 flex items-center gap-2">
-            <span class="text-2xl font-extrabold text-primary">{{ grading.finalGrade ?? '-' }}</span>
-            <span v-if="grading.finalLabel" class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs">{{ grading.finalLabel }}</span>
+          <div v-if="block.children.length" class="mt-2 flex flex-wrap gap-1.5">
+            <span
+              v-for="kid in block.children"
+              :key="kid.code"
+              class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+              :title="kid.label"
+            >
+              {{ kid.code }} — {{ kid.label }}
+            </span>
           </div>
+          <p class="mt-2 text-sm text-muted">
+            {{ block.comment }}
+          </p>
         </div>
       </div>
-      <p v-if="grading.gradeReason" class="mt-3 rounded-lg bg-primary/5 px-3 py-2 text-sm text-muted">
-        {{ grading.gradeReason }}
-      </p>
       <div class="mt-4">
         <p class="text-xs font-semibold text-muted">
           Doctor Comment

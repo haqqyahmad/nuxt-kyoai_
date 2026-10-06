@@ -1,4 +1,7 @@
 // Dental Examination — types contract dengan BE `/mcu/exams/:id/dental`
+// Grading multi-select: daftar induk/anak + label + komentar HANYA berasal
+// dari master BE (`gradeOptions`/`gradeConfig`). FE tidak menyimpan daftar
+// kode grade. Meta (parent/rank) dirakit runtime dari `gradeConfig`.
 
 export type DentalFinding = {
   toothNumber: string
@@ -6,7 +9,25 @@ export type DentalFinding = {
   note?: string
 }
 
-export type DentalGrade = 'A' | 'B' | 'C' | 'D'
+// Kode grade (induk/umum) — bentuk bebas, sumbernya master.
+export type DentalGrade = string
+
+// Kode apa pun (induk + anak), mis. 'C', 'C1'. Unknown dipertahankan (anti-loss).
+export type DentalGradeCode = string
+
+export type DentalGradeGroup = {
+  parent: string
+  label: string
+  comment: string
+  children: { code: string, label: string, comment: string }[]
+}
+
+export type DentalGradeConfig = Record<string, { label: string, comment: string, parent?: string | null }>
+
+export type DentalGradeMeta = {
+  parentByCode: Record<string, string>
+  rankByCode: Record<string, number>
+}
 
 export type DentalPatient = {
   examId: string
@@ -43,15 +64,20 @@ export type DentalExamData = DentalPatient & {
   intraOralNote: string | null
   otherDental: string[]
   otherNote: string | null
+  // Suggested grade DIHAPUS total: kolom lama dibaca null, tidak ditampilkan.
   suggestedGrade: DentalGrade | null
   suggestedLabel: string | null
   gradeReason: string | null
-  finalGrade: DentalGrade | null
+  // Kontrak array + legacy string tunggal (legacy dibaca sebagai 1 elemen).
+  finalGrades?: string[]
+  finalGrade: DentalGradeCode | null
   doctorComment: string | null
+  commentsManual?: boolean
   status: string
   submittedAt: string | null
   findings: DentalFinding[]
-  gradeConfig?: Record<string, { label: string, comment: string }>
+  gradeConfig?: DentalGradeConfig
+  gradeOptions?: DentalGradeGroup[]
 }
 
 export const EXTRA_ORAL_OPTIONS = ['Normal', 'Edema/Tumor', 'Lesion', 'Palsy'] as const
@@ -96,11 +122,108 @@ export const OTHER_DENTAL_OPTIONS = [
   'Supernumerary Teeth'
 ] as const
 
-export const DENTAL_GRADE_CONFIG: Record<DentalGrade, { label: string, comment: string }> = {
-  A: { label: 'Good', comment: 'Maintain good oral hygiene and routine dental examination.' },
-  B: { label: 'Fair', comment: 'Dental cleaning and routine dental care are recommended.' },
-  C: { label: 'Needs Treatment', comment: 'Dental treatment is required. Please consult a dentist.' },
-  D: { label: 'Urgent Treatment', comment: 'Immediate dental evaluation and treatment are recommended.' }
+// ── Meta grade (parent + rank) dirakit runtime dari gradeConfig master ──
+// Ranking = urutan kode di config (BE mengirim terurut sortOrder: induk lalu anak).
+export function buildGradeMeta(config: DentalGradeConfig = {}): DentalGradeMeta {
+  const parentByCode: Record<string, string> = {}
+  const rankByCode: Record<string, number> = {}
+  Object.keys(config).forEach((code, i) => {
+    rankByCode[code] = i
+    const parent = config[code]?.parent
+    if (parent) parentByCode[code] = parent
+  })
+  return { parentByCode, rankByCode }
+}
+
+// Normalisasi array grade: trim, dedupe, anak→bawa induk, INDUK SINGLE-SELECT
+// (hanya satu induk; A menang bila ada, selain itu induk paling berat),
+// sort by rank. Unknown codes DIPERTAHANKAN (anti-loss) di akhir.
+export function normalizeDentalGrades(
+  input: string[] | string | null | undefined,
+  meta?: DentalGradeMeta
+): string[] {
+  const parentByCode = meta?.parentByCode ?? {}
+  const rankByCode = meta?.rankByCode ?? {}
+  const list = Array.isArray(input) ? input : input == null ? [] : [input]
+  const seen = new Set<string>()
+  const clean: string[] = []
+  for (const raw of list) {
+    if (typeof raw !== 'string') continue
+    const code = raw.trim()
+    if (!code || seen.has(code)) continue
+    seen.add(code)
+    clean.push(code)
+  }
+  const known = clean.filter(c => c in rankByCode)
+  const unknowns = clean.filter(c => !(c in rankByCode))
+
+  const parentOf = (code: string) => parentByCode[code] ?? code
+  const involved = [...new Set(known.map(parentOf))]
+
+  let keepSet: Set<string>
+  if (involved.length <= 1) {
+    keepSet = new Set(involved)
+  } else if (involved.includes('A')) {
+    keepSet = new Set(['A'])
+  } else {
+    const rank = (c: string) => (c in rankByCode ? rankByCode[c]! : -1)
+    const severest = involved.reduce((a, b) => (rank(b) > rank(a) ? b : a))
+    keepSet = new Set([severest])
+  }
+
+  const result = known.filter(c => keepSet.has(parentOf(c)))
+  for (const parent of keepSet) if (!result.includes(parent)) result.push(parent)
+
+  const withResult = [...result, ...unknowns]
+  const rank = (c: string) => rankByCode[c] ?? Number.MAX_SAFE_INTEGER
+  return withResult.sort((a, b) => rank(a) - rank(b))
+}
+
+export function heaviestDentalGrade(
+  grades: string[] | string | null | undefined,
+  meta?: DentalGradeMeta
+): string | null {
+  const norm = normalizeDentalGrades(grades, meta)
+  return norm.length ? norm[norm.length - 1]! : null
+}
+
+// Dedupe kalimat komentar agar summary/print tak mengulang kalimat yang sama.
+export function dedupeSentences(text: string | null | undefined): string {
+  if (!text) return ''
+  const parts = String(text).split(/(?<=[.])\s+/).map(s => s.trim()).filter(Boolean)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of parts) {
+    const key = p.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(p)
+  }
+  return out.join(' ')
+}
+
+// Blok summary per induk terpilih: [{ parent, label, children, comment }] —
+// komentar = komentar anak terpilih (fallback komentar induk), di-dedupe.
+export function buildDentalGradeSummary(
+  finalGrades: string[] | null | undefined,
+  config: DentalGradeConfig,
+  meta?: DentalGradeMeta
+): { parent: string, label: string, children: { code: string, label: string }[], comment: string }[] {
+  const m = meta ?? buildGradeMeta(config)
+  const grades = normalizeDentalGrades(finalGrades ?? [], m)
+  const parents = [...new Set(grades.map(g => m.parentByCode[g] ?? g))]
+  return parents
+    .filter(p => config[p] || grades.includes(p))
+    .map((parent) => {
+      const kids = grades
+        .filter(g => m.parentByCode[g] === parent)
+        .map(code => ({ code, label: config[code]?.label ?? code }))
+      // Komentar blok = komentar induk sendiri + komentar anak terpilih
+      // (bukan komentar induk yang sudah menelan komentar anak).
+      const parts = [config[parent]?.comment, ...kids.map(k => config[k.code]?.comment)]
+      const comment = dedupeSentences(parts.filter(Boolean).join(' '))
+      return { parent, label: config[parent]?.label ?? parent, children: kids, comment }
+    })
 }
 
 // FDI tooth chart

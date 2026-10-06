@@ -1,15 +1,29 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { buildGradeMeta, normalizeDentalGrades, type DentalGradeConfig } from '~/types/dental'
+
 const props = defineProps<{
   data: {
     status?: string | null
     submittedAt?: string | null
     doctorComment?: string | null
+    // Grade terpilih (finals saja + legacy; suggest tak ditampilkan sebagai grade).
+    finalGrades?: string[] | null
+    finalGrade?: string | null
+    gradeConfig?: DentalGradeConfig | null
   } | null
   examId: string
   examItemId?: string | null
 }>()
 
 const router = useRouter()
+
+const config = computed(() => props.data?.gradeConfig ?? {})
+const meta = computed(() => buildGradeMeta(config.value))
+
+const finalGrades = computed(() =>
+  normalizeDentalGrades(props.data?.finalGrades?.length ? props.data.finalGrades : (props.data?.finalGrade ? [props.data.finalGrade] : []), meta.value)
+)
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '-'
@@ -43,6 +57,16 @@ function goToDentalDetail() {
         :label="data.status === 'SUBMITTED' ? 'Submitted' : data.status === 'DRAFT' ? 'Draft' : data.status || '-'"
         :color="data.status === 'SUBMITTED' ? 'success' : data.status === 'DRAFT' ? 'warning' : 'neutral'"
         variant="soft"
+      />
+    </div>
+
+    <div v-if="finalGrades.length" class="flex flex-wrap gap-1.5">
+      <UBadge
+        v-for="g in finalGrades"
+        :key="g"
+        color="primary"
+        variant="soft"
+        :label="config[g]?.label ? `${g} — ${config[g]?.label}` : g"
       />
     </div>
 

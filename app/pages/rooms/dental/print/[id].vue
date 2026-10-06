@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { buildGradeMeta, normalizeDentalGrades, dedupeSentences, buildDentalGradeSummary } from '~/types/dental'
 import type { DentalExamData } from '~/types/dental'
 
 definePageMeta({ layout: false })
@@ -36,13 +37,21 @@ function formatDateShort(value: string | null | undefined): string {
   return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-// Grade config
-const gradeConfig: Record<string, { label: string, comment: string }> = {
-  A: { label: 'Good', comment: 'Maintain good oral hygiene and routine dental examination.' },
-  B: { label: 'Fair', comment: 'Dental cleaning and routine dental care are recommended.' },
-  C: { label: 'Needs Treatment', comment: 'Dental treatment is required. Please consult a dentist.' },
-  D: { label: 'Urgent Treatment', comment: 'Immediate dental evaluation and treatment are recommended.' }
-}
+// Grade config + meta dari master BE; kosong bila belum di-seed (tanpa fallback).
+const gradeConfig = computed(() => data.value?.gradeConfig ?? {})
+const gradeMeta = computed(() => buildGradeMeta(gradeConfig.value))
+
+// Grade terpilih (array; kompat legacy string tunggal).
+const finalGrades = computed(() =>
+  normalizeDentalGrades(data.value?.finalGrades?.length ? data.value.finalGrades : (data.value?.finalGrade ? [data.value.finalGrade] : []), gradeMeta.value)
+)
+
+const gradeBlocks = computed(() => buildDentalGradeSummary(finalGrades.value, gradeConfig.value, gradeMeta.value))
+
+const printComment = computed(() =>
+  data.value?.doctorComment
+  || (gradeBlocks.value.length ? dedupeSentences(gradeBlocks.value.map(b => b.comment).join(' ')) : '-')
+)
 
 const vital = computed(() => ({
   rm: data.value?.patientId ?? '-',
@@ -215,11 +224,17 @@ const vital = computed(() => ({
             </div>
             <div class="note-card">
               <h3>Final Grade &amp; Recommendation</h3>
-              <p>
-                <strong>{{ data.finalGrade ?? '-' }}</strong>
-                <span v-if="data.finalGrade && gradeConfig[data.finalGrade]?.label" class="chip">{{ gradeConfig[data.finalGrade]?.label }}</span>
+              <div v-if="gradeBlocks.length" class="grade-blocks">
+                <p v-for="block in gradeBlocks" :key="block.parent" class="grade-block">
+                  <strong>{{ block.parent }}</strong>
+                  <span class="chip">{{ block.label }}</span>
+                  <span v-if="block.children.length" class="grade-kids">{{ block.children.map(k => `${k.code}: ${k.label}`).join('; ') }}</span>
+                </p>
+              </div>
+              <p v-else>
+                <strong>-</strong>
               </p>
-              <p>{{ data.doctorComment || (data.finalGrade ? (gradeConfig[data.finalGrade]?.comment ?? '-') : '-') }}</p>
+              <p>{{ printComment }}</p>
             </div>
           </div>
         </section>
@@ -317,6 +332,9 @@ tbody td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: t
 /* ═══ CHIP ═══ */
 .chip { display: inline-block; padding: 2px 6px; border-radius: 999px; font-size: 9px; font-weight: 600; background: #eff6ff; color: #1d4ed8; }
 .chip-sm { font-size: 8px; margin-right: 3px; }
+.grade-blocks { display: grid; gap: 4px; margin-bottom: 4px; }
+.grade-block { font-size: 9.5px; line-height: 1.55; }
+.grade-kids { display: block; margin-top: 2px; color: #374151; }
 
 /* ═══ FOOTER ═══ */
 .footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #dce2e8; display: flex; justify-content: space-between; align-items: flex-end; }
