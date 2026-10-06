@@ -1602,7 +1602,7 @@ watch(
               :loading="pageRefreshing"
               @click="() => void handleRefreshPage()"
             >
-              Refresh
+              <span class="hidden sm:inline">Refresh</span>
             </UButton>
             <UButton
               v-if="hasRescheduleItem && !returnVisitActive && reg?.queue?.id && reg?.branch?.branchId"
@@ -1614,7 +1614,7 @@ watch(
               :title="canResampleNow ? 'Patient Return Visit' : 'Can only be resampled on the return visit date'"
               @click="openResampleModal"
             >
-              Patient Return Visit
+              <span class="hidden sm:inline">Patient Return Visit</span>
             </UButton>
             <UButton
               v-if="hasRescheduleItem"
@@ -1624,7 +1624,7 @@ watch(
               title="Change Follow-up Date"
               @click="openRescheduleDates"
             >
-              Change Follow-up Date
+              <span class="hidden sm:inline">Change Follow-up Date</span>
             </UButton>
             <UButton
               v-if="canCompleteReturnVisit"
@@ -1634,7 +1634,7 @@ watch(
               :loading="completingReturnVisit"
               @click="handleCompleteReturnVisit"
             >
-              Complete Return Visit
+              <span class="hidden sm:inline">Complete Return Visit</span>
             </UButton>
             <UButton
               icon="i-lucide-printer"
@@ -1642,7 +1642,7 @@ watch(
               variant="outline"
               title="Print Label"
             >
-              Print Label
+              <span class="hidden sm:inline">Print Label</span>
             </UButton>
             <UButton
               v-if="isCheckedIn"
@@ -1652,7 +1652,7 @@ watch(
               title="Status Exam"
               :to="`/result/exam-status/${reg?.id_reg}`"
             >
-              Status Exam
+              <span class="hidden sm:inline">Status Exam</span>
             </UButton>
             <UButton
               v-if="isCheckedIn && checkoutEligibility?.canCheckout"
@@ -1662,7 +1662,7 @@ watch(
               :loading="checkoutLoading"
               @click="confirmCheckout"
             >
-              Check Out
+              <span class="hidden sm:inline">Check Out</span>
             </UButton>
             <UButton
               v-if="!isCancelled && !isCheckedIn"
@@ -1673,7 +1673,7 @@ watch(
               :loading="cancelLoading"
               @click="cancelRegistration"
             >
-              Cancel Registration
+              <span class="hidden sm:inline">Cancel Registration</span>
             </UButton>
             <UButton
               v-if="
@@ -1689,7 +1689,7 @@ watch(
               :loading="uncheckLoading"
               @click="undoCheckin"
             >
-              Cancel Check-in
+              <span class="hidden sm:inline">Cancel Check-in</span>
             </UButton>
             <UButton
               v-if="!isCancelled && !isCheckedIn"
@@ -1698,7 +1698,7 @@ watch(
               title="Patient Check-in"
               @click="openCheckinModal"
             >
-              Patient Check-in
+              <span class="hidden sm:inline">Patient Check-in</span>
             </UButton>
           </div>
         </template>

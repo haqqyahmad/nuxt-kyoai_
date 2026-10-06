@@ -2249,7 +2249,7 @@ async function handleSubmitItemAction() {
               title="Back to Queue"
               @click="router.push('/rooms/queue')"
             >
-              Back to Queue
+              <span class="hidden sm:inline">Back to Queue</span>
             </UButton>
 
             <UButton
@@ -2260,7 +2260,7 @@ async function handleSubmitItemAction() {
               :loading="refreshing"
               @click="loadPage(true)"
             >
-              Refresh
+              <span class="hidden sm:inline">Refresh</span>
             </UButton>
           </div>
         </template>
@@ -2487,7 +2487,7 @@ async function handleSubmitItemAction() {
                 title="Assign Room"
                 to="/rooms/assignments"
               >
-                Assign Room
+                <span class="hidden sm:inline">Assign Room</span>
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED' || canAutoStartExam"
@@ -2498,7 +2498,7 @@ async function handleSubmitItemAction() {
                 :loading="stageActionLoading"
                 @click="handleStartStage"
               >
-                Start Examination
+                <span class="hidden sm:inline">Start Examination</span>
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED'"
@@ -2510,7 +2510,7 @@ async function handleSubmitItemAction() {
                 :disabled="recallCooldown > 0"
                 @click="handleRecallStage"
               >
-                {{ recallCooldown > 0 ? `Recall (${recallCooldown}s)` : 'Recall' }}
+                <span class="hidden sm:inline">{{ recallCooldown > 0 ? `Recall (${recallCooldown}s)` : 'Recall' }}</span>
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED'"
@@ -2521,7 +2521,7 @@ async function handleSubmitItemAction() {
                 :loading="stageActionLoading"
                 @click="handleReturnPatient"
               >
-                Return to Waiting
+                <span class="hidden sm:inline">Return to Waiting</span>
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems && !hasStartedSampleCollection"
@@ -2532,7 +2532,7 @@ async function handleSubmitItemAction() {
                 :loading="stageActionLoading"
                 @click="handleCancelStartStage"
               >
-                Back to Called
+                <span class="hidden sm:inline">Back to Called</span>
               </UButton>
               <UButton
                 v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
@@ -2542,7 +2542,7 @@ async function handleSubmitItemAction() {
                 :loading="stageActionLoading"
                 @click="handleFinishStage"
               >
-                Complete Room
+                <span class="hidden sm:inline">Complete Room</span>
               </UButton>
             </div>
           </div>
