@@ -830,6 +830,38 @@ const columns: TableColumn<Item>[] = [
       : '-'
   },
   {
+    id: 'sampleTypes',
+    accessorFn: row =>
+      (row.sampleTypes ?? [])
+        .map(entry => entry.sampleType?.name)
+        .filter(Boolean)
+        .join(', '),
+    header: ({ column }) => sortableHeader('Sample', column),
+    cell: ({ row }) => {
+      const samples = (row.original.sampleTypes ?? [])
+        .map(entry => entry.sampleType)
+        .filter((sample): sample is NonNullable<typeof sample> => Boolean(sample))
+
+      if (!samples.length) return h('span', { class: 'text-sm text-muted' }, '—')
+
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        samples.map(sample =>
+          h(UBadge, {
+            key: sample.id,
+            label: sample.name
+              ? (sample.code ? `${sample.name} (${sample.code})` : sample.name)
+              : (sample.code || 'Sample'),
+            color: 'info',
+            variant: 'subtle',
+            size: 'sm'
+          })
+        )
+      )
+    }
+  },
+  {
     id: 'mealPrerequisite',
     header: ({ column }) => sortableHeader('Meal', column),
     cell: ({ row }) => {
