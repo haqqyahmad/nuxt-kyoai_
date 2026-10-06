@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { isSamePhone } from '~/utils/phone'
+import { buildQuestionnaireResultHtml, printAllQuestionnaireResults, printQuestionnaireResult } from '~/composables/questionnaire/useQuestionnaireResultPrint'
+import type { QuestionnairePrintRow } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
 const api = useApi()
@@ -33,6 +35,9 @@ type TempRegistration = {
   createdAt: string
   updatedAt?: string
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED'
+  maritalTemp?: string | null
+  addressTemp?: string | null
+  companyTemp?: string | null
   policyNumber?: string | null
   policyExpDate?: string | null
   allergyNotes?: string | null
@@ -569,13 +574,17 @@ type TempQuestionnaire = {
   questionnaire_name: string
   status: 'Completed' | 'Pending'
   completionDate: string | null
+  print_template?: string | null
+  scope?: string | null
   answers?: Array<{
     questionId: string
     questionText: string
     questionType?: string
+    sectionTitle?: string | null
     optionId?: string | null
     optionText?: string | null
     answerText?: string | null
+    answered?: boolean
   }>
 }
 
@@ -594,23 +603,84 @@ async function loadQuestionnaires() {
   }
 }
 
-// Modal
-const modalOpen = ref(false)
-const modalTitle = ref('')
-const modalAnswers = ref<NonNullable<TempQuestionnaire['answers']>>([])
-function openModal(q: TempQuestionnaire) {
-  modalTitle.value = q.questionnaire_name
-  modalAnswers.value = q.answers ?? []
-  modalOpen.value = true
+// Preview (paper-document, sama seperti halaman registration-patient)
+const previewOpen = ref(false)
+const previewTitle = ref('')
+const previewHtml = ref('')
+const previewQuestion = ref<TempQuestionnaire | null>(null)
+
+function getPatientAgeAtDate(dob?: string | null, referenceDate?: string | null) {
+  if (!dob) return null
+  const birth = new Date(dob)
+  if (Number.isNaN(birth.getTime())) return null
+  const ref = referenceDate ? new Date(referenceDate) : new Date()
+  if (Number.isNaN(ref.getTime())) return null
+  let age = ref.getFullYear() - birth.getFullYear()
+  const monthDiff = ref.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--
+  return age >= 0 ? age : null
 }
 
-type TempAnswer = NonNullable<TempQuestionnaire['answers']>[number]
+function parseTempJson<T extends object>(raw?: string | null): Partial<T> {
+  if (!raw) return {}
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return (parsed && typeof parsed === 'object' ? parsed : {}) as Partial<T>
+  } catch {
+    return {}
+  }
+}
 
-function formatAnswer(q: TempAnswer): string {
-  if (q.answerText != null && q.answerText !== '') return q.answerText
-  if (q.optionText) return q.optionText
-  if (q.optionId) return q.optionId
-  return '-'
+function buildQuestionnaireRow(q: TempQuestionnaire): QuestionnairePrintRow {
+  const company = parseTempJson<{ position?: string | null, companyName?: string | null }>(reg.value?.companyTemp)
+  const address = parseTempJson<{ detail?: string | null, district?: string | null, city?: string | null, province?: string | null, country?: string | null }>(reg.value?.addressTemp)
+  const addressLine = [address.detail, address.district, address.city, address.province].filter(Boolean).join(', ') || null
+
+  return {
+    questionnaire_name: q.questionnaire_name,
+    patientName: fullName.value || '-',
+    patientGender: reg.value?.gender ? reg.value.gender.toUpperCase() : null,
+    patientDob: normDateStr(reg.value?.dob) || null,
+    patientAge: getPatientAgeAtDate(reg.value?.dob, reg.value?.examDate),
+    patientMaritalStatus: reg.value?.maritalStatus ?? reg.value?.maritalTemp ?? null,
+    patientPhone: reg.value?.phone ?? null,
+    patientAddress: addressLine,
+    patientPosition: company.position ?? null,
+    patientCode: existingPatient.value?.PatientId ?? reg.value?.patientId ?? null,
+    registrationRef: reg.value?.registrationId != null ? String(reg.value.registrationId) : (reg.value?.id ?? null),
+    companyName: company.companyName ?? null,
+    branchName: reg.value ? (BRANCH_NAME[reg.value.branchId ?? '-'] ?? null) : null,
+    examDate: reg.value?.examDate ?? null,
+    print_template: q.print_template ?? null,
+    answers: q.answers ?? []
+  }
+}
+
+function openPreview(q: TempQuestionnaire) {
+  previewTitle.value = q.questionnaire_name
+  previewQuestion.value = q
+  previewHtml.value = buildQuestionnaireResultHtml(buildQuestionnaireRow(q))
+  previewOpen.value = true
+}
+
+function closePreview() {
+  previewOpen.value = false
+  previewHtml.value = ''
+}
+
+function printQuestionnaire(q: TempQuestionnaire) {
+  printQuestionnaireResult(buildQuestionnaireRow(q))
+}
+
+function printAllCompleted() {
+  const rows = questionnaires.value
+    .filter(q => q.status === 'Completed')
+    .map(buildQuestionnaireRow)
+  if (!rows.length) {
+    toast.add({ title: 'No completed questionnaires to print.', color: 'warning' })
+    return
+  }
+  printAllQuestionnaireResults(rows)
 }
 
 // ─────────────────────────────────────────────
@@ -687,104 +757,6 @@ onMounted(async () => {
     }
   }
 })
-
-function printQuestionnaires() {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
-  const completed = questionnaires.value.filter(q => q.status === 'Completed')
-  const html = `
-    <html>
-      <head>
-        <title>Medical Questionnaires - ${fullName.value}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
-          h1 { font-size: 18px; margin-bottom: 4px; }
-          .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 11px; }
-          th { background: #f3f4f6; font-weight: 600; }
-          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-          .badge-success { background: #dcfce7; color: #166534; }
-          .badge-neutral { background: #f3f4f6; color: #374151; }
-          @media print { body { padding: 0; } }
-        </style>
-      </head>
-      <body>
-        <h1>Medical Questionnaires List</h1>
-        <div class="meta">
-          Patient: ${fullName.value} · ${reg.value?.patientId || '-'} · Reg: ${reg.value?.registrationId || '-'} · ${new Date().toLocaleString('id-ID')}
-        </div>
-        <table>
-          <thead>
-            <tr><th>Questionnaire</th><th style="text-align:center">Completion Date</th><th style="text-align:center">Status</th></tr>
-          </thead>
-          <tbody>
-            ${completed.map(q => `
-              <tr>
-                <td>${q.questionnaire_name}</td>
-                <td style="text-align:center">${q.completionDate ? formatDateTime(q.completionDate) : 'Not completed'}</td>
-                <td style="text-align:center"><span class="badge ${q.status === 'Completed' ? 'badge-success' : 'badge-neutral'}">${q.status}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.onload = () => {
-    printWindow.focus()
-    printWindow.print()
-  }
-}
-
-function printSingleQuestionnaire(q: TempQuestionnaire) {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
-  const answers = q.answers ?? []
-  const html = `
-    <html>
-      <head>
-        <title>${q.questionnaire_name} - ${fullName.value}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
-          h1 { font-size: 18px; margin-bottom: 4px; }
-          .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
-          .section { margin-top: 16px; padding: 8px; background: #f9fafb; border-radius: 4px; }
-          .question { margin-bottom: 8px; }
-          .q-text { font-weight: 600; margin-bottom: 2px; }
-          .q-answer { color: #374151; }
-          @media print { body { padding: 0; } }
-        </style>
-      </head>
-      <body>
-        <h1>${q.questionnaire_name}</h1>
-        <div class="meta">
-          Patient: ${fullName.value} · ${reg.value?.patientId || '-'} · Completed: ${q.completionDate ? formatDateTime(q.completionDate) : '-'} · ${new Date().toLocaleString('id-ID')}
-        </div>
-        ${answers.map((a: TempAnswer) => `
-          <div class="question">
-            <div class="q-text">${a.questionText}</div>
-            <div class="q-answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</div>
-          </div>
-        `).join('')}
-      </body>
-    </html>
-  `
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.onload = () => {
-    printWindow.focus()
-    printWindow.print()
-  }
-}
-
-function printModalAnswers() {
-  const q = questionnaires.value.find(x => x.questionnaire_name === modalTitle.value)
-  if (!q) return
-  printSingleQuestionnaire(q)
-}
 </script>
 
 <template>
@@ -1197,7 +1169,7 @@ function printModalAnswers() {
                   variant="outline"
                   size="xs"
                   label="Print All Results"
-                  @click="printQuestionnaires"
+                  @click="printAllCompleted"
                 />
               </div>
             </div>
@@ -1248,7 +1220,7 @@ function printModalAnswers() {
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openModal(q)"
+                          @click="q.status === 'Completed' && openPreview(q)"
                         />
                         <UButton
                           icon="i-lucide-printer"
@@ -1256,7 +1228,7 @@ function printModalAnswers() {
                           variant="ghost"
                           size="xs"
                           :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && printSingleQuestionnaire(q)"
+                          @click="printQuestionnaire(q)"
                         />
                       </div>
                     </td>
@@ -1268,25 +1240,17 @@ function printModalAnswers() {
         </div>
       </div>
 
-      <!-- ════ Questionnaire Modal ════ -->
-      <UModal v-model:open="modalOpen" :title="modalTitle">
+      <!-- ════ Questionnaire Preview ════ -->
+      <UModal v-model:open="previewOpen" :title="previewTitle" :ui="{ content: 'sm:max-w-4xl w-full' }">
         <template #body>
-          <div v-if="!modalAnswers.length" class="text-sm text-muted">
-            No saved answers for this questionnaire.
-          </div>
-          <div v-else class="space-y-3">
-            <div
-              v-for="(a, i) in modalAnswers"
-              :key="a.questionId || i"
-              class="p-3 bg-elevated rounded-lg"
-            >
-              <p class="text-xs text-muted mb-1">
-                {{ a.questionText }}
-              </p>
-              <p class="text-sm font-semibold">
-                {{ formatAnswer(a) }}
-              </p>
-            </div>
+          <iframe
+            v-if="previewHtml"
+            :srcdoc="previewHtml"
+            class="h-[70vh] w-full rounded-lg border border-default bg-white"
+            title="Questionnaire preview"
+          />
+          <div v-else class="text-sm text-muted">
+            No preview available.
           </div>
         </template>
         <template #footer>
@@ -1295,13 +1259,14 @@ function printModalAnswers() {
               color="neutral"
               variant="ghost"
               label="Close"
-              @click="modalOpen = false"
+              @click="closePreview"
             />
             <UButton
+              v-if="previewQuestion"
               color="primary"
               icon="i-lucide-printer"
-              label="Print Answers"
-              @click="printModalAnswers"
+              label="Print"
+              @click="previewQuestion && printQuestionnaire(previewQuestion)"
             />
           </div>
         </template>

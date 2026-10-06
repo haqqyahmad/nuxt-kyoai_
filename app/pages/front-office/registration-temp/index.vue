@@ -138,6 +138,18 @@ async function deleteSelectedRegistrations() {
 
 const isDeleteModalOpen = ref(false)
 
+const refreshing = ref(false)
+
+async function handleRefresh() {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    await refresh()
+  } finally {
+    refreshing.value = false
+  }
+}
+
 const SERVICE_TYPE_COLOR: Record<string, string> = {
   Laboratorium: 'success',
   DoctorConsultation: 'info',
@@ -535,6 +547,15 @@ watch(currentPage, (page) => {
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <UButton
+            label="Refresh"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-refresh-cw"
+            :loading="refreshing"
+            @click="handleRefresh"
+          />
+
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="registration-temp"
