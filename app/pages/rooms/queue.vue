@@ -1085,6 +1085,7 @@ function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'pri
   // Actions per patient item.
   if (examStatuses.includes('RESCHEDULED')) return build('Rescheduled', 'warning')
   if (examStatuses.includes('REFUSED')) return build('Refused', 'error')
+  if (examStatuses.includes('REJECTED')) return build('Sample rejected', 'error')
   if (examStatuses.includes('RETEXT')) return build('Retest', 'error')
   if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
 

@@ -394,7 +394,7 @@ function getStatusColor(status: string): BadgeColor {
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
-  if (status === 'REFUSED') return 'error'
+  if (status === 'REFUSED' || status === 'REJECTED') return 'error'
   if (status === 'RETEXT') return 'warning'
   return 'neutral'
 }
@@ -406,6 +406,7 @@ function getStatusLabel(status: string) {
   if (status === 'SKIPPED') return 'Skipped'
   if (status === 'RESCHEDULED') return 'Rescheduled'
   if (status === 'REFUSED') return 'Patient refused'
+  if (status === 'REJECTED') return 'Sample rejected'
   if (status === 'RETEXT') return 'Retest needed'
   return 'Waiting'
 }
@@ -825,7 +826,7 @@ const currentRoomWorkStatus = computed(() => {
     ?? 'WAITING'
 })
 const allItemsFinal = computed(() =>
-  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED'].includes(item.status))
+  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED'].includes(item.status))
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
@@ -853,7 +854,9 @@ const allSamplesCollected = computed(() => {
   if (sampleCollections.value.length === 0) return false
   return sampleCollections.value.every((collection) => {
     if (['COLLECTED', 'RECEIVED'].includes(collection.status)) return true
-    // Sample PENDING/REJECTED utk item yang pasien tolak (REFUSED) dianggap final.
+    // Sample REJECTED (ditolak lab) = final terminal.
+    if (collection.status === 'REJECTED') return true
+    // Sample PENDING utk item yang pasien tolak (REFUSED) dianggap final.
     if (collection.items?.length) {
       return collection.items.every(si => refusedItemIds.value.has(si.itemId))
     }
@@ -2887,7 +2890,7 @@ async function handleSubmitItemAction() {
 
                     <div class="flex flex-wrap items-center gap-1.5">
                       <UButton
-                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(selectedItem.status) && !isSampleOnlyItem(selectedItem)"
+                        v-if="selectedItem.status === 'IN_PROGRESS' && roomStageInProgress && canManageItemActions && !['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED', 'RETEXT'].includes(selectedItem.status) && !isSampleOnlyItem(selectedItem)"
                         color="error"
                         variant="soft"
                         size="sm"
