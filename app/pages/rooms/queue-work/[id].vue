@@ -2246,19 +2246,21 @@ async function handleSubmitItemAction() {
               color="neutral"
               variant="soft"
               icon="i-lucide-arrow-left"
+              title="Back to Queue"
               @click="router.push('/rooms/queue')"
             >
-              <span class="hidden sm:inline">Back to Queue</span>
+              Back to Queue
             </UButton>
 
             <UButton
               color="neutral"
               variant="soft"
               icon="i-lucide-refresh-cw"
+              title="Refresh"
               :loading="refreshing"
               @click="loadPage(true)"
             >
-              <span class="hidden sm:inline">Refresh</span>
+              Refresh
             </UButton>
           </div>
         </template>
@@ -2482,6 +2484,7 @@ async function handleSubmitItemAction() {
                 color="neutral"
                 variant="soft"
                 icon="i-lucide-user-round-plus"
+                title="Assign Room"
                 to="/rooms/assignments"
               >
                 Assign Room
@@ -2491,6 +2494,7 @@ async function handleSubmitItemAction() {
                 color="warning"
                 variant="soft"
                 icon="i-lucide-play"
+                title="Start Examination"
                 :loading="stageActionLoading"
                 @click="handleStartStage"
               >
@@ -2501,17 +2505,19 @@ async function handleSubmitItemAction() {
                 color="primary"
                 variant="soft"
                 :icon="recallCooldown > 0 ? 'i-lucide-timer' : 'i-lucide-volume-2'"
+                title="Recall"
                 :loading="stageActionLoading"
                 :disabled="recallCooldown > 0"
                 @click="handleRecallStage"
               >
-                {{ recallCooldown > 0 ? `Panggil Ulang (${recallCooldown}s)` : 'Panggil Ulang' }}
+                {{ recallCooldown > 0 ? `Recall (${recallCooldown}s)` : 'Recall' }}
               </UButton>
               <UButton
                 v-if="activeStage?.status === 'CALLED'"
                 color="neutral"
                 variant="soft"
                 icon="i-lucide-rotate-ccw"
+                title="Return to Waiting"
                 :loading="stageActionLoading"
                 @click="handleReturnPatient"
               >
@@ -2522,6 +2528,7 @@ async function handleSubmitItemAction() {
                 color="warning"
                 variant="soft"
                 icon="i-lucide-rotate-ccw"
+                title="Back to Called"
                 :loading="stageActionLoading"
                 @click="handleCancelStartStage"
               >
@@ -2531,6 +2538,7 @@ async function handleSubmitItemAction() {
                 v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
                 color="success"
                 icon="i-lucide-check-circle-2"
+                title="Complete Room"
                 :loading="stageActionLoading"
                 @click="handleFinishStage"
               >
