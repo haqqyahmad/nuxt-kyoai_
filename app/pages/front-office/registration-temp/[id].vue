@@ -67,6 +67,50 @@ const fullName = computed(() =>
 // ─────────────────────────────────────────────
 const isStatusModalOpen = ref(false)
 const selectedStatus = ref<string>('')
+const statusSaving = ref(false)
+
+// Change Status stepper (UStepper) — langkah & gate validasi per status.
+const activeStep = ref('')
+const stepperRef = useTemplateRef<{ next: () => void, prev: () => void }>('stepperRef')
+
+const statusSteps = computed(() => selectedStatus.value === 'APPROVED'
+  ? [
+      { value: 'patient', title: 'Patient', description: 'Previous MCU?' },
+      { value: 'details', title: 'Details', description: 'Exam date & priority' },
+      { value: 'review', title: 'Review', description: 'Confirm' }
+    ]
+  : [
+      { value: 'reason', title: 'Reason', description: 'Rejection reason' },
+      { value: 'review', title: 'Review', description: 'Confirm' }
+    ])
+
+const hasPrevStep = computed(() => {
+  const steps = statusSteps.value
+  return steps.length > 0 && activeStep.value !== steps[0]?.value
+})
+
+const isLastStep = computed(() => {
+  const steps = statusSteps.value
+  return steps.length > 0 && activeStep.value === steps[steps.length - 1]?.value
+})
+
+const currentStepValid = computed(() => {
+  if (activeStep.value === 'patient') {
+    return formApprove.patientExists !== null
+      && (formApprove.patientExists === false || !!selectedPatient.value)
+  }
+  if (activeStep.value === 'details') {
+    return !!formApprove.examDate
+      && !!formApprove.priorityRegist
+      && (formApprove.patientExists === false || confirmOverwrite.value)
+  }
+  if (activeStep.value === 'reason') {
+    return !!formReject.rejectReason
+  }
+  return true
+})
+
+const confirmColor = computed(() => selectedStatus.value === 'APPROVED' ? 'success' : 'error')
 
 const formApprove = reactive({
   examDate: '',
@@ -362,6 +406,7 @@ const rejectReasonRef = useTemplateRef<{ $el?: HTMLElement }>('rejectReasonRef')
 
 async function openStatusModal(status: string) {
   selectedStatus.value = status
+  activeStep.value = status === 'APPROVED' ? 'patient' : 'reason'
   isStatusModalOpen.value = true
 
   if (status === 'APPROVED') {
@@ -411,6 +456,8 @@ async function confirmChangeStatus() {
     })
     return
   }
+  if (statusSaving.value) return
+  statusSaving.value = true
 
   // Alur baru: APPROVED tidak membuat registrasi di sini.
   // Set status PROCESS, lalu redirect ke create → FO pilih paket MCU → registrasi dibuat saat simpan.
@@ -445,6 +492,7 @@ async function confirmChangeStatus() {
       color: 'info'
     })
     router.push(`/front-office/registration-patient/create?${query.toString()}`)
+    statusSaving.value = false
     return
   }
 
@@ -478,6 +526,8 @@ async function confirmChangeStatus() {
       color: 'error'
     })
     console.error(err)
+  } finally {
+    statusSaving.value = false
   }
 }
 
@@ -1272,279 +1322,361 @@ onMounted(async () => {
         </template>
       </UModal>
 
-      <BaseConfirmModal
+      <UModal
         v-model:open="isStatusModalOpen"
-        :count="1"
-        entity="status"
         title="Change Status"
-        description="Are you sure you want to change the status?"
-        :disabled="!isFormValid"
-        :variant="
-          selectedStatus === 'APPROVED'
-            ? 'success'
-            : selectedStatus === 'REJECTED'
-              ? 'danger'
-              : 'warning'
-        "
-        @confirm="confirmChangeStatus"
+        description="Follow the steps to change the registration status."
+        :ui="{ content: 'sm:max-w-2xl w-full' }"
       >
-        <template #content>
-          <div class="space-y-4">
-            <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (hanya muncul saat Approve) -->
-            <div v-if="selectedStatus === 'APPROVED'" class="space-y-2">
-              <label class="text-sm font-medium text-muted">
-                Has the patient had an MCU at Kyoai before?
-              </label>
-              <div class="flex gap-2">
-                <UButton
-                  size="xs"
-                  :color="formApprove.patientExists === true ? 'primary' : 'neutral'"
-                  variant="soft"
-                  @click="formApprove.patientExists = true; clearPatient(); touched.patientExists = true"
-                >
-                  Yes
-                </UButton>
-                <UButton
-                  size="xs"
-                  :color="formApprove.patientExists === false ? 'primary' : 'neutral'"
-                  variant="soft"
-                  @click="formApprove.patientExists = false; clearPatient(); touched.patientExists = true"
-                >
-                  No
-                </UButton>
-              </div>
-              <p v-if="touched.patientExists && errors.patientExists" class="text-xs text-red-500">
-                {{ errors.patientExists }}
-              </p>
-
-              <!-- [F-ringan] Auto-suggest kandidat duplikat saat pilih "Tidak" -->
-              <div
-                v-if="formApprove.patientExists === false && !selectedPatient"
-                class="mt-2 space-y-2"
-              >
-                <div v-if="duplicateSuggestionsLoading" class="text-xs text-muted flex items-center gap-2">
-                  <UIcon name="i-lucide-loader-circle" class="animate-spin" />
-                  Searching for possible matching patients...
-                </div>
-                <div
-                  v-else-if="duplicateSuggestionsChecked && duplicateSuggestions.length"
-                  class="border rounded-lg overflow-hidden bg-background"
-                >
-                  <p class="px-3 py-2 text-xs font-medium text-muted bg-elevated border-b border-default">
-                    Possible existing patient — select if this is the same patient:
+        <template #body>
+          <UStepper
+            ref="stepperRef"
+            v-model="activeStep"
+            :items="statusSteps"
+            :ui="{ content: 'border-t border-default pt-4' }"
+            linear
+          >
+            <template #content="{ item }">
+              <div class="space-y-4">
+                <!-- 🔥 Pasien sudah pernah MCU di Kyoai? (hanya muncul saat Approve) -->
+                <div v-if="item.value === 'patient' && selectedStatus === 'APPROVED'" class="space-y-2">
+                  <label class="block text-center text-sm font-medium text-muted">
+                    Has the patient had an MCU at Kyoai before?
+                  </label>
+                  <div class="flex justify-center gap-2">
+                    <UButton
+                      size="xs"
+                      :color="formApprove.patientExists === true ? 'primary' : 'neutral'"
+                      variant="soft"
+                      @click="formApprove.patientExists = true; clearPatient(); touched.patientExists = true"
+                    >
+                      Yes
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      :color="formApprove.patientExists === false ? 'primary' : 'neutral'"
+                      variant="soft"
+                      @click="formApprove.patientExists = false; clearPatient(); touched.patientExists = true"
+                    >
+                      No
+                    </UButton>
+                  </div>
+                  <p v-if="touched.patientExists && errors.patientExists" class="text-center text-xs text-red-500">
+                    {{ errors.patientExists }}
                   </p>
+
+                  <!-- [F-ringan] Auto-suggest kandidat duplikat saat pilih "Tidak" -->
                   <div
-                    v-for="p in duplicateSuggestions"
-                    :key="p.id"
-                    class="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-default last:border-0"
-                    @click="selectPatient(p)"
+                    v-if="formApprove.patientExists === false && !selectedPatient"
+                    class="mt-2 space-y-2"
                   >
-                    <p class="text-sm font-medium text-highlighted">
-                      {{ p.firstName }} {{ p.middleName || '' }} {{ p.lastName }}
+                    <div v-if="duplicateSuggestionsLoading" class="text-xs text-muted flex items-center gap-2">
+                      <UIcon name="i-lucide-loader-circle" class="animate-spin" />
+                      Searching for possible matching patients...
+                    </div>
+                    <div
+                      v-else-if="duplicateSuggestionsChecked && duplicateSuggestions.length"
+                      class="overflow-hidden rounded-lg border border-default bg-background"
+                    >
+                      <p class="border-b border-default bg-elevated px-3 py-2 text-xs font-medium text-muted">
+                        Possible existing patient — select if this is the same patient:
+                      </p>
+                      <button
+                        v-for="p in duplicateSuggestions"
+                        :key="p.id"
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 border-b border-default px-3 py-2 text-left last:border-0 hover:bg-muted/50"
+                        @click="selectPatient(p)"
+                      >
+                        <span class="min-w-0">
+                          <span class="block truncate text-sm font-medium text-highlighted">{{ patientFullName(p) }}</span>
+                          <span class="block text-xs text-muted">{{ p.gender || '-' }} · {{ fmtDate(p.dob) }} · {{ p.phone || '-' }}</span>
+                        </span>
+                        <span class="shrink-0 rounded bg-elevated px-2 py-0.5 font-mono text-xs text-muted">{{ p.PatientId || '-' }}</span>
+                      </button>
+                    </div>
+                    <div
+                      v-else-if="duplicateSuggestionsChecked && !duplicateSuggestions.length"
+                      class="py-2 text-center text-xs text-muted"
+                    >
+                      No similar patients found for {{ duplicateSearchTerm }}.
+                    </div>
+                  </div>
+
+                  <div v-if="formApprove.patientExists && !selectedPatient" class="space-y-2">
+                    <UInput
+                      v-model="patientSearchQuery"
+                      placeholder="Search patient name or medical record number..."
+                      icon="i-lucide-search"
+                      class="w-full"
+                    />
+
+                    <div v-if="patientSearchLoading" class="flex items-center justify-center gap-2 py-3 text-xs text-muted">
+                      <UIcon name="i-lucide-loader-circle" class="animate-spin" />
+                      Searching...
+                    </div>
+
+                    <div v-else-if="patientResults.length" class="max-h-48 overflow-auto rounded-lg border border-default bg-background">
+                      <button
+                        v-for="p in patientResults"
+                        :key="p.id"
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 border-b border-default px-3 py-2 text-left last:border-0 hover:bg-muted/50"
+                        @click="selectPatient(p)"
+                      >
+                        <span class="min-w-0">
+                          <span class="block truncate text-sm font-medium text-highlighted">{{ patientFullName(p) }}</span>
+                          <span class="block text-xs text-muted">{{ p.gender || '-' }} · {{ fmtDate(p.dob) }} · {{ p.phone || '-' }}</span>
+                        </span>
+                        <span class="shrink-0 rounded bg-elevated px-2 py-0.5 font-mono text-xs text-muted">{{ p.PatientId || '-' }}</span>
+                      </button>
+                    </div>
+
+                    <div v-else-if="patientSearchQuery.length >= 2" class="py-3 text-center text-xs text-muted">
+                      No patients found.
+                    </div>
+                  </div>
+
+                  <div v-if="selectedPatient" class="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-primary">
+                        {{ patientFullName(selectedPatient) }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        RM: {{ selectedPatient.PatientId || '-' }} · {{ selectedPatient.gender || '-' }} · {{ fmtDate(selectedPatient.dob) }} · {{ selectedPatient.phone || '-' }}
+                      </p>
+                    </div>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="soft"
+                      icon="i-lucide-rotate-ccw"
+                      @click="clearPatient"
+                    >
+                      Change
+                    </UButton>
+                  </div>
+                </div>
+
+                <!-- Konfirmasi overwrite data pasien existing -->
+                <div
+                  v-if="item.value === 'details' && selectedStatus === 'APPROVED' && formApprove.patientExists === true"
+                  class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
+                >
+                  <label class="flex items-start gap-2.5 text-sm">
+                    <UCheckbox
+                      v-model="confirmOverwrite"
+                      color="warning"
+                    />
+                    <span class="text-amber-900 dark:text-amber-200">
+                      The patient has had an MCU at Kyoai before. The existing patient data (name,
+                      gender, phone, email, date of birth) will be
+                      <strong class="font-semibold">
+                        overwritten
+                      </strong>
+                      with the data from this registration upon approval. Check to confirm.
+                    </span>
+                  </label>
+                  <p v-if="touched.confirmOverwrite && errors.confirmOverwrite" class="text-xs text-red-500">
+                    {{ errors.confirmOverwrite }}
+                  </p>
+                </div>
+
+                <!-- Update catatan alergi pasien existing -->
+                <div
+                  v-if="item.value === 'details' && selectedStatus === 'APPROVED' && formApprove.patientExists === true"
+                  class="rounded-xl border border-default p-3"
+                >
+                  <label class="flex items-start gap-2.5 text-sm">
+                    <UCheckbox v-model="updateMedicalNotes" color="primary" />
+                    <span>
+                      Update the existing patient's <strong class="font-semibold">Allergy Notes</strong>
+                      with the data from this submission (only if provided).
+                    </span>
+                  </label>
+                  <div v-if="reg?.allergyNotes" class="mt-2 rounded-lg bg-elevated/60 p-2.5">
+                    <p class="mb-0.5 text-xs text-muted">
+                      Allergy Notes from this submission:
                     </p>
-                    <p class="text-xs text-muted">
-                      RM: {{ p.PatientId || '-' }} · {{ p.gender || '-' }}
+                    <p class="whitespace-pre-wrap text-sm">
+                      {{ reg.allergyNotes }}
                     </p>
                   </div>
                 </div>
-                <div
-                  v-else-if="duplicateSuggestionsChecked && !duplicateSuggestions.length"
-                  class="text-xs text-muted"
-                >
-                  No similar patients found for {{ duplicateSearchTerm }}.
-                </div>
-              </div>
 
-              <div v-if="formApprove.patientExists && !selectedPatient" class="mt-2">
-                <UInput
-                  v-model="patientSearchQuery"
-                  placeholder="Search patient name or medical record number..."
-                  icon="i-lucide-search"
-                />
-                <div v-if="patientSearchLoading" class="mt-2 text-xs text-muted">
-                  Searching...
+                <!-- REVIEW -->
+                <div v-if="item.value === 'review'" class="space-y-4 rounded-xl border border-default bg-muted/30 p-4">
+                  <div class="text-center text-sm font-semibold text-default">
+                    Review
+                  </div>
+
+                  <dl class="divide-y divide-default text-sm">
+                    <div v-if="selectedStatus === 'APPROVED'" class="flex items-center justify-between gap-3 py-2">
+                      <dt class="text-muted">
+                        Patient
+                      </dt>
+                      <dd class="text-right font-semibold">
+                        {{ formApprove.patientExists === true && selectedPatient ? patientFullName(selectedPatient) : 'New patient' }}
+                      </dd>
+                    </div>
+                    <div v-if="selectedStatus === 'APPROVED'" class="flex items-center justify-between gap-3 py-2">
+                      <dt class="text-muted">
+                        Exam Date
+                      </dt>
+                      <dd class="font-semibold">
+                        {{ formApprove.examDate || '-' }}
+                      </dd>
+                    </div>
+                    <div v-if="selectedStatus === 'APPROVED'" class="flex items-center justify-between gap-3 py-2">
+                      <dt class="text-muted">
+                        Priority
+                      </dt>
+                      <dd class="font-semibold">
+                        {{ formApprove.priorityRegist || '-' }}
+                      </dd>
+                    </div>
+                    <div v-if="selectedStatus === 'REJECTED'" class="flex items-start justify-between gap-3 py-2">
+                      <dt class="text-muted">
+                        Reason
+                      </dt>
+                      <dd class="text-right font-semibold whitespace-pre-wrap">
+                        {{ formReject.rejectReason || '-' }}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div class="flex flex-col items-center gap-1.5 border-t border-default pt-3 text-sm text-muted">
+                    <span>Status will be changed to:</span>
+                    <span
+                      :class="[
+                        'px-2 py-1 rounded-md text-xs font-semibold border',
+                        selectedStatus === 'APPROVED' && 'bg-green-100 text-green-700 border-green-200',
+                        selectedStatus === 'REJECTED' && 'bg-red-100 text-red-700 border-red-200',
+                        selectedStatus === 'PENDING' && 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                      ]"
+                    >
+                      {{ selectedStatus }}
+                    </span>
+                  </div>
                 </div>
-                <div v-else-if="patientResults.length" class="mt-2 border rounded-lg max-h-48 overflow-auto">
-                  <div
-                    v-for="p in patientResults"
-                    :key="p.id"
-                    class="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-default last:border-0"
-                    @click="selectPatient(p)"
-                  >
-                    <p class="text-sm font-medium text-highlighted">
-                      {{ p.firstName }} {{ p.middleName || '' }} {{ p.lastName }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      RM: {{ p.PatientId || '-' }} · {{ p.gender || '-' }}
+
+                <!-- APPROVED FORM -->
+                <div
+                  v-if="item.value === 'details' && selectedStatus === 'APPROVED'"
+                  class="space-y-4 border rounded-xl p-4 bg-muted/30"
+                >
+                  <div class="text-center text-sm font-semibold text-default">
+                    Approval Information
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <UFormField
+                      label="Exam Date"
+                      required
+                      :error="touched.examDate && errors.examDate ? errors.examDate : undefined"
+                    >
+                      <UInput
+                        ref="examDateRef"
+                        v-model="formApprove.examDate"
+                        type="date"
+                        icon="i-lucide-calendar"
+                        :color="touched.examDate && errors.examDate ? 'error' : 'neutral'"
+                        class="w-full"
+                        @blur="touched.examDate = true"
+                      />
+                    </UFormField>
+
+                    <UFormField
+                      label="Priority"
+                      required
+                      :error="touched.priorityRegist && errors.priorityRegist ? errors.priorityRegist : undefined"
+                    >
+                      <USelect
+                        v-model="formApprove.priorityRegist"
+                        icon="i-lucide-award"
+                        :items="[
+                          { label: 'VIP', value: 'VIP' },
+                          { label: 'Normal', value: 'Normal' },
+                          { label: 'Emergency', value: 'Emergency' }
+                        ]"
+                        placeholder="Select priority"
+                        class="w-full"
+                        :color="touched.priorityRegist && errors.priorityRegist ? 'error' : 'neutral'"
+                        @update:model-value="() => touched.priorityRegist = true"
+                        @blur="touched.priorityRegist = true"
+                      />
+                    </UFormField>
+                  </div>
+                </div>
+
+                <!-- REJECTED FORM -->
+                <div
+                  v-if="item.value === 'reason' && selectedStatus === 'REJECTED'"
+                  class="space-y-3 border rounded-xl p-4 bg-muted/30"
+                >
+                  <div class="text-sm font-medium text-muted">
+                    Rejection Reason
+                  </div>
+
+                  <div class="space-y-1 w-full">
+                    <label class="text-sm font-medium text-muted">
+                      Reason :
+                    </label>
+                    <UTextarea
+                      ref="rejectReasonRef"
+                      v-model="formReject.rejectReason"
+                      placeholder="Enter rejection reason..."
+                      :rows="5"
+                      class="w-full min-h-[120px]"
+                      :color="touched.rejectReason && errors.rejectReason ? 'error' : 'neutral'"
+                      @blur="touched.rejectReason = true"
+                    />
+                    <p v-if="touched.rejectReason && errors.rejectReason" class="text-xs text-red-500">
+                      {{ errors.rejectReason }}
                     </p>
                   </div>
                 </div>
-                <div v-else-if="patientSearchQuery.length >= 2 && !patientSearchLoading" class="mt-2 text-xs text-muted">
-                  No patients found.
-                </div>
               </div>
-
-              <div v-if="selectedPatient" class="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                <p class="text-sm font-medium text-primary">
-                  {{ selectedPatient.firstName }} {{ selectedPatient.middleName || '' }} {{ selectedPatient.lastName }}
-                </p>
-                <p class="text-xs text-muted">
-                  RM: {{ selectedPatient.PatientId || '-' }}
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    class="ml-2"
-                    @click="clearPatient"
-                  >
-                    Change
-                  </UButton>
-                </p>
-              </div>
-            </div>
-
-            <!-- Konfirmasi overwrite data pasien existing -->
-            <div
-              v-if="selectedStatus === 'APPROVED' && formApprove.patientExists === true"
-              class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
-            >
-              <label class="flex items-start gap-2.5 text-sm">
-                <UCheckbox
-                  v-model="confirmOverwrite"
-                  color="warning"
-                />
-                <span class="text-amber-900 dark:text-amber-200">
-                  The patient has had an MCU at Kyoai before. The existing patient data (name,
-                  gender, phone, email, date of birth) will be
-                  <strong class="font-semibold">
-                    overwritten
-                  </strong>
-                  with the data from this registration upon approval. Check to confirm.
-                </span>
-              </label>
-              <p v-if="touched.confirmOverwrite && errors.confirmOverwrite" class="text-xs text-red-500">
-                {{ errors.confirmOverwrite }}
-              </p>
-            </div>
-
-            <!-- Update catatan alergi pasien existing -->
-            <div
-              v-if="selectedStatus === 'APPROVED' && formApprove.patientExists === true"
-              class="rounded-xl border border-default p-3"
-            >
-              <label class="flex items-start gap-2.5 text-sm">
-                <UCheckbox v-model="updateMedicalNotes" color="primary" />
-                <span>
-                  Update the existing patient's <strong class="font-semibold">Allergy Notes</strong>
-                  with the data from this submission (only if provided).
-                </span>
-              </label>
-              <div v-if="reg?.allergyNotes" class="mt-2 rounded-lg bg-elevated/60 p-2.5">
-                <p class="mb-0.5 text-xs text-muted">
-                  Allergy Notes from this submission:
-                </p>
-                <p class="whitespace-pre-wrap text-sm">
-                  {{ reg.allergyNotes }}
-                </p>
-              </div>
-            </div>
-
-            <!-- STATUS INFO -->
-            <div class="text-sm text-muted">
-              Status will be changed to:
-              <span
-                :class="[
-                  'ml-2 px-2 py-1 rounded-md text-xs font-semibold border',
-                  selectedStatus === 'APPROVED' && 'bg-green-100 text-green-700 border-green-200',
-                  selectedStatus === 'REJECTED' && 'bg-red-100 text-red-700 border-red-200',
-                  selectedStatus === 'PENDING' && 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                ]"
-              >
-                {{ selectedStatus }}
-              </span>
-            </div>
-
-            <!-- APPROVED FORM -->
-            <div
-              v-if="selectedStatus === 'APPROVED'"
-              class="space-y-4 border rounded-xl p-4 bg-muted/30"
-            >
-              <div class="text-sm font-medium text-muted">
-                Approval Information
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1">
-                  <label class="text-sm font-medium text-muted">
-                    Exam Date <span class="text-red-500">*</span>
-                  </label>
-                  <UInput
-                    ref="examDateRef"
-                    v-model="formApprove.examDate"
-                    type="date"
-                    icon="i-lucide-calendar"
-                    :color="touched.examDate && errors.examDate ? 'error' : 'neutral'"
-                    @blur="touched.examDate = true"
-                  />
-                  <p v-if="touched.examDate && errors.examDate" class="text-xs text-red-500">
-                    {{ errors.examDate }}
-                  </p>
-                </div>
-
-                <div class="space-y-1">
-                  <label class="text-sm font-medium text-muted">
-                    Priority <span class="text-red-500">*</span>
-                  </label>
-                  <USelect
-                    v-model="formApprove.priorityRegist"
-                    icon="i-lucide-award"
-                    :items="[
-                      { label: 'VIP', value: 'VIP' },
-                      { label: 'Normal', value: 'Normal' },
-                      { label: 'Emergency', value: 'Emergency' }
-                    ]"
-                    placeholder="Select priority"
-                    class="w-full min-w-[150px]"
-                    :color="touched.priorityRegist && errors.priorityRegist ? 'error' : 'neutral'"
-                    @update:model-value="() => touched.priorityRegist = true"
-                    @blur="touched.priorityRegist = true"
-                  />
-                  <p v-if="touched.priorityRegist && errors.priorityRegist" class="text-xs text-red-500">
-                    {{ errors.priorityRegist }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- REJECTED FORM -->
-            <div
-              v-else-if="selectedStatus === 'REJECTED'"
-              class="space-y-3 border rounded-xl p-4 bg-muted/30"
-            >
-              <div class="text-sm font-medium text-muted">
-                Rejection Reason
-              </div>
-
-              <div class="space-y-1 w-full">
-                <label class="text-sm font-medium text-muted">
-                  Reason :
-                </label>
-                <UTextarea
-                  ref="rejectReasonRef"
-                  v-model="formReject.rejectReason"
-                  placeholder="Enter rejection reason..."
-                  :rows="5"
-                  class="w-full min-h-[120px]"
-                  :color="touched.rejectReason && errors.rejectReason ? 'error' : 'neutral'"
-                  @blur="touched.rejectReason = true"
-                />
-                <p v-if="touched.rejectReason && errors.rejectReason" class="text-xs text-red-500">
-                  {{ errors.rejectReason }}
-                </p>
-              </div>
+            </template>
+          </UStepper>
+        </template>
+        <template #footer>
+          <div class="flex w-full items-center justify-between gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Cancel"
+              :disabled="statusSaving"
+              @click="isStatusModalOpen = false"
+            />
+            <div class="flex justify-end gap-2">
+              <UButton
+                v-if="hasPrevStep"
+                color="neutral"
+                variant="outline"
+                label="Back"
+                :disabled="statusSaving"
+                @click="stepperRef?.prev()"
+              />
+              <UButton
+                v-if="!isLastStep"
+                color="primary"
+                label="Next"
+                :disabled="!currentStepValid || statusSaving"
+                @click="stepperRef?.next()"
+              />
+              <UButton
+                v-else
+                :color="confirmColor"
+                label="Confirm"
+                :disabled="!isFormValid || statusSaving"
+                :loading="statusSaving"
+                @click="confirmChangeStatus"
+              />
             </div>
           </div>
         </template>
-      </BaseConfirmModal>
+      </UModal>
     </template>
   </UDashboardPanel>
 </template>
