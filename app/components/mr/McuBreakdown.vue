@@ -38,7 +38,7 @@ function rescheduleDate(id: string) {
 
 function categoryBadgeLabel(cat: McuBreakdownCategory): string {
   if (cat.status === 'REJECTED') {
-    return cat.rejectedCount > 1 ? `${cat.rejectedCount} Sample Rejected` : 'Sample Rejected'
+    return cat.rejectedSampleCount > 1 ? `${cat.rejectedSampleCount} Samples Rejected` : 'Sample Rejected'
   }
   if (cat.status === 'REFUSED') {
     return cat.refusedCount > 1 ? `${cat.refusedCount} Rejected` : 'Rejected'
