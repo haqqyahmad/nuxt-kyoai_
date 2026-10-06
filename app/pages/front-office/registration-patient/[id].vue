@@ -1593,75 +1593,88 @@ watch(
           </h1>
         </template>
         <template #right>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
             <UButton
               icon="i-lucide-refresh-cw"
               color="neutral"
               variant="soft"
+              title="Reload data"
               :loading="pageRefreshing"
               @click="() => void handleRefreshPage()"
             >
-              Refresh
+              <span class="hidden sm:inline">Refresh</span>
             </UButton>
             <UButton
               v-if="hasRescheduleItem && !returnVisitActive && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
-              label="Patient Return Visit"
               :loading="resampling"
               :disabled="!canResampleNow"
-              :title="canResampleNow ? undefined : 'Can only be resampled on the return visit date'"
+              :title="canResampleNow ? 'Patient Return Visit' : 'Can only be resampled on the return visit date'"
               @click="openResampleModal"
-            />
+            >
+              <span class="hidden sm:inline">Patient Return Visit</span>
+            </UButton>
             <UButton
               v-if="hasRescheduleItem"
               icon="i-lucide-calendar-days"
               color="info"
               variant="soft"
-              label="Change Follow-up Date"
+              title="Change Follow-up Date"
               @click="openRescheduleDates"
-            />
+            >
+              <span class="hidden sm:inline">Change Follow-up Date</span>
+            </UButton>
             <UButton
               v-if="canCompleteReturnVisit"
               icon="i-lucide-check-circle-2"
               color="success"
-              label="Complete Return Visit"
+              title="Complete Return Visit"
               :loading="completingReturnVisit"
               @click="handleCompleteReturnVisit"
-            />
+            >
+              <span class="hidden sm:inline">Complete Return Visit</span>
+            </UButton>
             <UButton
               icon="i-lucide-printer"
               color="neutral"
               variant="outline"
-              label="Print Label"
-            />
+              title="Print Label"
+            >
+              <span class="hidden sm:inline">Print Label</span>
+            </UButton>
             <UButton
               v-if="isCheckedIn"
               icon="i-lucide-activity"
               color="primary"
               variant="soft"
-              label="Status Exam"
+              title="Status Exam"
               :to="`/result/exam-status/${reg?.id_reg}`"
-            />
+            >
+              <span class="hidden sm:inline">Status Exam</span>
+            </UButton>
             <UButton
               v-if="isCheckedIn && checkoutEligibility?.canCheckout"
               icon="i-lucide-log-out"
               color="success"
-              label="Check Out"
-              :loading="checkoutLoading"
               title="All items completed — patient can be discharged."
+              :loading="checkoutLoading"
               @click="confirmCheckout"
-            />
+            >
+              <span class="hidden sm:inline">Check Out</span>
+            </UButton>
             <UButton
               v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-x-circle"
               color="error"
               variant="outline"
-              label="Cancel Registration"
+              title="Cancel Registration"
               :loading="cancelLoading"
               @click="cancelRegistration"
-            />
+            >
+              <span class="hidden sm:inline">Cancel Registration</span>
+            </UButton>
             <UButton
               v-if="
                 !isCancelled
@@ -1672,17 +1685,21 @@ watch(
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="outline"
-              label="Cancel Check-in"
+              title="Cancel Check-in"
               :loading="uncheckLoading"
               @click="undoCheckin"
-            />
+            >
+              <span class="hidden sm:inline">Cancel Check-in</span>
+            </UButton>
             <UButton
               v-if="!isCancelled && !isCheckedIn"
               icon="i-lucide-user-check"
               color="primary"
-              label="Patient Check-in"
+              title="Patient Check-in"
               @click="openCheckinModal"
-            />
+            >
+              <span class="hidden sm:inline">Patient Check-in</span>
+            </UButton>
           </div>
         </template>
       </UDashboardNavbar>

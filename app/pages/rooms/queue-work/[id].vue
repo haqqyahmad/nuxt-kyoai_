@@ -2327,18 +2327,25 @@ async function handleSubmitItemAction() {
                   :description="patientDetailError"
                 />
 
-                <div class="mt-3 flex flex-wrap gap-2">
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <UBadge
+                    size="sm"
+                    class="shrink-0"
                     :label="`${activeStage ? getStageDisplayName(activeStage) : 'Completed'}`"
                     :color="activeStage ? getStatusColor(activeStage.status) : 'success'"
                     variant="subtle"
                   />
                   <UBadge
+                    size="sm"
                     color="info"
                     variant="outline"
                     :label="stageSummary"
+                    :ui="{ base: 'whitespace-normal h-auto text-left' }"
+                    class="max-w-full"
                   />
                   <UBadge
+                    size="sm"
+                    class="shrink-0"
                     :label="`Room work status: ${getStatusLabel(currentRoomWorkStatus)}`"
                     :color="getStatusColor(currentRoomWorkStatus)"
                     variant="soft"
@@ -2457,11 +2464,11 @@ async function handleSubmitItemAction() {
           </UModal>
 
           <!-- Stage actions (sejajar dengan Meal status, tombol di kanan) -->
-          <div class="mt-2 flex flex-wrap items-center gap-2">
+          <div class="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
             <MealStatusBadge v-if="activeExamId" :exam-id="activeExamId" />
 
-            <div class="ml-auto flex flex-wrap items-center gap-2">
-              <div class="text-right">
+            <div class="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <div class="text-left sm:text-right">
                 <span class="block text-[10px] font-medium text-muted">Room Status</span>
                 <span
                   class="text-xs font-bold"
