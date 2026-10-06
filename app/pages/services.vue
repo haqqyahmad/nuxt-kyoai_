@@ -1,29 +1,10 @@
 <!-- app/pages/services.vue -->
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-
 const route = useRoute()
 
 if (route.path === '/services') {
-  await navigateTo('/services/types', { replace: true })
+  await navigateTo('/services/packages', { replace: true })
 }
-
-const links: NavigationMenuItem[] = [
-  {
-    label: 'Types',
-    icon: 'i-lucide-heart-pulse',
-    to: '/services/types'
-  },
-  {
-    label: 'Packages',
-    icon: 'i-lucide-package',
-    to: '/services/packages'
-  }
-]
-
-const hideTabs = computed(() =>
-  /^\/services\/(types|packages)\/.+/.test(route.path)
-)
 </script>
 
 <template>
@@ -34,22 +15,9 @@ const hideTabs = computed(() =>
           <UDashboardSidebarCollapse />
         </template>
       </UDashboardNavbar>
-
-      <!-- <UDashboardToolbar v-if="!route.path.includes('/settings/roles')"> -->
-      <UDashboardToolbar v-if="!hideTabs">
-        <!-- NOTE: The `-mx-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
-        <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
-      </UDashboardToolbar>
     </template>
 
     <template #body>
-      <!-- <div
-        :class="
-          !route.path.includes('/settings/roles')
-            ? 'flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full lg:max-w-2xl mx-auto'
-            : 'w-full h-full'
-        "
-      > -->
       <div class="flex flex-col gap-4 w-full">
         <NuxtPage />
       </div>
