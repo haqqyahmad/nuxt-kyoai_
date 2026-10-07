@@ -97,13 +97,74 @@ const showReturnModal = ref(false)
 const returnReason = ref('')
 const returnLoading = ref(false)
 
-const returnItems = ref<{ inputanId: string, label: string, note: string, checked: boolean }[]>([])
+type ReturnItemRow = {
+  inputanId: string
+  label: string
+  departmentName: string
+  groupName: string
+  value: string
+  flag: string
+  gradable: boolean
+  note: string
+  checked: boolean
+}
+
+const returnItems = ref<ReturnItemRow[]>([])
+const returnSearch = ref('')
+
+function isReturnableResultItem(item: DoctorResultItem) {
+  return !String(item.inputanId ?? '').startsWith('doctor-exam:') && item.inputType !== 'structured'
+}
+
+function isFlaggedResultItem(flag?: string | null) {
+  return ['increase', 'decrease', 'qualitative'].includes(String(flag || '').toLowerCase())
+}
 
 function populateReturnItems() {
-  const items = allItems.value
-    .filter(i => i.gradable)
-    .map(i => ({ inputanId: i.inputanId, label: i.inputanLabel, note: '', checked: false }))
-  returnItems.value = items
+  const rows: ReturnItemRow[] = []
+  for (const dept of departments.value) {
+    for (const group of dept.groups ?? []) {
+      for (const item of group.items ?? []) {
+        if (!isReturnableResultItem(item)) continue
+        rows.push({
+          inputanId: item.inputanId,
+          label: item.inputanLabel ?? '',
+          departmentName: dept.departmentName ?? '',
+          groupName: group.groupName ?? '',
+          value: displayResult(item),
+          flag: String(item.flag || 'normal'),
+          gradable: Boolean(item.gradable),
+          note: '',
+          checked: isFlaggedResultItem(item.flag)
+        })
+      }
+    }
+  }
+  rows.sort((a, b) => {
+    const fa = isFlaggedResultItem(a.flag) ? 0 : 1
+    const fb = isFlaggedResultItem(b.flag) ? 0 : 1
+    if (fa !== fb) return fa - fb
+    return `${a.departmentName} ${a.groupName} ${a.label}`.localeCompare(`${b.departmentName} ${b.groupName} ${b.label}`)
+  })
+  returnItems.value = rows
+  returnSearch.value = ''
+}
+
+const filteredReturnItems = computed(() => {
+  const q = returnSearch.value.trim().toLowerCase()
+  if (!q) return returnItems.value
+  return returnItems.value.filter(row =>
+    [row.departmentName, row.groupName, row.label, row.value, row.flag]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(q))
+})
+
+function selectAllFlaggedReturnItems() {
+  for (const row of returnItems.value) {
+    if (isFlaggedResultItem(row.flag)) row.checked = true
+  }
 }
 
 function openReturnModal() {
@@ -581,12 +642,31 @@ onMounted(loadAll)
 
             <div>
               <label class="mb-1 block text-xs font-semibold text-muted">Items to Fix</label>
+              <div class="mb-2 flex items-center gap-2">
+                <UInput
+                  v-model="returnSearch"
+                  icon="i-lucide-search"
+                  placeholder="Search items..."
+                  size="sm"
+                  class="flex-1"
+                />
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  @click="selectAllFlaggedReturnItems"
+                >
+                  Select all flagged
+                </UButton>
+              </div>
               <div v-if="returnItems.length === 0" class="text-sm text-muted">
-                No gradable items to select.
+                No items to select.
+              </div>
+              <div v-else-if="filteredReturnItems.length === 0" class="text-sm text-muted">
+                No items match the search.
               </div>
               <div v-else class="max-h-72 space-y-1.5 overflow-y-auto rounded border p-2">
                 <div
-                  v-for="item in returnItems"
+                  v-for="item in filteredReturnItems"
                   :key="item.inputanId"
                   class="flex items-start gap-2 rounded border p-2"
                 >
@@ -597,8 +677,15 @@ onMounted(loadAll)
                     class="mt-1 size-4"
                   >
                   <div class="min-w-0 flex-1">
-                    <label :for="`ret-${item.inputanId}`" class="block cursor-pointer text-sm font-medium">
-                      {{ item.label }}
+                    <label :for="`ret-${item.inputanId}`" class="block cursor-pointer">
+                      <span class="block text-xs text-muted">{{ item.departmentName }} · {{ item.groupName }}</span>
+                      <span class="block text-sm font-medium">{{ item.label }}</span>
+                      <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                        <span>{{ item.value }}</span>
+                        <UBadge :color="flagColor(item.flag)" variant="soft" size="xs">
+                          {{ flagLabel(item.flag) }}
+                        </UBadge>
+                      </span>
                     </label>
                     <UInput
                       v-if="item.checked"

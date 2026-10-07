@@ -99,7 +99,15 @@ function itemRevisionNote(item: DoctorResultItem) {
 // [DOCTOR] Return item ke department setelah MR return
 const showReturnDeptModal = ref(false)
 const returnDeptReason = ref('')
-const returnDeptItems = ref<{ inputanId: string, label: string, note: string, checked: boolean }[]>([])
+const returnDeptSearch = ref('')
+const returnDeptItems = ref<Array<{ inputanId: string, label: string, departmentName: string, groupName: string, value: string, flag: string, note: string, checked: boolean }>>([])
+
+function isReturnableDoctorItem(item: DoctorResultItem) {
+  return !String(item.inputanId ?? '').startsWith('doctor-exam:') && item.inputType !== 'structured'
+}
+function isFlaggedDoctorItem(flag?: string | null) {
+  return ['increase', 'decrease', 'qualitative'].includes(String(flag || '').toLowerCase())
+}
 
 // [B] Alasan item Refused/Sample-Rejected (modal Reason di card issue merah)
 const showReasonModal = ref(false)
@@ -124,15 +132,50 @@ function openReasonModal(issue: {
 function openReturnDeptModal() {
   returnDeptReason.value = mrReturnReason.value ?? ''
   const ids = new Set(mrReturnRevisions.value.map(r => r.inputanId))
-  returnDeptItems.value = allItems.value
-    .filter(i => i.gradable)
-    .map(i => ({
-      inputanId: i.inputanId,
-      label: i.inputanLabel,
-      note: itemRevisionNote(i),
-      checked: ids.size ? ids.has(i.inputanId) : false
-    }))
+  const rows: Array<{ inputanId: string, label: string, departmentName: string, groupName: string, value: string, flag: string, note: string, checked: boolean }> = []
+  for (const dept of departments.value) {
+    for (const group of dept.groups ?? []) {
+      for (const item of group.items ?? []) {
+        if (!isReturnableDoctorItem(item)) continue
+        rows.push({
+          inputanId: item.inputanId,
+          label: item.inputanLabel ?? '',
+          departmentName: dept.departmentName ?? '',
+          groupName: group.groupName ?? '',
+          value: item.displayValue ?? (item.resultValue != null ? String(item.resultValue) : '-'),
+          flag: String(item.flag || 'normal'),
+          note: itemRevisionNote(item),
+          checked: ids.size ? ids.has(item.inputanId) : isFlaggedDoctorItem(item.flag)
+        })
+      }
+    }
+  }
+  rows.sort((a, b) => {
+    const fa = isFlaggedDoctorItem(a.flag) ? 0 : 1
+    const fb = isFlaggedDoctorItem(b.flag) ? 0 : 1
+    if (fa !== fb) return fa - fb
+    return `${a.departmentName} ${a.groupName} ${a.label}`.localeCompare(`${b.departmentName} ${b.groupName} ${b.label}`)
+  })
+  returnDeptItems.value = rows
+  returnDeptSearch.value = ''
   showReturnDeptModal.value = true
+}
+
+const filteredReturnDeptItems = computed(() => {
+  const q = returnDeptSearch.value.trim().toLowerCase()
+  if (!q) return returnDeptItems.value
+  return returnDeptItems.value.filter(row =>
+    [row.departmentName, row.groupName, row.label, row.value, row.flag]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(q))
+})
+
+function selectAllFlaggedReturnDeptItems() {
+  for (const row of returnDeptItems.value) {
+    if (isFlaggedDoctorItem(row.flag)) row.checked = true
+  }
 }
 
 async function submitReturnDept() {
@@ -1167,15 +1210,41 @@ onBeforeUnmount(() => {
                 <UTextarea v-model="returnDeptReason" :rows="3" placeholder="Reason for returning to department" />
               </UFormField>
 
-              <div class="max-h-80 space-y-2 overflow-y-auto rounded border p-2">
+              <div class="mb-2 flex items-center gap-2">
+                <UInput
+                  v-model="returnDeptSearch"
+                  icon="i-lucide-search"
+                  placeholder="Search items..."
+                  size="sm"
+                  class="flex-1"
+                />
+                <UButton
+                  size="xs"
+                  variant="soft"
+                  @click="selectAllFlaggedReturnDeptItems"
+                >
+                  Select all flagged
+                </UButton>
+              </div>
+              <div v-if="returnDeptItems.length === 0" class="text-sm text-muted">
+                No items to select.
+              </div>
+              <div v-else-if="filteredReturnDeptItems.length === 0" class="text-sm text-muted">
+                No items match the search.
+              </div>
+              <div v-else class="max-h-80 space-y-2 overflow-y-auto rounded border p-2">
                 <div
-                  v-for="item in returnDeptItems"
+                  v-for="item in filteredReturnDeptItems"
                   :key="item.inputanId"
                   class="rounded border p-2"
                 >
                   <label class="flex items-center gap-2 text-sm font-medium">
                     <input v-model="item.checked" type="checkbox" class="size-4">
-                    {{ item.label }}
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-xs text-muted">{{ item.departmentName }} · {{ item.groupName }}</span>
+                      <span class="block">{{ item.label }}</span>
+                      <span class="text-xs text-muted">{{ item.value }} · {{ item.flag }}</span>
+                    </span>
                   </label>
                   <UInput
                     v-if="item.checked"
