@@ -1354,6 +1354,13 @@ const rescheduleBannerItems = computed<
   }
   return out
 })
+
+const isCheckoutOrPartial = computed(() =>
+  ['CheckOut', 'PartialExam'].includes(reg.value?.statusRegistration ?? '')
+)
+const hasRescheduleVisitDate = computed(() =>
+  rescheduleCheckoutItems.value.some(i => !!i.visitDate)
+)
 const hasRescheduleForBanner = computed(() => rescheduleBannerItems.value.length > 0)
 
 // Patient Return Visit hanya bisa saat PERSIS tanggal kunjungan kembali.
@@ -1363,7 +1370,7 @@ const canResampleNow = computed(() => {
     .flatMap(ei => ei.roomExamItems ?? [])
     .filter(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
     .map(r => (r.rescheduleVisitDate ?? '').slice(0, 10))
-  if (!dates.length) return true
+  if (!dates.length) return false
   return dates.includes(todayStr())
 })
 
@@ -1605,7 +1612,7 @@ watch(
               <span class="hidden sm:inline">Refresh</span>
             </UButton>
             <UButton
-              v-if="hasRescheduleItem && !returnVisitActive && reg?.queue?.id && reg?.branch?.branchId"
+              v-if="hasRescheduleItem && !returnVisitActive && isCheckoutOrPartial && hasRescheduleVisitDate && reg?.queue?.id && reg?.branch?.branchId"
               icon="i-lucide-rotate-ccw"
               color="warning"
               variant="soft"
