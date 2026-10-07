@@ -66,6 +66,7 @@ const {
 } = useDoctorResult(examId)
 
 const activeDepartmentId = ref('')
+const highlightedInputanId = ref<string | null>(null)
 const gradeLoading = ref<Record<string, boolean>>({})
 const groupGradeLoading = ref<Record<string, boolean>>({})
 const gradeOptionsCache = ref<Record<string, string[]>>({})
@@ -282,7 +283,10 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
   {
     id: 'item',
     header: 'Item',
-    cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
+    cell: ({ row }) => h('div', {
+      id: `item-${row.original.inputanId}`,
+      class: ['flex flex-col scroll-mt-24', row.original.inputanId === highlightedInputanId.value ? 'rounded-md bg-error/5 ring-2 ring-error' : '']
+    }, [
       h('span', { class: 'font-medium text-highlighted' }, row.original.inputanLabel),
       h('span', { class: 'text-xs text-muted' }, row.original.gradable ? 'gradable = 1' : 'gradable = 0'),
       itemRevisionNote(row.original)
@@ -416,6 +420,24 @@ function scrollToDepartment(departmentId: string) {
   document.getElementById(`dept-${departmentId}`)?.scrollIntoView({
     behavior: 'smooth',
     block: 'start'
+  })
+}
+
+function scrollToRevision(rev: { inputanId: string }) {
+  const inputanId = rev.inputanId
+  const dept = departments.value.find(d =>
+    (d.groups ?? []).some(g => (g.items ?? []).some(item => item.inputanId === inputanId))
+  )
+  if (dept) scrollToDepartment(dept.departmentId)
+  nextTick(() => {
+    document.getElementById(`item-${inputanId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    })
+    highlightedInputanId.value = inputanId
+    setTimeout(() => {
+      if (highlightedInputanId.value === inputanId) highlightedInputanId.value = null
+    }, 2500)
   })
 }
 
@@ -626,9 +648,16 @@ onBeforeUnmount(() => {
               <p>{{ mrReturnReason || 'MR requested fixes on this report.' }}</p>
               <p v-if="mrReturnRevisions.length" class="text-xs">
                 Items to revise:
-                <span v-for="rev in mrReturnRevisions" :key="rev.inputanId" class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5">
+                <button
+                  v-for="rev in mrReturnRevisions"
+                  :key="rev.inputanId"
+                  type="button"
+                  title="Go to item"
+                  class="mr-2 inline-flex cursor-pointer items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
+                  @click="scrollToRevision(rev)"
+                >
                   {{ rev.label || rev.inputanId.slice(0, 8) }}{{ rev.note ? ` — ${rev.note}` : '' }}
-                </span>
+                </button>
               </p>
             </div>
           </template>
