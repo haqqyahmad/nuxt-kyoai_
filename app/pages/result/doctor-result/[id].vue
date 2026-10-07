@@ -108,12 +108,14 @@ const reasonIssue = ref<{
   statusKind: string
   reason?: string | null
   sampleTypeName?: string | null
+  sampleTypeCode?: string | null
 } | null>(null)
 function openReasonModal(issue: {
   itemName: string
   statusKind: string
   reason?: string | null
   sampleTypeName?: string | null
+  sampleTypeCode?: string | null
 }) {
   reasonIssue.value = issue
   showReasonModal.value = true
@@ -1207,12 +1209,12 @@ onBeforeUnmount(() => {
                     {{ reasonIssue?.itemName ?? '-' }}
                   </p>
                 </div>
-                <div v-if="reasonIssue?.statusKind === 'REJECTED' && reasonIssue?.sampleTypeName">
+                <div v-if="reasonIssue?.statusKind === 'REJECTED' && (reasonIssue?.sampleTypeName || reasonIssue?.sampleTypeCode)">
                   <p class="text-xs font-semibold uppercase text-muted">
                     Sample
                   </p>
                   <p class="mt-1 font-semibold">
-                    {{ reasonIssue.sampleTypeName }}
+                    {{ reasonIssue.sampleTypeName || reasonIssue.sampleTypeCode }}{{ reasonIssue.sampleTypeName && reasonIssue.sampleTypeCode ? ` (${reasonIssue.sampleTypeCode})` : '' }}
                   </p>
                 </div>
                 <div>
