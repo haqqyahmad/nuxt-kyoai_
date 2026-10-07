@@ -5,7 +5,7 @@ import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
 import HistoryTimeline from './HistoryTimeline.vue'
 
-const { isExternalDoctor } = await useCurrentUser()
+const { isExternalDoctor, isSuperAdmin } = await useCurrentUser()
 
 type Patient = {
   id: string | number
@@ -2354,7 +2354,7 @@ onBeforeUnmount(() => {
               </p>
             </div>
             <div
-              v-if="!hasExternalResultContext"
+              v-if="!hasExternalResultContext && isSuperAdmin"
               class="rounded-2xl border border-default/70 bg-default/80 p-4 shadow-sm"
             >
               <p class="text-xs uppercase tracking-wide text-muted">
