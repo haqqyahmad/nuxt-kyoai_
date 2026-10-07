@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch, onMounted } from 'vue'
 
 import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
@@ -461,6 +461,21 @@ const returnNoteByInputan = computed<Record<string, string>>(() => {
 })
 function inputanReturnNote(inputanId: string | null) {
   return inputanId ? (returnNoteByInputan.value[inputanId] ?? '') : ''
+}
+
+const highlightedInputanId = ref<string | null>(null)
+function scrollToRevision(rev: { inputanId: string | null }) {
+  if (!rev.inputanId) return
+  nextTick(() => {
+    document.getElementById(`inputan-${rev.inputanId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    })
+    highlightedInputanId.value = rev.inputanId
+    setTimeout(() => {
+      if (highlightedInputanId.value === rev.inputanId) highlightedInputanId.value = null
+    }, 2500)
+  })
 }
 
 function getSampleImpactLabel(impact: SampleImpact) {
@@ -1749,13 +1764,16 @@ onBeforeUnmount(() => {
               <p>{{ returnReason || 'Fix the marked results then resubmit.' }}</p>
               <p v-if="returnRevisionItems.length" class="text-xs">
                 Items that need fixing:
-                <span
+                <button
                   v-for="(rev, revIdx) in returnRevisionItems"
                   :key="rev.inputanId ?? revIdx"
-                  class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
+                  type="button"
+                  title="Go to item"
+                  class="mr-2 inline-flex cursor-pointer items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
+                  @click="scrollToRevision(rev)"
                 >
                   {{ returnItemLabel(rev.inputanId, rev.label) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
-                </span>
+                </button>
               </p>
             </div>
           </template>
@@ -2741,9 +2759,13 @@ onBeforeUnmount(() => {
                       <tbody class="divide-y divide-default/60 bg-default/80">
                         <tr
                           v-for="inputan in visibleInputans"
+                          :id="`inputan-${inputan.id}`"
                           :key="inputan.id"
-                          class="transition hover:bg-muted/20"
-                          :class="inputanReturnNote(inputan.id) ? 'bg-error/5' : ''"
+                          class="scroll-mt-24 transition hover:bg-muted/20"
+                          :class="[
+                            inputanReturnNote(inputan.id) ? 'bg-error/5' : '',
+                            inputan.id === highlightedInputanId ? 'ring-2 ring-error' : ''
+                          ]"
                         >
                           <td class="px-3 py-2.5 align-middle">
                             <div class="min-w-0">
