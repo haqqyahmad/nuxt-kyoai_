@@ -488,6 +488,23 @@ onBeforeUnmount(() => {
   <UDashboardPanel id="doctor-result-detail" class="w-full min-w-0">
     <template #body>
       <div class="flex w-full min-w-0 flex-col gap-4 pb-6">
+        <Transition name="print-fade">
+          <div
+            v-if="printLoading"
+            class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-default/75 backdrop-blur-sm"
+          >
+            <div class="relative flex size-16 items-center justify-center">
+              <div class="absolute size-16 animate-spin rounded-full border-4 border-default border-t-primary" />
+              <UIcon name="i-lucide-printer" class="size-6 text-primary" />
+            </div>
+            <p class="text-sm font-semibold text-highlighted">
+              Menyiapkan laporan MCU…
+            </p>
+            <p class="text-xs text-muted">
+              Sedang merender PDF, mohon tunggu.
+            </p>
+          </div>
+        </Transition>
         <!-- Minimal header: back + title + right actions -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default pb-3">
           <div class="flex min-w-0 items-center gap-3">
@@ -1248,6 +1265,14 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.print-fade-enter-active,
+.print-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.print-fade-enter-from,
+.print-fade-leave-to {
+  opacity: 0;
+}
 .aside-scroll {
   max-height: calc(100vh - 120px);
   overflow-y: auto;

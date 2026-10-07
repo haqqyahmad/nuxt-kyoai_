@@ -406,9 +406,20 @@ export function useMcuReportPrint() {
     }
 
     printWindow.document.write(
-      '<!doctype html><html><head><title>Menyiapkan PDF…</title></head>'
-      + '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;'
-      + 'font-family:Arial,sans-serif;color:#555">Menyiapkan PDF hasil MCU…</body></html>'
+      '<!doctype html><html><head><title>Menyiapkan PDF…</title>'
+      + '<style>'
+      + '@keyframes mcu-spin{to{transform:rotate(360deg)}}'
+      + 'body{margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      + 'gap:16px;font-family:Arial,Helvetica,sans-serif;background:#fff}'
+      + '.mcu-spinner{width:44px;height:44px;border:4px solid #e2e8f0;border-top-color:#163a5f;border-radius:50%;'
+      + 'animation:mcu-spin .8s linear infinite}'
+      + '.mcu-title{font-size:15px;font-weight:600;color:#163a5f}'
+      + '.mcu-sub{font-size:12px;color:#94a3b8}'
+      + '</style></head>'
+      + '<body><div class="mcu-spinner"></div>'
+      + '<div class="mcu-title">Menyiapkan PDF hasil MCU…</div>'
+      + '<div class="mcu-sub">Sedang merender laporan, mohon tunggu.</div>'
+      + '</body></html>'
     )
     printWindow.document.close()
 
