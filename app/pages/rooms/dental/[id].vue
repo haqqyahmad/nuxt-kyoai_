@@ -25,6 +25,10 @@ const { data, pending } = await useAsyncData<DentalExamData | null>(
 function goBack() {
   router.push('/result/exam-results')
 }
+
+function printDentalDocument() {
+  window.open(`/rooms/dental/print/${examId}`, '_blank', 'noopener,noreferrer')
+}
 </script>
 
 <template>
@@ -49,7 +53,7 @@ function goBack() {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <UButton icon="i-lucide-printer" color="primary" @click="router.push(`/rooms/dental/print/${examId}`)">
+            <UButton icon="i-lucide-printer" color="primary" @click="printDentalDocument">
               Cetak Dokumen
             </UButton>
           </div>

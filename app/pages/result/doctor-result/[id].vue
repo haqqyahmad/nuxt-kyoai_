@@ -34,6 +34,10 @@ async function onPrintReport() {
   await printMcuReport(examId)
 }
 
+function printDental() {
+  window.open(`/rooms/dental/print/${examId}`, '_blank', 'noopener,noreferrer')
+}
+
 const {
   data,
   loading,
@@ -736,7 +740,7 @@ onBeforeUnmount(() => {
                           size="xs"
                           color="primary"
                           variant="outline"
-                          @click="router.push(`/rooms/dental/print/${examId}`)"
+                          @click="printDental"
                         >
                           Print
                         </UButton>
