@@ -117,6 +117,7 @@ type ExamResultDetail = {
     inputanId: string | null
     examItemId: string | null
     reason?: string | null
+    label?: string | null
   }>
   canEditResult?: boolean
   canSubmitResult?: boolean
@@ -442,7 +443,8 @@ const isReturnedToDepartment = computed(
 )
 const returnReason = computed(() => props.result?.returnReason ?? null)
 const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
-function returnItemLabel(inputanId: string | null) {
+function returnItemLabel(inputanId: string | null, fallbackLabel?: string | null) {
+  if (fallbackLabel) return fallbackLabel
   if (!inputanId) return 'Examination item'
   const inputan = (props.result?.item?.inputans ?? []).find(inp => inp.id === inputanId)
   return inputan?.label || inputanId.slice(0, 8)
@@ -1752,7 +1754,7 @@ onBeforeUnmount(() => {
                   :key="rev.inputanId ?? revIdx"
                   class="mr-2 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
                 >
-                  {{ returnItemLabel(rev.inputanId) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
+                  {{ returnItemLabel(rev.inputanId, rev.label) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
                 </span>
               </p>
             </div>
