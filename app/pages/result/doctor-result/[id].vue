@@ -778,7 +778,7 @@ onBeforeUnmount(() => {
                         <div class="flex min-w-0 items-center gap-2">
                           <UIcon name="i-lucide-ban" class="size-4 shrink-0 text-error" />
                           <h4 class="truncate font-semibold">
-                            {{ issue.itemName }}<span v-if="issue.sampleTypeName"> ({{ issue.sampleTypeName }})</span>
+                            {{ issue.itemName }}<span v-if="issue.sampleTypeCode"> ({{ issue.sampleTypeCode }})</span>
                           </h4>
                         </div>
                         <div class="flex items-center gap-2">
