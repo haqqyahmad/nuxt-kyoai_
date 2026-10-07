@@ -101,6 +101,24 @@ const showReturnDeptModal = ref(false)
 const returnDeptReason = ref('')
 const returnDeptItems = ref<{ inputanId: string, label: string, note: string, checked: boolean }[]>([])
 
+// [B] Alasan item Refused/Sample-Rejected (modal Reason di card issue merah)
+const showReasonModal = ref(false)
+const reasonIssue = ref<{
+  itemName: string
+  statusKind: string
+  reason?: string | null
+  sampleTypeName?: string | null
+} | null>(null)
+function openReasonModal(issue: {
+  itemName: string
+  statusKind: string
+  reason?: string | null
+  sampleTypeName?: string | null
+}) {
+  reasonIssue.value = issue
+  showReasonModal.value = true
+}
+
 function openReturnDeptModal() {
   returnDeptReason.value = mrReturnReason.value ?? ''
   const ids = new Set(mrReturnRevisions.value.map(r => r.inputanId))
@@ -753,6 +771,40 @@ onBeforeUnmount(() => {
                       />
                     </div>
                   </div>
+                  <!-- [B] Item Refused / Sample-Rejected (card merah, sebelum grup) -->
+                  <template v-for="issue in ((dept as any).issues ?? [])" :key="issue.examItemId">
+                    <div class="w-full min-w-0 overflow-hidden rounded-lg border border-error/40 bg-error/5">
+                      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-error/40 px-4 py-3">
+                        <div class="flex min-w-0 items-center gap-2">
+                          <UIcon name="i-lucide-ban" class="size-4 shrink-0 text-error" />
+                          <h4 class="truncate font-semibold">
+                            {{ issue.itemName }}
+                          </h4>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <UBadge
+                            color="error"
+                            variant="soft"
+                            :label="issue.statusKind === 'REJECTED' ? 'Sample Rejected' : 'Patient Refused'"
+                          />
+                          <UButton
+                            icon="i-lucide-info"
+                            size="xs"
+                            color="error"
+                            variant="outline"
+                            @click="openReasonModal(issue)"
+                          >
+                            Reason
+                          </UButton>
+                        </div>
+                      </div>
+                      <div class="px-4 py-3">
+                        <p class="text-xs text-muted">
+                          No valid result — see reason.
+                        </p>
+                      </div>
+                    </div>
+                  </template>
                   <template v-for="group in dept.groups" :key="group.groupName">
                     <div
                       v-if="group.showInDoctorResult !== false"
@@ -1131,6 +1183,58 @@ onBeforeUnmount(() => {
                 @click="submitReturnDept"
               />
             </div>
+          </template>
+        </UModal>
+
+        <!-- [B] Modal alasan item Refused / Sample-Rejected -->
+        <UModal v-model:open="showReasonModal" :ui="{ content: 'sm:max-w-md' }">
+          <template #content>
+            <UCard>
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-ban" class="size-5 text-error" />
+                  <h2 class="font-semibold">
+                    {{ reasonIssue?.statusKind === 'REJECTED' ? 'Sample Rejected' : 'Patient Refused' }}
+                  </h2>
+                </div>
+              </template>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase text-muted">
+                    Item
+                  </p>
+                  <p class="mt-1 font-semibold">
+                    {{ reasonIssue?.itemName ?? '-' }}
+                  </p>
+                </div>
+                <div v-if="reasonIssue?.statusKind === 'REJECTED' && reasonIssue?.sampleTypeName">
+                  <p class="text-xs font-semibold uppercase text-muted">
+                    Sample
+                  </p>
+                  <p class="mt-1 font-semibold">
+                    {{ reasonIssue.sampleTypeName }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold uppercase text-muted">
+                    Reason
+                  </p>
+                  <p class="mt-1 text-sm">
+                    {{ reasonIssue?.reason || 'No reason recorded.' }}
+                  </p>
+                </div>
+              </div>
+              <template #footer>
+                <div class="flex justify-end">
+                  <UButton
+                    label="Close"
+                    color="neutral"
+                    variant="soft"
+                    @click="showReasonModal = false"
+                  />
+                </div>
+              </template>
+            </UCard>
           </template>
         </UModal>
 
