@@ -380,6 +380,8 @@ export function useMcuReportPrint() {
     itemSection: {
       item?: { id?: string, code?: string, name?: string }
       results?: Array<{ label: string, uom: string, value: string, flag: string }>
+      resultGroups?: Array<{ organ: string, organId: string, organEn: string, rows: Array<{ subLabel: string, value: string }> }>
+      kesan?: string
       attachments?: Array<{ id: string, originalName: string, mimeType: string, downloadUrl?: string }>
     },
     opts: { headerImageUrl?: string } = {}
@@ -388,6 +390,8 @@ export function useMcuReportPrint() {
       ...payload,
       item: itemSection?.item ?? {},
       results: itemSection?.results ?? [],
+      resultGroups: itemSection?.resultGroups ?? [],
+      kesan: itemSection?.kesan ?? '',
       attachments: itemSection?.attachments ?? [],
       headerImageUrl: opts.headerImageUrl ?? ''
     }

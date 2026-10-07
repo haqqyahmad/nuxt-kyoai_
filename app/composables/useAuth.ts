@@ -32,13 +32,15 @@ function clearSessionCookie() {
   document.cookie = `${SESSION_MARKER}=; path=/; Max-Age=0; SameSite=Lax`
 }
 
-// "Session marker": session cookie (dibagi antar tab, hilang saat browser ditutup).
-// Fallback ke sessionStorage bila cookie tak bisa di-set (mis. cookie diblokir).
+// "Session marker": penanda sesi browser (dibagi antar tab, hilang saat browser
+// ditutup). Dipakai untuk login non-persist ("remember me" tidak dicentang).
+// Utama = session cookie. Fallback bila cookie tak bisa di-set = localStorage
+// (BUKAN sessionStorage — itu per-tab, bikin tab baru dianggap sesi baru).
 function setSessionMarker() {
   setSessionCookie()
   if (!hasSessionCookie()) {
     try {
-      sessionStorage.setItem(SESSION_MARKER, '1')
+      localStorage.setItem(SESSION_MARKER, '1')
     } catch {
       // abaikan
     }
@@ -48,7 +50,7 @@ function setSessionMarker() {
 function hasSessionMarker(): boolean {
   if (hasSessionCookie()) return true
   try {
-    return sessionStorage.getItem(SESSION_MARKER) === '1'
+    return localStorage.getItem(SESSION_MARKER) === '1'
   } catch {
     return false
   }
@@ -57,7 +59,7 @@ function hasSessionMarker(): boolean {
 function clearSessionMarker() {
   clearSessionCookie()
   try {
-    sessionStorage.removeItem(SESSION_MARKER)
+    localStorage.removeItem(SESSION_MARKER)
   } catch {
     // abaikan
   }
@@ -84,11 +86,10 @@ export const useAuth = () => {
 
     // Token non-persist ("remember me" tidak dicentang): valid hanya selama sesi browser.
     // Kalau marker sesi hilang (browser sudah ditutup), token dianggap kedaluwarsa.
+    // CATATAN: getToken() dipanggil request-interceptor axios — jangan hapus token di
+    // sini (efek samping bisa "melogout" semua tab). Redirect /login ditangani middleware.
     const persisted = localStorage.getItem(PERSIST_KEY) === '1'
-    if (!persisted && !hasSessionMarker()) {
-      removeToken()
-      return null
-    }
+    if (!persisted && !hasSessionMarker()) return null
 
     return token
   }

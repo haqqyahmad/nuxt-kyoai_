@@ -93,6 +93,13 @@ export function useDoctorResult(examId: string) {
       const payload = res.data?.data ?? res.data
       data.value = payload
 
+      // Preload nilai final yang sudah pernah disubmit (status DOCTOR_APPROVED
+      // dst) supaya form tidak tampak kosong saat dibuka ulang.
+      finalGrade.value = data.value?.submission?.finalGrade ?? ''
+      fitnessLevel.value = data.value?.submission?.fitnessLevel ?? ''
+      finalComment.value = data.value?.submission?.finalComment ?? ''
+      internalNote.value = data.value?.submission?.internalNote ?? ''
+
       // Preload grade from server
       selectedGrades.value = {}
       comments.value = {}

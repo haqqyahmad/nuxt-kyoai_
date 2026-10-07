@@ -73,6 +73,7 @@ export type DoctorResultResponse = {
     finalGrade?: string | null
     fitnessLevel?: string | null
     finalComment?: string | null
+    internalNote?: string | null
   } | null
   mrReturnRevisions?: Array<{
     inputanId: string
