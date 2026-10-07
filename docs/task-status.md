@@ -1,6 +1,13 @@
 # Project Task Status
 
-Last updated: 2026-09-28
+Last updated: 2026-10-07
+
+## Fixed — 2026-10-07: Doctor Result tak bisa di-submit karena group "structured"
+
+- **Gejala:** `/result/doctor-result/:id` — Final Grade & Fitness Level terisi, item "Graded 2/2", tapi tombol **Submit to MR Review** tetap disabled + alert "2 abnormal groups not graded" (ROMBERG TEST, Physical Examination).
+- **Akar:** `useDoctorResult.ts` `pendingGroups` menghitung SEMUA group `isAbnormal` tanpa grade — termasuk group **doctor-exam terstruktur** (`structured: true`, item `gradable: false`) yang **tidak punya UI group-grade** (strip di `doctor-result/[id].vue` `v-if="!group.structured"`). Jadi gate `canSubmit` mustahil terpenuhi. BE `submitDoctorResult` sendiri hanya validasi item gradable (tidak memblok group).
+- **Fix:** `pendingGroups` & `abnormalGroupsPending` mengecualikan `!group.structured`; tambah `structured?: boolean` di `DoctorResultGroup` (`types/doctor-result.ts`).
+- **Verifikasi:** `eslint` bersih; `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0.
 
 ## Handoff — 2026-09-28: Status commit & langkah resume (pindah komputer)
 

@@ -71,6 +71,7 @@ export function useDoctorResult(examId: string) {
     allGroups.value.filter(g =>
       g.showInDoctorResult !== false
       && g.groupId
+      && !g.structured
       && g.isAbnormal
       && !groupGrades.value[g.groupId]?.grade
     )

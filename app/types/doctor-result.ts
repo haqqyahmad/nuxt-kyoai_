@@ -36,6 +36,7 @@ export type DoctorResultGroup = {
   groupId: string | null
   groupName: string
   showInDoctorResult: boolean
+  structured?: boolean // DoctorExam (physical/doctor test) → tak punya group-grade
   isAbnormal: boolean
   abnormalCount: number
   defaultGrade: string | null // A jika semua normal

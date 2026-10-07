@@ -219,7 +219,7 @@ const groupSummary = computed(() =>
 )
 
 const abnormalGroupsPending = computed(() =>
-  groupSummary.value.filter(s => s.group.isAbnormal && !s.grade)
+  groupSummary.value.filter(s => s.group.isAbnormal && !s.group.structured && !s.grade)
 )
 
 // Grading Summary — all gradable items from ALL departments (not per active tab)
