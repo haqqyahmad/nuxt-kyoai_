@@ -530,9 +530,6 @@ onBeforeUnmount(() => {
             <UBadge color="info" variant="soft">
               {{ gradedCount }}/{{ totalGradable }} graded
             </UBadge>
-            <UButton icon="i-lucide-save" color="neutral" variant="outline">
-              Save Draft
-            </UButton>
             <UButton
               v-if="mrReturned"
               icon="i-lucide-rotate-ccw"
