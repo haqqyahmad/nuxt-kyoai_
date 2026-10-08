@@ -109,11 +109,12 @@ type StepRow = {
   stepActive: boolean
   workflowActive: boolean
   isFirstOfDept: boolean
+  deptIndex: number
 }
 
 const stepRows = computed<StepRow[]>(() => {
   const rows: StepRow[] = []
-  for (const entry of activeDeptWorkflows.value) {
+  activeDeptWorkflows.value.forEach((entry, deptIndex) => {
     const list = entry.steps.length ? entry.steps : [{ stepOrder: 1, label: 'Approve Hasil' }]
     list.forEach((s, idx) => {
       rows.push({
@@ -127,12 +128,37 @@ const stepRows = computed<StepRow[]>(() => {
         requireFourEyes: s.requireFourEyes,
         stepActive: s.isActive !== false,
         workflowActive: entry.workflow ? entry.workflow.isActive : true,
-        isFirstOfDept: idx === 0
+        isFirstOfDept: idx === 0,
+        deptIndex
       })
     })
-  }
+  })
   return rows
 })
+
+function rowStripeClass(row: { original: StepRow }): string {
+  const classes: string[] = []
+  if (row.original.deptIndex > 0 && row.original.isFirstOfDept) classes.push('border-t-2', 'border-default')
+  if (row.original.deptIndex % 2 === 1) classes.push('bg-elevated/40')
+  return classes.join(' ')
+}
+
+const search = ref('')
+
+const filteredStepRows = computed<StepRow[]>(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return stepRows.value
+  return stepRows.value.filter(row =>
+    [row.department.name, row.department.code, row.workflow?.name ?? '', row.label]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(q))
+})
+
+const stepRowDeptCount = computed(() =>
+  new Set(stepRows.value.map(row => row.department.id)).size
+)
 
 const roleOptions = computed(() =>
   (rolesData.value ?? []).map(r => ({ label: r.name, value: String(r.id) }))
@@ -208,14 +234,25 @@ const columns: TableColumn<StepRow>[] = [
     id: 'department',
     header: 'Department',
     cell: ({ row }) => {
+      if (!row.original.isFirstOfDept) return ''
       const d = row.original.department
-      return `${d.name} (${d.code})`
+      return h('div', { class: 'flex flex-col' }, [
+        h('span', { class: 'font-medium text-highlighted' }, d.name),
+        h('span', { class: 'text-xs text-muted' }, d.code)
+      ])
     }
   },
   {
+    id: 'workflow',
+    header: 'Workflow',
+    cell: ({ row }) => row.original.isFirstOfDept
+      ? h('span', { class: 'text-sm' }, row.original.workflow?.name ?? '—')
+      : ''
+  },
+  {
     id: 'step',
-    header: 'Step',
-    cell: ({ row }) => String(row.original.stepOrder)
+    header: () => h('div', { class: 'text-center' }, 'Step'),
+    cell: ({ row }) => h('div', { class: 'text-center font-semibold' }, String(row.original.stepOrder))
   },
   {
     id: 'label',
@@ -242,25 +279,29 @@ const columns: TableColumn<StepRow>[] = [
   },
   {
     id: 'fourEyes',
-    header: 'Four-Eyes',
-    cell: ({ row }) => h(resolveComponent('UBadge'), {
-      label: row.original.requireFourEyes ? 'Yes' : 'No',
-      color: row.original.requireFourEyes ? 'warning' : 'neutral',
-      variant: 'subtle',
-      size: 'xs'
-    })
-  },
-  {
-    id: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const active = row.original.workflowActive && row.original.stepActive
-      return h(resolveComponent('UBadge'), {
-        label: active ? 'Active' : 'Inactive',
-        color: active ? 'success' : 'neutral',
+    header: () => h('div', { class: 'text-center' }, 'Four-Eyes'),
+    cell: ({ row }) => h('div', { class: 'flex justify-center' }, [
+      h(resolveComponent('UBadge'), {
+        label: row.original.requireFourEyes ? 'Yes' : 'No',
+        color: row.original.requireFourEyes ? 'warning' : 'neutral',
         variant: 'subtle',
         size: 'xs'
       })
+    ])
+  },
+  {
+    id: 'status',
+    header: () => h('div', { class: 'text-center' }, 'Status'),
+    cell: ({ row }) => {
+      const active = row.original.workflowActive && row.original.stepActive
+      return h('div', { class: 'flex justify-center' }, [
+        h(resolveComponent('UBadge'), {
+          label: active ? 'Active' : 'Inactive',
+          color: active ? 'success' : 'neutral',
+          variant: 'subtle',
+          size: 'xs'
+        })
+      ])
     }
   },
   {
@@ -308,19 +349,46 @@ const columns: TableColumn<StepRow>[] = [
       <template #default>
         <UPageCard header="Daftar Workflow">
           <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-workflow" class="size-5 text-primary" />
-              <h2 class="font-semibold">
-                Daftar Workflow
-              </h2>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-workflow" class="size-5 text-primary" />
+                <h2 class="font-semibold">
+                  Daftar Workflow
+                </h2>
+                <UBadge color="neutral" variant="subtle" size="xs">
+                  {{ stepRowDeptCount }} departemen · {{ stepRows.length }} step
+                </UBadge>
+              </div>
+              <UInput
+                v-model="search"
+                icon="i-lucide-search"
+                placeholder="Search department, workflow, label..."
+                size="sm"
+                class="w-64"
+              />
             </div>
           </template>
-          <UTable :data="stepRows" :columns="columns" :loading="pending" />
+          <div class="overflow-x-auto">
+            <UTable
+              :data="filteredStepRows"
+              :columns="columns"
+              :meta="{ class: { tr: rowStripeClass } }"
+              :loading="pending"
+              sticky
+              class="w-full min-w-[960px]"
+              :ui="{
+                base: 'table-fixed border-separate border-spacing-0',
+                thead: '[&>tr]:bg-elevated/50',
+                th: 'py-3 border-y border-default first:border-l last:border-r',
+                td: 'border-b border-default align-middle'
+              }"
+            />
+          </div>
           <div v-if="deptError" class="mt-2 text-sm text-error">
             {{ deptError?.message || 'Gagal memuat daftar departemen.' }}
           </div>
-          <div v-else-if="!pending && activeDeptWorkflows.length === 0" class="py-10 text-center text-sm text-muted">
-            Tidak ada departemen yang tersedia untuk workflow.
+          <div v-else-if="!pending && filteredStepRows.length === 0" class="py-10 text-center text-sm text-muted">
+            Tidak ada workflow yang cocok.
           </div>
         </UPageCard>
       </template>
