@@ -35,11 +35,6 @@ type Workflow = {
   steps: Step[]
 }
 
-type UserOption = {
-  id: number | string
-  name: string
-}
-
 type RoleOption = {
   id: number | string
   name: string
@@ -76,11 +71,6 @@ const { data: departmentsData, error: deptError } = await useAsyncData<Departmen
   },
   { default: () => [] }
 )
-
-const { data: usersData } = await useAsyncData<UserOption[]>('result-workflow-users', async () => {
-  const res = await api.get('/users', { params: { limit: 200 } })
-  return res.data?.data?.data ?? res.data?.data ?? res.data ?? []
-}, { default: () => [] })
 
 const { data: rolesData } = await useAsyncData<RoleOption[]>('result-workflow-roles', async () => {
   const res = await api.get('/settings/roles')
@@ -144,20 +134,12 @@ const stepRows = computed<StepRow[]>(() => {
   return rows
 })
 
-const userOptions = computed(() =>
-  (usersData.value ?? []).map(u => ({ label: u.name || String(u.id), value: String(u.id) }))
-)
 const roleOptions = computed(() =>
   (rolesData.value ?? []).map(r => ({ label: r.name, value: String(r.id) }))
 )
 const roleNameById = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
   for (const r of rolesData.value ?? []) map[String(r.id)] = r.name
-  return map
-})
-const userNameById = computed<Record<string, string>>(() => {
-  const map: Record<string, string> = {}
-  for (const u of usersData.value ?? []) map[String(u.id)] = u.name || String(u.id)
   return map
 })
 // ── Edit modal ────────────────────────────────────────────────────
@@ -239,14 +221,6 @@ const columns: TableColumn<StepRow>[] = [
     id: 'label',
     header: 'Label',
     cell: ({ row }) => h('span', { class: 'text-sm' }, row.original.label)
-  },
-  {
-    id: 'reviewer',
-    header: 'Reviewer / Approver (User)',
-    cell: ({ row }) => {
-      const id = row.original.reviewerUserId
-      return id != null ? (userNameById.value[String(id)] ?? String(id)) : '—'
-    }
   },
   {
     id: 'roles',
@@ -370,20 +344,14 @@ const columns: TableColumn<StepRow>[] = [
                 @click="removeStep(idx)"
               />
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <USelect
-                :model-value="step.reviewerUserId != null ? String(step.reviewerUserId) : undefined"
-                :items="userOptions"
-                placeholder="Reviewer (user)"
-                clearable
-                @update:model-value="(v: string | null) => { step.reviewerUserId = v ? Number(v) : null }"
-              />
+            <div>
               <USelect
                 multiple
                 :model-value="(step.reviewerRoleIds ?? []).map(String)"
                 :items="roleOptions"
                 placeholder="Role (bisa banyak)"
                 clearable
+                class="w-full"
                 @update:model-value="(v: string[] | null) => { step.reviewerRoleIds = (v ?? []).map(Number); step.reviewerRoleId = (v?.[0]) || null }"
               />
             </div>
