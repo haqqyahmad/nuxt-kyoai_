@@ -1713,34 +1713,36 @@ onBeforeUnmount(() => {
         >
           Item Approved
         </UBadge>
-        <UButton
-          v-if="canReopenItem"
-          color="warning"
-          variant="soft"
-          :loading="reopeningItem"
-          icon="i-lucide-pencil"
-          title="Reopen for revision"
-          @click="handleReopenItem"
-        >
-          Edit
-        </UButton>
-        <UButton
-          v-else-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && ['SUBMITTED', 'PARTIAL'].includes(result?.resultStatus || '')"
-          color="success"
-          :loading="approvingItem"
-          icon="i-lucide-check-circle"
-          :disabled="result?.departmentCanApprove === false"
-          :title="result?.departmentApproveDisableReason || undefined"
-          @click="handleApproveItem"
-        >
-          Approve Item
-        </UButton>
-        <span
-          v-if="result?.departmentCanApprove === false && result?.departmentApproveDisableReason"
-          class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
-        >
-          {{ result.departmentApproveDisableReason }}
-        </span>
+        <template v-else>
+          <UButton
+            v-if="canReopenItem"
+            color="warning"
+            variant="soft"
+            :loading="reopeningItem"
+            icon="i-lucide-pencil"
+            title="Reopen for revision"
+            @click="handleReopenItem"
+          >
+            Edit
+          </UButton>
+          <UButton
+            v-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && ['SUBMITTED', 'PARTIAL'].includes(result?.resultStatus || '')"
+            color="success"
+            :loading="approvingItem"
+            icon="i-lucide-check-circle"
+            :disabled="result?.departmentCanApprove === false"
+            :title="result?.departmentApproveDisableReason || undefined"
+            @click="handleApproveItem"
+          >
+            Approve Item
+          </UButton>
+          <span
+            v-if="result?.departmentCanApprove === false && result?.departmentApproveDisableReason"
+            class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
+          >
+            {{ result.departmentApproveDisableReason }}
+          </span>
+        </template>
 
         <UButton
           v-if="!embedded"
