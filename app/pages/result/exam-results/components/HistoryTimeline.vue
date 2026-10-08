@@ -58,6 +58,11 @@ const actionDefs: Record<string, ActionDef> = {
   START_PROCESSING: { title: 'External doctor started processing', badge: 'START_PROCESSING', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
   SUBMIT_EXTERNAL: { title: 'External result received by system', badge: 'SUBMIT_EXTERNAL', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
   SUBMIT_INPUT: { title: 'Doctor submitted examination result', badge: 'SUBMIT_INPUT', dotColor: 'dot-green', dotIcon: '✓', type: 'submit' },
+  APPROVE_ITEM: { title: 'Item approved by department reviewer', badge: 'APPROVE_ITEM', dotColor: 'dot-green', dotIcon: '✓', type: 'status' },
+  DEPARTMENT_APPROVED: { title: 'Department results approved — sent to doctor', badge: 'DEPARTMENT_APPROVED', dotColor: 'dot-blue', dotIcon: '→', type: 'status' },
+  SUBMITTED_TO_DOCTOR: { title: 'Report submitted to doctor', badge: 'SUBMITTED_TO_DOCTOR', dotColor: 'dot-blue', dotIcon: '→', type: 'status' },
+  RESUBMIT_INPUT: { title: 'Doctor resubmitted examination result (after revision)', badge: 'RESUBMIT_INPUT', dotColor: 'dot-amber', dotIcon: '↻', type: 'submit' },
+  REOPEN_RESULT: { title: 'Result reopened for revision', badge: 'REOPEN_RESULT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
   UPDATE_INPUT: { title: 'Draft input updated', badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' }
 }
 
@@ -148,7 +153,7 @@ function actorLabel(actorName?: string | null, actorId?: number | null) {
 }
 
 function isInputAction(action?: string) {
-  return action === 'UPDATE_INPUT' || action === 'SUBMIT_INPUT'
+  return action === 'UPDATE_INPUT' || action === 'SUBMIT_INPUT' || action === 'RESUBMIT_INPUT'
 }
 
 // ── Status diff helpers ────────────────────────────────────
