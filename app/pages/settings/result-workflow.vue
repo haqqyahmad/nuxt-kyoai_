@@ -243,13 +243,6 @@ const columns: TableColumn<StepRow>[] = [
     }
   },
   {
-    id: 'workflow',
-    header: 'Workflow',
-    cell: ({ row }) => row.original.isFirstOfDept
-      ? h('span', { class: 'text-sm' }, row.original.workflow?.name ?? '—')
-      : ''
-  },
-  {
     id: 'step',
     header: () => h('div', { class: 'text-center' }, 'Step'),
     cell: ({ row }) => h('div', { class: 'text-center font-semibold' }, String(row.original.stepOrder))
