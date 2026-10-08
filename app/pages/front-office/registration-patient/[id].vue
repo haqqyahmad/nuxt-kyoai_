@@ -1377,19 +1377,21 @@ const canResampleNow = computed(() => {
 
 // Kunjungan kembali (resample) aktif = queue terbaru bertipe RESAMPLE.
 const returnVisitActive = computed(() => (reg.value?.queue?.type ?? '') === 'RESAMPLE')
-// Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
-// Sengaja tidak memakai exam.status: exam bisa completed lebih dulu (mis. report
-// dirilis) sedangkan kunjungan ulang belum ditutup secara eksplisit.
-const canCompleteReturnVisit = computed(() => {
-  if (!returnVisitActive.value) return false
-  const items = reg.value?.exam?.examItems ?? []
-  if (!items.length) return false
-  return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
-})
 const returnVisitCompleted = computed(() =>
   returnVisitActive.value && reg.value?.queue?.status === 'DONE'
 )
 const returnVisitJustCompleted = ref(false)
+// Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
+// Sengaja tidak memakai exam.status: exam bisa completed lebih dulu (mis. report
+// dirilis) sedangkan kunjungan ulang belum ditutup secara eksplisit.
+// Tombol disembunyikan begitu dianggap selesai (badge yang tampil).
+const canCompleteReturnVisit = computed(() => {
+  if (!returnVisitActive.value) return false
+  if (returnVisitCompleted.value || returnVisitJustCompleted.value) return false
+  const items = reg.value?.exam?.examItems ?? []
+  if (!items.length) return false
+  return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
+})
 const completingReturnVisit = ref(false)
 async function handleCompleteReturnVisit() {
   if (!reg.value || completingReturnVisit.value) return
