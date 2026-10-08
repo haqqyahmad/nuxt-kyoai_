@@ -265,7 +265,7 @@ const columns: TableColumn<StepRow>[] = [
           label: roleNameById.value[String(rid)] ?? String(rid),
           color: 'info',
           variant: 'subtle',
-          size: 'xs'
+          size: 'sm'
         })
       ))
     }
@@ -278,7 +278,7 @@ const columns: TableColumn<StepRow>[] = [
         label: row.original.requireFourEyes ? 'Yes' : 'No',
         color: row.original.requireFourEyes ? 'warning' : 'neutral',
         variant: 'subtle',
-        size: 'xs'
+        size: 'sm'
       })
     ])
   },
@@ -292,7 +292,7 @@ const columns: TableColumn<StepRow>[] = [
           label: active ? 'Active' : 'Inactive',
           color: active ? 'success' : 'neutral',
           variant: 'subtle',
-          size: 'xs'
+          size: 'sm'
         })
       ])
     }
@@ -348,7 +348,7 @@ const columns: TableColumn<StepRow>[] = [
                 <h2 class="font-semibold">
                   Daftar Workflow
                 </h2>
-                <UBadge color="neutral" variant="subtle" size="xs">
+                <UBadge color="neutral" variant="subtle" size="sm">
                   {{ stepRowDeptCount }} departemen · {{ stepRows.length }} step
                 </UBadge>
               </div>
