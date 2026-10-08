@@ -3237,11 +3237,11 @@ async function handleSubmitItemAction() {
           Cancel
         </UButton>
         <UButton
-          :color="selectedItemActionType === 'skip' ? 'error' : selectedItemActionType === 'retest' ? 'primary' : 'warning'"
+          :color="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse' ? 'error' : selectedItemActionType === 'retest' ? 'primary' : 'warning'"
           :loading="itemActionSubmitLoading"
           @click="handleSubmitItemAction"
         >
-          {{ selectedItemActionType === 'skip' ? 'Refuse Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
+          {{ selectedItemActionType === 'skip' ? 'Skip Item' : selectedItemActionType === 'refuse' ? 'Refuse Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
         </UButton>
       </div>
     </template>
