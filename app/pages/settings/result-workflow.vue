@@ -292,7 +292,7 @@ const columns: TableColumn<StepRow>[] = [
               Workflow Approval Departemen
             </h1>
             <p class="text-sm text-muted">
-              Atur langkah approval hasil per departemen. Reviewer (user/role) yang ditunjuk pada tiap step adalah approver untuk step itu. Four-eyes (submitter tidak boleh approve hasilnya sendiri) bersifat opsional per step.
+              Atur langkah approval hasil per departemen. Role yang ditunjuk pada tiap step adalah approver untuk step tersebut. Four-eyes (submitter tidak boleh approve hasilnya sendiri) bersifat opsional per step. Bila tidak ada role ditunjuk, siapa pun dengan akses hasil departemen dapat meng-approve.
             </p>
           </div>
           <UButton
