@@ -6,6 +6,7 @@ import TreadmillScreeningWorkPanel from '~/components/rooms/TreadmillScreeningWo
 import { resolveRenderer } from '~/constants/exam-renderers'
 import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
 import { useAudit } from '~/composables/useAudit'
+import type { DiffAuditEntry } from '~/composables/useAudit'
 
 type Patient = {
   id: string | number
@@ -1120,6 +1121,8 @@ const selectedItemIsMealPrereq = computed(() =>
 )
 
 const selectedQueueCode = computed(() => roomQueueDetail.value?.queueEntry?.queueCode ?? '')
+const auditCtxDeptId = computed(() => selectedItem.value?.trxExamItem?.item?.department?.id ?? null)
+const auditCtxItemId = computed(() => selectedItem.value?.trxExamItem?.id ?? null)
 
 const roomAudioCode = computed(() =>
   currentRoomData.value?.voiceCode
@@ -1127,6 +1130,7 @@ const roomAudioCode = computed(() =>
   ?? '-'
 )
 
+const tagScope = (rows: DiffAuditEntry[], scope: 'item' | 'exam') => rows.map(row => ({ ...row, scope }))
 async function fetchSelectedItemHistory() {
   const item = selectedItem.value
   if (!item?.id) {
@@ -1143,7 +1147,11 @@ async function fetchSelectedItemHistory() {
       api.get(`/audit/ExternalResultAssignment/${examItemId}`).then(r => r.data?.data ?? []).catch(() => []),
       examId ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([])
     ])
-    auditEntries.value = [...roomLogs, ...externalLogs, ...examLogs].sort((a, b) =>
+    auditEntries.value = [
+      ...tagScope(roomLogs, 'item'),
+      ...tagScope(externalLogs, 'item'),
+      ...tagScope(examLogs, 'exam')
+    ].sort((a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     )
   } finally {
@@ -3156,6 +3164,9 @@ async function handleSubmitItemAction() {
                       :loading="auditLoading"
                       :entries="auditEntries"
                       :queue-code="selectedQueueCode"
+                      :split-by-scope="true"
+                      :current-department-id="auditCtxDeptId"
+                      :current-exam-item-id="auditCtxItemId"
                     />
                   </div>
                 </template>

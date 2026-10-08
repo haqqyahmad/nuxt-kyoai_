@@ -1,9 +1,18 @@
 import type { Ref } from 'vue'
 
-type DiffAuditEntry = {
+type AuditMeta = {
+  departmentId?: string | null
+  departmentName?: string | null
+  examItemId?: string | null
+  itemName?: string | null
+} | null
+
+export type DiffAuditEntry = {
   id: number
   entity: string
   entityId: string
+  scope?: 'item' | 'exam'
+  meta?: AuditMeta
   actorId: number | null
   actorName: string | null
   actorRole: string | null

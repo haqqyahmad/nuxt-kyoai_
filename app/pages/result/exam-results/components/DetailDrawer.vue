@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, onMounted } from 'vue'
 
 import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
+import type { DiffAuditEntry } from '~/composables/useAudit'
 import HistoryTimeline from './HistoryTimeline.vue'
 
 const { isExternalDoctor, isSuperAdmin } = await useCurrentUser()
@@ -283,6 +284,17 @@ async function handleReopenItem() {
 }
 
 const { loading: auditLoading, entries, resetAudit } = useAudit()
+const auditCtxDeptId = computed(() => {
+  const r = props.result as unknown as { items?: unknown[], item?: { department?: { id?: string | null } | null } | null } | null
+  if (Array.isArray(r?.items) && r.items.length) return null
+  return r?.item?.department?.id ?? null
+})
+const auditCtxItemId = computed(() => {
+  const r = props.result as unknown as { items?: unknown[], id?: string | null } | null
+  if (Array.isArray(r?.items) && r.items.length) return null
+  return r?.id ?? null
+})
+const tagScope = (rows: DiffAuditEntry[], scope: 'item' | 'exam') => rows.map(row => ({ ...row, scope }))
 async function fetchAllAudit() {
   if (!props.result?.id) {
     resetAudit()
@@ -297,7 +309,7 @@ async function fetchAllAudit() {
       ? props.result.items.map(item => item.id)
       : [props.result.id]
 
-    const [roomLogs, externalLogs, examLogs] = await Promise.all([
+    const [roomLogs, externalLogs, examLogs, trxExamItemLogs] = await Promise.all([
       Promise.all(
         examItemIds.map((id: string) =>
           api
@@ -319,9 +331,22 @@ async function fetchAllAudit() {
             .get(`/audit/TrxExamResult/${examId}`)
             .then(r => r.data?.data ?? [])
             .catch(() => [])
-        : Promise.resolve([])
+        : Promise.resolve([]),
+      Promise.all(
+        examItemIds.map((id: string) =>
+          api
+            .get(`/audit/TrxExamItem/${id}`)
+            .then(r => r.data?.data ?? [])
+            .catch(() => [])
+        )
+      ).then(rows => rows.flat())
     ])
-    entries.value = [...roomLogs, ...externalLogs, ...examLogs].sort(
+    entries.value = [
+      ...tagScope(roomLogs, 'item'),
+      ...tagScope(externalLogs, 'item'),
+      ...tagScope(examLogs, 'exam'),
+      ...tagScope(trxExamItemLogs, 'item')
+    ].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     )
   } finally {
@@ -2752,6 +2777,9 @@ onBeforeUnmount(() => {
                 :entries="entries"
                 :work-history="result.workHistory"
                 :queue-code="result.queueCode"
+                :split-by-scope="true"
+                :current-department-id="auditCtxDeptId"
+                :current-exam-item-id="auditCtxItemId"
               />
 
               <UCard
