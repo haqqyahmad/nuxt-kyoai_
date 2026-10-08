@@ -106,7 +106,8 @@ const filteredEntries = computed(() => {
 })
 
 // ── Scope groups ─────────────────────────────────────────────
-type EntryGroup = { key: string, title: string, sub: string, entries: DiffAuditEntry[] }
+type EntrySection = { label?: string, entries: DiffAuditEntry[] }
+type EntryGroup = { key: string, title: string, sub: string, count: number, sections: EntrySection[] }
 
 const examCollapsed = ref(true)
 function toggleExamCollapsed() {
@@ -125,20 +126,33 @@ const matchesCtx = (e: DiffAuditEntry) => {
 }
 
 const groups = computed<EntryGroup[]>(() => {
-  if (!props.splitByScope)
-    return filteredEntries.value.length ? [{ key: 'all', title: '', sub: '', entries: filteredEntries.value }] : []
+  if (!props.splitByScope) {
+    return filteredEntries.value.length
+      ? [{ key: 'all', title: '', sub: '', count: filteredEntries.value.length, sections: [{ entries: filteredEntries.value }] }]
+      : []
+  }
   const out: EntryGroup[] = []
   const item = groupByScope('item')
   const examAll = groupByScope('exam')
   const exam = hasCtx() ? examAll.filter(e => e.meta != null && matchesCtx(e)) : examAll
   const general = hasCtx() ? examAll.filter(e => e.meta == null) : []
-  if (item.length) out.push({ key: 'item', title: 'Item History', sub: 'Actions for this examination item.', entries: item })
-  if (exam.length) out.push({ key: 'exam', title: 'Exam History', sub: hasCtx() ? 'Events for the department/item you are viewing.' : 'Shared across all items in this exam.', entries: exam })
-  if (general.length) out.push({ key: 'general', title: 'General', sub: 'Entries recorded without department/item attribution.', entries: general })
+  if (item.length) out.push({ key: 'item', title: 'Item History', sub: 'Actions for this examination item.', count: item.length, sections: [{ entries: item }] })
+  const sections: EntrySection[] = []
+  if (exam.length) sections.push({ entries: exam })
+  if (general.length) sections.push({ label: 'General', entries: general })
+  if (sections.length) {
+    out.push({
+      key: 'exam',
+      title: 'Exam History',
+      sub: hasCtx() ? 'Events for the department/item you are viewing.' : 'Shared across all items in this exam.',
+      count: exam.length + general.length,
+      sections
+    })
+  }
   return out
 })
 
-const isExamGroup = (key: string) => key === 'exam' || key === 'general'
+const isExamGroup = (key: string) => key === 'exam'
 
 // ── Helpers ────────────────────────────────────────────────
 function formatDate(dateString?: string | null) {
@@ -284,7 +298,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
             <div v-if="group.title" class="ht-section-head">
               <div>
                 <div class="ht-section-title">
-                  {{ group.title }} <span class="ht-section-count">{{ group.entries.length }}</span>
+                  {{ group.title }} <span class="ht-section-count">{{ group.count }}</span>
                 </div>
                 <div class="ht-section-sub">
                   {{ group.sub }}
@@ -295,101 +309,107 @@ function getStatusDiffs(entry: DiffAuditEntry) {
               </button>
             </div>
             <template v-if="!isExamGroup(group.key) || !examCollapsed">
-              <article
-                v-for="entry in group.entries"
-                :key="entry.id ?? entry.createdAt"
-                class="ht-event"
-              >
-                <div class="ht-time">
-                  <div>{{ formatDate(entry.createdAt).date }}</div>
-                  <div class="ht-time-bold">
-                    {{ formatDate(entry.createdAt).time }}
+              <template v-for="(section, si) in group.sections" :key="si">
+                <div v-if="section.label" class="ht-subsection-head">
+                  <span class="ht-subsection-title">{{ section.label }}</span>
+                  <span class="ht-subsection-sub">entries without department/item attribution</span>
+                </div>
+                <article
+                  v-for="entry in section.entries"
+                  :key="entry.id ?? entry.createdAt"
+                  class="ht-event"
+                >
+                  <div class="ht-time">
+                    <div>{{ formatDate(entry.createdAt).date }}</div>
+                    <div class="ht-time-bold">
+                      {{ formatDate(entry.createdAt).time }}
+                    </div>
                   </div>
-                </div>
 
-                <div class="ht-dot" :class="getActionDef(entry.action).dotColor">
-                  {{ getActionDef(entry.action).dotIcon }}
-                </div>
+                  <div class="ht-dot" :class="getActionDef(entry.action).dotColor">
+                    {{ getActionDef(entry.action).dotIcon }}
+                  </div>
 
-                <div class="ht-card" :class="{ open: expandedIds.has(entry.id!) }">
-                  <div class="ht-card-head" @click="entry.id != null && toggleExpand(entry.id)">
-                    <div>
-                      <div class="ht-title-row">
-                        <span class="ht-card-title">{{ getActionDef(entry.action).title }}</span>
-                        <span class="ht-badge" :class="isInputAction(entry.action) ? 'ht-badge-green' : 'ht-badge-gray'">
-                          {{ getActionDef(entry.action).badge }}
-                        </span>
-                        <span
-                          v-if="isInputAction(entry.action)"
-                          class="ht-badge ht-badge-amber"
-                        >
-                          {{ inputCount(entry) }} parameter
-                        </span>
-                      </div>
-                      <div class="ht-meta">
-                        <template v-if="entry.actorName || entry.actorId">
-                          {{ actorLabel(entry.actorName, entry.actorId) }}
-                          <template v-if="entry.actorRole">
-                            • {{ entry.actorRole }}
+                  <div class="ht-card" :class="{ open: expandedIds.has(entry.id!) }">
+                    <div class="ht-card-head" @click="entry.id != null && toggleExpand(entry.id)">
+                      <div>
+                        <div class="ht-title-row">
+                          <span class="ht-card-title">{{ getActionDef(entry.action).title }}</span>
+                          <span class="ht-badge" :class="isInputAction(entry.action) ? 'ht-badge-green' : 'ht-badge-gray'">
+                            {{ getActionDef(entry.action).badge }}
+                          </span>
+                          <span
+                            v-if="isInputAction(entry.action)"
+                            class="ht-badge ht-badge-amber"
+                          >
+                            {{ inputCount(entry) }} parameter
+                          </span>
+                        </div>
+                        <div class="ht-meta">
+                          <template v-if="entry.actorName || entry.actorId">
+                            {{ actorLabel(entry.actorName, entry.actorId) }}
+                            <template v-if="entry.actorRole">
+                              • {{ entry.actorRole }}
+                            </template>
                           </template>
-                        </template>
-                        <template v-else>
-                          system
-                        </template>
-                      </div>
-                    </div>
-                    <span class="ht-chevron">⌄</span>
-                  </div>
-
-                  <div class="ht-details">
-                    <!-- Input diffs (label → value) -->
-                    <template v-if="isInputAction(entry.action) && entry.payloadAfter">
-                      <div class="ht-changes">
-                        <div v-for="(diff, field) in entry.payloadAfter" :key="field" class="ht-change">
-                          <div class="ht-field">
-                            {{ field }}
-                          </div>
-                          <div class="ht-diff">
-                            <span class="ht-old">{{ formatDiffValue(diff.from) }}</span>
-                            <span class="ht-arrow">→</span>
-                            <span class="ht-new">{{ formatDiffValue(diff.to) }}</span>
-                          </div>
+                          <template v-else>
+                            system
+                          </template>
                         </div>
                       </div>
-                    </template>
+                      <span class="ht-chevron">⌄</span>
+                    </div>
 
-                    <!-- Status diffs -->
-                    <template v-else-if="entry.payloadAfter">
-                      <div class="ht-changes">
-                        <div v-for="d in getStatusDiffs(entry)" :key="d.field" class="ht-change">
-                          <div class="ht-field">
-                            {{ d.field }}
-                          </div>
-                          <div class="ht-diff">
-                            <span class="ht-old">{{ d.from }}</span>
-                            <span class="ht-arrow">→</span>
-                            <span class="ht-new">{{ d.to }}</span>
+                    <div class="ht-details">
+                      <!-- Input diffs (label → value) -->
+                      <template v-if="isInputAction(entry.action) && entry.payloadAfter">
+                        <div class="ht-changes">
+                          <div v-for="(diff, field) in entry.payloadAfter" :key="field" class="ht-change">
+                            <div class="ht-field">
+                              {{ field }}
+                            </div>
+                            <div class="ht-diff">
+                              <span class="ht-old">{{ formatDiffValue(diff.from) }}</span>
+                              <span class="ht-arrow">→</span>
+                              <span class="ht-new">{{ formatDiffValue(diff.to) }}</span>
+                            </div>
                           </div>
                         </div>
+                      </template>
+
+                      <!-- Status diffs -->
+                      <template v-else-if="entry.payloadAfter">
+                        <div class="ht-changes">
+                          <div v-for="d in getStatusDiffs(entry)" :key="d.field" class="ht-change">
+                            <div class="ht-field">
+                              {{ d.field }}
+                            </div>
+                            <div class="ht-diff">
+                              <span class="ht-old">{{ d.from }}</span>
+                              <span class="ht-arrow">→</span>
+                              <span class="ht-new">{{ d.to }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+
+                      <div v-if="entry.notes" class="ht-note">
+                        {{ entry.notes }}
                       </div>
-                    </template>
 
-                    <div v-if="entry.notes" class="ht-note">
-                      {{ entry.notes }}
-                    </div>
-
-                    <div class="ht-actor">
-                      <span class="ht-avatar">{{ actorInitials(entry.actorId, entry.actorRole) }}</span>
-                      <span>
-                        <template v-if="entry.actorName">{{ entry.actorName }}</template>
-                        <template v-else-if="entry.actorRole">{{ entry.actorRole }}</template>
-                        <template v-else-if="entry.actorId">User #{{ entry.actorId }}</template>
-                        <template v-else>system</template>
-                      </span>
+                      <div class="ht-actor">
+                        <span class="ht-avatar">{{ actorInitials(entry.actorId, entry.actorRole) }}</span>
+                        <span>
+                          <template v-if="entry.actorName">{{ entry.actorName }}</template>
+                          <template v-else-if="entry.actorRole">{{ entry.actorRole }}</template>
+                          <template v-else-if="entry.actorId">User #{{ entry.actorId }}</template>
+                          <template v-else>system</template>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
+                </article>
+              </template>
             </template>
           </template>
 
@@ -509,6 +529,9 @@ function getStatusDiffs(entry: DiffAuditEntry) {
 .ht-section-count { margin-left: 6px; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: #252927; border: 1px solid #3b413e; color: #bdc5c1; }
 .ht-section-sub { font-size: 11px; color: var(--ht-muted); margin-top: 2px; }
 .ht-section-toggle { height: 30px; border-radius: 8px; border: 1px solid #303634; background: #101312; color: #d8dfdc; padding: 0 12px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+.ht-subsection-head { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px 2px 34px; }
+.ht-subsection-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--ht-muted); }
+.ht-subsection-sub { font-size: 11px; color: #6d7772; }
 .ht-event { display: grid; grid-template-columns: 110px 28px minmax(0, 1fr); gap: 12px; position: relative; padding: 8px 0; }
 .ht-event:not(:last-child)::after { content: ""; position: absolute; left: 123px; top: 40px; bottom: -8px; width: 1px; background: #323936; }
 .ht-time { color: #9aa49f; font-size: 11px; text-align: right; padding-top: 9px; }
