@@ -45,6 +45,7 @@ type QueueInfo = {
   queueCode: string
   queueNumber: number
   type?: string | null
+  status?: string | null
   sampleCollections?: QueueSampleCollection[]
 }
 
@@ -1377,13 +1378,18 @@ const canResampleNow = computed(() => {
 // Kunjungan kembali (resample) aktif = queue terbaru bertipe RESAMPLE.
 const returnVisitActive = computed(() => (reg.value?.queue?.type ?? '') === 'RESAMPLE')
 // Bisa diselesaikan bila seluruh item exam final (DONE/REFUSED/SKIPPED).
+// Sengaja tidak memakai exam.status: exam bisa completed lebih dulu (mis. report
+// dirilis) sedangkan kunjungan ulang belum ditutup secara eksplisit.
 const canCompleteReturnVisit = computed(() => {
   if (!returnVisitActive.value) return false
-  if ((reg.value?.exam?.status ?? '') === 'completed') return false
   const items = reg.value?.exam?.examItems ?? []
   if (!items.length) return false
   return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
 })
+const returnVisitCompleted = computed(() =>
+  returnVisitActive.value && reg.value?.queue?.status === 'DONE'
+)
+const returnVisitJustCompleted = ref(false)
 const completingReturnVisit = ref(false)
 async function handleCompleteReturnVisit() {
   if (!reg.value || completingReturnVisit.value) return
@@ -1391,6 +1397,7 @@ async function handleCompleteReturnVisit() {
   try {
     await api.patch(`/registration/${reg.value.id_reg}/complete-return-visit`)
     toast.add({ title: 'Completed', description: 'Return visit closed & exam completed.', color: 'success' })
+    returnVisitJustCompleted.value = true
     await refresh()
     await loadStatusHistory()
     await loadCheckoutEligibility()
@@ -1643,6 +1650,13 @@ watch(
             >
               <span class="hidden sm:inline">Complete Return Visit</span>
             </UButton>
+            <UBadge
+              v-if="returnVisitCompleted || returnVisitJustCompleted"
+              label="Return visit completed"
+              color="success"
+              variant="subtle"
+              title="Return visit completed"
+            />
             <UButton
               icon="i-lucide-printer"
               color="neutral"
