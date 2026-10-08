@@ -107,6 +107,43 @@ const activeDeptWorkflows = computed(() =>
     })
 )
 
+type StepRow = {
+  department: Department
+  workflow: Workflow | null
+  stepOrder: number
+  label: string
+  reviewerUserId?: number | null
+  reviewerRoleId?: string | null
+  reviewerRoleIds?: number[] | null
+  requireFourEyes?: boolean
+  stepActive: boolean
+  workflowActive: boolean
+  isFirstOfDept: boolean
+}
+
+const stepRows = computed<StepRow[]>(() => {
+  const rows: StepRow[] = []
+  for (const entry of activeDeptWorkflows.value) {
+    const list = entry.steps.length ? entry.steps : [{ stepOrder: 1, label: 'Approve Hasil' }]
+    list.forEach((s, idx) => {
+      rows.push({
+        department: entry.department,
+        workflow: entry.workflow,
+        stepOrder: s.stepOrder,
+        label: s.label,
+        reviewerUserId: s.reviewerUserId,
+        reviewerRoleId: s.reviewerRoleId,
+        reviewerRoleIds: s.reviewerRoleIds,
+        requireFourEyes: s.requireFourEyes,
+        stepActive: s.isActive !== false,
+        workflowActive: entry.workflow ? entry.workflow.isActive : true,
+        isFirstOfDept: idx === 0
+      })
+    })
+  }
+  return rows
+})
+
 const userOptions = computed(() =>
   (usersData.value ?? []).map(u => ({ label: u.name || String(u.id), value: String(u.id) }))
 )
@@ -123,14 +160,6 @@ const userNameById = computed<Record<string, string>>(() => {
   for (const u of usersData.value ?? []) map[String(u.id)] = u.name || String(u.id)
   return map
 })
-function reviewerLabel(s: Step): string {
-  const suffix = s.requireFourEyes ? ' (four-eyes)' : ''
-  if (s.reviewerUserId) return `user: ${userNameById.value[String(s.reviewerUserId)] ?? s.reviewerUserId}${suffix}`
-  const roles = (s.reviewerRoleIds?.length ? s.reviewerRoleIds : s.reviewerRoleId ? [Number(s.reviewerRoleId)] : [])
-  if (roles.length) return `role: ${roles.map(rid => roleNameById.value[String(rid)] ?? rid).join(', ')}${suffix}`
-  return `anyone${suffix}`
-}
-
 // ── Edit modal ────────────────────────────────────────────────────
 const editOpen = ref(false)
 const editDeptId = ref('')
@@ -192,9 +221,9 @@ async function saveWorkflow() {
   }
 }
 
-const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
+const columns: TableColumn<StepRow>[] = [
   {
-    accessorKey: 'department',
+    id: 'department',
     header: 'Department',
     cell: ({ row }) => {
       const d = row.original.department
@@ -202,31 +231,79 @@ const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
     }
   },
   {
-    accessorKey: 'steps',
-    header: 'Alur Approval',
+    id: 'step',
+    header: 'Step',
+    cell: ({ row }) => String(row.original.stepOrder)
+  },
+  {
+    id: 'label',
+    header: 'Label',
+    cell: ({ row }) => h('span', { class: 'text-sm' }, row.original.label)
+  },
+  {
+    id: 'reviewer',
+    header: 'Reviewer / Approver (User)',
     cell: ({ row }) => {
-      const steps = row.original.steps
-      const labels = steps.map((s, i) => `${i + 1}. ${s.label}`).join(' → ')
-      return h('div', { class: 'flex flex-col gap-1' }, [
-        h('span', { class: 'text-sm' }, labels),
-        steps.some(s => s.reviewerUserId || s.reviewerRoleId)
-          ? h('span', { class: 'text-xs text-muted' }, steps.map(s => reviewerLabel(s)).join(' / '))
-          : null
-      ])
+      const id = row.original.reviewerUserId
+      return id != null ? (userNameById.value[String(id)] ?? String(id)) : '—'
+    }
+  },
+  {
+    id: 'roles',
+    header: 'Role(s)',
+    cell: ({ row }) => {
+      const ids = (row.original.reviewerRoleIds?.length
+        ? row.original.reviewerRoleIds
+        : row.original.reviewerRoleId != null ? [Number(row.original.reviewerRoleId)] : [])
+      if (!ids.length) return '—'
+      return h('div', { class: 'flex flex-wrap gap-1' }, ids.map(rid =>
+        h(resolveComponent('UBadge'), {
+          label: roleNameById.value[String(rid)] ?? String(rid),
+          color: 'info',
+          variant: 'subtle',
+          size: 'xs'
+        })
+      ))
+    }
+  },
+  {
+    id: 'fourEyes',
+    header: 'Four-Eyes',
+    cell: ({ row }) => h(resolveComponent('UBadge'), {
+      label: row.original.requireFourEyes ? 'Yes' : 'No',
+      color: row.original.requireFourEyes ? 'warning' : 'neutral',
+      variant: 'subtle',
+      size: 'xs'
+    })
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const active = row.original.workflowActive && row.original.stepActive
+      return h(resolveComponent('UBadge'), {
+        label: active ? 'Active' : 'Inactive',
+        color: active ? 'success' : 'neutral',
+        variant: 'subtle',
+        size: 'xs'
+      })
     }
   },
   {
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Aksi'),
-    cell: ({ row }) => h('div', { class: 'flex justify-end gap-1' }, [
-      h(resolveComponent('UButton'), {
-        label: 'Atur',
-        icon: 'i-lucide-sliders-horizontal',
-        size: 'xs',
-        variant: 'outline',
-        onClick: () => openEdit(row.original.department)
-      })
-    ])
+    cell: ({ row }) => {
+      if (!row.original.isFirstOfDept) return null
+      return h('div', { class: 'flex justify-end gap-1' }, [
+        h(resolveComponent('UButton'), {
+          label: 'Atur',
+          icon: 'i-lucide-sliders-horizontal',
+          size: 'xs',
+          variant: 'outline',
+          onClick: () => openEdit(row.original.department)
+        })
+      ])
+    }
   }
 ]
 </script>
@@ -241,7 +318,7 @@ const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
               Workflow Approval Departemen
             </h1>
             <p class="text-sm text-muted">
-              Atur langkah approval hasil per departemen. Reviewer (opsional) bisa dibatasi ke user/role tertentu. Inputter tidak bisa approve step pertama (four-eyes).
+              Atur langkah approval hasil per departemen. Reviewer (user/role) yang ditunjuk pada tiap step adalah approver untuk step itu. Four-eyes (submitter tidak boleh approve hasilnya sendiri) bersifat opsional per step.
             </p>
           </div>
           <UButton
@@ -264,7 +341,7 @@ const columns: TableColumn<{ department: Department, steps: Step[] }>[] = [
               </h2>
             </div>
           </template>
-          <UTable :data="activeDeptWorkflows" :columns="columns" :loading="pending" />
+          <UTable :data="stepRows" :columns="columns" :loading="pending" />
           <div v-if="deptError" class="mt-2 text-sm text-error">
             {{ deptError?.message || 'Gagal memuat daftar departemen.' }}
           </div>

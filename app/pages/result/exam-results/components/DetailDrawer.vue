@@ -248,6 +248,40 @@ async function handleApproveItem() {
   }
 }
 
+// Reopen item SUBMITTED → DRAFT agar reviewer bisa mengoreksi sebelum approve.
+// Gate mengikuti reviewer workflow (departmentCanApprove dari BE).
+const reopeningItem = ref(false)
+const canReopenItem = computed(() =>
+  !isExternalDoctor.value
+  && props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+  && props.result?.resultStatus === 'SUBMITTED'
+  && Boolean(props.result?.departmentCanApprove)
+  && !((props.result as { items?: unknown[] })?.items?.length)
+)
+async function handleReopenItem() {
+  const targetExamId = props.result?.exam?.id
+  const targetItemId = props.result?.id
+  if (!targetExamId || !targetItemId || reopeningItem.value) return
+  reopeningItem.value = true
+  try {
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/reopen`, {})
+    toast.add({
+      title: 'Reopened',
+      description: 'Item reopened for revision. Edit, then submit again.',
+      color: 'warning'
+    })
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Failed to reopen item',
+      description: getErrorMessage(error, 'An error occurred while reopening.'),
+      color: 'error'
+    })
+  } finally {
+    reopeningItem.value = false
+  }
+}
+
 const { loading: auditLoading, entries, resetAudit } = useAudit()
 async function fetchAllAudit() {
   if (!props.result?.id) {
@@ -1679,6 +1713,17 @@ onBeforeUnmount(() => {
         >
           Item Approved
         </UBadge>
+        <UButton
+          v-if="canReopenItem"
+          color="warning"
+          variant="soft"
+          :loading="reopeningItem"
+          icon="i-lucide-pencil"
+          title="Reopen for revision"
+          @click="handleReopenItem"
+        >
+          Edit
+        </UButton>
         <UButton
           v-else-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && ['SUBMITTED', 'PARTIAL'].includes(result?.resultStatus || '')"
           color="success"
