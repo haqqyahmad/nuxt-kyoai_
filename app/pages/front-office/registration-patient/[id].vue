@@ -62,6 +62,7 @@ type Registration = {
   examType: string
   createdAt: string
   queue: QueueInfo | null
+  sampleCollections?: QueueSampleCollection[]
   patient: {
     id: string
     patientCode: string
@@ -316,7 +317,10 @@ function getExamItemStatusIcon(status: string) {
 }
 
 function getSampleCollectionsForItem(itemId: string) {
-  return (reg.value?.queue?.sampleCollections ?? []).filter(collection =>
+  // Pakai agregat lintas kunjungan (reg.sampleCollections); queue terbaru
+  // (resample) bisa tidak membawa sample dari kunjungan sebelumnya.
+  const all = reg.value?.sampleCollections ?? reg.value?.queue?.sampleCollections ?? []
+  return all.filter(collection =>
     collection.items?.some(item => item.itemId === itemId)
   )
 }
@@ -991,8 +995,8 @@ const noteIssueItems = computed(() => {
     ['REFUSED', 'REJECTED'].includes(item.currentRoomStatus ?? '')
   )
 
-  // Get all rejected OR refused sample collections from queue
-  const badSampleCollections = (reg.value?.queue?.sampleCollections ?? []).filter(s =>
+  // Get all rejected OR refused sample collections (lintas kunjungan)
+  const badSampleCollections = (reg.value?.sampleCollections ?? reg.value?.queue?.sampleCollections ?? []).filter(s =>
     ['REJECTED', 'REFUSED'].includes(s.status)
   )
 
@@ -2380,7 +2384,7 @@ watch(
             v-if="isMCU"
             class="col-span-12"
             :exam-items="reg?.exam?.examItems ?? []"
-            :sample-collections="reg?.queue?.sampleCollections ?? []"
+            :sample-collections="reg?.sampleCollections ?? reg?.queue?.sampleCollections ?? []"
           />
 
           <div
