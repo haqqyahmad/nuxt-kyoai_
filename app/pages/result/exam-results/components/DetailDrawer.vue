@@ -565,7 +565,7 @@ const myReturnRevisionItems = computed(() =>
 const isThisItemReturned = computed(() =>
   props.result?.resultStatus === 'RETURNED' || myReturnRevisionItems.value.length > 0
 )
-const showReturnBanner = computed(() => isReturnedToDepartment.value && isThisItemReturned.value)
+const showReturnBanner = computed(() => isReturnedToDepartment.value || isThisItemReturned.value)
 type ReturnRevision = {
   inputanId?: string | null
   examItemId?: string | null
