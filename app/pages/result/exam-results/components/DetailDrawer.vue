@@ -1868,8 +1868,7 @@ onBeforeUnmount(() => {
         <div
           v-if="
             embedded
-              && (result?.status === 'pending'
-                || result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT')
+              && (canEditCurrentResult || canSubmitCurrentResult)
               && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
           "
           class="flex w-full items-start justify-end gap-2 sm:w-auto"
