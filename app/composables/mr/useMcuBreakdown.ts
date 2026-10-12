@@ -57,8 +57,29 @@ export type McuBreakdownCategory = {
   refusedCount: number
   completedItems: McuBreakdownItem[]
   pendingItems: McuBreakdownItem[]
+  sampleGroups: McuSampleGroup[]
+  pendingGroups: McuPendingGroup[]
   updatedAt: string | null
   status: string
+}
+
+export type McuSampleGroup = {
+  key: string
+  name: string
+  status: string
+  collectedAt: string | null
+  receivedAt: string | null
+  rejectReason: string | null
+  itemCount: number
+  needsAttention: boolean
+  items: McuBreakdownItem[]
+}
+
+export type McuPendingGroup = {
+  key: string
+  label: string
+  needsAttention: boolean
+  items: McuBreakdownItem[]
 }
 
 const DEPT_ICON: Record<string, string> = {
@@ -200,6 +221,82 @@ export function getRescheduleVisitDate(examItems: McuExamItem[], examItemId: str
   return re?.rescheduleVisitDate?.slice(0, 10) ?? ''
 }
 
+const SAMPLE_STATUS_PRIORITY = ['REJECTED', 'RESCHEDULED', 'PENDING', 'COLLECTED', 'RECEIVED']
+function worstSampleStatus(statuses: string[]): string {
+  for (const s of SAMPLE_STATUS_PRIORITY) {
+    if (statuses.includes(s)) return s
+  }
+  return statuses[0] ?? 'PENDING'
+}
+function isAttentionSampleStatus(status: string): boolean {
+  return status === 'REJECTED' || status === 'RESCHEDULED'
+}
+function isAttentionItemStatus(status: string): boolean {
+  return ['REFUSED', 'RESCHEDULED', 'RETEXT', 'REJECTED'].includes(status)
+}
+
+export function buildSampleGroups(label: string, items: McuBreakdownItem[]): McuSampleGroup[] {
+  const byType = new Map<string, { name: string, samples: McuSampleCollection[], items: McuBreakdownItem[] }>()
+  for (const item of items) {
+    for (const sample of item.sampleCollections) {
+      const key = sample.sampleType?.id ?? 'unknown'
+      const name = sample.sampleType?.name || sample.sampleType?.code || 'Sample'
+      if (!byType.has(key)) byType.set(key, { name, samples: [], items: [] })
+      const slot = byType.get(key)!
+      slot.samples.push(sample)
+      if (!slot.items.some(i => i.id === item.id)) slot.items.push(item)
+    }
+  }
+  const out: McuSampleGroup[] = []
+  for (const [key, slot] of byType) {
+    const status = worstSampleStatus(slot.samples.map(s => s.status))
+    const collected = slot.samples.map(s => s.collectedAt).filter((v): v is string => Boolean(v))
+    const received = slot.samples.map(s => s.receivedAt).filter((v): v is string => Boolean(v))
+    out.push({
+      key: `${label}::${key}`,
+      name: slot.name,
+      status,
+      collectedAt: collected.length ? collected.reduce((a, b) => (a < b ? a : b)) : null,
+      receivedAt: received.length ? received.reduce((a, b) => (a > b ? a : b)) : null,
+      rejectReason: slot.samples.find(s => s.rejectReason)?.rejectReason ?? null,
+      itemCount: slot.items.length,
+      needsAttention: isAttentionSampleStatus(status) || slot.items.some(i => isAttentionItemStatus(i.status)),
+      items: slot.items
+    })
+  }
+  return out
+}
+
+export function buildPendingGroups(label: string, pendingItems: McuBreakdownItem[]): McuPendingGroup[] {
+  const byType = new Map<string, { label: string, items: McuBreakdownItem[] }>()
+  for (const item of pendingItems) {
+    if (!item.sampleCollections.length) {
+      if (!byType.has('no-sample')) byType.set('no-sample', { label: 'No Sample', items: [] })
+      byType.get('no-sample')!.items.push(item)
+      continue
+    }
+    const seen = new Set<string>()
+    for (const sample of item.sampleCollections) {
+      const key = sample.sampleType?.id ?? 'unknown'
+      if (seen.has(key)) continue
+      seen.add(key)
+      const name = sample.sampleType?.name || sample.sampleType?.code || 'Sample'
+      if (!byType.has(key)) byType.set(key, { label: name, items: [] })
+      byType.get(key)!.items.push(item)
+    }
+  }
+  const out: McuPendingGroup[] = []
+  for (const [key, slot] of byType) {
+    out.push({
+      key: `${label}::${key}`,
+      label: slot.label,
+      needsAttention: slot.items.some(i => isAttentionItemStatus(i.status)),
+      items: slot.items
+    })
+  }
+  return out
+}
+
 export function buildMcuCategories(
   examItems: McuExamItem[],
   sampleCollections: McuSampleCollection[]
@@ -256,6 +353,8 @@ export function buildMcuCategories(
       refusedCount,
       completedItems,
       pendingItems,
+      sampleGroups: buildSampleGroups(category.label, category.items),
+      pendingGroups: buildPendingGroups(category.label, pendingItems),
       updatedAt,
       status:
         total > 0 && completed === total
