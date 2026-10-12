@@ -186,6 +186,7 @@ function formatDateTime(dateString?: string | null) {
 function getStatusColor(status?: string) {
   if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
   if (status === 'pending' || status === 'DEPARTMENT_REVIEW' || status === 'SUBMITTED' || status === 'PARTIAL') return 'warning'
+  if (status === 'DEPARTMENT_RETURNED') return 'warning'
   if (status === 'RETURNED_TO_DEPARTMENT' || status === 'RETURNED') return 'error'
   if (status === 'DRAFT' || status === 'READY' || status === 'NOT_READY') return 'neutral'
   return 'neutral'
@@ -198,6 +199,7 @@ function getStatusLabel(status?: string) {
   if (status === 'DEPARTMENT_APPROVED') return 'Approved'
   if (status === 'SUBMITTED_TO_DOCTOR') return 'Approved · Sent to Doctor'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
+  if (status === 'DEPARTMENT_RETURNED') return 'Dept Returned'
   if (status === 'SUBMITTED') return 'Pending Approval'
   if (status === 'PARTIAL') return 'Partially Submitted'
   if (status === 'READY') return 'Ready'
@@ -220,9 +222,9 @@ function getRowStatus(result: ExamResult) {
   if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
   // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
   if (result.itemApproved) return 'DEPARTMENT_APPROVED'
-  // Item SUBMITTED di department yang di-return bukan "Returned" — hanya item
-  // yang benar di-return (resultStatus RETURNED) yang berlabel demikian.
-  if (departmentStatus === 'RETURNED_TO_DEPARTMENT') return 'SUBMITTED'
+  // Item SUBMITTED di department yang di-return: tandai sebagai "Dept Returned"
+  // (menunggu dept resubmit) — bedakan dari item yang benar di-return.
+  if (departmentStatus === 'RETURNED_TO_DEPARTMENT') return 'DEPARTMENT_RETURNED'
   return departmentStatus || 'SUBMITTED'
 }
 
