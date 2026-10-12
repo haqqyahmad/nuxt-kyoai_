@@ -220,6 +220,9 @@ function getRowStatus(result: ExamResult) {
   if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
   // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
   if (result.itemApproved) return 'DEPARTMENT_APPROVED'
+  // Item SUBMITTED di department yang di-return bukan "Returned" — hanya item
+  // yang benar di-return (resultStatus RETURNED) yang berlabel demikian.
+  if (departmentStatus === 'RETURNED_TO_DEPARTMENT') return 'SUBMITTED'
   return departmentStatus || 'SUBMITTED'
 }
 
