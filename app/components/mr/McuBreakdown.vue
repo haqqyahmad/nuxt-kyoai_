@@ -301,24 +301,48 @@ function toggleGroup(key: string, attention: boolean) {
                   size="xs"
                 />
               </div>
-              <div v-if="cat.completedItems.length" class="flex flex-wrap gap-2">
-                <div
-                  v-for="item in cat.completedItems"
-                  :key="item.id"
-                  class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border border-success/30 bg-success/10 px-3 py-2"
-                >
-                  <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
-                    <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0 text-success" />
-                    {{ item.name }}
-                  </span>
-                  <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
-                    <UIcon name="i-lucide-play" class="size-3" />
-                    Start {{ formatDateTime(item.startAt || undefined) }}
-                    <span class="mx-1 text-muted">·</span>
-                    <UIcon name="i-lucide-check" class="size-3" />
-                    Done {{ formatDateTime(item.doneAt || undefined) }}
-                  </span>
-                </div>
+              <div v-if="cat.completedGroups.length" class="space-y-2">
+                <template v-for="group in cat.completedGroups" :key="group.key">
+                  <div class="overflow-hidden rounded-lg border border-default">
+                    <button
+                      class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                      @click="toggleGroup(group.key, group.needsAttention)"
+                    >
+                      <span class="text-xs font-semibold text-highlighted">
+                        {{ group.label }}
+                        <UBadge
+                          :label="`${group.items.length} item`"
+                          color="success"
+                          variant="subtle"
+                          size="xs"
+                          class="ml-1"
+                        />
+                      </span>
+                      <UIcon :name="isGroupOpen(group.key, group.needsAttention) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="text-muted" />
+                    </button>
+                    <div v-show="isGroupOpen(group.key, group.needsAttention)" class="border-t border-default p-2">
+                      <div class="flex flex-wrap gap-2">
+                        <div
+                          v-for="item in group.items"
+                          :key="item.id"
+                          class="flex max-w-full flex-col gap-1 whitespace-normal rounded-xl border border-success/30 bg-success/10 px-3 py-2"
+                        >
+                          <span class="flex items-center gap-1.5 text-sm font-semibold text-highlighted">
+                            <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0 text-success" />
+                            {{ item.name }}
+                          </span>
+                          <span class="flex items-center gap-1 text-[11px] font-medium text-muted">
+                            <UIcon name="i-lucide-play" class="size-3" />
+                            Start {{ formatDateTime(item.startAt || undefined) }}
+                            <span class="mx-1 text-muted">·</span>
+                            <UIcon name="i-lucide-check" class="size-3" />
+                            Done {{ formatDateTime(item.doneAt || undefined) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
               <p v-else class="text-sm text-muted">
                 No completed items yet.

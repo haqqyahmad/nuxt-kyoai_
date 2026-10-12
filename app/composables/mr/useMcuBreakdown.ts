@@ -57,6 +57,7 @@ export type McuBreakdownCategory = {
   refusedCount: number
   completedItems: McuBreakdownItem[]
   pendingItems: McuBreakdownItem[]
+  completedGroups: McuPendingGroup[]
   sampleGroups: McuSampleGroup[]
   pendingGroups: McuPendingGroup[]
   updatedAt: string | null
@@ -267,7 +268,7 @@ export function buildSampleGroups(label: string, items: McuBreakdownItem[]): Mcu
   return out
 }
 
-export function buildPendingGroups(label: string, pendingItems: McuBreakdownItem[]): McuPendingGroup[] {
+export function buildPendingGroups(label: string, pendingItems: McuBreakdownItem[], scope = 'pending'): McuPendingGroup[] {
   const byType = new Map<string, { label: string, items: McuBreakdownItem[] }>()
   for (const item of pendingItems) {
     if (!item.sampleCollections.length) {
@@ -288,7 +289,7 @@ export function buildPendingGroups(label: string, pendingItems: McuBreakdownItem
   const out: McuPendingGroup[] = []
   for (const [key, slot] of byType) {
     out.push({
-      key: `${label}::${key}`,
+      key: `${label}::${scope}::${key}`,
       label: slot.label,
       needsAttention: slot.items.some(i => isAttentionItemStatus(i.status)),
       items: slot.items
@@ -353,8 +354,9 @@ export function buildMcuCategories(
       refusedCount,
       completedItems,
       pendingItems,
+      completedGroups: buildPendingGroups(category.label, completedItems, 'completed'),
       sampleGroups: buildSampleGroups(category.label, category.items),
-      pendingGroups: buildPendingGroups(category.label, pendingItems),
+      pendingGroups: buildPendingGroups(category.label, pendingItems, 'pending'),
       updatedAt,
       status:
         total > 0 && completed === total
