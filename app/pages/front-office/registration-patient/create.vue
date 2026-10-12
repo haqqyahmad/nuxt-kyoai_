@@ -1028,6 +1028,7 @@ async function submit() {
     let patientId = selectedPatient.value?.id
 
     let registrationId: number
+    let idReg: string | null = null
     let examIdFromApprove: string | null = null
     if (fromTemp.value && tempId.value) {
       // Alur portal: approve backend dipanggil saat simpan →
@@ -1088,6 +1089,7 @@ async function submit() {
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
       examIdFromApprove = approveRes.data.data.examId ?? null
+      idReg = approveRes.data.data.reg?.id_reg ?? null
     } else {
       if (isNewPatient.value) {
         const patient = await saveNewPatient()
@@ -1108,6 +1110,7 @@ async function submit() {
       }
       const regRes = await api.post('/registration', regPayload)
       registrationId = regRes.data.data.id
+      idReg = regRes.data.data.id_reg ?? null
     }
 
     // Jalur lama (backend tanpa exam): buat exam terpisah. Diabaikan bila
@@ -1139,7 +1142,9 @@ async function submit() {
         : 'Registration created successfully',
       color: 'success'
     })
-    router.push('/front-office/registration-patient')
+    router.push(idReg
+      ? `/front-office/registration-patient/${idReg}`
+      : '/front-office/registration-patient')
   } catch (err: unknown) {
     const error = err as {
       response?: { data?: { message?: string } }
