@@ -271,7 +271,7 @@ export function buildPendingGroups(label: string, pendingItems: McuBreakdownItem
   const byType = new Map<string, { label: string, items: McuBreakdownItem[] }>()
   for (const item of pendingItems) {
     if (!item.sampleCollections.length) {
-      if (!byType.has('no-sample')) byType.set('no-sample', { label: 'No Sample', items: [] })
+      if (!byType.has('no-sample')) byType.set('no-sample', { label: 'Examination', items: [] })
       byType.get('no-sample')!.items.push(item)
       continue
     }
