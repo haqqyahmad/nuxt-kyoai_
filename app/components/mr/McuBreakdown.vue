@@ -57,7 +57,7 @@ function categoryBadgeIcon(cat: McuBreakdownCategory): string {
 const deptOpen = ref<Record<string, boolean>>({})
 const groupOpen = ref<Record<string, boolean>>({})
 function isDeptOpen(key: string): boolean {
-  return deptOpen.value[key] ?? true
+  return deptOpen.value[key] ?? false
 }
 function toggleDept(key: string) {
   deptOpen.value = { ...deptOpen.value, [key]: !isDeptOpen(key) }
@@ -91,7 +91,7 @@ function toggleGroup(key: string, attention: boolean) {
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <UButton
-                icon="i-lucide-chevron-down"
+                :icon="isDeptOpen(cat.label) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
                 color="neutral"
                 variant="ghost"
                 size="xs"
