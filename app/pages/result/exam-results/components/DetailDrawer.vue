@@ -117,6 +117,7 @@ type ExamResultDetail = {
   revisionItems?: Array<{
     inputanId: string | null
     examItemId: string | null
+    examItemName?: string | null
     reason?: string | null
     label?: string | null
   }>
@@ -552,11 +553,37 @@ const isReturnedToDepartment = computed(
 )
 const returnReason = computed(() => props.result?.returnReason ?? null)
 const returnRevisionItems = computed(() => props.result?.revisionItems ?? [])
-function returnItemLabel(inputanId: string | null, fallbackLabel?: string | null) {
-  if (fallbackLabel) return fallbackLabel
-  if (!inputanId) return 'Examination item'
-  const inputan = (props.result?.item?.inputans ?? []).find(inp => inp.id === inputanId)
-  return inputan?.label || inputanId.slice(0, 8)
+// Tandai hanya item yang benar-benar di-return (bukan semua item di department).
+const scopeItemIds = computed(() => {
+  const items = (props.result as unknown as { items?: Array<{ id?: string }> } | null)?.items
+  if (Array.isArray(items) && items.length) return items.map(i => i.id).filter(Boolean) as string[]
+  return props.result?.id ? [props.result.id] : []
+})
+const myReturnRevisionItems = computed(() =>
+  returnRevisionItems.value.filter(r => !r.examItemId || scopeItemIds.value.includes(r.examItemId))
+)
+const isThisItemReturned = computed(() =>
+  props.result?.resultStatus === 'RETURNED' || myReturnRevisionItems.value.length > 0
+)
+const showReturnBanner = computed(() => isReturnedToDepartment.value && isThisItemReturned.value)
+type ReturnRevision = {
+  inputanId?: string | null
+  examItemId?: string | null
+  examItemName?: string | null
+  label?: string | null
+  reason?: string | null
+}
+function returnItemLabel(rev: ReturnRevision): string {
+  if (rev.label) return rev.label
+  if (rev.inputanId) {
+    const inputan = (props.result?.item?.inputans ?? []).find(inp => inp.id === rev.inputanId)
+    return inputan?.label || (rev.inputanId ?? '').slice(0, 8)
+  }
+  if (rev.examItemName) return rev.examItemName
+  if (rev.examItemId && rev.examItemId === props.result?.id) return props.result?.item?.name ?? 'Examination item'
+  const groupedItems = (props.result as unknown as { items?: Array<{ id?: string, item?: { name?: string } }> } | null)?.items
+  const match = Array.isArray(groupedItems) ? groupedItems.find(i => i.id === rev.examItemId) : null
+  return match?.item?.name ?? 'Examination item'
 }
 // [RETURN] Notes per input (from doctor return → dept)
 const returnNoteByInputan = computed<Record<string, string>>(() => {
@@ -1883,7 +1910,7 @@ onBeforeUnmount(() => {
     </template>
 
     <template #body>
-      <div v-if="isReturnedToDepartment" class="space-y-1 p-3 sm:px-4">
+      <div v-if="showReturnBanner" class="space-y-1 p-3 sm:px-4">
         <UAlert
           icon="i-lucide-rotate-ccw"
           color="error"
@@ -1894,17 +1921,17 @@ onBeforeUnmount(() => {
           <template #description>
             <div class="mt-1 space-y-1">
               <p>{{ returnReason || 'Fix the marked results then resubmit.' }}</p>
-              <p v-if="returnRevisionItems.length" class="text-xs">
+              <p v-if="myReturnRevisionItems.length" class="text-xs">
                 Items that need fixing:
                 <button
-                  v-for="(rev, revIdx) in returnRevisionItems"
-                  :key="rev.inputanId ?? revIdx"
+                  v-for="(rev, revIdx) in myReturnRevisionItems"
+                  :key="rev.examItemId ?? rev.inputanId ?? revIdx"
                   type="button"
                   title="Go to item"
                   class="mr-2 inline-flex cursor-pointer items-center gap-1 rounded bg-error/10 px-1.5 py-0.5"
                   @click="scrollToRevision(rev)"
                 >
-                  {{ returnItemLabel(rev.inputanId, rev.label) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
+                  {{ returnItemLabel(rev) }}{{ rev.reason ? ` — ${rev.reason}` : '' }}
                 </button>
               </p>
             </div>
