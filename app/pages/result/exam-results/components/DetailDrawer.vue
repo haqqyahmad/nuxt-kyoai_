@@ -2135,7 +2135,7 @@ onBeforeUnmount(() => {
             <div
               v-if="result.item?.inputans?.length"
               class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28"
-              :class="isExternalInputTwoColumns ? 'lg:grid-cols-2' : 'grid-cols-1'"
+              :class="isExternalInputTwoColumns ? 'md:grid-cols-2' : 'grid-cols-1'"
             >
               <div
                 v-for="inputan in visibleInputans"
@@ -2201,7 +2201,7 @@ onBeforeUnmount(() => {
               </div>
               <div
                 class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
-                :class="isExternalInputTwoColumns ? 'lg:col-span-2' : ''"
+                :class="isExternalInputTwoColumns ? 'md:col-span-2' : ''"
               >
                 <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">Conclusion / Note</label><UTextarea
                   :rows="4"
