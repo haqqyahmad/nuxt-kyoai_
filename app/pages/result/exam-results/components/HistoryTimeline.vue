@@ -75,6 +75,7 @@ const actionDefs: Record<string, ActionDef> = {
   SUBMITTED_TO_DOCTOR: { title: 'Report submitted to doctor', badge: 'SUBMITTED_TO_DOCTOR', dotColor: 'dot-blue', dotIcon: '→', type: 'status' },
   RESUBMIT_INPUT: { title: 'Doctor resubmitted examination result (after revision)', badge: 'RESUBMIT_INPUT', dotColor: 'dot-amber', dotIcon: '↻', type: 'submit' },
   REOPEN_RESULT: { title: 'Result reopened for revision', badge: 'REOPEN_RESULT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
+  RETURN_RESULT: { title: 'Reviewer returned result to department', badge: 'RETURN_RESULT', dotColor: 'dot-amber', dotIcon: '↩', type: 'status' },
   UPDATE_INPUT: { title: 'Draft input updated', badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' }
 }
 

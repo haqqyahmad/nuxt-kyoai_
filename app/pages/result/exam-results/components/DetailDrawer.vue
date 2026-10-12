@@ -283,6 +283,56 @@ async function handleReopenItem() {
   }
 }
 
+// Return item SUBMITTED → RETURNED agar department memperbaiki. Siapa pun
+// dengan Result Access department boleh perbaiki (bukan harus submitter pertama).
+const returningItem = ref(false)
+const isReturnModalOpen = ref(false)
+const returnReasonInput = ref('')
+const canReturnItem = computed(() =>
+  !isExternalDoctor.value
+  && props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+  && props.result?.resultStatus === 'SUBMITTED'
+  && Boolean(props.result?.departmentCanApprove)
+  && !((props.result as { items?: unknown[] })?.items?.length)
+)
+function openReturnModal() {
+  returnReasonInput.value = ''
+  isReturnModalOpen.value = true
+}
+async function handleReturnItem() {
+  const targetExamId = props.result?.exam?.id
+  const targetItemId = props.result?.id
+  if (!targetExamId || !targetItemId || returningItem.value) return
+  const reason = returnReasonInput.value.trim()
+  if (!reason) {
+    toast.add({
+      title: 'Reason required',
+      description: 'Please enter the reason for returning this item.',
+      color: 'error'
+    })
+    return
+  }
+  returningItem.value = true
+  try {
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return`, { reason })
+    toast.add({
+      title: 'Returned to department',
+      description: 'Item returned for correction by the department.',
+      color: 'warning'
+    })
+    isReturnModalOpen.value = false
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Failed to return item',
+      description: getErrorMessage(error, 'An error occurred while returning.'),
+      color: 'error'
+    })
+  } finally {
+    returningItem.value = false
+  }
+}
+
 const { loading: auditLoading, entries, resetAudit } = useAudit()
 const auditCtxDeptId = computed(() => {
   const r = props.result as unknown as { items?: unknown[], item?: { department?: { id?: string | null } | null } | null } | null
@@ -1761,6 +1811,16 @@ onBeforeUnmount(() => {
           >
             Approve Item
           </UButton>
+          <UButton
+            v-if="canReturnItem"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-undo-2"
+            title="Return to department for correction"
+            @click="openReturnModal"
+          >
+            Return to Submitter
+          </UButton>
           <span
             v-if="result?.departmentCanApprove === false && result?.departmentApproveDisableReason"
             class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
@@ -1828,7 +1888,7 @@ onBeforeUnmount(() => {
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-          title="Result returned by doctor"
+          title="Result returned to department"
           :description="returnReason || 'Fix the marked results then resubmit.'"
         >
           <template #description>
@@ -3290,6 +3350,57 @@ onBeforeUnmount(() => {
           @click="cancelExternalDoctor"
         >
           Cancel Assignment
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isReturnModalOpen"
+    title="Return to Submitter"
+    description="Return this submitted item to the department for correction. Any department member can fix and resubmit."
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          icon="i-lucide-undo-2"
+          color="warning"
+          variant="soft"
+          :title="result?.item?.name || 'Examination item'"
+          :description="`Submitted result will be set to RETURNED with the reason below.`"
+        />
+
+        <UFormField label="Reason" hint="required">
+          <UTextarea
+            v-model="returnReasonInput"
+            :rows="3"
+            :maxlength="500"
+            placeholder="e.g. Hemoglobin value inconsistent with clinical data, please recheck…"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="outline"
+          :disabled="returningItem"
+          @click="isReturnModalOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          color="warning"
+          icon="i-lucide-undo-2"
+          :loading="returningItem"
+          :disabled="!returnReasonInput.trim()"
+          @click="handleReturnItem"
+        >
+          Return Item
         </UButton>
       </div>
     </template>
