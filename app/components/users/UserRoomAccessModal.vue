@@ -34,6 +34,7 @@ const emit = defineEmits<{
 
 const api = useApi()
 const toast = useToast()
+const { user: currentUser, refresh: refreshCurrentUser } = await useCurrentUser()
 
 const open = defineModel<boolean>('open')
 
@@ -134,7 +135,7 @@ async function saveRoomAccess() {
     })
 
     open.value = false
-    clearNuxtData('current-user')
+    if (currentUser.value?.id === props.user?.id) await refreshCurrentUser()
     emit('updated')
   } catch (error: unknown) {
     const response = error as { response?: { data?: { message?: string } } }

@@ -27,6 +27,7 @@ const emit = defineEmits<{
 const open = defineModel<boolean>('open')
 const api = useApi()
 const toast = useToast()
+const { user: currentUser, refresh: refreshCurrentUser } = await useCurrentUser()
 
 const departments = ref<Department[]>([])
 const selectedDepartmentIds = ref<string[]>([])
@@ -95,7 +96,7 @@ async function saveResultAccess() {
     })
     toast.add({ title: 'Result Access berhasil disimpan', color: 'success' })
     open.value = false
-    clearNuxtData('current-user')
+    if (currentUser.value?.id === props.user?.id) await refreshCurrentUser()
     emit('updated')
   } catch (error: unknown) {
     const response = error as { response?: { data?: { message?: string } } }
