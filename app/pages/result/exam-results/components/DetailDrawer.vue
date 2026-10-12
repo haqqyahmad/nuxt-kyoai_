@@ -1854,7 +1854,7 @@ onBeforeUnmount(() => {
 
       <div
         v-if="result && isExternalDoctorWorkspace"
-        class="flex h-[calc(120dvh-5rem)] min-h-0 flex-col overflow-hidden bg-default px-4 py-4 sm:px-6"
+        class="flex min-h-0 flex-col overflow-visible bg-default px-4 py-4 sm:px-6 xl:h-[calc(100dvh-6rem)] xl:overflow-hidden"
       >
         <UCard class="mb-4 shrink-0 overflow-hidden border border-default/80 shadow-sm">
           <template #header>
@@ -2044,7 +2044,7 @@ onBeforeUnmount(() => {
             :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }"
           >
             <div
-              class="mx-4 mt-4 mb-4 flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-t-lg bg-muted/30"
+              class="mx-4 mt-4 mb-4 flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-t-lg bg-muted/30 sm:min-h-[420px] xl:min-h-[560px]"
             >
               <div
                 v-if="externalAttachmentLoading"
@@ -2218,7 +2218,7 @@ onBeforeUnmount(() => {
                 description="This item has no input parameters yet."
               />
             </div>
-            <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-10">
+            <div class="shrink-0 border-t border-default/70 px-4 pt-4 pb-6 sm:pb-10">
               <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <!-- Manual status only for items that are not external results -->
                 <template v-if="!hasExternalResultContext">
@@ -2243,6 +2243,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <UButton
+                      class="w-full sm:w-auto"
                       color="secondary"
                       variant="soft"
                       :loading="statusSaving"
@@ -2254,6 +2255,7 @@ onBeforeUnmount(() => {
                     </UButton>
                     <div class="flex flex-col items-center gap-0.5">
                       <UButton
+                        class="w-full sm:w-auto"
                         color="neutral"
                         variant="soft"
                         :loading="saving"
@@ -2269,6 +2271,7 @@ onBeforeUnmount(() => {
                       >{{ submitHint }}</span>
                     </div>
                     <UButton
+                      class="w-full sm:w-auto"
                       color="primary"
                       :loading="submitting"
                       :title="submitHint || undefined"
@@ -2285,6 +2288,7 @@ onBeforeUnmount(() => {
                 <template v-else-if="result?.exam?.externalStatus === 'PROCESSING'">
                   <div class="flex flex-col gap-2 sm:flex-row">
                     <UButton
+                      class="w-full sm:w-auto"
                       color="neutral"
                       variant="soft"
                       :loading="saving"
@@ -2295,6 +2299,7 @@ onBeforeUnmount(() => {
                       Save Draft
                     </UButton>
                     <UButton
+                      class="w-full sm:w-auto"
                       color="primary"
                       :loading="submitting"
                       :title="submitHint || undefined"
