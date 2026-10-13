@@ -2033,7 +2033,7 @@ onBeforeUnmount(() => {
 
       <div
         v-if="result && isExternalDoctorWorkspace"
-        class="flex min-h-0 flex-col overflow-visible bg-default px-4 py-4 sm:px-6 xl:h-[calc(100dvh-6rem)] xl:overflow-hidden"
+        class="flex min-h-0 flex-col bg-default px-4 py-4 sm:px-6"
       >
         <UCard class="mb-4 shrink-0 overflow-hidden border border-default/80 shadow-sm">
           <template #header>
@@ -2145,7 +2145,7 @@ onBeforeUnmount(() => {
                 Start Process
               </UButton>
             </div>
-            <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
               <div class="min-w-0">
                 <dt class="text-xs uppercase tracking-wide text-muted">
                   MR No. / Queue
@@ -2192,26 +2192,13 @@ onBeforeUnmount(() => {
                   {{ getExternalUploadLabel() }}
                 </dd>
               </div>
-              <div class="min-w-0">
-                <dt class="text-xs uppercase tracking-wide text-muted">
-                  External Doctor
-                </dt>
-                <dd class="mt-1 break-words font-semibold text-highlighted">
-                  {{
-                    formatExternalActor(
-                      result?.exam?.assignedExternalUser,
-                      result?.exam?.assignedExternalUserId
-                    )
-                  }}
-                </dd>
-              </div>
             </dl>
           </div>
           <!-- v-show externalContextOpen -->
         </UCard>
 
         <div
-          class="grid min-h-0 flex-1 gap-4"
+          class="grid gap-4"
           :class="
             isExternalInputTwoColumns
               ? 'xl:grid-cols-[minmax(620px,1fr)_minmax(560px,1fr)]'
@@ -2219,7 +2206,7 @@ onBeforeUnmount(() => {
           "
         >
           <UCard
-            class="flex min-h-0 flex-col overflow-hidden border border-default/80 shadow-sm"
+            class="flex min-h-0 flex-col overflow-hidden border border-default/80 shadow-sm xl:self-start"
             :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }"
           >
             <div
@@ -2262,8 +2249,8 @@ onBeforeUnmount(() => {
           </UCard>
 
           <UCard
-            class="flex min-h-0 max-h-full flex-col overflow-hidden border border-default/80 shadow-sm"
-            :ui="{ body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0 sm:p-0' }"
+            class="flex flex-col overflow-hidden border border-default/80 shadow-sm"
+            :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0' }"
           >
             <template #header>
               <div class="flex flex-wrap items-start justify-between gap-3">
@@ -2313,7 +2300,7 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-if="result.item?.inputans?.length"
-              class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-4 pb-28"
+              class="grid content-start gap-3 px-4 pt-4 pb-4"
               :class="isExternalInputTwoColumns ? 'md:grid-cols-2' : 'grid-cols-1'"
             >
               <div
