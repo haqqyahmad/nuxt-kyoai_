@@ -210,7 +210,8 @@ function getStatusLabel(status?: string) {
 }
 
 // Status per item: pakai status item bila belum disubmit; bila sudah disubmit,
-// tampilkan status approval department-nya.
+// LAB mengikuti status approval department-nya; non-LAB per-item (approve 1
+// item = final, tanpa menunggu item lain).
 function getRowStatus(result: ExamResult) {
   const itemStatus = result.resultStatus
   if (!itemStatus) return result.departmentResultStatus || result.status || ''
@@ -222,7 +223,11 @@ function getRowStatus(result: ExamResult) {
   if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
   // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
   if (result.itemApproved) return 'DEPARTMENT_APPROVED'
-  // Item SUBMITTED di department yang di-return: tandai sebagai "Dept Returned"
+  const isLabRow = String(result.item?.department?.code ?? '').toUpperCase() === 'LAB'
+  // Non-LAB per-item: item SUBMITTED yang belum approved = Pending Approval
+  // (walau department sudah DEPARTMENT_APPROVED/SUBMITTED_TO_DOCTOR).
+  if (!isLabRow) return 'SUBMITTED'
+  // Item SUBMITTED di department LAB yang di-return: tandai sebagai "Dept Returned"
   // (menunggu dept resubmit) — bedakan dari item yang benar di-return.
   if (departmentStatus === 'RETURNED_TO_DEPARTMENT') return 'DEPARTMENT_RETURNED'
   return departmentStatus || 'SUBMITTED'

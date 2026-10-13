@@ -250,12 +250,25 @@ async function handleApproveItem() {
   }
 }
 
+// Non-LAB = per-item (approve 1 item = final, tanpa menunggu item lain).
+// LAB tetap department-level. Status final report dikunci di BE.
+const isNonLabDept = computed(() =>
+  String((props.result as unknown as { item?: { department?: { code?: string | null } | null } | null })?.item?.department?.code ?? '').toUpperCase() !== 'LAB'
+)
+const canApproveItemVisible = computed(() =>
+  !isExternalDoctor.value
+  && (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+    || (isNonLabDept.value && ['DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(props.result?.departmentResultStatus ?? '')))
+  && ['SUBMITTED', 'PARTIAL'].includes(props.result?.resultStatus || '')
+)
+
 // Reopen item SUBMITTED → DRAFT agar reviewer bisa mengoreksi sebelum approve.
 // Gate mengikuti reviewer workflow (departmentCanApprove dari BE).
 const reopeningItem = ref(false)
 const canReopenItem = computed(() =>
   !isExternalDoctor.value
-  && props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+  && (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+    || (isNonLabDept.value && ['DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(props.result?.departmentResultStatus ?? '')))
   && props.result?.resultStatus === 'SUBMITTED'
   && Boolean(props.result?.departmentCanApprove)
   && !((props.result as { items?: unknown[] })?.items?.length)
@@ -291,7 +304,8 @@ const isReturnModalOpen = ref(false)
 const returnReasonInput = ref('')
 const canReturnItem = computed(() =>
   !isExternalDoctor.value
-  && props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+  && (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
+    || (isNonLabDept.value && ['DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(props.result?.departmentResultStatus ?? '')))
   && props.result?.resultStatus === 'SUBMITTED'
   && Boolean(props.result?.departmentCanApprove)
   && !((props.result as { items?: unknown[] })?.items?.length)
@@ -1828,7 +1842,7 @@ onBeforeUnmount(() => {
             Edit
           </UButton>
           <UButton
-            v-if="!isExternalDoctor && result?.departmentResultStatus === 'DEPARTMENT_REVIEW' && ['SUBMITTED', 'PARTIAL'].includes(result?.resultStatus || '')"
+            v-if="canApproveItemVisible"
             color="success"
             :loading="approvingItem"
             icon="i-lucide-check-circle"
