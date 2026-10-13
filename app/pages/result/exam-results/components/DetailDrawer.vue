@@ -345,6 +345,56 @@ const canReturnItem = computed(() =>
   && Boolean(props.result?.departmentCanApprove)
   && !((props.result as { items?: unknown[] })?.items?.length)
 )
+
+// Return external item FILLED/PROCESSING ke dokter luar untuk dikerjakan ulang:
+// assignment kembali ASSIGNED (dokter yang sama), item kembali READY.
+const canReturnToExternalDoctor = computed(() =>
+  !isExternalDoctor.value
+  && Boolean(props.result?.isExternalResult)
+  && (props.result?.exam?.externalStatus === 'FILLED' || props.result?.exam?.externalStatus === 'PROCESSING')
+  && Boolean(props.result?.departmentCanApprove)
+  && !((props.result as { items?: unknown[] })?.items?.length)
+)
+const isReturnExternalModalOpen = ref(false)
+const returnExternalReasonInput = ref('')
+const returningExternal = ref(false)
+function openReturnExternalModal() {
+  returnExternalReasonInput.value = ''
+  isReturnExternalModalOpen.value = true
+}
+async function handleReturnExternalDoctor() {
+  const targetExamId = props.result?.exam?.id
+  const targetItemId = props.result?.id
+  if (!targetExamId || !targetItemId || returningExternal.value) return
+  const reason = returnExternalReasonInput.value.trim()
+  if (!reason) {
+    toast.add({
+      title: 'Reason required',
+      description: 'Please enter the reason for returning this item.',
+      color: 'error'
+    })
+    return
+  }
+  returningExternal.value = true
+  try {
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return-external`, { reason })
+    toast.add({
+      title: 'Returned to external doctor',
+      description: 'Item sent back to the external doctor for rework.',
+      color: 'warning'
+    })
+    isReturnExternalModalOpen.value = false
+    emit('resultSaved', props.result)
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Failed to return item',
+      description: getErrorMessage(error, 'An error occurred while returning.'),
+      color: 'error'
+    })
+  } finally {
+    returningExternal.value = false
+  }
+}
 function openReturnModal() {
   returnReasonInput.value = ''
   returnSearch.value = ''
@@ -1927,6 +1977,16 @@ onBeforeUnmount(() => {
           >
             Return to Submitter
           </UButton>
+          <UButton
+            v-if="canReturnToExternalDoctor"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-user-round"
+            title="Return to the external doctor for rework"
+            @click="openReturnExternalModal"
+          >
+            Return to External Doctor
+          </UButton>
           <span
             v-if="result?.departmentCanApprove === false && result?.departmentApproveDisableReason"
             class="max-w-[220px] text-right text-[10px] leading-tight text-muted"
@@ -1948,7 +2008,7 @@ onBeforeUnmount(() => {
           v-if="
             embedded
               && (canEditCurrentResult || canSubmitCurrentResult)
-              && (!hasExternalResultContext || result?.exam?.externalStatus === 'PROCESSING')
+              && (!isExternalDoctorWorkspace || result?.exam?.externalStatus === 'PROCESSING')
           "
           class="flex w-full items-start justify-end gap-2 sm:w-auto"
         >
@@ -3559,6 +3619,57 @@ onBeforeUnmount(() => {
           @click="handleReturnItem"
         >
           Return Item
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isReturnExternalModalOpen"
+    title="Return to External Doctor"
+    description="Return this external item to the external doctor for rework. The assignment goes back to ASSIGNED and the item to READY; previous values are kept as draft."
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          icon="i-lucide-user-round"
+          color="warning"
+          variant="soft"
+          :title="result?.item?.name || 'Examination item'"
+          :description="`Currently filled by ${formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId)} (${result?.exam?.externalStatus}).`"
+        />
+
+        <UFormField label="Reason" hint="required">
+          <UTextarea
+            v-model="returnExternalReasonInput"
+            :rows="3"
+            :maxlength="500"
+            placeholder="e.g. ECG reading unclear, please re-examine…"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="outline"
+          :disabled="returningExternal"
+          @click="isReturnExternalModalOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          color="warning"
+          icon="i-lucide-undo-2"
+          :loading="returningExternal"
+          :disabled="!returnExternalReasonInput.trim()"
+          @click="handleReturnExternalDoctor"
+        >
+          Return to External Doctor
         </UButton>
       </div>
     </template>
