@@ -1968,7 +1968,7 @@ onBeforeUnmount(() => {
             Approve Item
           </UButton>
           <UButton
-            v-if="canReturnItem"
+            v-if="canReturnItem && !canReturnToExternalDoctor"
             color="warning"
             variant="soft"
             icon="i-lucide-undo-2"
