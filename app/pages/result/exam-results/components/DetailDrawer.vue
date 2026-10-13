@@ -314,12 +314,12 @@ const canReturnItem = computed(() =>
   && !((props.result as { items?: unknown[] })?.items?.length)
 )
 
-// Return external item FILLED/PROCESSING ke dokter luar untuk dikerjakan ulang:
+// Return external item FILLED ke dokter luar untuk dikerjakan ulang:
 // assignment kembali ASSIGNED (dokter yang sama), item kembali READY.
 const canReturnToExternalDoctor = computed(() =>
   !isExternalDoctor.value
   && Boolean(props.result?.isExternalResult)
-  && (props.result?.exam?.externalStatus === 'FILLED' || props.result?.exam?.externalStatus === 'PROCESSING')
+  && props.result?.exam?.externalStatus === 'FILLED'
   && Boolean(props.result?.departmentCanApprove)
   && !((props.result as { items?: unknown[] })?.items?.length)
 )
