@@ -302,6 +302,41 @@ async function handleReopenItem() {
 const returningItem = ref(false)
 const isReturnModalOpen = ref(false)
 const returnReasonInput = ref('')
+const returnSearch = ref('')
+
+type ReturnInputRow = {
+  inputanId: string
+  label: string
+  value: string
+  flag: string
+  note: string
+  checked: boolean
+}
+
+function formatReturnRowValue(inputan: ExamInput): string {
+  const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
+  const raw = result?.valueNumber ?? result?.valueString ?? result?.valueSelected ?? result?.valueCalculated
+  const value = raw == null ? '' : String(raw)
+  if (!value) return '-'
+  return inputan.uom ? `${value} ${inputan.uom}` : value
+}
+
+function isAbnormalReturnRow(inputan: ExamInput): boolean {
+  const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
+  if (result?.flag === 'abnormal') return true
+  const grading = String(result?.grading ?? '').toUpperCase()
+  return grading === 'ABNORMAL_INC' || grading === 'ABNORMAL_DEC'
+}
+
+const returnRows = ref<ReturnInputRow[]>([])
+const filteredReturnRows = computed(() => {
+  const q = returnSearch.value.trim().toLowerCase()
+  if (!q) return returnRows.value
+  return returnRows.value.filter(row =>
+    [row.label, row.value, row.flag].filter(Boolean).join(' ').toLowerCase().includes(q))
+})
+const selectedReturnRows = computed(() => returnRows.value.filter(r => r.checked))
+
 const canReturnItem = computed(() =>
   !isExternalDoctor.value
   && (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW'
@@ -312,7 +347,33 @@ const canReturnItem = computed(() =>
 )
 function openReturnModal() {
   returnReasonInput.value = ''
+  returnSearch.value = ''
+  const rows: ReturnInputRow[] = []
+  for (const inputan of props.result?.item?.inputans ?? []) {
+    const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
+    const flag = result?.grading && String(result.grading).toUpperCase().startsWith('ABNORMAL')
+      ? String(result.grading)
+      : (result?.flag === 'abnormal' ? 'abnormal' : 'normal')
+    rows.push({
+      inputanId: inputan.id,
+      label: inputan.label,
+      value: formatReturnRowValue(inputan),
+      flag,
+      note: '',
+      checked: isAbnormalReturnRow(inputan)
+    })
+  }
+  rows.sort((a, b) => {
+    const score = (r: ReturnInputRow) => r.checked ? 0 : 1
+    return score(a) - score(b) || a.label.localeCompare(b.label)
+  })
+  returnRows.value = rows
   isReturnModalOpen.value = true
+}
+function selectAllAbnormalReturnRows() {
+  for (const row of returnRows.value) {
+    if (row.flag === 'abnormal' || row.flag.startsWith('ABNORMAL')) row.checked = true
+  }
 }
 async function handleReturnItem() {
   const targetExamId = props.result?.exam?.id
@@ -329,7 +390,11 @@ async function handleReturnItem() {
   }
   returningItem.value = true
   try {
-    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return`, { reason })
+    const items = selectedReturnRows.value.map(r => ({
+      inputanId: r.inputanId,
+      note: r.note.trim()
+    }))
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return`, { reason, items })
     toast.add({
       title: 'Returned to department',
       description: 'Item returned for correction by the department.',
@@ -3410,6 +3475,59 @@ onBeforeUnmount(() => {
           :title="result?.item?.name || 'Examination item'"
           :description="`Submitted result will be set to RETURNED with the reason below.`"
         />
+
+        <div v-if="returnRows.length" class="space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <UInput
+              v-model="returnSearch"
+              icon="i-lucide-search"
+              placeholder="Search parameter..."
+              size="sm"
+              class="min-w-0 flex-1"
+            />
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="soft"
+              :disabled="returningItem"
+              @click="selectAllAbnormalReturnRows"
+            >
+              Select all abnormal
+            </UButton>
+          </div>
+
+          <div class="max-h-[320px] space-y-2 overflow-auto pr-1">
+            <div
+              v-for="row in filteredReturnRows"
+              :key="row.inputanId"
+              class="flex items-start gap-3 rounded-xl border border-default p-3 text-left"
+              :class="row.checked ? 'bg-warning/5 border-warning/40' : 'bg-transparent'"
+            >
+              <UCheckbox v-model="row.checked" class="mt-1 shrink-0" />
+
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-highlighted">
+                  {{ row.label }}
+                </p>
+                <p class="mt-0.5 text-xs text-muted">
+                  {{ row.value }}
+                  <span v-if="row.flag !== 'normal'"> · {{ row.flag }}</span>
+                </p>
+                <UTextarea
+                  v-model="row.note"
+                  :rows="1"
+                  :maxlength="500"
+                  placeholder="Note for this parameter (optional)..."
+                  class="mt-2 w-full"
+                />
+              </div>
+            </div>
+
+            <p v-if="!filteredReturnRows.length" class="rounded-xl border border-dashed border-default p-4 text-center text-sm text-muted">
+              No parameters match.
+            </p>
+          </div>
+        </div>
 
         <UFormField label="Reason" hint="required">
           <UTextarea
