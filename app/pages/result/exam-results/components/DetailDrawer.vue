@@ -873,7 +873,7 @@ async function loadExternalAttachmentPreview() {
     !isExternalDoctorWorkspace.value
     || !props.result?.exam?.id
     || !examItemId
-    || !props.result.exam?.attachmentUrl
+    || (!props.result.exam?.attachmentUrl && !props.result.exam?.externalAttachment)
   ) {
     return
   }
@@ -2318,8 +2318,10 @@ onBeforeUnmount(() => {
             >
               <div
                 v-for="inputan in visibleInputans"
+                :id="`inputan-${inputan.id}`"
                 :key="inputan.id"
-                class="min-w-0 rounded-lg border border-default/80 bg-default/70 p-3"
+                class="min-w-0 scroll-mt-24 rounded-lg border border-default/80 bg-default/70 p-3"
+                :class="inputan.id === highlightedInputanId ? 'ring-2 ring-error' : ''"
               >
                 <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">{{ inputan.label }}
                   <span v-if="!inputan.allowBlank" class="text-error">*</span></label>
