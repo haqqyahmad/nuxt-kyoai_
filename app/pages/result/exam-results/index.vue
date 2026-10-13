@@ -68,6 +68,9 @@ type ExamResult = {
   departmentCurrentStepOrder?: number | null
   itemApproved?: boolean | null
   itemApprovedAt?: string | null
+  isExternalResult?: boolean | null
+  externalStatus?: string | null
+  openRevision?: boolean | null
   checkinAt?: string | null
   completedAt?: string | null
   createdAt?: string
@@ -187,6 +190,8 @@ function getStatusColor(status?: string) {
   if (status === 'completed' || status === 'DEPARTMENT_APPROVED' || status === 'SUBMITTED_TO_DOCTOR') return 'success'
   if (status === 'pending' || status === 'DEPARTMENT_REVIEW' || status === 'SUBMITTED' || status === 'PARTIAL') return 'warning'
   if (status === 'DEPARTMENT_RETURNED') return 'warning'
+  if (status === 'EXTERNAL_PROCESSING' || status === 'EXTERNAL_RETURNED') return 'warning'
+  if (status === 'EXTERNAL_ASSIGNED') return 'neutral'
   if (status === 'RETURNED_TO_DEPARTMENT' || status === 'RETURNED') return 'error'
   if (status === 'DRAFT' || status === 'READY' || status === 'NOT_READY') return 'neutral'
   return 'neutral'
@@ -200,6 +205,9 @@ function getStatusLabel(status?: string) {
   if (status === 'SUBMITTED_TO_DOCTOR') return 'Approved · Sent to Doctor'
   if (status === 'RETURNED_TO_DEPARTMENT') return 'Returned'
   if (status === 'DEPARTMENT_RETURNED') return 'Dept Returned'
+  if (status === 'EXTERNAL_ASSIGNED') return 'Waiting External Doctor'
+  if (status === 'EXTERNAL_PROCESSING') return 'External Doctor Working'
+  if (status === 'EXTERNAL_RETURNED') return 'Returned to External Doctor'
   if (status === 'SUBMITTED') return 'Pending Approval'
   if (status === 'PARTIAL') return 'Partially Submitted'
   if (status === 'READY') return 'Ready'
@@ -215,6 +223,13 @@ function getStatusLabel(status?: string) {
 function getRowStatus(result: ExamResult) {
   const itemStatus = result.resultStatus
   if (!itemStatus) return result.departmentResultStatus || result.status || ''
+  // Item external yang belum disubmit → status external, bukan Ready generik.
+  if (result.isExternalResult && itemStatus !== 'SUBMITTED') {
+    if (result.externalStatus === 'PROCESSING') return 'EXTERNAL_PROCESSING'
+    if (result.externalStatus === 'ASSIGNED') {
+      return result.openRevision ? 'EXTERNAL_RETURNED' : 'EXTERNAL_ASSIGNED'
+    }
+  }
   // Belum submit → status item apa adanya (Ready/Draft/Returned/Not Ready).
   if (itemStatus !== 'SUBMITTED') return itemStatus
 
