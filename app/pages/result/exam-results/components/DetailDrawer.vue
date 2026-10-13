@@ -615,17 +615,6 @@ async function setResultStatus(status: string) {
     statusSaving.value = false
   }
 }
-const resultWorkflowLabel = computed(() => {
-  if (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW') return 'Waiting Approval'
-  if (props.result?.departmentResultStatus === 'DEPARTMENT_APPROVED') return 'Department Approved'
-  if (props.result?.resultStatus === 'SUBMITTED') return 'Submitted'
-  if (props.result?.resultStatus === 'RETURNED') return 'Returned'
-  if (props.result?.resultStatus === 'DRAFT') return 'Draft'
-  if (props.result?.resultStatus === 'READY') return 'Ready'
-  return null
-})
-
-// [RETURN] Revision from doctor → department (same pattern as MR → doctor)
 const isReturnedToDepartment = computed(
   () => props.result?.departmentResultStatus === 'RETURNED_TO_DEPARTMENT'
 )
@@ -644,6 +633,36 @@ const isThisItemReturned = computed(() =>
   props.result?.resultStatus === 'RETURNED' || myReturnRevisionItems.value.length > 0
 )
 const showReturnBanner = computed(() => isReturnedToDepartment.value || isThisItemReturned.value)
+const resultWorkflowLabel = computed(() => {
+  // External item dipegang dokter luar — label sadar-external (cek dulu).
+  if (props.result?.isExternalResult) {
+    const ext = props.result?.exam?.externalStatus
+    if (ext === 'PROCESSING') return 'External Doctor Working'
+    if (ext === 'ASSIGNED') {
+      return isThisItemReturned.value ? 'Returned to External Doctor' : 'Waiting External Doctor'
+    }
+  }
+  if (props.result?.departmentResultStatus === 'DEPARTMENT_REVIEW') return 'Waiting Approval'
+  if (props.result?.departmentResultStatus === 'DEPARTMENT_APPROVED') return 'Department Approved'
+  if (props.result?.resultStatus === 'SUBMITTED') return 'Submitted'
+  if (props.result?.resultStatus === 'RETURNED') return 'Returned'
+  if (props.result?.resultStatus === 'DRAFT') return 'Draft'
+  if (props.result?.resultStatus === 'READY') return 'Ready'
+  return null
+})
+const resultWorkflowColor = computed<BadgeColor>(() => {
+  const label = resultWorkflowLabel.value
+  if (label === 'Returned to External Doctor') return 'error'
+  if (label === 'External Doctor Working') return 'warning'
+  if (label === 'Waiting External Doctor') return 'neutral'
+  return getStatusColor(
+    props.result?.resultStatus === 'SUBMITTED'
+      ? 'completed'
+      : props.result?.resultStatus === 'RETURNED'
+        ? 'error'
+        : 'pending'
+  ) as BadgeColor
+})
 const returnBannerTitle = computed(() =>
   props.result?.isExternalResult && props.result?.resultStatus !== 'RETURNED'
     ? 'Result returned to external doctor'
@@ -2053,15 +2072,7 @@ onBeforeUnmount(() => {
                 />
                 <UBadge
                   :label="`Status: ${resultWorkflowLabel || result.resultStatus || '-'}`"
-                  :color="
-                    getStatusColor(
-                      result.resultStatus === 'SUBMITTED'
-                        ? 'completed'
-                        : result.resultStatus === 'RETURNED'
-                          ? 'error'
-                          : 'pending'
-                    )
-                  "
+                  :color="resultWorkflowColor"
                   variant="soft"
                   size="sm"
                 />
