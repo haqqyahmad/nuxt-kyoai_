@@ -5,6 +5,7 @@ import { examTypeBadgeColor } from '~/constants/room-types'
 import { useAudit } from '~/composables/useAudit'
 import type { DiffAuditEntry } from '~/composables/useAudit'
 import HistoryTimeline from './HistoryTimeline.vue'
+import ReturnItemSelector from './ReturnItemSelector.vue'
 
 const { isExternalDoctor, isSuperAdmin } = await useCurrentUser()
 
@@ -302,40 +303,7 @@ async function handleReopenItem() {
 const returningItem = ref(false)
 const isReturnModalOpen = ref(false)
 const returnReasonInput = ref('')
-const returnSearch = ref('')
-
-type ReturnInputRow = {
-  inputanId: string
-  label: string
-  value: string
-  flag: string
-  note: string
-  checked: boolean
-}
-
-function formatReturnRowValue(inputan: ExamInput): string {
-  const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
-  const raw = result?.valueNumber ?? result?.valueString ?? result?.valueSelected ?? result?.valueCalculated
-  const value = raw == null ? '' : String(raw)
-  if (!value) return '-'
-  return inputan.uom ? `${value} ${inputan.uom}` : value
-}
-
-function isAbnormalReturnRow(inputan: ExamInput): boolean {
-  const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
-  if (result?.flag === 'abnormal') return true
-  const grading = String(result?.grading ?? '').toUpperCase()
-  return grading === 'ABNORMAL_INC' || grading === 'ABNORMAL_DEC'
-}
-
-const returnRows = ref<ReturnInputRow[]>([])
-const filteredReturnRows = computed(() => {
-  const q = returnSearch.value.trim().toLowerCase()
-  if (!q) return returnRows.value
-  return returnRows.value.filter(row =>
-    [row.label, row.value, row.flag].filter(Boolean).join(' ').toLowerCase().includes(q))
-})
-const selectedReturnRows = computed(() => returnRows.value.filter(r => r.checked))
+const returnSelectorRef = ref<InstanceType<typeof ReturnItemSelector> | null>(null)
 
 const canReturnItem = computed(() =>
   !isExternalDoctor.value
@@ -358,6 +326,7 @@ const canReturnToExternalDoctor = computed(() =>
 const isReturnExternalModalOpen = ref(false)
 const returnExternalReasonInput = ref('')
 const returningExternal = ref(false)
+const returnExternalSelectorRef = ref<InstanceType<typeof ReturnItemSelector> | null>(null)
 function openReturnExternalModal() {
   returnExternalReasonInput.value = ''
   isReturnExternalModalOpen.value = true
@@ -377,7 +346,8 @@ async function handleReturnExternalDoctor() {
   }
   returningExternal.value = true
   try {
-    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return-external`, { reason })
+    const items = returnExternalSelectorRef.value?.getSelected() ?? []
+    await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return-external`, { reason, items })
     toast.add({
       title: 'Returned to external doctor',
       description: 'Item sent back to the external doctor for rework.',
@@ -397,33 +367,7 @@ async function handleReturnExternalDoctor() {
 }
 function openReturnModal() {
   returnReasonInput.value = ''
-  returnSearch.value = ''
-  const rows: ReturnInputRow[] = []
-  for (const inputan of props.result?.item?.inputans ?? []) {
-    const result = (props.result?.exam?.results ?? []).find(r => r.inputanId === inputan.id)
-    const flag = result?.grading && String(result.grading).toUpperCase().startsWith('ABNORMAL')
-      ? String(result.grading)
-      : (result?.flag === 'abnormal' ? 'abnormal' : 'normal')
-    rows.push({
-      inputanId: inputan.id,
-      label: inputan.label,
-      value: formatReturnRowValue(inputan),
-      flag,
-      note: '',
-      checked: isAbnormalReturnRow(inputan)
-    })
-  }
-  rows.sort((a, b) => {
-    const score = (r: ReturnInputRow) => r.checked ? 0 : 1
-    return score(a) - score(b) || a.label.localeCompare(b.label)
-  })
-  returnRows.value = rows
   isReturnModalOpen.value = true
-}
-function selectAllAbnormalReturnRows() {
-  for (const row of returnRows.value) {
-    if (row.flag === 'abnormal' || row.flag.startsWith('ABNORMAL')) row.checked = true
-  }
 }
 async function handleReturnItem() {
   const targetExamId = props.result?.exam?.id
@@ -440,10 +384,7 @@ async function handleReturnItem() {
   }
   returningItem.value = true
   try {
-    const items = selectedReturnRows.value.map(r => ({
-      inputanId: r.inputanId,
-      note: r.note.trim()
-    }))
+    const items = returnSelectorRef.value?.getSelected() ?? []
     await api.post(`/mcu/exams/${targetExamId}/items/${targetItemId}/return`, { reason, items })
     toast.add({
       title: 'Returned to department',
@@ -695,6 +636,11 @@ const isThisItemReturned = computed(() =>
   props.result?.resultStatus === 'RETURNED' || myReturnRevisionItems.value.length > 0
 )
 const showReturnBanner = computed(() => isReturnedToDepartment.value || isThisItemReturned.value)
+const returnBannerTitle = computed(() =>
+  props.result?.isExternalResult && props.result?.resultStatus !== 'RETURNED'
+    ? 'Result returned to external doctor'
+    : 'Result returned to department'
+)
 type ReturnRevision = {
   inputanId?: string | null
   examItemId?: string | null
@@ -2053,7 +1999,7 @@ onBeforeUnmount(() => {
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
-          title="Result returned to department"
+          :title="returnBannerTitle"
           :description="returnReason || 'Fix the marked results then resubmit.'"
         >
           <template #description>
@@ -3536,58 +3482,12 @@ onBeforeUnmount(() => {
           :description="`Submitted result will be set to RETURNED with the reason below.`"
         />
 
-        <div v-if="returnRows.length" class="space-y-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <UInput
-              v-model="returnSearch"
-              icon="i-lucide-search"
-              placeholder="Search parameter..."
-              size="sm"
-              class="min-w-0 flex-1"
-            />
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="soft"
-              :disabled="returningItem"
-              @click="selectAllAbnormalReturnRows"
-            >
-              Select all abnormal
-            </UButton>
-          </div>
-
-          <div class="max-h-[320px] space-y-2 overflow-auto pr-1">
-            <div
-              v-for="row in filteredReturnRows"
-              :key="row.inputanId"
-              class="flex items-start gap-3 rounded-xl border border-default p-3 text-left"
-              :class="row.checked ? 'bg-warning/5 border-warning/40' : 'bg-transparent'"
-            >
-              <UCheckbox v-model="row.checked" class="mt-1 shrink-0" />
-
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-highlighted">
-                  {{ row.label }}
-                </p>
-                <p class="mt-0.5 text-xs text-muted">
-                  {{ row.value }}
-                  <span v-if="row.flag !== 'normal'"> · {{ row.flag }}</span>
-                </p>
-                <UTextarea
-                  v-model="row.note"
-                  :rows="1"
-                  :maxlength="500"
-                  placeholder="Note for this parameter (optional)..."
-                  class="mt-2 w-full"
-                />
-              </div>
-            </div>
-
-            <p v-if="!filteredReturnRows.length" class="rounded-xl border border-dashed border-default p-4 text-center text-sm text-muted">
-              No parameters match.
-            </p>
-          </div>
-        </div>
+        <ReturnItemSelector
+          ref="returnSelectorRef"
+          :inputans="props.result?.item?.inputans ?? []"
+          :results="props.result?.exam?.results ?? []"
+          :disabled="returningItem"
+        />
 
         <UFormField label="Reason" hint="required">
           <UTextarea
@@ -3638,6 +3538,13 @@ onBeforeUnmount(() => {
           variant="soft"
           :title="result?.item?.name || 'Examination item'"
           :description="`Currently filled by ${formatExternalActor(result?.exam?.assignedExternalUser, result?.exam?.assignedExternalUserId)} (${result?.exam?.externalStatus}).`"
+        />
+
+        <ReturnItemSelector
+          ref="returnExternalSelectorRef"
+          :inputans="props.result?.item?.inputans ?? []"
+          :results="props.result?.exam?.results ?? []"
+          :disabled="returningExternal"
         />
 
         <UFormField label="Reason" hint="required">
