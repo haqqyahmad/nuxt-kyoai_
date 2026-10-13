@@ -479,14 +479,22 @@ const isResultBlockedBySample = computed(() => Boolean(props.result?.sampleBlock
 const sampleBlockedDescription = computed(
   () => props.result?.sampleBlockedReason || 'Sample not ready for result entry'
 )
+// Item external yang lagi dipegang dokter luar (ASSIGNED/PROCESSING) —
+// internal tidak boleh ikut mengedit/submit. Reopen internal (FILLED+DRAFT) tetap boleh.
+const isExternalOwned = computed(() =>
+  Boolean(props.result?.isExternalResult)
+  && ['ASSIGNED', 'PROCESSING'].includes(props.result?.exam?.externalStatus ?? '')
+)
 const canEditCurrentResult = computed(() => {
   if (isExternalDoctor.value && props.result?.isExternalResult)
     return props.result?.exam?.externalStatus === 'PROCESSING'
+  if (isExternalOwned.value) return false
   return props.result?.canEditResult ?? props.result?.status === 'pending'
 })
 const canSubmitCurrentResult = computed(() => {
   if (isExternalDoctor.value && props.result?.isExternalResult)
     return props.result?.exam?.externalStatus === 'PROCESSING'
+  if (isExternalOwned.value) return false
   return props.result?.canSubmitResult ?? props.result?.status === 'pending'
 })
 const submitHint = computed<string | null>(() => {
