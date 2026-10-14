@@ -80,10 +80,10 @@ const pageSizeOptions = [
 
 const columns: TableColumn<ReceptionSample>[] = [
   { id: 'patient', header: 'Pasien' },
-  { id: 'examDate', header: 'Tanggal Exam' },
+  { id: 'examDate', header: 'Tanggal Exam', meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } } },
   { id: 'sample', header: 'Sample / Item' },
-  { id: 'collection', header: 'Collection' },
-  { id: 'receive', header: 'Receive' },
+  { id: 'collection', header: 'Collection', meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
+  { id: 'receive', header: 'Receive', meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
   { accessorKey: 'status', header: 'Status' },
   { id: 'action', header: 'Aksi' }
 ]
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
 <template>
   <UCard class="w-full max-w-none border border-default/80 shadow-sm">
     <template #header>
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="text-base font-semibold text-highlighted">
             Sample Receive
@@ -305,12 +305,12 @@ onBeforeUnmount(() => {
           :loading="loading"
           @click="loadSamples"
         >
-          Refresh
+          <span class="hidden sm:inline">Refresh</span>
         </UButton>
       </div>
     </template>
 
-    <div class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <UFormField label="Cari">
         <UInput
           v-model="searchInput"
@@ -353,7 +353,7 @@ onBeforeUnmount(() => {
       :description="error"
     />
 
-    <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-default">
+    <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-auto rounded-lg border border-default">
       <UTable
         :data="samples"
         :columns="columns"
