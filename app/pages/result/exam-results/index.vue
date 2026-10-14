@@ -27,6 +27,8 @@ type ExamResult = {
     code?: string | null
     department?: Department | null
     roomType?: Department | null
+    sampleCode?: string | null
+    sampleName?: string | null
     inputans?: Array<{
       id: string
       label: string
@@ -509,6 +511,22 @@ async function loadResults() {
       params.registrationId = initialRegistrationId.value
     }
 
+    if (isLabGroupFetch) {
+      const all: ExamResult[] = []
+      for (let fetchPage = 1; fetchPage <= 50; fetchPage++) {
+        const res = await api.get('/mcu/exams/results', { params: { ...params, page: fetchPage, limit: 100 } })
+        const payload = res.data?.data ?? res.data
+        const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
+        const meta = res.data?.meta ?? {}
+        all.push(...rows)
+        const serverTotal = Number(meta.total ?? all.length)
+        if (rows.length < 100 || all.length >= serverTotal) break
+      }
+      results.value = all
+      total.value = all.length
+      return
+    }
+
     const res = await api.get('/mcu/exams/results', { params })
     const payload = res.data?.data ?? res.data
     const meta = res.data?.meta ?? {}
@@ -623,6 +641,25 @@ const displayTotal = computed(() => isLabGroupMode.value ? labGroupsTotal.value 
 
 function toggleLabGroup(examId: string) {
   expandedLabGroup.value = expandedLabGroup.value === examId ? null : examId
+}
+
+type LabItemSampleSection = { key: string, sampleCode: string | null, sampleName: string | null, items: ExamResult[] }
+function labItemSampleSections(group: LabGroup): LabItemSampleSection[] {
+  const sections: LabItemSampleSection[] = []
+  const byKey = new Map<string, LabItemSampleSection>()
+  for (const item of group.items) {
+    const sCode = item.item?.sampleCode ?? null
+    const sName = item.item?.sampleName ?? null
+    const key = `${sCode ?? ''}|${sName ?? ''}`
+    let section = byKey.get(key)
+    if (!section) {
+      section = { key: `sample-${sections.length}`, sampleCode: sCode, sampleName: sName, items: [] }
+      byKey.set(key, section)
+      sections.push(section)
+    }
+    section.items.push(item)
+  }
+  return sections
 }
 
 function viewLabGroup(group: LabGroup) {
@@ -1020,28 +1057,33 @@ onMounted(async () => {
                   </tr>
                   <tr v-if="expandedLabGroup === group.examId">
                     <td colspan="8" class="bg-muted/20 px-4 py-3">
-                      <div class="flex flex-col gap-1.5">
-                        <button
-                          v-for="item in group.items"
-                          :key="item.id"
-                          type="button"
-                          class="flex items-center justify-between gap-3 rounded-lg border border-default/60 bg-default px-3 py-2 text-left hover:bg-muted/40 transition"
-                          @click="viewDetail(item)"
-                        >
-                          <span class="min-w-0">
-                            <span class="block truncate text-sm font-medium text-highlighted">
-                              {{ item.item?.name || '-' }}
+                      <div class="flex flex-col gap-2.5">
+                        <template v-for="section in labItemSampleSections(group)" :key="section.key">
+                          <p v-if="section.sampleCode || section.sampleName" class="text-[11px] font-bold uppercase tracking-wide text-primary">
+                            {{ section.sampleCode }}{{ section.sampleCode && section.sampleName ? ' — ' : '' }}{{ section.sampleName }}
+                          </p>
+                          <button
+                            v-for="item in section.items"
+                            :key="item.id"
+                            type="button"
+                            class="flex items-center justify-between gap-3 rounded-lg border border-default/60 bg-default px-3 py-2 text-left hover:bg-muted/40 transition"
+                            @click="viewDetail(item)"
+                          >
+                            <span class="min-w-0">
+                              <span class="block truncate text-sm font-medium text-highlighted">
+                                {{ item.item?.name || '-' }}
+                              </span>
+                              <span class="block text-xs text-muted">
+                                {{ item.item?.code || '-' }}
+                              </span>
                             </span>
-                            <span class="block text-xs text-muted">
-                              {{ item.item?.code || '-' }}
-                            </span>
-                          </span>
-                          <UBadge
-                            :label="getStatusLabel(getRowStatus(item))"
-                            :color="getStatusColor(getRowStatus(item))"
-                            variant="subtle"
-                          />
-                        </button>
+                            <UBadge
+                              :label="getStatusLabel(getRowStatus(item))"
+                              :color="getStatusColor(getRowStatus(item))"
+                              variant="subtle"
+                            />
+                          </button>
+                        </template>
                       </div>
                     </td>
                   </tr>
