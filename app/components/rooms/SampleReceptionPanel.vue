@@ -364,7 +364,7 @@ onBeforeUnmount(() => {
           base: 'w-full table-fixed',
           thead: 'sticky top-0 z-10 [&>tr]:bg-elevated',
           th: 'whitespace-nowrap',
-          td: 'align-top'
+          td: 'align-top whitespace-normal break-words'
         }"
       >
         <template #patient-cell="{ row }">
