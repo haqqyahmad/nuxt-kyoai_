@@ -78,6 +78,19 @@ const pageSizeOptions = [
   { label: '100 data', value: 100 }
 ]
 
+const SAMPLE_ITEMS_VISIBLE = 3
+const expandedSampleItems = ref<Record<string, boolean>>({})
+function toggleSampleItems(id: string) {
+  expandedSampleItems.value[id] = !expandedSampleItems.value[id]
+}
+function sampleItemNames(sample: ReceptionSample): string[] {
+  return (sample.items ?? []).map(item => item.item?.name || item.item?.code).filter((value): value is string => Boolean(value))
+}
+function visibleSampleItems(sample: ReceptionSample): string[] {
+  const names = sampleItemNames(sample)
+  return expandedSampleItems.value[sample.id] ? names : names.slice(0, SAMPLE_ITEMS_VISIBLE)
+}
+
 const columns: TableColumn<ReceptionSample>[] = [
   { id: 'patient', header: 'Pasien' },
   { id: 'examDate', header: 'Tanggal Exam', meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } } },
@@ -388,8 +401,29 @@ onBeforeUnmount(() => {
             <p class="font-medium text-highlighted">
               {{ row.original.sampleType?.name || 'Sample' }}
             </p>
-            <p class="text-xs text-muted">
-              {{ row.original.items?.map(item => item.item?.name || item.item?.code).filter(Boolean).join(', ') || '-' }}
+            <div
+              v-if="sampleItemNames(row.original).length"
+              class="mt-1 flex flex-wrap gap-1"
+              :title="sampleItemNames(row.original).join(', ')"
+            >
+              <span
+                v-for="name in visibleSampleItems(row.original)"
+                :key="name"
+                class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
+              >
+                {{ name }}
+              </span>
+              <button
+                v-if="sampleItemNames(row.original).length > SAMPLE_ITEMS_VISIBLE"
+                type="button"
+                class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                @click="toggleSampleItems(row.original.id)"
+              >
+                {{ expandedSampleItems[row.original.id] ? 'Show less' : `+${sampleItemNames(row.original).length - SAMPLE_ITEMS_VISIBLE} more` }}
+              </button>
+            </div>
+            <p v-else class="text-xs text-muted">
+              -
             </p>
             <p class="text-xs text-muted">
               {{ row.original.tubeCount ?? 1 }} tabung · {{ row.original.barcode || 'Tanpa barcode' }}
