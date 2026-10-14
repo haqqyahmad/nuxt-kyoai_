@@ -77,16 +77,25 @@ const actionDefs: Record<string, ActionDef> = {
   REOPEN_RESULT: { title: 'Result reopened for revision', badge: 'REOPEN_RESULT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' },
   RETURN_RESULT: { title: 'Reviewer returned result to department', badge: 'RETURN_RESULT', dotColor: 'dot-amber', dotIcon: '↩', type: 'status' },
   RETURN_TO_EXTERNAL: { title: 'Reviewer returned result to external doctor', badge: 'RETURN_TO_EXTERNAL', dotColor: 'dot-amber', dotIcon: '↩', type: 'status' },
-  COLLECT_SAMPLE: { title: 'Sample collected by staff', badge: 'COLLECT_SAMPLE', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
-  RECEIVE_SAMPLE: { title: 'Sample received by lab', badge: 'RECEIVE_SAMPLE', dotColor: 'dot-green', dotIcon: '✓', type: 'status' },
+  COLLECT_SAMPLE: { title: 'Sample collected', badge: 'COLLECT_SAMPLE', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  RECEIVE_SAMPLE: { title: 'Sample received', badge: 'RECEIVE_SAMPLE', dotColor: 'dot-green', dotIcon: '✓', type: 'status' },
   REJECT_SAMPLE: { title: 'Sample rejected', badge: 'REJECT_SAMPLE', dotColor: 'dot-gray', dotIcon: '×', type: 'status' },
   RESCHEDULE_SAMPLE: { title: 'Sample rescheduled', badge: 'RESCHEDULE_SAMPLE', dotColor: 'dot-amber', dotIcon: '↻', type: 'status' },
-  TAKE_SAMPLE: { title: 'Sample queue taken by reception', badge: 'TAKE_SAMPLE', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
+  TAKE_SAMPLE: { title: 'Sample queue taken', badge: 'TAKE_SAMPLE', dotColor: 'dot-blue', dotIcon: '↻', type: 'status' },
   UPDATE_INPUT: { title: 'Draft input updated', badge: 'UPDATE_INPUT', dotColor: 'dot-pink', dotIcon: '✎', type: 'update' }
 }
 
 function getActionDef(action?: string): ActionDef {
   return actionDefs[action ?? ''] ?? { title: action ?? 'Unknown', badge: action ?? '?', dotColor: 'dot-gray', dotIcon: '•', type: 'system' }
+}
+
+const SAMPLE_ACTIONS = new Set(['COLLECT_SAMPLE', 'RECEIVE_SAMPLE', 'REJECT_SAMPLE', 'RESCHEDULE_SAMPLE', 'TAKE_SAMPLE'])
+function getActionTitle(entry: DiffAuditEntry): string {
+  const base = getActionDef(entry.action).title
+  if (SAMPLE_ACTIONS.has(entry.action ?? '')) {
+    return `${base} by ${actorLabel(entry.actorName, entry.actorId)}`
+  }
+  return base
 }
 
 // ── Derived data ───────────────────────────────────────────
@@ -341,7 +350,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                     <div class="ht-card-head" @click="entry.id != null && toggleExpand(entry.id)">
                       <div>
                         <div class="ht-title-row">
-                          <span class="ht-card-title">{{ getActionDef(entry.action).title }}</span>
+                          <span class="ht-card-title">{{ getActionTitle(entry) }}</span>
                           <span class="ht-badge" :class="isInputAction(entry.action) ? 'ht-badge-green' : 'ht-badge-gray'">
                             {{ getActionDef(entry.action).badge }}
                           </span>

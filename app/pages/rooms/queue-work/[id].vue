@@ -1328,7 +1328,7 @@ const completedItemCount = computed(() =>
 const totalItemCount = computed(() => roomExamItems.value.length)
 
 watch(selectedItemId, () => {
-  void fetchSelectedItemHistory()
+  if (!isLabRoom.value) void fetchSelectedItemHistory()
 })
 
 watch(masterItems, (list) => {
@@ -1876,7 +1876,8 @@ async function loadPage(showRefreshState = false) {
     ])
     roomExamItems.value = examItemsRes.data?.data ?? examItemsRes.data ?? []
     await nextTick()
-    await fetchSelectedItemHistory()
+    if (isLabRoom.value) await fetchSelectedSampleHistory()
+    else await fetchSelectedItemHistory()
   } catch (error: unknown) {
     toast.add({
       title: 'Failed to load examination data',
