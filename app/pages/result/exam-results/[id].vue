@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toDepartmentMenuKey } from '~/constants/menu'
 import DetailDrawer from './components/DetailDrawer.vue'
+import LabGroupPanel from './components/LabGroupPanel.vue'
 import DentalResultPanel from './components/DentalResultPanel.vue'
 import PhysicalResultPanel from './components/PhysicalResultPanel.vue'
 import HistoryTimeline from './components/HistoryTimeline.vue'
@@ -68,6 +69,70 @@ const isDoctorTestResult = computed(() => Boolean(result.value?.doctorExam)
   && doctorTestKeys.includes(String(result.value?.doctorExam?.rendererKey)))
 const examId = computed(() => getQueryValue(route.query.examId))
 const roomTypeId = computed(() => getQueryValue(route.query.roomTypeId))
+const isLabScope = computed(() => department.value.toLowerCase() === 'lab')
+
+type LabSibling = {
+  id: string
+  name?: string | null
+  code?: string | null
+  resultStatus?: string | null
+  departmentResultStatus?: string | null
+  itemApproved?: boolean | null
+  isExternalResult?: boolean | null
+  externalStatus?: string | null
+  openRevision?: boolean | null
+  roomTypeName?: string | null
+}
+
+const labSiblings = ref<LabSibling[]>([])
+
+async function loadLabSiblings() {
+  labSiblings.value = []
+  if (!isLabScope.value || !examId.value) return
+  try {
+    const res = await api.get('/mcu/exams/results', {
+      params: { view: 'list', examId: examId.value, department: 'lab', page: 1, limit: 100 }
+    })
+    const payload = res.data?.data ?? res.data
+    const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
+    labSiblings.value = rows.map((row: {
+      id: string
+      item?: { name?: string | null, code?: string | null, roomType?: { name?: string | null } | null } | null
+      resultStatus?: string | null
+      departmentResultStatus?: string | null
+      itemApproved?: boolean | null
+      isExternalResult?: boolean | null
+      externalStatus?: string | null
+      openRevision?: boolean | null
+    }) => ({
+      id: row.id,
+      name: row.item?.name ?? null,
+      code: row.item?.code ?? null,
+      resultStatus: row.resultStatus ?? null,
+      departmentResultStatus: row.departmentResultStatus ?? null,
+      itemApproved: row.itemApproved ?? null,
+      isExternalResult: row.isExternalResult ?? null,
+      externalStatus: row.externalStatus ?? null,
+      openRevision: row.openRevision ?? null,
+      roomTypeName: row.item?.roomType?.name ?? null
+    }))
+  } catch {
+    labSiblings.value = []
+  }
+}
+
+function goToLabSibling(itemId: string) {
+  if (!itemId || itemId === String(route.params.id)) return
+  void router.push({
+    path: `/result/exam-results/${itemId}`,
+    query: { department: department.value || 'lab', examId: examId.value }
+  })
+}
+
+watch(() => route.params.id, async (nextId, prevId) => {
+  if (!nextId || nextId === prevId) return
+  await loadResult()
+})
 
 const patient = computed(() => result.value?.patient ?? null)
 const patientName = computed(() =>
@@ -158,6 +223,7 @@ async function loadResult() {
     result.value = rows[0] ?? null
     if (!result.value) error.value = 'Result not found or inaccessible.'
     if (isDental.value) await loadAudit()
+    await loadLabSiblings()
   } catch (value: unknown) {
     const response = typeof value === 'object' && value && 'response' in value
       ? (value as { response?: { data?: { message?: string } } }).response
@@ -365,14 +431,23 @@ onMounted(() => {
       </div>
 
       <!-- Non-dental: generic result drawer -->
-      <DetailDrawer
-        v-else
-        :open="true"
-        :result="result"
-        embedded
-        @close="goBackToResults"
-        @result-saved="loadResult"
-      />
+      <template v-else>
+        <div v-if="isLabScope && result && labSiblings.length" class="space-y-4 p-4 pb-2">
+          <LabGroupPanel
+            :queue-code="(result as any)?.queueCode"
+            :items="labSiblings"
+            :active-item-id="String(route.params.id)"
+            @select="goToLabSibling"
+          />
+        </div>
+        <DetailDrawer
+          :open="true"
+          :result="result"
+          embedded
+          @close="goBackToResults"
+          @result-saved="loadResult"
+        />
+      </template>
     </template>
   </UDashboardPanel>
 </template>

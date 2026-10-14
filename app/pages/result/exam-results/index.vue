@@ -460,10 +460,11 @@ async function loadResults() {
   try {
     // [Group by exam] Department dokter tampil satu baris per exam_id.
     const groupByExam = menuDepartmentCode.value === 'DOK'
+    const isLabGroupFetch = menuDepartmentCode.value === 'LAB'
 
     const params: Record<string, unknown> = {
-      page: page.value,
-      limit: limit.value
+      page: isLabGroupFetch ? 1 : page.value,
+      limit: isLabGroupFetch ? 100 : limit.value
     }
 
     if (groupByExam) {
@@ -565,6 +566,74 @@ async function viewDetail(result: ExamResult) {
           ...(result.item?.roomType?.id ? { roomTypeId: result.item.roomType.id } : {})
         }
   })
+}
+
+const isLabGroupMode = computed(() => menuDepartmentCode.value === 'LAB')
+const expandedLabGroup = ref<string | null>(null)
+
+type LabGroup = {
+  examId: string
+  queueCode: string
+  patient: Patient | null
+  items: ExamResult[]
+  submittedCount: number
+  groupStatus: string
+  checkinAt?: string | null
+}
+
+function labGroupStatus(items: ExamResult[]): string {
+  const statuses = items.map(item => item.resultStatus ?? 'NOT_READY')
+  const anySubmitted = statuses.some(s => s === 'SUBMITTED')
+  const allSubmitted = statuses.length > 0 && statuses.every(s => s === 'SUBMITTED')
+  if (allSubmitted) {
+    return items[0]?.departmentResultStatus || 'SUBMITTED'
+  }
+  if (anySubmitted) return 'PARTIAL'
+  if (statuses.includes('RETURNED')) return 'RETURNED'
+  if (statuses.includes('READY')) return 'READY'
+  if (statuses.includes('DRAFT')) return 'DRAFT'
+  return 'NOT_READY'
+}
+
+const labGroups = computed<LabGroup[]>(() => {
+  if (!isLabGroupMode.value) return []
+  const map = new Map<string, ExamResult[]>()
+  for (const result of filteredResults.value) {
+    const key = result.exam?.id || result.queueEntryId || result.id
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(result)
+  }
+  return [...map.entries()].map(([examId, items]) => ({
+    examId,
+    queueCode: items[0]?.queueCode ?? '-',
+    patient: items[0]?.patient ?? null,
+    items,
+    submittedCount: items.filter(item => item.resultStatus === 'SUBMITTED').length,
+    groupStatus: labGroupStatus(items),
+    checkinAt: items[0]?.checkinAt ?? items[0]?.createdAt ?? null
+  }))
+})
+
+const labGroupsTotal = computed(() => labGroups.value.length)
+const pagedLabGroups = computed(() => {
+  const start = (page.value - 1) * limit.value
+  return labGroups.value.slice(start, start + limit.value)
+})
+const displayTotal = computed(() => isLabGroupMode.value ? labGroupsTotal.value : total.value)
+
+function toggleLabGroup(examId: string) {
+  expandedLabGroup.value = expandedLabGroup.value === examId ? null : examId
+}
+
+function viewLabGroup(group: LabGroup) {
+  const target = group.items.find(item => item.resultStatus !== 'SUBMITTED') ?? group.items[0]
+  if (!target) return
+  void viewDetail(target)
+}
+
+function changePage(delta: number) {
+  page.value += delta
+  if (!isLabGroupMode.value) loadResults()
 }
 
 // Reset filters
@@ -763,7 +832,7 @@ onMounted(async () => {
             <div class="flex items-center justify-between gap-3">
               <h3 class="text-base font-semibold">
                 Results
-                <span class="text-sm text-muted">({{ filteredResults.length }})</span>
+                <span class="text-sm text-muted">({{ isLabGroupMode ? labGroupsTotal : filteredResults.length }})</span>
               </h3>
             </div>
           </template>
@@ -799,7 +868,7 @@ onMounted(async () => {
                     Department
                   </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden md:table-cell">
-                    Type
+                    {{ isLabGroupMode ? 'Progress' : 'Type' }}
                   </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Status
@@ -812,7 +881,7 @@ onMounted(async () => {
                   </th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-default/50">
+              <tbody v-if="!isLabGroupMode" class="divide-y divide-default/50">
                 <tr
                   v-for="result in filteredResults"
                   :key="result.id"
@@ -877,6 +946,107 @@ onMounted(async () => {
                   </td>
                 </tr>
               </tbody>
+              <tbody v-else class="divide-y divide-default/50">
+                <template v-for="group in pagedLabGroups" :key="group.examId">
+                  <tr class="hover:bg-muted/40 transition">
+                    <td class="px-4 py-3 text-sm font-medium text-highlighted">
+                      {{ group.queueCode }}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <div class="flex flex-col gap-1">
+                        <p class="font-medium text-highlighted">
+                          {{ formatPatientName(group.patient) }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ group.patient?.PatientId || '-' }}
+                        </p>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <div class="flex flex-col gap-1">
+                        <p class="font-medium text-highlighted">
+                          {{ group.items.length }} pemeriksaan Lab
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ group.submittedCount }}/{{ group.items.length }} submitted
+                        </p>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <UBadge
+                        :label="getDepartmentLabel(group.items[0]?.item?.department)"
+                        color="neutral"
+                        variant="soft"
+                      />
+                    </td>
+                    <td class="px-4 py-3 text-sm hidden md:table-cell">
+                      <div class="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                        <div
+                          class="h-full rounded-full bg-primary"
+                          :style="{ width: `${group.items.length ? Math.round((group.submittedCount / group.items.length) * 100) : 0}%` }"
+                        />
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <UBadge
+                        :label="getStatusLabel(group.groupStatus)"
+                        :color="getStatusColor(group.groupStatus)"
+                        variant="subtle"
+                      />
+                    </td>
+                    <td class="px-4 py-3 text-sm text-muted hidden lg:table-cell">
+                      {{ formatDateTime(group.checkinAt) }}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <div class="flex items-center justify-center gap-1">
+                        <UButton
+                          size="xs"
+                          color="primary"
+                          variant="soft"
+                          @click="viewLabGroup(group)"
+                        >
+                          View
+                        </UButton>
+                        <UButton
+                          size="xs"
+                          color="neutral"
+                          variant="ghost"
+                          :icon="expandedLabGroup === group.examId ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                          :aria-label="expandedLabGroup === group.examId ? 'Collapse items' : 'Expand items'"
+                          @click="toggleLabGroup(group.examId)"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="expandedLabGroup === group.examId">
+                    <td colspan="8" class="bg-muted/20 px-4 py-3">
+                      <div class="flex flex-col gap-1.5">
+                        <button
+                          v-for="item in group.items"
+                          :key="item.id"
+                          type="button"
+                          class="flex items-center justify-between gap-3 rounded-lg border border-default/60 bg-default px-3 py-2 text-left hover:bg-muted/40 transition"
+                          @click="viewDetail(item)"
+                        >
+                          <span class="min-w-0">
+                            <span class="block truncate text-sm font-medium text-highlighted">
+                              {{ item.item?.name || '-' }}
+                            </span>
+                            <span class="block text-xs text-muted">
+                              {{ item.item?.code || '-' }}
+                            </span>
+                          </span>
+                          <UBadge
+                            :label="getStatusLabel(getRowStatus(item))"
+                            :color="getStatusColor(getRowStatus(item))"
+                            variant="subtle"
+                          />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
             </table>
           </div>
         </UCard>
@@ -892,7 +1062,7 @@ onMounted(async () => {
               @update:model-value="onPageSizeChange"
             />
             <p class="text-sm text-muted">
-              Showing {{ (page - 1) * limit + 1 }} – {{ Math.min(page * limit, total) }} of {{ total }}
+              Showing {{ (page - 1) * limit + 1 }} – {{ Math.min(page * limit, displayTotal) }} of {{ displayTotal }}
             </p>
           </div>
           <div class="flex gap-2">
@@ -901,7 +1071,7 @@ onMounted(async () => {
               color="neutral"
               variant="soft"
               :disabled="page === 1"
-              @click="page--; loadResults()"
+              @click="changePage(-1)"
             >
               Previous
             </UButton>
@@ -909,8 +1079,8 @@ onMounted(async () => {
               size="sm"
               color="neutral"
               variant="soft"
-              :disabled="page * limit >= total"
-              @click="page++; loadResults()"
+              :disabled="page * limit >= displayTotal"
+              @click="changePage(1)"
             >
               Next
             </UButton>
