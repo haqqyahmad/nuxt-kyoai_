@@ -2872,17 +2872,6 @@ async function handleSubmitItemAction() {
                       <h3 class="text-sm font-bold text-highlighted">
                         {{ selectedItem.trxExamItem?.item?.name || '-' }}
                       </h3>
-                      <p
-                        v-if="queuePatient?.dob || queuePatient?.gender"
-                        class="mt-1 text-xs text-muted"
-                      >
-                        <template v-if="queuePatient?.gender">
-                          {{ queuePatient.gender === 'MALE' ? 'Male' : 'Female' }}
-                        </template>
-                        <template v-if="queuePatient?.dob">
-                          · {{ getPatientAgeAtDate(queuePatient.dob, selectedItem.createdAt) }} years old
-                        </template>
-                      </p>
                     </div>
                     <UBadge
                       :label="selectedMaster?.statusLabel"
