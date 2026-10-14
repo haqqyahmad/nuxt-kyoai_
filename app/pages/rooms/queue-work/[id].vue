@@ -1366,7 +1366,11 @@ function getPhysicalLegacyRows(item: RoomExamItem): Array<{ id: string, label: s
 function getOperationalStatusLabel(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
 
-  if (item.operationalStatus === 'WAITING_SAMPLE') return 'Waiting for sample to be received'
+  if (item.operationalStatus === 'WAITING_SAMPLE') {
+    if (sampleStatus === 'COLLECTED') return 'Awaiting reception'
+    if (sampleStatus === 'PENDING') return 'Awaiting collection'
+    return 'Awaiting sample'
+  }
   if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'Sample rejected'
   if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'Sample rescheduled'
   return getStatusLabel(item.status)
@@ -1375,7 +1379,10 @@ function getOperationalStatusLabel(item: RoomExamItem) {
 function getOperationalStatusColor(item: RoomExamItem): BadgeColor {
   const sampleStatus = getSampleCollectionStatus(item)
 
-  if (item.operationalStatus === 'WAITING_SAMPLE') return 'warning'
+  if (item.operationalStatus === 'WAITING_SAMPLE') {
+    if (sampleStatus === 'COLLECTED') return 'info'
+    return 'warning'
+  }
   if (item.operationalStatus === 'BLOCKED_SAMPLE_REJECTED' || sampleStatus === 'REJECTED') return 'error'
   if (item.operationalStatus === 'RESCHEDULED' || sampleStatus === 'RESCHEDULED') return 'neutral'
   return getStatusColor(item.status)
@@ -1383,6 +1390,10 @@ function getOperationalStatusColor(item: RoomExamItem): BadgeColor {
 
 function getSampleActionDescription(item: RoomExamItem) {
   const sampleStatus = getSampleCollectionStatus(item)
+
+  if (sampleStatus === 'PENDING') {
+    return 'Sample not collected yet. Collect the sample before this item can be processed.'
+  }
 
   if (sampleStatus === 'REJECTED') {
     return item.sampleImpact?.rejectReason || 'Sample rejected and must be rescheduled before the item can be processed.'

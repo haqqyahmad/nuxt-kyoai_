@@ -134,7 +134,7 @@ function getExamItemStatus(ei: ExamItem) {
     if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
-    return 'WAITING_SAMPLE'
+    return samples.some(s => s.status === 'COLLECTED') ? 'WAITING_SAMPLE_RECEIVE' : 'WAITING_SAMPLE_COLLECT'
   }
 
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
@@ -157,7 +157,8 @@ function statusLabel(status: string) {
   if (status === 'RESCHEDULED') return 'Rescheduled'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
-  if (status === 'WAITING_SAMPLE') return 'Waiting Sample'
+  if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT') return 'Awaiting collection'
+  if (status === 'WAITING_SAMPLE_RECEIVE') return 'Awaiting reception'
   if (status === 'REJECTED') return 'Sample Rejected'
   return 'Waiting'
 }
@@ -167,7 +168,8 @@ function statusColor(status: string): 'success' | 'info' | 'neutral' | 'warning'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'REFUSED' || status === 'REJECTED') return 'error'
-  if (status === 'RETEXT' || status === 'WAITING_SAMPLE') return 'warning'
+  if (status === 'RETEXT' || status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT') return 'warning'
+  if (status === 'WAITING_SAMPLE_RECEIVE') return 'info'
   return 'neutral'
 }
 
@@ -177,7 +179,7 @@ function statusIcon(status: string) {
   if (status === 'CALLED') return 'i-lucide-bell'
   if (status === 'REFUSED' || status === 'REJECTED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
-  if (status === 'WAITING_SAMPLE') return 'i-lucide-test-tube'
+  if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
   if (status === 'RESCHEDULED') return 'i-lucide-calendar-clock'
   if (status === 'SKIPPED') return 'i-lucide-skip-forward'
   return 'i-lucide-clock'

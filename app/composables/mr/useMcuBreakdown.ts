@@ -125,7 +125,7 @@ export function getExamItemStatus(
     if (roomStatuses.includes('RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some(s => s.status === 'RESCHEDULED')) return 'RESCHEDULED'
     if (samples.some(s => s.status === 'REJECTED')) return 'REJECTED'
-    return 'WAITING_SAMPLE'
+    return samples.some(s => s.status === 'COLLECTED') ? 'WAITING_SAMPLE_RECEIVE' : 'WAITING_SAMPLE_COLLECT'
   }
 
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
@@ -148,7 +148,8 @@ export function getExamItemStatusLabel(status: string): string {
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
-  if (status === 'WAITING_SAMPLE') return 'Waiting Sample'
+  if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT') return 'Awaiting collection'
+  if (status === 'WAITING_SAMPLE_RECEIVE') return 'Awaiting reception'
   if (status === 'REJECTED') return 'Sample Rejected'
   return 'Waiting'
 }
@@ -161,7 +162,8 @@ export function getExamItemStatusColor(status: string): BadgeColor {
   if (status === 'REFUSED') return 'error'
   if (['RESCHEDULED', 'RETEXT'].includes(status)) return 'warning'
   if (status === 'REJECTED') return 'error'
-  if (status === 'WAITING_SAMPLE') return 'warning'
+  if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT') return 'warning'
+  if (status === 'WAITING_SAMPLE_RECEIVE') return 'info'
   return 'neutral'
 }
 
@@ -172,7 +174,7 @@ export function getExamItemStatusIcon(status: string): string {
   if (status === 'REFUSED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
   if (status === 'REJECTED') return 'i-lucide-ban'
-  if (status === 'WAITING_SAMPLE') return 'i-lucide-test-tube'
+  if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
   return 'i-lucide-clock'
 }
 
