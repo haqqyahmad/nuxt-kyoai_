@@ -981,6 +981,16 @@ const rejectSampleTarget = ref<{ id: string, sampleName: string } | null>(null)
 const rejectSampleReason = ref('')
 const rejectSampleSubmitting = ref(false)
 
+const SAMPLE_ITEMS_VISIBLE = 4
+const expandedSamples = ref<Record<string, boolean>>({})
+function toggleSampleItems(id: string) {
+  expandedSamples.value[id] = !expandedSamples.value[id]
+}
+function visibleSampleItems(sample: { id: string, items: string[] }) {
+  if (expandedSamples.value[sample.id]) return sample.items
+  return sample.items.slice(0, SAMPLE_ITEMS_VISIBLE)
+}
+
 function openRejectSampleModal(sample: { id: string, sampleName: string }) {
   rejectSampleTarget.value = sample
   rejectSampleReason.value = ''
@@ -2625,8 +2635,29 @@ async function handleSubmitItemAction() {
                   </UBadge>
                 </div>
 
-                <p class="mt-2 line-clamp-2 text-xs text-muted">
-                  {{ sample.items.length ? sample.items.join(', ') : 'No related items' }}
+                <div
+                  v-if="sample.items.length"
+                  class="mt-2 flex flex-wrap gap-1"
+                  :title="sample.items.join(', ')"
+                >
+                  <span
+                    v-for="name in visibleSampleItems(sample)"
+                    :key="name"
+                    class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
+                  >
+                    {{ name }}
+                  </span>
+                  <button
+                    v-if="sample.items.length > SAMPLE_ITEMS_VISIBLE"
+                    type="button"
+                    class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                    @click="toggleSampleItems(sample.id)"
+                  >
+                    {{ expandedSamples[sample.id] ? 'Show less' : `+${sample.items.length - SAMPLE_ITEMS_VISIBLE} more` }}
+                  </button>
+                </div>
+                <p v-else class="mt-2 text-xs text-muted">
+                  No related items
                 </p>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
