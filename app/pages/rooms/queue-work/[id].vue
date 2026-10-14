@@ -1110,9 +1110,40 @@ const masterItems = computed(() => {
     index: index + 1,
     name: item.trxExamItem?.item?.name || '-',
     department: item.trxExamItem?.item?.department?.name || item.trxExamItem?.item?.group?.name || '-',
+    sampleTypeId: item.sampleImpact?.sampleTypeId ?? null,
+    sampleTypeName: item.sampleImpact?.sampleTypeName ?? null,
     statusLabel: getOperationalStatusLabel(item),
     statusColor: getOperationalStatusColor(item)
   }))
+})
+
+type MasterItem = {
+  id: string
+  index: number
+  name: string
+  department: string
+  sampleTypeId: string | null
+  sampleTypeName: string | null
+  statusLabel: string
+  statusColor: BadgeColor
+}
+type MasterGroup = { key: string, sampleName: string | null, count: number, items: MasterItem[] }
+const masterGroups = computed<MasterGroup[]>(() => {
+  if (!isLabRoom.value) {
+    return [{ key: 'all', sampleName: null, count: masterItems.value.length, items: masterItems.value }]
+  }
+  const groups = new Map<string, MasterGroup>()
+  for (const item of masterItems.value) {
+    const key = item.sampleTypeId ?? item.sampleTypeName ?? '__none__'
+    let group = groups.get(key)
+    if (!group) {
+      group = { key, sampleName: item.sampleTypeName ?? 'No sample', count: 0, items: [] }
+      groups.set(key, group)
+    }
+    group.items.push(item)
+    group.count++
+  }
+  return [...groups.values()]
 })
 
 const selectedItem = computed(() =>
@@ -2760,36 +2791,41 @@ async function handleSubmitItemAction() {
               </div>
 
               <div class="space-y-2 rounded-2xl border border-default/80 bg-default p-3 shadow-sm">
-                <button
-                  v-for="master in masterItems"
-                  :key="master.id"
-                  type="button"
-                  class="w-full rounded-xl border p-3.5 text-left transition-all"
-                  :class="selectedItemId === master.id
-                    ? 'border-primary/40 bg-primary/10'
-                    : 'border-default/80 hover:bg-muted/30'"
-                  @click="selectItem(master.id)"
-                >
-                  <div class="flex items-center justify-between gap-2">
-                    <div class="space-y-1">
-                      <span class="block text-[10px] font-bold uppercase text-muted">
-                        Item #{{ master.index }} · {{ master.department }}
-                      </span>
-                      <h4 class="text-xs font-bold text-highlighted">
-                        {{ master.name }}
-                      </h4>
-                      <span class="inline-flex items-center gap-1 text-[11px] font-semibold" :class="getStatusTextClass(master.statusColor)">
-                        <span class="size-1.5 rounded-full" :class="getStatusDotClass(master.statusColor)" />
-                        {{ master.statusLabel }}
-                      </span>
+                <template v-for="group in masterGroups" :key="group.key">
+                  <p v-if="group.sampleName" class="px-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted">
+                    Sample: {{ group.sampleName }} · {{ group.count }} item
+                  </p>
+                  <button
+                    v-for="(master, i) in group.items"
+                    :key="master.id"
+                    type="button"
+                    class="w-full rounded-xl border p-3.5 text-left transition-all"
+                    :class="selectedItemId === master.id
+                      ? 'border-primary/40 bg-primary/10'
+                      : 'border-default/80 hover:bg-muted/30'"
+                    @click="selectItem(master.id)"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="space-y-1">
+                        <span class="block text-[10px] font-bold uppercase text-muted">
+                          Item #{{ i + 1 }} · {{ master.department }}
+                        </span>
+                        <h4 class="text-xs font-bold text-highlighted">
+                          {{ master.name }}
+                        </h4>
+                        <span class="inline-flex items-center gap-1 text-[11px] font-semibold" :class="getStatusTextClass(master.statusColor)">
+                          <span class="size-1.5 rounded-full" :class="getStatusDotClass(master.statusColor)" />
+                          {{ master.statusLabel }}
+                        </span>
+                      </div>
+                      <UIcon
+                        name="i-lucide-chevron-right"
+                        class="size-4 shrink-0"
+                        :class="selectedItemId === master.id ? 'text-primary' : 'text-muted'"
+                      />
                     </div>
-                    <UIcon
-                      name="i-lucide-chevron-right"
-                      class="size-4 shrink-0"
-                      :class="selectedItemId === master.id ? 'text-primary' : 'text-muted'"
-                    />
-                  </div>
-                </button>
+                  </button>
+                </template>
                 <p v-if="masterItems.length === 0" class="px-1 py-3 text-sm text-muted">
                   No examination items.
                 </p>
