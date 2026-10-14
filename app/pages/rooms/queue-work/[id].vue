@@ -1146,6 +1146,11 @@ const masterGroups = computed<MasterGroup[]>(() => {
   return [...groups.values()]
 })
 
+const selectedSampleItems = computed(() => {
+  const group = masterGroups.value.find(g => g.items.some(m => m.id === selectedItemId.value))
+  return group?.sampleName ? group.items.map(m => m.name) : []
+})
+
 const selectedItem = computed(() =>
   masterItems.value.some(m => m.id === selectedItemId.value)
     ? roomExamItems.value.find(item => item.id === selectedItemId.value) ?? null
@@ -2792,9 +2797,6 @@ async function handleSubmitItemAction() {
 
               <div class="space-y-2 rounded-2xl border border-default/80 bg-default p-3 shadow-sm">
                 <template v-for="group in masterGroups" :key="group.key">
-                  <p v-if="group.sampleName" class="px-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted">
-                    Sample: {{ group.sampleName }} · {{ group.count }} item
-                  </p>
                   <button
                     v-for="(master, i) in group.items"
                     :key="master.id"
@@ -2811,7 +2813,7 @@ async function handleSubmitItemAction() {
                           Item #{{ i + 1 }} · {{ master.department }}
                         </span>
                         <h4 class="text-xs font-bold text-highlighted">
-                          {{ master.name }}
+                          {{ master.sampleTypeName ?? master.name }}
                         </h4>
                         <span class="inline-flex items-center gap-1 text-[11px] font-semibold" :class="getStatusTextClass(master.statusColor)">
                           <span class="size-1.5 rounded-full" :class="getStatusDotClass(master.statusColor)" />
@@ -2908,8 +2910,11 @@ async function handleSubmitItemAction() {
                         Detail Form · Item #{{ selectedMaster?.index }}
                       </span>
                       <h3 class="text-sm font-bold text-highlighted">
-                        {{ selectedItem.trxExamItem?.item?.name || '-' }}
+                        {{ selectedMaster?.sampleTypeName ?? selectedItem.trxExamItem?.item?.name ?? '-' }}
                       </h3>
+                      <p v-if="selectedSampleItems.length" class="mt-1 text-xs text-muted">
+                        {{ selectedSampleItems.join(', ') }}
+                      </p>
                     </div>
                     <UBadge
                       :label="selectedMaster?.statusLabel"
