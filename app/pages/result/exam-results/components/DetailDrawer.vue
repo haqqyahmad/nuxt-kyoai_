@@ -3112,7 +3112,7 @@ onBeforeUnmount(() => {
                           <template v-if="!collapsedSamples[group.key]">
                             <template v-for="section in group.items" :key="section.key">
                               <tr v-if="section.title">
-                                <td colspan="4" class="bg-muted/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-highlighted">
+                                <td colspan="4" class="bg-warning/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-warning">
                                   {{ section.title }}
                                 </td>
                               </tr>
