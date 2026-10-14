@@ -2619,48 +2619,50 @@ async function handleSubmitItemAction() {
               <div
                 v-for="sample in sampleCollectionCards"
                 :key="sample.id"
-                class="rounded-xl border border-default/80 bg-muted/20 p-3"
+                class="flex flex-col overflow-hidden rounded-xl border border-default/80 bg-muted/20"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <UIcon name="i-lucide-test-tube" class="size-4 shrink-0 text-primary" />
-                    <span class="truncate text-sm font-bold text-highlighted">{{ sample.sampleName }}</span>
+                <div class="flex-1 p-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <UIcon name="i-lucide-test-tube" class="size-4 shrink-0 text-primary" />
+                      <span class="truncate text-sm font-bold text-highlighted">{{ sample.sampleName }}</span>
+                    </div>
+                    <UBadge
+                      :color="collectionStatusColor(sample.status)"
+                      variant="subtle"
+                      size="sm"
+                    >
+                      {{ collectionStatusLabel(sample.status) }}
+                    </UBadge>
                   </div>
-                  <UBadge
-                    :color="collectionStatusColor(sample.status)"
-                    variant="subtle"
-                    size="sm"
+
+                  <div
+                    v-if="sample.items.length"
+                    class="mt-2 flex flex-wrap gap-1"
+                    :title="sample.items.join(', ')"
                   >
-                    {{ collectionStatusLabel(sample.status) }}
-                  </UBadge>
+                    <span
+                      v-for="name in visibleSampleItems(sample)"
+                      :key="name"
+                      class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
+                    >
+                      {{ name }}
+                    </span>
+                    <button
+                      v-if="sample.items.length > SAMPLE_ITEMS_VISIBLE"
+                      type="button"
+                      class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                      @click="toggleSampleItems(sample.id)"
+                    >
+                      {{ expandedSamples[sample.id] ? 'Show less' : `+${sample.items.length - SAMPLE_ITEMS_VISIBLE} more` }}
+                    </button>
+                  </div>
+                  <p v-else class="mt-2 text-xs text-muted">
+                    No related items
+                  </p>
                 </div>
 
-                <div
-                  v-if="sample.items.length"
-                  class="mt-2 flex flex-wrap gap-1"
-                  :title="sample.items.join(', ')"
-                >
-                  <span
-                    v-for="name in visibleSampleItems(sample)"
-                    :key="name"
-                    class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
-                  >
-                    {{ name }}
-                  </span>
-                  <button
-                    v-if="sample.items.length > SAMPLE_ITEMS_VISIBLE"
-                    type="button"
-                    class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
-                    @click="toggleSampleItems(sample.id)"
-                  >
-                    {{ expandedSamples[sample.id] ? 'Show less' : `+${sample.items.length - SAMPLE_ITEMS_VISIBLE} more` }}
-                  </button>
-                </div>
-                <p v-else class="mt-2 text-xs text-muted">
-                  No related items
-                </p>
-
-                <div class="mt-3 flex flex-wrap items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 border-t border-default/80 bg-default/40 px-3 py-2.5">
                   <UButton
                     v-if="sample.canCollect"
                     color="info"
