@@ -76,7 +76,11 @@ async function loadLabGroup() {
     params: { groupBy: 'item', examId: examId.value, department: 'lab', page: 1, limit: 100 }
   })
   const payload = res.data?.data ?? res.data
-  const rows = (Array.isArray(payload) ? payload : (payload?.data ?? [])) as Array<DetailResult & { sortOrder?: number | null, itemApproved?: boolean | null }>
+  const rows = (Array.isArray(payload) ? payload : (payload?.data ?? [])) as Array<DetailResult & {
+    sortOrder?: number | null
+    itemApproved?: boolean | null
+    item?: (DetailResult['item'] & { sampleCode?: string | null, sampleName?: string | null }) | null
+  }>
   if (!rows.length) {
     error.value = 'Result not found or inaccessible.'
     result.value = null
@@ -93,7 +97,9 @@ async function loadLabGroup() {
     (row.item?.inputans ?? []).map(inputan => ({
       ...inputan,
       itemId: row.id,
-      itemName: row.item?.name ?? null
+      itemName: row.item?.name ?? null,
+      sampleCode: row.item?.sampleCode ?? null,
+      sampleName: row.item?.sampleName ?? null
     }))
   )
   const mergedResults = rows.flatMap(row => row.exam?.results ?? [])
