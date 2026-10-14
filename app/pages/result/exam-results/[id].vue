@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { toDepartmentMenuKey } from '~/constants/menu'
 import DetailDrawer from './components/DetailDrawer.vue'
-import LabGroupPanel from './components/LabGroupPanel.vue'
 import DentalResultPanel from './components/DentalResultPanel.vue'
 import PhysicalResultPanel from './components/PhysicalResultPanel.vue'
 import HistoryTimeline from './components/HistoryTimeline.vue'
@@ -70,63 +69,86 @@ const isDoctorTestResult = computed(() => Boolean(result.value?.doctorExam)
 const examId = computed(() => getQueryValue(route.query.examId))
 const roomTypeId = computed(() => getQueryValue(route.query.roomTypeId))
 const isLabScope = computed(() => department.value.toLowerCase() === 'lab')
+const labGroupCount = computed(() => isLabScope.value ? (result.value?.items?.length ?? 0) : 0)
 
-type LabSibling = {
-  id: string
-  name?: string | null
-  code?: string | null
-  resultStatus?: string | null
-  departmentResultStatus?: string | null
-  itemApproved?: boolean | null
-  isExternalResult?: boolean | null
-  externalStatus?: string | null
-  openRevision?: boolean | null
-  roomTypeName?: string | null
-}
-
-const labSiblings = ref<LabSibling[]>([])
-
-async function loadLabSiblings() {
-  labSiblings.value = []
-  if (!isLabScope.value || !examId.value) return
-  try {
-    const res = await api.get('/mcu/exams/results', {
-      params: { view: 'list', examId: examId.value, department: 'lab', page: 1, limit: 100 }
-    })
-    const payload = res.data?.data ?? res.data
-    const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
-    labSiblings.value = rows.map((row: {
-      id: string
-      item?: { name?: string | null, code?: string | null, roomType?: { name?: string | null } | null } | null
-      resultStatus?: string | null
-      departmentResultStatus?: string | null
-      itemApproved?: boolean | null
-      isExternalResult?: boolean | null
-      externalStatus?: string | null
-      openRevision?: boolean | null
-    }) => ({
-      id: row.id,
-      name: row.item?.name ?? null,
-      code: row.item?.code ?? null,
-      resultStatus: row.resultStatus ?? null,
-      departmentResultStatus: row.departmentResultStatus ?? null,
-      itemApproved: row.itemApproved ?? null,
-      isExternalResult: row.isExternalResult ?? null,
-      externalStatus: row.externalStatus ?? null,
-      openRevision: row.openRevision ?? null,
-      roomTypeName: row.item?.roomType?.name ?? null
-    }))
-  } catch {
-    labSiblings.value = []
-  }
-}
-
-function goToLabSibling(itemId: string) {
-  if (!itemId || itemId === String(route.params.id)) return
-  void router.push({
-    path: `/result/exam-results/${itemId}`,
-    query: { department: department.value || 'lab', examId: examId.value }
+async function loadLabGroup() {
+  const res = await api.get('/mcu/exams/results', {
+    params: { groupBy: 'item', examId: examId.value, department: 'lab', page: 1, limit: 100 }
   })
+  const payload = res.data?.data ?? res.data
+  const rows = (Array.isArray(payload) ? payload : (payload?.data ?? [])) as Array<DetailResult & { sortOrder?: number | null, itemApproved?: boolean | null }>
+  if (!rows.length) {
+    error.value = 'Result not found or inaccessible.'
+    result.value = null
+    return
+  }
+  rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const [first] = rows
+  if (!first) {
+    error.value = 'Result not found or inaccessible.'
+    result.value = null
+    return
+  }
+  const mergedInputans = rows.flatMap(row =>
+    (row.item?.inputans ?? []).map(inputan => ({
+      ...inputan,
+      itemId: row.id,
+      itemName: row.item?.name ?? null
+    }))
+  )
+  const mergedResults = rows.flatMap(row => row.exam?.results ?? [])
+  const seenRevision = new Set<string>()
+  const revisionItems: NonNullable<DetailResult['revisionItems']> = []
+  for (const row of rows) {
+    for (const rev of row.revisionItems ?? []) {
+      const key = `${rev.examItemId ?? ''}|${rev.inputanId ?? ''}|${rev.reason ?? ''}`
+      if (seenRevision.has(key)) continue
+      seenRevision.add(key)
+      revisionItems.push(rev)
+    }
+  }
+  const statuses = rows.map(row => row.resultStatus ?? 'NOT_READY')
+  const allSubmitted = statuses.length > 0 && statuses.every(s => s === 'SUBMITTED')
+  const resultStatus = allSubmitted
+    ? 'SUBMITTED'
+    : statuses.some(s => s === 'SUBMITTED')
+      ? 'PARTIAL'
+      : statuses.includes('RETURNED')
+        ? 'RETURNED'
+        : statuses.includes('READY')
+          ? 'READY'
+          : statuses.includes('DRAFT') ? 'DRAFT' : 'NOT_READY'
+  result.value = {
+    ...first,
+    id: String(route.params.id),
+    item: {
+      id: first.item?.id ?? '',
+      name: first.item?.name ?? null,
+      code: null,
+      department: first.item?.department ?? null,
+      roomType: null,
+      inputans: mergedInputans
+    },
+    items: rows.map(row => ({
+      id: row.id,
+      resultStatus: row.resultStatus ?? null,
+      itemApproved: row.itemApproved ?? null,
+      item: { name: row.item?.name ?? null, code: row.item?.code ?? null }
+    })),
+    status: allSubmitted ? 'completed' : 'pending',
+    resultStatus,
+    departmentResultStatus: first.departmentResultStatus ?? null,
+    departmentCurrentStepOrder: first.departmentCurrentStepOrder ?? null,
+    departmentCurrentVersionId: first.departmentCurrentVersionId ?? null,
+    itemApproved: rows.length > 0 && rows.every(row => row.itemApproved),
+    returnReason: first.returnReason ?? null,
+    revisionItems,
+    canEditResult: rows.some(row => row.canEditResult),
+    canSubmitResult: rows.some(row => row.canSubmitResult),
+    sampleBlocked: rows.some(row => row.sampleBlocked),
+    sampleBlockedReason: rows.flatMap(row => row.sampleBlockedReason ? [row.sampleBlockedReason] : []).join('; ') || null,
+    exam: { id: examId.value, results: mergedResults }
+  } as StructuredResult
 }
 
 watch(() => route.params.id, async (nextId, prevId) => {
@@ -182,7 +204,11 @@ async function loadResult() {
   filterNotice.value = null
 
   try {
-    // Dokter butuh scope per-exam (rollup); department lain (lab/nurse/radiologi/
+    if (isLabScope.value && examId.value) {
+      await loadLabGroup()
+      return
+    }
+    // Dokter butuh scope per-exam (rollup); department lain (nurse/radiologi/
     // dental) scope-nya per-item — supaya item yang di-klik benar-benar diambil,
     // bukan item representatif exam.
     const departmentKey = department.value.toLowerCase()
@@ -223,7 +249,6 @@ async function loadResult() {
     result.value = rows[0] ?? null
     if (!result.value) error.value = 'Result not found or inaccessible.'
     if (isDental.value) await loadAudit()
-    await loadLabSiblings()
   } catch (value: unknown) {
     const response = typeof value === 'object' && value && 'response' in value
       ? (value as { response?: { data?: { message?: string } } }).response
@@ -252,8 +277,8 @@ onMounted(() => {
   <UDashboardPanel id="exam-result-detail">
     <template #header>
       <UDashboardNavbar
-        :title="(result as any)?.item?.name || 'Exam Result'"
-        :subtitle="patientName"
+        :title="isLabScope && result ? patientName : ((result as any)?.item?.name || 'Exam Result')"
+        :subtitle="isLabScope && result ? `${labGroupCount} item` : patientName"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
@@ -431,23 +456,15 @@ onMounted(() => {
       </div>
 
       <!-- Non-dental: generic result drawer -->
-      <template v-else>
-        <div v-if="isLabScope && result && labSiblings.length" class="space-y-4 p-4 pb-2">
-          <LabGroupPanel
-            :queue-code="(result as any)?.queueCode"
-            :items="labSiblings"
-            :active-item-id="String(route.params.id)"
-            @select="goToLabSibling"
-          />
-        </div>
-        <DetailDrawer
-          :open="true"
-          :result="result"
-          embedded
-          @close="goBackToResults"
-          @result-saved="loadResult"
-        />
-      </template>
+      <DetailDrawer
+        v-else
+        :open="true"
+        :result="result"
+        embedded
+        :grouped="isLabScope"
+        @close="goBackToResults"
+        @result-saved="loadResult"
+      />
     </template>
   </UDashboardPanel>
 </template>
