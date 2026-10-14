@@ -1278,14 +1278,17 @@ async function fetchSelectedSampleHistory() {
   auditLoading.value = true
   try {
     const examId = items[0]?.trxExamItem?.exam?.id ?? null
+    const sampleId = selectedLabSample.value?.id ?? null
     const examItemIds = items.map(item => item.trxExamItem?.id ?? item.id)
-    const [roomLogs, externalLogs, itemLogs, examLogs] = await Promise.all([
+    const [roomLogs, externalLogs, itemLogs, examLogs, sampleLogs] = await Promise.all([
       Promise.all(examItemIds.map(id => api.get(`/audit/RoomExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
       Promise.all(examItemIds.map(id => api.get(`/audit/ExternalResultAssignment/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
       Promise.all(examItemIds.map(id => api.get(`/audit/TrxExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
-      examId ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([])
+      examId ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([]),
+      sampleId ? api.get(`/audit/QueueSampleCollection/${sampleId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([])
     ])
     auditEntries.value = [
+      ...tagScope(sampleLogs, 'item'),
       ...tagScope(roomLogs, 'item'),
       ...tagScope(externalLogs, 'item'),
       ...tagScope(itemLogs, 'item'),
@@ -3558,7 +3561,7 @@ async function handleSubmitItemAction() {
                   :loading="auditLoading"
                   :entries="auditEntries"
                   :queue-code="selectedQueueCode"
-                  :split-by-scope="true"
+                  :split-by-scope="false"
                 />
               </template>
 
