@@ -1205,6 +1205,115 @@ async function fetchSelectedItemHistory() {
   }
 }
 
+const labSamples = computed(() =>
+  sampleCollections.value.map((collection, index) => ({
+    id: collection.id,
+    index: index + 1,
+    sampleTypeId: collection.sampleType?.id ?? null,
+    name: collection.sampleType?.name ?? 'Sample',
+    status: collection.status,
+    itemIds: (collection.items ?? []).map(item => item.itemId)
+  }))
+)
+
+const selectedSampleId = ref('')
+const labSampleSearch = ref('')
+
+const filteredLabSamples = computed(() => {
+  const query = labSampleSearch.value.trim().toLowerCase()
+  if (!query) return labSamples.value
+  return labSamples.value.filter(sample => sample.name.toLowerCase().includes(query))
+})
+
+const selectedLabSample = computed(() =>
+  labSamples.value.find(sample => sample.id === selectedSampleId.value) ?? null
+)
+
+const labSampleItems = computed(() => {
+  const sample = selectedLabSample.value
+  if (!sample) return []
+  const itemIds = new Set(sample.itemIds)
+  return roomExamItems.value.filter(item =>
+    itemIds.has(item.trxExamItem?.item?.id ?? '')
+    || (sample.sampleTypeId != null && item.sampleImpact?.sampleTypeId === sample.sampleTypeId)
+  )
+})
+
+const labItemSearch = ref('')
+const labItemStatusFilter = ref('all')
+const expandAllLabItems = ref(false)
+const expandedLabItems = ref<Record<string, boolean>>({})
+
+function toggleLabItem(id: string) {
+  expandedLabItems.value[id] = !expandedLabItems.value[id]
+}
+function isLabItemExpanded(id: string) {
+  return expandAllLabItems.value || Boolean(expandedLabItems.value[id])
+}
+
+const labItemStatusOptions = computed(() => {
+  const set = new Set<string>()
+  for (const item of labSampleItems.value) set.add(getOperationalStatusLabel(item))
+  return ['all', ...set]
+})
+
+const filteredLabItems = computed(() => {
+  const query = labItemSearch.value.trim().toLowerCase()
+  return labSampleItems.value.filter((item) => {
+    const name = item.trxExamItem?.item?.name ?? ''
+    const code = item.trxExamItem?.item?.code ?? ''
+    const statusLabel = getOperationalStatusLabel(item)
+    const matchesQuery = !query || `${name} ${code} ${statusLabel}`.toLowerCase().includes(query)
+    const matchesStatus = labItemStatusFilter.value === 'all' || statusLabel === labItemStatusFilter.value
+    return matchesQuery && matchesStatus
+  })
+})
+
+async function fetchSelectedSampleHistory() {
+  const items = labSampleItems.value
+  if (!items.length) {
+    resetAudit()
+    return
+  }
+  auditLoading.value = true
+  try {
+    const examId = items[0]?.trxExamItem?.exam?.id ?? null
+    const examItemIds = items.map(item => item.trxExamItem?.id ?? item.id)
+    const [roomLogs, externalLogs, itemLogs, examLogs] = await Promise.all([
+      Promise.all(examItemIds.map(id => api.get(`/audit/RoomExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
+      Promise.all(examItemIds.map(id => api.get(`/audit/ExternalResultAssignment/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
+      Promise.all(examItemIds.map(id => api.get(`/audit/TrxExamItem/${id}`).then(r => r.data?.data ?? []).catch(() => []))).then(rows => rows.flat()),
+      examId ? api.get(`/audit/TrxExamResult/${examId}`).then(r => r.data?.data ?? []).catch(() => []) : Promise.resolve([])
+    ])
+    auditEntries.value = [
+      ...tagScope(roomLogs, 'item'),
+      ...tagScope(externalLogs, 'item'),
+      ...tagScope(itemLogs, 'item'),
+      ...tagScope(examLogs, 'exam')
+    ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+watch(labSamples, (list) => {
+  if (!list.length) {
+    selectedSampleId.value = ''
+    return
+  }
+  if (!list.some(sample => sample.id === selectedSampleId.value)) {
+    selectedSampleId.value = list[0]?.id ?? ''
+  }
+}, { immediate: true })
+
+watch(selectedSampleId, () => {
+  labItemSearch.value = ''
+  labItemStatusFilter.value = 'all'
+  expandAllLabItems.value = false
+  expandedLabItems.value = {}
+  void fetchSelectedSampleHistory()
+})
+
 const selectedBadgeColor = computed(() => {
   if (!selectedItem.value) return 'neutral'
   return getOperationalStatusColor(selectedItem.value)
@@ -2751,7 +2860,7 @@ async function handleSubmitItemAction() {
           </UCard>
 
           <!-- Custom doctor renderer: navigasi item menjadi tab di bawah detail pasien. -->
-          <div v-if="isFullWidthWork" class="flex flex-wrap gap-2 border-b border-default pb-4">
+          <div v-if="isFullWidthWork && !isLabRoom" class="flex flex-wrap gap-2 border-b border-default pb-4">
             <UButton
               v-for="master in masterItems"
               :key="master.id"
@@ -2769,7 +2878,7 @@ async function handleSubmitItemAction() {
             </UButton>
           </div>
 
-          <div class="grid grid-cols-12 items-start gap-5">
+          <div v-if="!isLabRoom" class="grid grid-cols-12 items-start gap-5">
             <div
               v-if="!isFullWidthWork"
               class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
@@ -2797,6 +2906,9 @@ async function handleSubmitItemAction() {
 
               <div class="space-y-2 rounded-2xl border border-default/80 bg-default p-3 shadow-sm">
                 <template v-for="group in masterGroups" :key="group.key">
+                  <p v-if="group.sampleName" class="px-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted">
+                    Sample: {{ group.sampleName }} · {{ group.count }} item
+                  </p>
                   <button
                     v-for="(master, i) in group.items"
                     :key="master.id"
@@ -2812,8 +2924,8 @@ async function handleSubmitItemAction() {
                         <span class="block text-[10px] font-bold uppercase text-muted">
                           Item #{{ i + 1 }} · {{ master.department }}
                         </span>
-                        <h4 class="text-xs font-bold text-highlighted">
-                          {{ master.sampleTypeName ?? master.name }}
+                        <h4 v-if="!group.sampleName" class="text-xs font-bold text-highlighted">
+                          {{ master.name }}
                         </h4>
                         <span class="inline-flex items-center gap-1 text-[11px] font-semibold" :class="getStatusTextClass(master.statusColor)">
                           <span class="size-1.5 rounded-full" :class="getStatusDotClass(master.statusColor)" />
@@ -3248,6 +3360,210 @@ async function handleSubmitItemAction() {
 
               <div v-else class="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted">
                 No examination items for this room yet.
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="isLabRoom"
+            class="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]"
+          >
+            <aside class="flex max-h-[720px] flex-col rounded-2xl border border-default/80 bg-default p-3 shadow-sm">
+              <p class="px-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-muted">
+                Sample List
+              </p>
+              <UInput
+                v-model="labSampleSearch"
+                icon="i-lucide-search"
+                placeholder="Cari nama sample..."
+                size="sm"
+                class="mb-3"
+              />
+              <div class="flex flex-col gap-2 overflow-y-auto">
+                <button
+                  v-for="sample in filteredLabSamples"
+                  :key="sample.id"
+                  type="button"
+                  class="w-full rounded-xl border p-3 text-left transition"
+                  :class="selectedSampleId === sample.id
+                    ? 'border-primary/40 bg-primary/10'
+                    : 'border-default/80 hover:bg-muted/30'"
+                  @click="selectedSampleId = sample.id"
+                >
+                  <p class="text-[10px] font-bold uppercase text-muted">
+                    LABORATORIUM
+                  </p>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-sm font-bold text-highlighted">{{ sample.name }}</span>
+                    <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+                  </div>
+                  <span
+                    class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold"
+                    :class="getStatusTextClass(collectionStatusColor(sample.status))"
+                  >
+                    <span class="size-1.5 rounded-full" :class="getStatusDotClass(collectionStatusColor(sample.status))" />
+                    {{ collectionStatusLabel(sample.status) }}
+                  </span>
+                  <p class="mt-1 text-[11px] text-muted">
+                    {{ sample.itemIds.length }} item pemeriksaan
+                  </p>
+                </button>
+                <p v-if="!filteredLabSamples.length" class="px-1 py-3 text-sm text-muted">
+                  Sample tidak ditemukan.
+                </p>
+              </div>
+            </aside>
+
+            <div class="min-w-0 space-y-4">
+              <template v-if="selectedLabSample">
+                <div class="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-default/80 bg-muted/20 px-5 py-4">
+                  <div class="min-w-0">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted">
+                      Detail Sample #{{ selectedLabSample.index }}
+                    </p>
+                    <h1 class="mt-1 text-xl font-semibold text-highlighted">
+                      Sample {{ selectedLabSample.name }}
+                    </h1>
+                    <p class="mt-1 text-xs text-muted">
+                      {{ labSampleItems.map(item => item.trxExamItem?.item?.name).filter(Boolean).join(', ') || '-' }}
+                    </p>
+                  </div>
+                  <UBadge :color="collectionStatusColor(selectedLabSample.status)" variant="subtle">
+                    {{ collectionStatusLabel(selectedLabSample.status) }}
+                  </UBadge>
+                </div>
+
+                <UAlert
+                  v-if="activeStage && !isExamStageActive() && labSampleItems.length"
+                  color="warning"
+                  variant="soft"
+                  title="Not in the exam stage yet"
+                  :description="`Current active stage is ${getStageDisplayName(activeStage)}. Lab items can only be filled after sample collection and reception are complete, then the active stage moves to EXAM.`"
+                />
+
+                <UCard class="border border-default/80 shadow-sm">
+                  <template #header>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h2 class="text-base font-semibold text-highlighted">
+                          List Item Pemeriksaan
+                        </h2>
+                        <p class="text-xs text-muted">
+                          Seluruh item pemeriksaan yang menggunakan sample terpilih.
+                        </p>
+                      </div>
+                      <UBadge color="neutral" variant="subtle">
+                        {{ filteredLabItems.length }} items
+                      </UBadge>
+                    </div>
+                  </template>
+
+                  <div class="mb-3 flex flex-wrap items-center gap-2">
+                    <UInput
+                      v-model="labItemSearch"
+                      icon="i-lucide-search"
+                      placeholder="Cari item, kode, atau parameter..."
+                      size="sm"
+                      class="min-w-0 flex-1"
+                    />
+                    <USelect
+                      v-model="labItemStatusFilter"
+                      :items="labItemStatusOptions.map(value => ({ label: value === 'all' ? 'All statuses' : value, value }))"
+                      size="sm"
+                      class="w-48"
+                    />
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="soft"
+                      @click="expandAllLabItems = !expandAllLabItems"
+                    >
+                      {{ expandAllLabItems ? 'Collapse all' : 'Expand all' }}
+                    </UButton>
+                  </div>
+
+                  <div v-if="filteredLabItems.length" class="space-y-2">
+                    <article
+                      v-for="item in filteredLabItems"
+                      :key="item.id"
+                      class="overflow-hidden rounded-xl border border-default/80 bg-default"
+                    >
+                      <button
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/30"
+                        @click="toggleLabItem(item.id)"
+                      >
+                        <div class="min-w-0">
+                          <p class="truncate text-sm font-semibold text-highlighted">
+                            {{ item.trxExamItem?.item?.name || '-' }}
+                          </p>
+                          <p class="text-[11px] text-muted">
+                            Code: {{ item.trxExamItem?.item?.code || '-' }}
+                          </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="inline-flex items-center gap-1 text-[11px] font-semibold"
+                            :class="getStatusTextClass(getOperationalStatusColor(item))"
+                          >
+                            <span class="size-1.5 rounded-full" :class="getStatusDotClass(getOperationalStatusColor(item))" />
+                            {{ getOperationalStatusLabel(item) }}
+                          </span>
+                          <UIcon
+                            name="i-lucide-chevron-right"
+                            class="size-4 text-muted transition"
+                            :class="isLabItemExpanded(item.id) ? 'rotate-90' : ''"
+                          />
+                        </div>
+                      </button>
+                      <div
+                        v-if="isLabItemExpanded(item.id)"
+                        class="border-t border-default/80 bg-muted/10 px-3 py-3"
+                      >
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div>
+                            <p class="text-[11px] text-muted">
+                              Nama pemeriksaan
+                            </p>
+                            <p class="text-sm font-semibold text-highlighted">
+                              {{ item.trxExamItem?.item?.name || '-' }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-[11px] text-muted">
+                              Kode item
+                            </p>
+                            <p class="text-sm font-semibold text-highlighted">
+                              {{ item.trxExamItem?.item?.code || '-' }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-[11px] text-muted">
+                              Status
+                            </p>
+                            <p class="text-sm font-semibold text-highlighted">
+                              {{ getOperationalStatusLabel(item) }}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                  <p v-else class="rounded-lg border border-dashed border-default px-3 py-6 text-center text-sm text-muted">
+                    Tidak ada item yang sesuai filter.
+                  </p>
+                </UCard>
+
+                <HistoryTimeline
+                  :loading="auditLoading"
+                  :entries="auditEntries"
+                  :queue-code="selectedQueueCode"
+                  :split-by-scope="true"
+                />
+              </template>
+
+              <div v-else class="flex min-h-[480px] items-center justify-center rounded-2xl border border-dashed border-default bg-muted/20 p-8 text-center text-sm text-muted">
+                Pilih sample untuk melihat item pemeriksaan.
               </div>
             </div>
           </div>
