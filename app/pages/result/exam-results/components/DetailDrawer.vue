@@ -1211,22 +1211,35 @@ const sampleGroups = computed<SampleGroup[]>(() => {
   if (!props.grouped) {
     return [{ key: 'all', sampleCode: null, sampleName: null, items: [{ key: 'all', title: null, inputans: vis }] }]
   }
-  const groups: SampleGroup[] = []
+  const groups = new Map<string, SampleGroup>()
+  const itemIndex = new Map<string, Map<string, ItemSection>>()
   for (const inputan of vis) {
     const sCode = inputan.sampleCode ?? null
     const sName = inputan.sampleName ?? null
-    let group = groups[groups.length - 1]
-    if (!group || group.sampleCode !== sCode || group.sampleName !== sName) {
-      group = { key: `sample-${groups.length}`, sampleCode: sCode, sampleName: sName, items: [] }
-      groups.push(group)
+    const gKey = `${sCode ?? ''}|${sName ?? ''}`
+    let group = groups.get(gKey)
+    if (!group) {
+      group = { key: `sample-${groups.size}`, sampleCode: sCode, sampleName: sName, items: [] }
+      groups.set(gKey, group)
+      itemIndex.set(gKey, new Map())
     }
-    const title = inputan.itemName ?? null
-    const last = group.items[group.items.length - 1]
-    if (last && last.title === title) last.inputans.push(inputan)
-    else group.items.push({ key: `${group.key}-item-${group.items.length}`, title, inputans: [inputan] })
+    const byItem = itemIndex.get(gKey)!
+    const iKey = inputan.itemId ?? inputan.itemName ?? ''
+    let section = byItem.get(iKey)
+    if (!section) {
+      section = { key: `${group.key}-item-${group.items.length}`, title: inputan.itemName ?? null, inputans: [] }
+      byItem.set(iKey, section)
+      group.items.push(section)
+    }
+    section.inputans.push(inputan)
   }
-  return groups.length ? groups : [{ key: 'all', sampleCode: null, sampleName: null, items: [] }]
+  return [...groups.values()]
 })
+
+const collapsedSamples = ref<Record<string, boolean>>({})
+function toggleSampleGroup(key: string) {
+  collapsedSamples.value[key] = !collapsedSamples.value[key]
+}
 
 function getDraftText(value: unknown) {
   return String(value ?? '').trim()
@@ -3078,180 +3091,193 @@ onBeforeUnmount(() => {
 
                       <tbody class="divide-y divide-default/60 bg-default/80">
                         <template v-for="group in sampleGroups" :key="group.key">
-                          <tr v-if="group.sampleCode || group.sampleName">
+                          <tr
+                            v-if="group.sampleCode || group.sampleName"
+                            class="cursor-pointer select-none"
+                            @click="toggleSampleGroup(group.key)"
+                          >
                             <td colspan="4" class="bg-primary/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-primary">
-                              {{ group.sampleCode }}{{ group.sampleCode && group.sampleName ? ' — ' : '' }}{{ group.sampleName }}
+                              <div class="flex items-center gap-1.5">
+                                <UIcon
+                                  name="i-lucide-chevron-up"
+                                  class="size-3.5 transition-transform"
+                                  :class="collapsedSamples[group.key] ? 'rotate-180' : ''"
+                                />
+                                {{ group.sampleCode }}{{ group.sampleCode && group.sampleName ? ' — ' : '' }}{{ group.sampleName }}
+                              </div>
                             </td>
                           </tr>
-                          <template v-for="section in group.items" :key="section.key">
-                            <tr v-if="section.title">
-                              <td colspan="4" class="bg-muted/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-highlighted">
-                                {{ section.title }}
-                              </td>
-                            </tr>
-                            <tr
-                              v-for="inputan in section.inputans"
-                              :id="`inputan-${inputan.id}`"
-                              :key="inputan.id"
-                              class="scroll-mt-24 transition hover:bg-muted/20"
-                              :class="[
-                                inputanReturnNote(inputan.id) ? 'bg-error/5' : '',
-                                inputan.id === highlightedInputanId ? 'ring-2 ring-error' : ''
-                              ]"
-                            >
-                              <td class="px-3 py-2.5 align-middle">
-                                <div class="min-w-0">
-                                  <p class="text-sm font-semibold text-highlighted">
-                                    {{ inputan.label }}
-                                  </p>
-                                  <p
-                                    v-if="!grouped && (inputan.itemName || inputan.groupName)"
-                                    class="text-[11px] text-muted"
-                                  >
-                                    {{ inputan.itemName || inputan.groupName }}
-                                  </p>
-                                  <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                                    <UBadge
-                                      v-if="inputanReturnNote(inputan.id)"
-                                      label="Needs Revision"
-                                      color="error"
-                                      variant="soft"
-                                      size="sm"
-                                    />
-                                    <UBadge
-                                      :label="getInputTypeLabel(inputan.inputType)"
-                                      :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
-                                      variant="subtle"
-                                      size="sm"
-                                    />
-                                    <span v-if="inputan.uom" class="text-xs text-muted">
-                                      {{ inputan.uom }}
-                                    </span>
-                                  </div>
-                                  <p
-                                    v-if="inputanReturnNote(inputan.id)"
-                                    class="mt-1.5 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error"
-                                  >
-                                    Doctor Note: {{ inputanReturnNote(inputan.id) }}
-                                  </p>
-                                </div>
-                              </td>
-
-                              <td class="px-3 py-2.5 align-middle text-sm text-muted">
-                                <div v-if="getVisibleNormalRanges(inputan).length" class="space-y-1">
-                                  <div
-                                    v-for="range in getVisibleNormalRanges(inputan)"
-                                    :key="range.id"
-                                    class="leading-tight"
-                                  >
+                          <template v-if="!collapsedSamples[group.key]">
+                            <template v-for="section in group.items" :key="section.key">
+                              <tr v-if="section.title">
+                                <td colspan="4" class="bg-muted/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-highlighted">
+                                  {{ section.title }}
+                                </td>
+                              </tr>
+                              <tr
+                                v-for="inputan in section.inputans"
+                                :id="`inputan-${inputan.id}`"
+                                :key="inputan.id"
+                                class="scroll-mt-24 transition hover:bg-muted/20"
+                                :class="[
+                                  inputanReturnNote(inputan.id) ? 'bg-error/5' : '',
+                                  inputan.id === highlightedInputanId ? 'ring-2 ring-error' : ''
+                                ]"
+                              >
+                                <td class="px-3 py-2.5 align-middle">
+                                  <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-highlighted">
+                                      {{ inputan.label }}
+                                    </p>
                                     <p
-                                      class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                                      v-if="!grouped && (inputan.itemName || inputan.groupName)"
+                                      class="text-[11px] text-muted"
                                     >
-                                      {{ formatNormalRange(range, inputan.uom, inputan.numberFormat ?? undefined) }}
+                                      {{ inputan.itemName || inputan.groupName }}
                                     </p>
-                                    <p class="mt-0.5 text-[11px] text-muted">
-                                      {{ formatRangeCriteria(range, inputan.numberFormat ?? undefined) }}
+                                    <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                      <UBadge
+                                        v-if="inputanReturnNote(inputan.id)"
+                                        label="Needs Revision"
+                                        color="error"
+                                        variant="soft"
+                                        size="sm"
+                                      />
+                                      <UBadge
+                                        :label="getInputTypeLabel(inputan.inputType)"
+                                        :color="inputan.inputType === 'selected' ? 'primary' : 'neutral'"
+                                        variant="subtle"
+                                        size="sm"
+                                      />
+                                      <span v-if="inputan.uom" class="text-xs text-muted">
+                                        {{ inputan.uom }}
+                                      </span>
+                                    </div>
+                                    <p
+                                      v-if="inputanReturnNote(inputan.id)"
+                                      class="mt-1.5 rounded bg-error/10 px-2 py-1 text-xs font-medium text-error"
+                                    >
+                                      Doctor Note: {{ inputanReturnNote(inputan.id) }}
                                     </p>
                                   </div>
-                                </div>
-                                <span v-else class="text-xs text-amber-600 dark:text-amber-400">
-                                  Not available
-                                </span>
-                              </td>
+                                </td>
 
-                              <td class="px-3 py-2.5 align-middle">
-                                <div class="max-w-sm">
-                                  <input
-                                    v-if="inputan.inputType === 'number'"
-                                    v-model="getInputDraft(inputan.id).valueNumber"
-                                    type="number"
-                                    :disabled="!canEditCurrentResult || isResultBlockedBySample"
-                                    :class="getResultInputClass(inputan)"
-                                    placeholder="Enter result"
-                                    @input="recomputeCalculatedDrafts(true)"
-                                  >
-
-                                  <input
-                                    v-else-if="inputan.inputType === 'string'"
-                                    v-model="getInputDraft(inputan.id).valueString"
-                                    type="text"
-                                    :disabled="!canEditCurrentResult || isResultBlockedBySample"
-                                    class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
-                                    placeholder="Enter result"
-                                  >
-
-                                  <select
-                                    v-else-if="inputan.inputType === 'selected'"
-                                    v-model="getInputDraft(inputan.id).valueSelected"
-                                    :disabled="!canEditCurrentResult || isResultBlockedBySample"
-                                    class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    <option value="">
-                                      Select result
-                                    </option>
-                                    <option
-                                      v-for="opsi in sortedOpsis(inputan)"
-                                      :key="opsi.id"
-                                      :value="opsi.value"
+                                <td class="px-3 py-2.5 align-middle text-sm text-muted">
+                                  <div v-if="getVisibleNormalRanges(inputan).length" class="space-y-1">
+                                    <div
+                                      v-for="range in getVisibleNormalRanges(inputan)"
+                                      :key="range.id"
+                                      class="leading-tight"
                                     >
-                                      {{ opsi.label }}
-                                    </option>
-                                  </select>
+                                      <p
+                                        class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                                      >
+                                        {{ formatNormalRange(range, inputan.uom, inputan.numberFormat ?? undefined) }}
+                                      </p>
+                                      <p class="mt-0.5 text-[11px] text-muted">
+                                        {{ formatRangeCriteria(range, inputan.numberFormat ?? undefined) }}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span v-else class="text-xs text-amber-600 dark:text-amber-400">
+                                    Not available
+                                  </span>
+                                </td>
 
-                                  <div
-                                    v-if="
-                                      inputan.inputType === 'selected'
-                                        && hasOtherOption(inputan)
-                                        && isOtherSelected(inputan)
-                                    "
-                                    class="mt-2"
-                                  >
-                                    <label
-                                      class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-                                    >
-                                      Detail {{ inputan.label }}
-                                    </label>
+                                <td class="px-3 py-2.5 align-middle">
+                                  <div class="max-w-sm">
                                     <input
+                                      v-if="inputan.inputType === 'number'"
+                                      v-model="getInputDraft(inputan.id).valueNumber"
+                                      type="number"
+                                      :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                                      :class="getResultInputClass(inputan)"
+                                      placeholder="Enter result"
+                                      @input="recomputeCalculatedDrafts(true)"
+                                    >
+
+                                    <input
+                                      v-else-if="inputan.inputType === 'string'"
                                       v-model="getInputDraft(inputan.id).valueString"
                                       type="text"
                                       :disabled="!canEditCurrentResult || isResultBlockedBySample"
-                                      class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
-                                      placeholder="Write details"
+                                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
+                                      placeholder="Enter result"
                                     >
+
+                                    <select
+                                      v-else-if="inputan.inputType === 'selected'"
+                                      v-model="getInputDraft(inputan.id).valueSelected"
+                                      :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                                      class="w-full rounded-lg border border-default bg-default px-3 py-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                      <option value="">
+                                        Select result
+                                      </option>
+                                      <option
+                                        v-for="opsi in sortedOpsis(inputan)"
+                                        :key="opsi.id"
+                                        :value="opsi.value"
+                                      >
+                                        {{ opsi.label }}
+                                      </option>
+                                    </select>
+
+                                    <div
+                                      v-if="
+                                        inputan.inputType === 'selected'
+                                          && hasOtherOption(inputan)
+                                          && isOtherSelected(inputan)
+                                      "
+                                      class="mt-2"
+                                    >
+                                      <label
+                                        class="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+                                      >
+                                        Detail {{ inputan.label }}
+                                      </label>
+                                      <input
+                                        v-model="getInputDraft(inputan.id).valueString"
+                                        type="text"
+                                        :disabled="!canEditCurrentResult || isResultBlockedBySample"
+                                        class="w-full rounded-lg border border-info/50 bg-info/5 px-3 py-2 text-sm outline-none transition focus:border-info focus:ring-2 focus:ring-info/15 disabled:cursor-not-allowed disabled:opacity-70"
+                                        placeholder="Write details"
+                                      >
+                                    </div>
+
+                                    <input
+                                      v-else-if="inputan.inputType === 'calculated'"
+                                      v-model="getInputDraft(inputan.id).valueCalculated"
+                                      type="number"
+                                      disabled
+                                      :class="getResultInputClass(inputan)"
+                                      placeholder="Calculated automatically"
+                                    >
+                                    <p
+                                      v-if="inputan.formula?.formula"
+                                      class="mt-1 truncate text-[11px] text-muted"
+                                    >
+                                      {{ inputan.formula.formula }}
+                                    </p>
                                   </div>
+                                </td>
 
-                                  <input
-                                    v-else-if="inputan.inputType === 'calculated'"
-                                    v-model="getInputDraft(inputan.id).valueCalculated"
-                                    type="number"
-                                    disabled
-                                    :class="getResultInputClass(inputan)"
-                                    placeholder="Calculated automatically"
-                                  >
+                                <td class="px-3 py-2.5 align-middle">
+                                  <UBadge
+                                    :label="getResultNormalityState(inputan).label"
+                                    :color="getResultNormalityState(inputan).color"
+                                    variant="soft"
+                                    size="sm"
+                                  />
                                   <p
-                                    v-if="inputan.formula?.formula"
-                                    class="mt-1 truncate text-[11px] text-muted"
+                                    v-if="isResultOutsideNormalRange(inputan)"
+                                    class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
                                   >
-                                    {{ inputan.formula.formula }}
+                                    Outside normal range
                                   </p>
-                                </div>
-                              </td>
-
-                              <td class="px-3 py-2.5 align-middle">
-                                <UBadge
-                                  :label="getResultNormalityState(inputan).label"
-                                  :color="getResultNormalityState(inputan).color"
-                                  variant="soft"
-                                  size="sm"
-                                />
-                                <p
-                                  v-if="isResultOutsideNormalRange(inputan)"
-                                  class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
-                                >
-                                  Outside normal range
-                                </p>
-                              </td>
-                            </tr>
+                                </td>
+                              </tr>
+                            </template>
                           </template>
                         </template>
                       </tbody>
