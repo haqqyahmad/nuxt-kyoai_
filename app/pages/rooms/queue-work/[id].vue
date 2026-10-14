@@ -981,7 +981,7 @@ const rejectSampleTarget = ref<{ id: string, sampleName: string } | null>(null)
 const rejectSampleReason = ref('')
 const rejectSampleSubmitting = ref(false)
 
-const SAMPLE_ITEMS_VISIBLE = 4
+const SAMPLE_ITEMS_VISIBLE = 3
 const expandedSamples = ref<Record<string, boolean>>({})
 function toggleSampleItems(id: string) {
   expandedSamples.value[id] = !expandedSamples.value[id]
