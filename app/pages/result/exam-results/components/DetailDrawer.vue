@@ -435,11 +435,13 @@ async function handleReturnItem() {
 
 const { loading: auditLoading, entries, resetAudit } = useAudit()
 const auditCtxDeptId = computed(() => {
+  if (props.grouped) return props.result?.item?.department?.id ?? null
   const r = props.result as unknown as { items?: unknown[], item?: { department?: { id?: string | null } | null } | null } | null
   if (Array.isArray(r?.items) && r.items.length) return null
   return r?.item?.department?.id ?? null
 })
 const auditCtxItemId = computed(() => {
+  if (props.grouped) return null
   const r = props.result as unknown as { items?: unknown[], id?: string | null } | null
   if (Array.isArray(r?.items) && r.items.length) return null
   return r?.id ?? null
