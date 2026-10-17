@@ -5,6 +5,7 @@ import { buildQuestionnaireResultHtml, printAllQuestionnaireResults, printQuesti
 import type { QuestionnairePrintRow } from '~/composables/questionnaire/useQuestionnaireResultPrint'
 
 const route = useRoute()
+const router = useRouter()
 const api = useApi()
 const toast = useToast()
 
@@ -295,7 +296,7 @@ function shortTime(value: string | undefined | null): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-function getExamItemStatusColor(status: string) {
+function getExamItemStatusColor(status: string): 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral' {
   if (status === 'DONE') return 'success'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
@@ -331,6 +332,45 @@ function getSampleCollectionsForItem(itemId: string) {
 const additionalItems = computed(() =>
   (reg.value?.exam?.examItems ?? []).filter(ei => ei.source === 'additional')
 )
+
+type AdditionalDepartmentGroup = {
+  key: string
+  name: string
+  items: ExamItem[]
+}
+
+const additionalByDepartment = computed<AdditionalDepartmentGroup[]>(() => {
+  const map = new Map<string, AdditionalDepartmentGroup>()
+  for (const ei of additionalItems.value) {
+    const name = ei.item.department?.name?.trim() || 'No Department'
+    const key = name.toLowerCase()
+    let group = map.get(key)
+    if (!group) {
+      group = { key, name, items: [] }
+      map.set(key, group)
+    }
+    group.items.push(ei)
+  }
+  return Array.from(map.values())
+})
+
+const addDeptOpen = ref<Record<string, boolean>>({})
+function isAddDeptOpen(key: string): boolean {
+  return addDeptOpen.value[key] ?? true
+}
+function toggleAddDept(key: string) {
+  addDeptOpen.value = { ...addDeptOpen.value, [key]: !isAddDeptOpen(key) }
+}
+
+function additionalStartAt(ei: ExamItem): string | null {
+  const t = (ei.roomExamItems ?? []).map(r => r.startAt).filter((v): v is string => Boolean(v))
+  return t.length ? t.reduce((a, b) => (a < b ? a : b)) : null
+}
+
+function additionalDoneAt(ei: ExamItem): string | null {
+  const t = (ei.roomExamItems ?? []).map(r => r.doneAt).filter((v): v is string => Boolean(v))
+  return t.length ? t.reduce((a, b) => (a > b ? a : b)) : null
+}
 
 type PatientQuestionnaire = {
   questionnaire_id: string
@@ -1042,6 +1082,31 @@ const dischargePendingItems = computed(() =>
   )
 )
 
+const BANNER_LIST_LIMIT = 4
+const bannerExpanded = ref<Record<string, boolean>>({})
+function isBannerExpanded(key: string): boolean {
+  return bannerExpanded.value[key] ?? false
+}
+function toggleBanner(key: string) {
+  bannerExpanded.value = { ...bannerExpanded.value, [key]: !isBannerExpanded(key) }
+}
+
+const dischargePendingByStatus = computed(() => {
+  const map = new Map<string, number>()
+  for (const it of dischargePendingItems.value) {
+    const s = it.currentRoomStatus ?? 'PENDING'
+    map.set(s, (map.get(s) ?? 0) + 1)
+  }
+  return Array.from(map.entries())
+    .map(([status, count]) => ({
+      status,
+      count,
+      label: getExamItemStatusLabelEn(status),
+      color: getExamItemStatusColor(status)
+    }))
+    .sort((a, b) => b.count - a.count)
+})
+
 async function loadCheckoutEligibility() {
   if (!reg.value || !isCheckedIn.value || reg.value.statusRegistration === 'CheckOut') {
     checkoutEligibility.value = null
@@ -1056,6 +1121,8 @@ async function loadCheckoutEligibility() {
 }
 
 const pageRefreshing = ref(false)
+const lastUpdatedAt = ref<Date | null>(null)
+
 async function handleRefreshPage() {
   if (pageRefreshing.value) return
   pageRefreshing.value = true
@@ -1064,9 +1131,24 @@ async function handleRefreshPage() {
     await loadCheckoutEligibility()
     await loadStatusHistory()
     await loadQuestionnaires()
+    lastUpdatedAt.value = new Date()
   } finally {
     pageRefreshing.value = false
   }
+}
+
+let autoRefreshInterval: ReturnType<typeof setInterval> | null = null
+
+async function autoRefresh() {
+  if (!import.meta.client || document.visibilityState !== 'visible') return
+  if (pageRefreshing.value) return
+  await refresh()
+  await loadCheckoutEligibility()
+  lastUpdatedAt.value = new Date()
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') void autoRefresh()
 }
 
 // Portal URL untuk link kuesioner pasien (wa.me share / copy link).
@@ -1181,6 +1263,64 @@ function copyQuestionnaireLink(questionnaireId?: string) {
         color: 'error'
       })
     })
+}
+
+function questionnaireActions(q: PatientQuestionnaire) {
+  const items: Array<{
+    label: string
+    icon: string
+    color?: 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'
+    disabled?: boolean
+    onSelect: () => void
+  }> = []
+
+  if (q.scope !== 'INTERNAL' && q.status !== 'Completed') {
+    items.push({
+      label: 'Send via WhatsApp',
+      icon: 'i-lucide-message-circle',
+      color: 'success',
+      disabled: !reg.value?.patient?.phone,
+      onSelect: () => shareQuestionnaireViaWa(q.questionnaire_id)
+    })
+    items.push({
+      label: 'Copy Link',
+      icon: 'i-lucide-link',
+      color: 'neutral',
+      onSelect: () => copyQuestionnaireLink(q.questionnaire_id)
+    })
+  }
+
+  if (q.scope !== 'INTERNAL' && q.status === 'Completed') {
+    items.push({
+      label: 'Open Revision',
+      icon: 'i-lucide-rotate-ccw',
+      color: 'warning',
+      disabled: Boolean(revisionLoading.value[q.questionnaire_id]),
+      onSelect: () => askQuestionnaireRevision(q.questionnaire_id)
+    })
+  }
+
+  items.push({
+    label: 'View Result',
+    icon: 'i-lucide-eye',
+    color: 'primary',
+    disabled: q.status !== 'Completed',
+    onSelect: () => {
+      if (q.status === 'Completed') openPreview(q)
+    }
+  })
+
+  items.push({
+    label: 'Print Result',
+    icon: 'i-lucide-printer',
+    color: 'primary',
+    disabled: q.status !== 'Completed',
+    onSelect: () => {
+      if (q.status === 'Completed') printQuestionnaire(q)
+    }
+  })
+
+  return items
 }
 
 const shareAllLoading = ref(false)
@@ -1500,6 +1640,7 @@ const rescheduleCheckoutItems = computed<RescheduleDraftItem[]>(() => {
 })
 
 const showRescheduleModal = ref(false)
+const isCheckoutConfirmOpen = ref(false)
 const rescheduleDraft = ref<RescheduleDraftItem[]>([])
 const savingReschedule = ref(false)
 const rescheduleMode = ref<'checkout' | 'dates'>('checkout')
@@ -1547,7 +1688,7 @@ async function confirmCheckout() {
     showRescheduleModal.value = true
     return
   }
-  await doCheckout()
+  isCheckoutConfirmOpen.value = true
 }
 
 async function doCheckout() {
@@ -1581,6 +1722,7 @@ async function doCheckout() {
     checkoutLoading.value = false
     savingReschedule.value = false
     showRescheduleModal.value = false
+    isCheckoutConfirmOpen.value = false
   }
 }
 
@@ -1590,6 +1732,17 @@ onMounted(() => {
   void loadPatientDetail()
   void loadCheckoutEligibility()
   void fetchMealDuration()
+
+  lastUpdatedAt.value = new Date()
+  autoRefreshInterval = setInterval(() => {
+    void autoRefresh()
+  }, 20000)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onBeforeUnmount(() => {
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 watch(
@@ -1598,12 +1751,222 @@ watch(
     void loadCheckoutEligibility()
   }
 )
+
+type HeaderAction = {
+  key: string
+  label: string
+  icon: string
+  color?: 'primary' | 'neutral' | 'warning' | 'info' | 'success' | 'error'
+  variant?: 'solid' | 'soft' | 'outline' | 'ghost'
+  loading?: boolean
+  disabled?: boolean
+  title?: string
+  to?: string
+  onClick?: () => void
+}
+
+const showReturnVisitBadge = computed(() =>
+  Boolean(returnVisitCompleted.value || returnVisitJustCompleted.value)
+)
+
+const primaryAction = computed<HeaderAction | null>(() => {
+  if (!isCancelled.value && !isCheckedIn.value) {
+    return {
+      key: 'checkin',
+      label: 'Patient Check-in',
+      icon: 'i-lucide-user-check',
+      color: 'primary',
+      variant: 'solid',
+      onClick: openCheckinModal
+    }
+  }
+  if (isCheckedIn.value && checkoutEligibility.value?.canCheckout) {
+    return {
+      key: 'checkout',
+      label: 'Check Out',
+      icon: 'i-lucide-log-out',
+      color: 'success',
+      variant: 'solid',
+      loading: checkoutLoading.value,
+      title: 'All items completed — patient can be discharged.',
+      onClick: confirmCheckout
+    }
+  }
+  if (canCompleteReturnVisit.value) {
+    return {
+      key: 'completeReturn',
+      label: 'Complete Return Visit',
+      icon: 'i-lucide-check-circle-2',
+      color: 'success',
+      variant: 'solid',
+      loading: completingReturnVisit.value,
+      onClick: handleCompleteReturnVisit
+    }
+  }
+  return null
+})
+
+const secondaryActions = computed<HeaderAction[]>(() => {
+  const list: HeaderAction[] = []
+  const pk = primaryAction.value?.key
+
+  if (
+    hasRescheduleItem.value
+    && !returnVisitActive.value
+    && isCheckoutOrPartial.value
+    && hasRescheduleVisitDate.value
+    && reg.value?.queue?.id
+    && reg.value?.branch?.branchId
+    && pk !== 'returnVisit'
+  ) {
+    list.push({
+      key: 'returnVisit',
+      label: 'Patient Return Visit',
+      icon: 'i-lucide-rotate-ccw',
+      color: 'warning',
+      variant: 'soft',
+      loading: resampling.value,
+      disabled: !canResampleNow.value,
+      title: canResampleNow.value ? 'Patient Return Visit' : 'Can only be resampled on the return visit date',
+      onClick: openResampleModal
+    })
+  }
+
+  if (hasRescheduleItem.value && pk !== 'followUpDate') {
+    list.push({
+      key: 'followUpDate',
+      label: 'Change Follow-up Date',
+      icon: 'i-lucide-calendar-days',
+      color: 'info',
+      variant: 'soft',
+      title: 'Change Follow-up Date',
+      onClick: openRescheduleDates
+    })
+  }
+
+  if (canCompleteReturnVisit.value && pk !== 'completeReturn') {
+    list.push({
+      key: 'completeReturn',
+      label: 'Complete Return Visit',
+      icon: 'i-lucide-check-circle-2',
+      color: 'success',
+      variant: 'solid',
+      loading: completingReturnVisit.value,
+      onClick: handleCompleteReturnVisit
+    })
+  }
+
+  list.push({
+    key: 'printLabel',
+    label: 'Print Label',
+    icon: 'i-lucide-printer',
+    color: 'neutral',
+    variant: 'outline',
+    title: 'Print Label'
+  })
+
+  if (isCheckedIn.value && pk !== 'statusExam') {
+    list.push({
+      key: 'statusExam',
+      label: 'Status Exam',
+      icon: 'i-lucide-activity',
+      color: 'primary',
+      variant: 'soft',
+      title: 'Status Exam',
+      to: `/result/exam-status/${reg.value?.id_reg}`
+    })
+  }
+
+  if (isCheckedIn.value && checkoutEligibility.value?.canCheckout && pk !== 'checkout') {
+    list.push({
+      key: 'checkout',
+      label: 'Check Out',
+      icon: 'i-lucide-log-out',
+      color: 'success',
+      variant: 'solid',
+      loading: checkoutLoading.value,
+      title: 'All items completed — patient can be discharged.',
+      onClick: confirmCheckout
+    })
+  }
+
+  if (!isCancelled.value && !isCheckedIn.value && pk !== 'cancelRegistration') {
+    list.push({
+      key: 'cancelRegistration',
+      label: 'Cancel Registration',
+      icon: 'i-lucide-x-circle',
+      color: 'error',
+      variant: 'outline',
+      loading: cancelLoading.value,
+      title: 'Cancel Registration',
+      onClick: cancelRegistration
+    })
+  }
+
+  if (
+    !isCancelled.value
+    && isCheckedIn.value
+    && reg.value?.statusRegistration !== 'CheckOut'
+    && canUndoCheckin.value
+    && pk !== 'cancelCheckin'
+  ) {
+    list.push({
+      key: 'cancelCheckin',
+      label: 'Cancel Check-in',
+      icon: 'i-lucide-rotate-ccw',
+      color: 'warning',
+      variant: 'outline',
+      loading: uncheckLoading.value,
+      title: 'Cancel Check-in',
+      onClick: undoCheckin
+    })
+  }
+
+  return list
+})
+
+const dropdownItems = computed(() => {
+  const items: Array<{
+    type?: 'label' | 'separator'
+    label?: string
+    icon?: string
+    color?: 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'
+    disabled?: boolean
+    onSelect?: () => void
+  }> = []
+
+  if (showReturnVisitBadge.value) {
+    items.push({
+      type: 'label',
+      label: 'Return visit completed',
+      icon: 'i-lucide-check-circle-2'
+    })
+  }
+
+  for (const a of secondaryActions.value) {
+    items.push({
+      label: a.label,
+      icon: a.icon,
+      color: a.color,
+      disabled: a.disabled || a.loading,
+      onSelect: () => {
+        if (a.to) {
+          void router.push(a.to)
+        } else if (a.onClick) {
+          a.onClick()
+        }
+      }
+    })
+  }
+
+  return items
+})
 </script>
 
 <template>
   <UDashboardPanel :id="`registration-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar>
+      <AppNavbar>
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -1616,7 +1979,8 @@ watch(
           </h1>
         </template>
         <template #right>
-          <div class="flex flex-wrap items-center justify-end gap-2">
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Refresh: always visible, label on lg+ -->
             <UButton
               icon="i-lucide-refresh-cw"
               color="neutral"
@@ -1625,114 +1989,65 @@ watch(
               :loading="pageRefreshing"
               @click="() => void handleRefreshPage()"
             >
-              <span class="hidden sm:inline">Refresh</span>
+              <span class="hidden lg:inline">Refresh</span>
             </UButton>
+
+            <!-- Primary contextual: always visible -->
             <UButton
-              v-if="hasRescheduleItem && !returnVisitActive && isCheckoutOrPartial && hasRescheduleVisitDate && reg?.queue?.id && reg?.branch?.branchId"
-              icon="i-lucide-rotate-ccw"
-              color="warning"
-              variant="soft"
-              :loading="resampling"
-              :disabled="!canResampleNow"
-              :title="canResampleNow ? 'Patient Return Visit' : 'Can only be resampled on the return visit date'"
-              @click="openResampleModal"
+              v-if="primaryAction"
+              :icon="primaryAction.icon"
+              :color="primaryAction.color"
+              :variant="primaryAction.variant"
+              :loading="primaryAction.loading"
+              :disabled="primaryAction.disabled"
+              :title="primaryAction.title"
+              @click="primaryAction.onClick?.()"
             >
-              <span class="hidden sm:inline">Patient Return Visit</span>
+              <span class="hidden sm:inline">{{ primaryAction.label }}</span>
             </UButton>
-            <UButton
-              v-if="hasRescheduleItem"
-              icon="i-lucide-calendar-days"
-              color="info"
-              variant="soft"
-              title="Change Follow-up Date"
-              @click="openRescheduleDates"
+
+            <!-- lg+: secondary actions inline -->
+            <div class="hidden lg:flex items-center gap-1.5">
+              <UButton
+                v-for="a in secondaryActions"
+                :key="a.key"
+                :icon="a.icon"
+                :color="a.color"
+                :variant="a.variant"
+                :loading="a.loading"
+                :disabled="a.disabled"
+                :title="a.title"
+                :to="a.to"
+                @click="a.onClick?.()"
+              >
+                {{ a.label }}
+              </UButton>
+              <UBadge
+                v-if="showReturnVisitBadge"
+                label="Return visit completed"
+                color="success"
+                variant="subtle"
+                title="Return visit completed"
+              />
+            </div>
+
+            <!-- < lg: overflow dropdown menu -->
+            <UDropdownMenu
+              v-if="dropdownItems.length"
+              class="lg:hidden"
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
             >
-              <span class="hidden sm:inline">Change Follow-up Date</span>
-            </UButton>
-            <UButton
-              v-if="canCompleteReturnVisit"
-              icon="i-lucide-check-circle-2"
-              color="success"
-              title="Complete Return Visit"
-              :loading="completingReturnVisit"
-              @click="handleCompleteReturnVisit"
-            >
-              <span class="hidden sm:inline">Complete Return Visit</span>
-            </UButton>
-            <UBadge
-              v-if="returnVisitCompleted || returnVisitJustCompleted"
-              label="Return visit completed"
-              color="success"
-              variant="subtle"
-              title="Return visit completed"
-            />
-            <UButton
-              icon="i-lucide-printer"
-              color="neutral"
-              variant="outline"
-              title="Print Label"
-            >
-              <span class="hidden sm:inline">Print Label</span>
-            </UButton>
-            <UButton
-              v-if="isCheckedIn"
-              icon="i-lucide-activity"
-              color="primary"
-              variant="soft"
-              title="Status Exam"
-              :to="`/result/exam-status/${reg?.id_reg}`"
-            >
-              <span class="hidden sm:inline">Status Exam</span>
-            </UButton>
-            <UButton
-              v-if="isCheckedIn && checkoutEligibility?.canCheckout"
-              icon="i-lucide-log-out"
-              color="success"
-              title="All items completed — patient can be discharged."
-              :loading="checkoutLoading"
-              @click="confirmCheckout"
-            >
-              <span class="hidden sm:inline">Check Out</span>
-            </UButton>
-            <UButton
-              v-if="!isCancelled && !isCheckedIn"
-              icon="i-lucide-x-circle"
-              color="error"
-              variant="outline"
-              title="Cancel Registration"
-              :loading="cancelLoading"
-              @click="cancelRegistration"
-            >
-              <span class="hidden sm:inline">Cancel Registration</span>
-            </UButton>
-            <UButton
-              v-if="
-                !isCancelled
-                  && isCheckedIn
-                  && reg?.statusRegistration !== 'CheckOut'
-                  && canUndoCheckin
-              "
-              icon="i-lucide-rotate-ccw"
-              color="warning"
-              variant="outline"
-              title="Cancel Check-in"
-              :loading="uncheckLoading"
-              @click="undoCheckin"
-            >
-              <span class="hidden sm:inline">Cancel Check-in</span>
-            </UButton>
-            <UButton
-              v-if="!isCancelled && !isCheckedIn"
-              icon="i-lucide-user-check"
-              color="primary"
-              title="Patient Check-in"
-              @click="openCheckinModal"
-            >
-              <span class="hidden sm:inline">Patient Check-in</span>
-            </UButton>
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="outline"
+                title="More actions"
+              />
+            </UDropdownMenu>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -1785,16 +2100,29 @@ watch(
           variant="soft"
           icon="i-lucide-octagon-x"
           title="Rejected Items"
-          description="The following items have been rejected by the patient / sample rejected:"
+          :description="`The following ${noteIssueItems.length} ${plural(noteIssueItems.length, 'item has', 'items have')} been rejected by the patient / sample rejected:`"
         >
           <template #description>
-            <div class="mt-1 space-y-1">
-              <p>The following items have been rejected by the patient / sample rejected:</p>
-              <ul class="list-disc pl-5 text-xs">
-                <li v-for="(item, index) in noteIssueItems" :key="index">
+            <div class="mt-1 space-y-2">
+              <p>The following {{ noteIssueItems.length }} {{ plural(noteIssueItems.length, 'item has', 'items have') }} been rejected by the patient / sample rejected:</p>
+              <ul class="list-disc pl-5 text-xs space-y-0.5">
+                <li
+                  v-for="(item, index) in (isBannerExpanded('rejected') ? noteIssueItems : noteIssueItems.slice(0, BANNER_LIST_LIMIT))"
+                  :key="index"
+                >
                   {{ item.itemName ?? '-' }}
                 </li>
               </ul>
+              <div v-if="noteIssueItems.length > BANNER_LIST_LIMIT" class="pt-0.5">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-xs font-semibold text-error hover:underline cursor-pointer"
+                  @click="toggleBanner('rejected')"
+                >
+                  <UIcon :name="isBannerExpanded('rejected') ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3.5" />
+                  {{ isBannerExpanded('rejected') ? 'Show less' : `Show all (${noteIssueItems.length}) · +${noteIssueItems.length - BANNER_LIST_LIMIT} more` }}
+                </button>
+              </div>
             </div>
           </template>
         </UAlert>
@@ -1807,19 +2135,32 @@ watch(
           title="Reschedule Items"
         >
           <template #description>
-            <div class="mt-1 space-y-1">
+            <div class="mt-1 space-y-2">
               <p>
                 Some items have been rescheduled (Partial Exam). The patient can still check out.
                 The rescheduled items will be processed on the next visit.
               </p>
-              <ul v-if="rescheduleBannerItems?.length" class="list-disc pl-5 text-xs">
-                <li v-for="(r, index) in rescheduleBannerItems" :key="'rs-' + index">
+              <ul v-if="rescheduleBannerItems?.length" class="list-disc pl-5 text-xs space-y-0.5">
+                <li
+                  v-for="(r, index) in (isBannerExpanded('reschedule') ? rescheduleBannerItems : rescheduleBannerItems.slice(0, BANNER_LIST_LIMIT))"
+                  :key="'rs-' + index"
+                >
                   {{ r.itemName
                   }}<template v-if="r.samples?.length">
                     <span class="ml-1">( {{ r.samples.map((s) => s.name).join(', ') }} )</span>
                   </template>
                 </li>
               </ul>
+              <div v-if="(rescheduleBannerItems?.length ?? 0) > BANNER_LIST_LIMIT" class="pt-0.5">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-xs font-semibold text-warning hover:underline cursor-pointer"
+                  @click="toggleBanner('reschedule')"
+                >
+                  <UIcon :name="isBannerExpanded('reschedule') ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3.5" />
+                  {{ isBannerExpanded('reschedule') ? 'Show less' : `Show all (${rescheduleBannerItems.length}) · +${rescheduleBannerItems.length - BANNER_LIST_LIMIT} more` }}
+                </button>
+              </div>
             </div>
           </template>
         </UAlert>
@@ -1830,8 +2171,32 @@ watch(
           variant="soft"
           icon="i-lucide-plus-circle"
           title="Patient has additional exam items"
-          :description="`There are ${additionalItems.length} additional items outside the package: ${additionalItems.map(i => i.item.name).join(', ')}`"
-        />
+          :description="`There are ${additionalItems.length} additional ${plural(additionalItems.length, 'item', 'items')} outside the package.`"
+        >
+          <template #description>
+            <div class="mt-1 space-y-2">
+              <p>There are {{ additionalItems.length }} additional {{ plural(additionalItems.length, 'item', 'items') }} outside the package:</p>
+              <ul class="list-disc pl-5 text-xs space-y-0.5">
+                <li
+                  v-for="(item, index) in (isBannerExpanded('additional') ? additionalItems : additionalItems.slice(0, BANNER_LIST_LIMIT))"
+                  :key="item.id || index"
+                >
+                  {{ item.item.name }}
+                </li>
+              </ul>
+              <div v-if="additionalItems.length > BANNER_LIST_LIMIT" class="pt-0.5">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-xs font-semibold text-info hover:underline cursor-pointer"
+                  @click="toggleBanner('additional')"
+                >
+                  <UIcon :name="isBannerExpanded('additional') ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3.5" />
+                  {{ isBannerExpanded('additional') ? 'Show less' : `Show all (${additionalItems.length}) · +${additionalItems.length - BANNER_LIST_LIMIT} more` }}
+                </button>
+              </div>
+            </div>
+          </template>
+        </UAlert>
 
         <UAlert
           v-if="isCheckedIn && reg.statusRegistration !== 'CheckOut' && checkoutEligibility"
@@ -1846,15 +2211,31 @@ watch(
           :description="
             checkoutEligibility.canCheckout
               ? 'Click the Check Out button to mark the patient finished and ready to leave.'
-              : checkoutEligibility.reasons?.join('; ')
-                || 'There are still unfinished examination items.'
+              : `${dischargePendingItems.length} ${plural(dischargePendingItems.length, 'examination item is', 'examination items are')} still unfinished.`
           "
         >
           <template v-if="dischargePendingItems.length" #description>
-            <div class="mt-1 space-y-1">
-              <p>{{ checkoutEligibility.reasons?.join('; ') }}</p>
-              <ul class="list-disc pl-5 text-xs">
-                <li v-for="(item, index) in dischargePendingItems" :key="index">
+            <div class="mt-1 space-y-2">
+              <p>{{ dischargePendingItems.length }} {{ plural(dischargePendingItems.length, 'examination item is', 'examination items are') }} still unfinished.</p>
+
+              <!-- Status summary chips -->
+              <div v-if="dischargePendingByStatus.length" class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <UBadge
+                  v-for="st in dischargePendingByStatus"
+                  :key="st.status"
+                  :label="`${st.label}: ${st.count}`"
+                  :color="st.color"
+                  variant="subtle"
+                  size="xs"
+                />
+              </div>
+
+              <!-- Item list (capped with expand/collapse) -->
+              <ul class="list-disc pl-5 text-xs space-y-0.5">
+                <li
+                  v-for="(item, index) in (isBannerExpanded('discharge') ? dischargePendingItems : dischargePendingItems.slice(0, BANNER_LIST_LIMIT))"
+                  :key="index"
+                >
                   <span
                     v-if="item.isAdditional"
                     class="mr-1 inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary"
@@ -1870,6 +2251,18 @@ watch(
                   }}
                 </li>
               </ul>
+
+              <!-- Expand / collapse toggle -->
+              <div v-if="dischargePendingItems.length > BANNER_LIST_LIMIT" class="pt-0.5">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-xs font-semibold text-warning hover:underline cursor-pointer"
+                  @click="toggleBanner('discharge')"
+                >
+                  <UIcon :name="isBannerExpanded('discharge') ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3.5" />
+                  {{ isBannerExpanded('discharge') ? 'Show less' : `Show all (${dischargePendingItems.length}) · +${dischargePendingItems.length - BANNER_LIST_LIMIT} more` }}
+                </button>
+              </div>
             </div>
           </template>
         </UAlert>
@@ -2227,160 +2620,222 @@ watch(
           <div
             class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
           >
-            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-              <h3 class="font-semibold flex items-center gap-2">
-                <UIcon name="i-lucide-clipboard-check" class="text-primary" />
-                Medical Questionnaires List
+            <div class="px-5 py-4 border-b border-default flex flex-wrap items-center justify-between gap-3">
+              <h3 class="font-semibold flex items-center gap-2 min-w-0">
+                <UIcon name="i-lucide-clipboard-check" class="text-primary shrink-0" />
+                <span class="truncate">Medical Questionnaires List</span>
               </h3>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 <UButton
                   icon="i-lucide-message-circle"
                   color="success"
                   variant="outline"
                   size="xs"
-                  label="WA All"
                   :disabled="!reg?.patient?.phone"
                   :loading="shareAllLoading"
+                  title="WA All"
                   @click="shareAllQuestionnairesViaWa"
-                />
+                >
+                  <span class="hidden lg:inline">WA All</span>
+                </UButton>
                 <UButton
                   icon="i-lucide-share-2"
                   color="primary"
                   variant="outline"
                   size="xs"
-                  label="Share All"
                   :loading="shareAllLoading"
+                  title="Share All"
                   @click="shareAllQuestionnaires"
-                />
+                >
+                  <span class="hidden lg:inline">Share All</span>
+                </UButton>
                 <UButton
                   icon="i-lucide-printer"
                   color="neutral"
                   variant="outline"
                   size="xs"
-                  label="Print All Results"
+                  title="Print All Results"
                   @click="printAllQuestionnaires"
-                />
+                >
+                  <span class="hidden lg:inline">Print All Results</span>
+                </UButton>
               </div>
             </div>
-            <div class="overflow-x-auto">
-              <div v-if="questionnairesLoading" class="flex items-center justify-center py-10">
-                <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
+
+            <!-- Loading -->
+            <div v-if="questionnairesLoading" class="flex items-center justify-center py-10">
+              <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
+            </div>
+
+            <!-- Empty -->
+            <div v-else-if="!questionnaires.length" class="py-10 text-center">
+              <p class="text-sm text-muted">
+                No questionnaires filled yet.
+              </p>
+            </div>
+
+            <template v-else>
+              <!-- ≥ md: Table with min-width horizontal scroll fallback -->
+              <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left min-w-[640px]">
+                  <thead>
+                    <tr class="border-b border-default">
+                      <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
+                        Questionnaire Name
+                      </th>
+                      <th
+                        class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
+                      >
+                        Completion Date
+                      </th>
+                      <th
+                        class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
+                      >
+                        Status
+                      </th>
+                      <th
+                        class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right"
+                      >
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-default">
+                    <tr
+                      v-for="q in questionnaires"
+                      :key="q.questionnaire_id"
+                      class="hover:bg-elevated transition-colors"
+                    >
+                      <td class="px-5 py-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
+                          <UBadge
+                            v-if="q.scope === 'INTERNAL'"
+                            label="Internal"
+                            color="warning"
+                            variant="subtle"
+                            size="sm"
+                          />
+                        </div>
+                      </td>
+                      <td class="px-5 py-3 text-center">
+                        <span v-if="q.completionDate" class="text-sm text-muted">{{
+                          formatDateTime(q.completionDate)
+                        }}</span>
+                        <span v-else class="text-sm text-muted italic">Not completed</span>
+                      </td>
+                      <td class="px-5 py-3 text-center">
+                        <UBadge
+                          :label="q.status"
+                          :color="q.status === 'Completed' ? 'success' : 'neutral'"
+                          variant="subtle"
+                          size="sm"
+                        />
+                      </td>
+                      <td class="px-5 py-3 text-right">
+                        <div class="flex justify-end gap-1">
+                          <template v-if="q.scope !== 'INTERNAL' && q.status !== 'Completed'">
+                            <UButton
+                              icon="i-lucide-message-circle"
+                              color="success"
+                              variant="ghost"
+                              size="xs"
+                              title="Send via WhatsApp"
+                              :disabled="!reg?.patient?.phone"
+                              @click="shareQuestionnaireViaWa(q.questionnaire_id)"
+                            />
+                            <UButton
+                              icon="i-lucide-link"
+                              color="neutral"
+                              variant="ghost"
+                              size="xs"
+                              title="Copy Link"
+                              @click="copyQuestionnaireLink(q.questionnaire_id)"
+                            />
+                          </template>
+                          <template v-if="q.scope !== 'INTERNAL' && q.status === 'Completed'">
+                            <UButton
+                              icon="i-lucide-rotate-ccw"
+                              color="warning"
+                              variant="ghost"
+                              size="xs"
+                              title="Open Revision"
+                              :loading="revisionLoading[q.questionnaire_id]"
+                              @click="askQuestionnaireRevision(q.questionnaire_id)"
+                            />
+                          </template>
+                          <UButton
+                            icon="i-lucide-eye"
+                            color="primary"
+                            variant="ghost"
+                            size="xs"
+                            :disabled="q.status !== 'Completed'"
+                            @click="q.status === 'Completed' && openPreview(q)"
+                          />
+                          <UButton
+                            icon="i-lucide-printer"
+                            color="primary"
+                            variant="ghost"
+                            size="xs"
+                            title="Print questionnaire result"
+                            :disabled="q.status !== 'Completed'"
+                            @click="printQuestionnaire(q)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div v-else-if="!questionnaires.length" class="py-10 text-center">
-                <p class="text-sm text-muted">
-                  No questionnaires filled yet.
-                </p>
-              </div>
-              <table v-else class="w-full text-left">
-                <thead>
-                  <tr class="border-b border-default">
-                    <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
-                      Questionnaire Name
-                    </th>
-                    <th
-                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
-                    >
-                      Completion Date
-                    </th>
-                    <th
-                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-center"
-                    >
-                      Status
-                    </th>
-                    <th
-                      class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide text-right"
-                    >
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-default">
-                  <tr
-                    v-for="q in questionnaires"
-                    :key="q.questionnaire_id"
-                    class="hover:bg-elevated transition-colors"
-                  >
-                    <td class="px-5 py-3">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm font-semibold">{{ q.questionnaire_name }}</span>
+
+              <!-- < md: Mobile card list -->
+              <div class="md:hidden divide-y divide-default">
+                <div
+                  v-for="q in questionnaires"
+                  :key="q.questionnaire_id"
+                  class="p-4 space-y-2 hover:bg-elevated/40 transition-colors"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-sm font-semibold truncate">{{ q.questionnaire_name }}</span>
                         <UBadge
                           v-if="q.scope === 'INTERNAL'"
                           label="Internal"
                           color="warning"
                           variant="subtle"
-                          size="sm"
+                          size="xs"
                         />
                       </div>
-                    </td>
-                    <td class="px-5 py-3 text-center">
-                      <span v-if="q.completionDate" class="text-sm text-muted">{{
-                        formatDateTime(q.completionDate)
-                      }}</span>
-                      <span v-else class="text-sm text-muted italic">Not completed</span>
-                    </td>
-                    <td class="px-5 py-3 text-center">
+                      <p class="text-xs text-muted mt-0.5">
+                        <span v-if="q.completionDate">{{ formatDateTime(q.completionDate) }}</span>
+                        <span v-else class="italic">Not completed</span>
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
                       <UBadge
                         :label="q.status"
                         :color="q.status === 'Completed' ? 'success' : 'neutral'"
                         variant="subtle"
-                        size="sm"
+                        size="xs"
                       />
-                    </td>
-                    <td class="px-5 py-3 text-right">
-                      <div class="flex justify-end gap-1">
-                        <template v-if="q.scope !== 'INTERNAL' && q.status !== 'Completed'">
-                          <UButton
-                            icon="i-lucide-message-circle"
-                            color="success"
-                            variant="ghost"
-                            size="xs"
-                            title="Send via WhatsApp"
-                            :disabled="!reg?.patient?.phone"
-                            @click="shareQuestionnaireViaWa(q.questionnaire_id)"
-                          />
-                          <UButton
-                            icon="i-lucide-link"
-                            color="neutral"
-                            variant="ghost"
-                            size="xs"
-                            title="Copy Link"
-                            @click="copyQuestionnaireLink(q.questionnaire_id)"
-                          />
-                        </template>
-                        <template v-if="q.scope !== 'INTERNAL' && q.status === 'Completed'">
-                          <UButton
-                            icon="i-lucide-rotate-ccw"
-                            color="warning"
-                            variant="ghost"
-                            size="xs"
-                            title="Open Revision"
-                            :loading="revisionLoading[q.questionnaire_id]"
-                            @click="askQuestionnaireRevision(q.questionnaire_id)"
-                          />
-                        </template>
+                      <UDropdownMenu
+                        :items="questionnaireActions(q)"
+                        :content="{ align: 'end' }"
+                      >
                         <UButton
-                          icon="i-lucide-eye"
-                          color="primary"
+                          icon="i-lucide-ellipsis-vertical"
+                          color="neutral"
                           variant="ghost"
                           size="xs"
-                          :disabled="q.status !== 'Completed'"
-                          @click="q.status === 'Completed' && openPreview(q)"
+                          title="Actions"
                         />
-                        <UButton
-                          icon="i-lucide-printer"
-                          color="primary"
-                          variant="ghost"
-                          size="xs"
-                          title="Print questionnaire result"
-                          :disabled="q.status !== 'Completed'"
-                          @click="printQuestionnaire(q)"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                      </UDropdownMenu>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
 
           <MrMcuBreakdown
@@ -2388,48 +2843,91 @@ watch(
             class="col-span-12"
             :exam-items="reg?.exam?.examItems ?? []"
             :sample-collections="reg?.sampleCollections ?? reg?.queue?.sampleCollections ?? []"
+            :updated-at="lastUpdatedAt"
           />
 
           <div
             v-if="isMCU && additionalItems.length"
             class="col-span-12 rounded-xl border border-default bg-background overflow-hidden shadow-sm"
           >
-            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
+            <div class="px-5 py-4 border-b border-default flex items-center justify-between gap-3">
               <h3 class="font-semibold flex items-center gap-2">
                 <UIcon name="i-lucide-plus-circle" class="text-primary" />
                 Additional Exam Items
               </h3>
               <UBadge
-                :label="`${additionalItems.length} item`"
-                color="neutral"
+                :label="`${additionalItems.length} ${plural(additionalItems.length, 'item', 'items')}`"
+                color="primary"
                 variant="subtle"
                 size="sm"
               />
             </div>
-            <div class="p-5">
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div
-                  v-for="ei in additionalItems"
-                  :key="ei.id"
-                  class="flex items-center justify-between bg-elevated rounded-xl border border-default px-4 py-3"
+            <div class="divide-y divide-default">
+              <section
+                v-for="dept in additionalByDepartment"
+                :key="dept.key"
+                class="px-5 py-4"
+              >
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between gap-3 text-left"
+                  @click="toggleAddDept(dept.key)"
                 >
-                  <div>
-                    <p class="text-sm font-semibold">
-                      {{ ei.item.name }}
-                    </p>
-                    <p class="text-xs text-muted mt-0.5">
-                      {{ ei.item.department?.name ?? '-' }} | {{ ei.item.group?.name ?? '-' }}
-                    </p>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UButton
+                      :icon="isAddDeptOpen(dept.key) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      square
+                      :aria-label="isAddDeptOpen(dept.key) ? 'Collapse' : 'Expand'"
+                      @click.stop="toggleAddDept(dept.key)"
+                    />
+                    <UIcon name="i-lucide-folder" class="text-primary" />
+                    <h4 class="text-sm font-semibold text-highlighted truncate">
+                      {{ dept.name }}
+                    </h4>
+                    <UBadge
+                      :label="`${dept.items.length} ${plural(dept.items.length, 'item', 'items')}`"
+                      color="neutral"
+                      variant="subtle"
+                      size="xs"
+                    />
                   </div>
-                  <UBadge
-                    :label="getExamItemStatusLabel(getExamItemStatus(ei))"
-                    :color="getExamItemStatusColor(getExamItemStatus(ei))"
-                    variant="soft"
-                    size="xs"
-                    :icon="getExamItemStatusIcon(getExamItemStatus(ei))"
-                  />
+                </button>
+
+                <div
+                  v-show="isAddDeptOpen(dept.key)"
+                  class="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+                >
+                  <div
+                    v-for="ei in dept.items"
+                    :key="ei.id"
+                    class="flex items-start justify-between gap-3 bg-elevated rounded-xl border border-default px-4 py-3"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-semibold truncate">
+                        {{ ei.item.name }}
+                      </p>
+                      <span class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5">
+                        <UIcon name="i-lucide-play" class="size-3 shrink-0" />
+                        Start {{ formatDateTime(additionalStartAt(ei) || undefined) }}
+                        <span class="mx-1 text-muted">·</span>
+                        <UIcon name="i-lucide-check" class="size-3 shrink-0" />
+                        Done {{ getExamItemStatus(ei) === 'DONE' ? formatDateTime(additionalDoneAt(ei) || undefined) : 'Not yet' }}
+                      </span>
+                    </div>
+                    <UBadge
+                      :label="getExamItemStatusLabel(getExamItemStatus(ei))"
+                      :color="getExamItemStatusColor(getExamItemStatus(ei))"
+                      variant="soft"
+                      size="xs"
+                      :icon="getExamItemStatusIcon(getExamItemStatus(ei))"
+                      class="shrink-0"
+                    />
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>
           </div>
         </div>
@@ -2536,7 +3034,7 @@ watch(
                 </div>
                 <div class="flex items-center gap-2">
                   <UBadge
-                    :label="`${checkinPreview?.examVerification.totalItems ?? 0} item`"
+                    :label="`${checkinPreview?.examVerification.totalItems ?? 0} ${plural(checkinPreview?.examVerification.totalItems ?? 0, 'item', 'items')}`"
                     color="neutral"
                     variant="subtle"
                   />
@@ -2791,6 +3289,41 @@ watch(
               :loading="savingReschedule"
               @click="doCheckout"
             />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="isCheckoutConfirmOpen" title="Check out patient?">
+        <template #body>
+          <div class="space-y-2">
+            <p class="text-sm text-muted">
+              Patient will be marked as
+              <span class="font-semibold text-highlighted">Check Out</span>
+              and ready to be discharged.
+            </p>
+            <p v-if="reg?.patient" class="text-sm font-medium text-highlighted">
+              {{ reg.patient.patientName }} · {{ reg.id_reg }}
+            </p>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="outline"
+              :disabled="checkoutLoading"
+              @click="isCheckoutConfirmOpen = false"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="primary"
+              icon="i-lucide-check"
+              :loading="checkoutLoading"
+              @click="doCheckout"
+            >
+              Check Out
+            </UButton>
           </div>
         </template>
       </UModal>

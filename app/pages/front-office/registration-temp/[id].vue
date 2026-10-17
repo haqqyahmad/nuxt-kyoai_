@@ -794,6 +794,105 @@ function statusHistoryDesc(item: StatusHistoryItem): string {
   return 'Registration status changed.'
 }
 
+function questionnaireActions(q: TempQuestionnaire) {
+  return [
+    {
+      label: 'View Result',
+      icon: 'i-lucide-eye',
+      color: 'primary' as const,
+      disabled: q.status !== 'Completed',
+      onSelect: () => {
+        if (q.status === 'Completed') openPreview(q)
+      }
+    },
+    {
+      label: 'Print Result',
+      icon: 'i-lucide-printer',
+      color: 'primary' as const,
+      disabled: q.status !== 'Completed',
+      onSelect: () => {
+        if (q.status === 'Completed') printQuestionnaire(q)
+      }
+    }
+  ]
+}
+
+type HeaderAction = {
+  key: string
+  label: string
+  icon: string
+  color?: 'primary' | 'neutral' | 'warning' | 'info' | 'success' | 'error'
+  variant?: 'solid' | 'soft' | 'outline' | 'ghost'
+  loading?: boolean
+  disabled?: boolean
+  title?: string
+  to?: string
+  onClick?: () => void
+}
+
+const primaryAction = computed<HeaderAction | null>(() => {
+  if (reg.value?.status === 'PENDING') {
+    return {
+      key: 'approve',
+      label: 'Approve',
+      color: 'success',
+      variant: 'solid',
+      icon: 'i-lucide-check',
+      onClick: () => openStatusModal('APPROVED')
+    }
+  }
+  if (reg.value?.status === 'PROCESS' && resumeCreateUrl.value) {
+    return {
+      key: 'continue',
+      label: 'Continue Registration',
+      color: 'primary',
+      variant: 'solid',
+      icon: 'i-lucide-play',
+      to: resumeCreateUrl.value
+    }
+  }
+  return null
+})
+
+const secondaryActions = computed<HeaderAction[]>(() => {
+  const list: HeaderAction[] = [
+    {
+      key: 'print',
+      label: 'Print Label',
+      color: 'neutral',
+      variant: 'outline',
+      icon: 'i-lucide-printer'
+    }
+  ]
+  if (reg.value?.status === 'PENDING') {
+    list.push({
+      key: 'reject',
+      label: 'Reject',
+      color: 'error',
+      variant: 'solid',
+      icon: 'i-lucide-x',
+      onClick: () => openStatusModal('REJECTED')
+    })
+  }
+  return list
+})
+
+const dropdownItems = computed(() => {
+  return secondaryActions.value.map(a => ({
+    label: a.label,
+    icon: a.icon,
+    color: a.color,
+    disabled: a.disabled || a.loading,
+    onSelect: () => {
+      if (a.to) {
+        void router.push(a.to)
+      } else if (a.onClick) {
+        a.onClick()
+      }
+    }
+  }))
+})
+
 onMounted(async () => {
   loadQuestionnaires()
   loadStatusHistory()
@@ -812,7 +911,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel :id="`registration-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar title="Temporary Registration Detail">
+      <AppNavbar title="Temporary Registration Detail">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -822,40 +921,53 @@ onMounted(async () => {
           />
         </template>
         <template #right>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Primary contextual action: always visible -->
             <UButton
-              icon="i-lucide-printer"
-              color="neutral"
-              variant="outline"
-              label="Print Label"
-            />
-            <UButton
-              v-if="reg?.status === 'PENDING'"
-              label="Approve"
-              color="success"
-              variant="solid"
-              icon="i-lucide-check"
-              @click="openStatusModal('APPROVED')"
-            />
-            <UButton
-              v-if="reg?.status === 'PENDING'"
-              label="Reject"
-              color="error"
-              variant="solid"
-              icon="i-lucide-x"
-              @click="openStatusModal('REJECTED')"
-            />
-            <UButton
-              v-if="reg?.status === 'PROCESS' && resumeCreateUrl"
-              label="Continue Registration"
-              color="primary"
-              variant="solid"
-              icon="i-lucide-play"
-              :to="resumeCreateUrl"
-            />
+              v-if="primaryAction"
+              :icon="primaryAction.icon"
+              :color="primaryAction.color"
+              :variant="primaryAction.variant"
+              :title="primaryAction.label"
+              :to="primaryAction.to"
+              @click="primaryAction.onClick?.()"
+            >
+              <span class="hidden sm:inline">{{ primaryAction.label }}</span>
+            </UButton>
+
+            <!-- lg+: secondary actions inline -->
+            <div class="hidden lg:flex items-center gap-1.5">
+              <UButton
+                v-for="a in secondaryActions"
+                :key="a.key"
+                :icon="a.icon"
+                :color="a.color"
+                :variant="a.variant"
+                :title="a.label"
+                :to="a.to"
+                @click="a.onClick?.()"
+              >
+                {{ a.label }}
+              </UButton>
+            </div>
+
+            <!-- < lg: overflow dropdown menu -->
+            <UDropdownMenu
+              v-if="dropdownItems.length"
+              class="lg:hidden"
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="outline"
+                title="More actions"
+              />
+            </UDropdownMenu>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -1207,24 +1319,28 @@ onMounted(async () => {
 
           <!-- ════ Questionnaires (8 cols) ════ -->
           <div class="col-span-12 lg:col-span-8 rounded-xl border border-default bg-background overflow-hidden shadow-sm">
-            <div class="px-5 py-4 border-b border-default flex items-center justify-between">
-              <h3 class="font-semibold flex items-center gap-2">
-                <UIcon name="i-lucide-clipboard-check" class="text-primary" />
-                Medical Questionnaires List
+            <div class="px-5 py-4 border-b border-default flex flex-wrap items-center justify-between gap-3">
+              <h3 class="font-semibold flex items-center gap-2 min-w-0">
+                <UIcon name="i-lucide-clipboard-check" class="text-primary shrink-0" />
+                <span class="truncate">Medical Questionnaires List</span>
               </h3>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 <UButton
                   icon="i-lucide-printer"
                   color="neutral"
                   variant="outline"
                   size="xs"
-                  label="Print All Results"
+                  title="Print All Results"
                   @click="printAllCompleted"
-                />
+                >
+                  <span class="hidden lg:inline">Print All Results</span>
+                </UButton>
               </div>
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left">
+
+            <!-- ≥ md: Table with min-width horizontal scroll fallback -->
+            <div class="hidden md:block overflow-x-auto">
+              <table class="w-full text-left min-w-[640px]">
                 <thead>
                   <tr class="border-b border-default">
                     <th class="px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wide">
@@ -1285,6 +1401,45 @@ onMounted(async () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- < md: Mobile card list -->
+            <div class="md:hidden divide-y divide-default">
+              <div
+                v-for="q in questionnaires"
+                :key="q.questionnaire_id"
+                class="p-4 space-y-2 hover:bg-elevated/40 transition-colors"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <span class="text-sm font-semibold truncate block">{{ q.questionnaire_name }}</span>
+                    <p class="text-xs text-muted mt-0.5">
+                      <span v-if="q.completionDate">{{ formatDateTime(q.completionDate) }}</span>
+                      <span v-else class="italic">Not completed</span>
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <UBadge
+                      :label="q.status"
+                      :color="q.status === 'Completed' ? 'success' : 'neutral'"
+                      variant="subtle"
+                      size="xs"
+                    />
+                    <UDropdownMenu
+                      :items="questionnaireActions(q)"
+                      :content="{ align: 'end' }"
+                    >
+                      <UButton
+                        icon="i-lucide-ellipsis-vertical"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        title="Actions"
+                      />
+                    </UDropdownMenu>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

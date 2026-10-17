@@ -47,6 +47,7 @@ type Patient = {
   policyNumber?: string | null
   policyExpDate?: string | null
   addresses?: {
+    id?: string
     type?: string
     detail?: string
     note?: string
@@ -534,10 +535,26 @@ async function saveNewPatient() {
   newPatientSaving.value = true
 
   try {
+    const addressSnapshot = { ...contactForm.value }
     const res = await api.post('/patient', buildNewPatientPayload())
     const patient = res.data.data as Patient
 
-    selectPatient(patient)
+    let full = patient
+    try {
+      full = ((await api.get(`/patient/${patient.id}`)).data.data ?? patient) as Patient
+    } catch {
+      full = patient
+    }
+
+    await saveNewPatientAddress(patient.id, addressSnapshot, full.addresses?.[0]?.id)
+
+    try {
+      full = ((await api.get(`/patient/${patient.id}`)).data.data ?? full) as Patient
+    } catch {
+      // keep previous full
+    }
+
+    selectPatient(full)
 
     toast.add({
       title: 'Success',
@@ -545,7 +562,7 @@ async function saveNewPatient() {
       color: 'success'
     })
 
-    return patient
+    return full
   } catch (err: unknown) {
     const error = err as {
       response?: { data?: { message?: string } }
@@ -560,6 +577,54 @@ async function saveNewPatient() {
     return null
   } finally {
     newPatientSaving.value = false
+  }
+}
+
+const ADDRESS_TYPE_MAP: Record<string, string> = {
+  HOME: 'HOME',
+  WORK: 'OFFICE',
+  OTHER: 'OTHER'
+}
+
+async function saveNewPatientAddress(patientId: string, address: typeof contactForm.value = contactForm.value, addressId?: string) {
+  const detail = address.detail.trim()
+  if (!detail) return
+
+  const district = address.district.trim()
+  const city = address.city.trim()
+  const province = address.province.trim()
+  const country = address.country.trim() || 'Indonesia'
+
+  if (!district || !city || !province) {
+    toast.add({
+      title: 'Address not saved',
+      description: 'District, City, and Province are required to save the patient address.',
+      color: 'warning'
+    })
+    return
+  }
+
+  const url = addressId
+    ? `/patient/${patientId}/address?addressId=${addressId}`
+    : `/patient/${patientId}/address`
+
+  try {
+    await api.post(url, {
+      type: ADDRESS_TYPE_MAP[address.addressType] ?? 'HOME',
+      detail,
+      country,
+      province,
+      city,
+      district,
+      note: address.note.trim() || undefined
+    })
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } } }
+    toast.add({
+      title: 'Address not saved',
+      description: error.response?.data?.message ?? 'Failed to save patient address.',
+      color: 'warning'
+    })
   }
 }
 
@@ -683,6 +748,7 @@ async function loadTempPrefill(temp: TempRegistration) {
   } else {
     // Patient baru dari portal → tampilkan form pasien baru terisi
     isNewPatient.value = true
+    applyTempContact(temp)
     newPatient.value.firstName = temp.firstName || ''
     newPatient.value.middleName = temp.middleName || ''
     newPatient.value.lastName = temp.lastName || ''
@@ -1020,6 +1086,26 @@ const canSubmit = computed(() => {
   )
 })
 
+const missingRequiredFields = computed(() => {
+  const missing: string[] = []
+  if (!selectedBranch.value) missing.push('Branch')
+  const hasPatient
+    = !!selectedPatient.value
+      || (isNewPatient.value
+        && !!newPatient.value.firstName
+        && !!newPatient.value.idNumber)
+  if (!hasPatient) {
+    missing.push(isNewPatient.value ? 'Patient name & ID' : 'Patient')
+  }
+  if (!selectedService.value) missing.push('Service type')
+  if (selectedService.value === 'MCU' && !selectedPaket.value) {
+    missing.push('MCU package')
+  }
+  if (!regForm.value.companyId) missing.push('Company / Payer')
+  if (!regForm.value.examDate) missing.push('Examination date')
+  return missing
+})
+
 async function submit() {
   if (!canSubmit.value || submitting.value) return
   submitting.value = true
@@ -1089,7 +1175,7 @@ async function submit() {
       registrationId = approveRes.data.data.registrationId
       patientId = approveRes.data.data.patientId ?? patientId
       examIdFromApprove = approveRes.data.data.examId ?? null
-      idReg = approveRes.data.data.reg?.id_reg ?? null
+      idReg = approveRes.data.data.id_reg ?? approveRes.data.data.reg?.id_reg ?? null
     } else {
       if (isNewPatient.value) {
         const patient = await saveNewPatient()
@@ -1180,7 +1266,7 @@ async function cancel() {
   <UDashboardPanel id="registration-create">
     <!-- ── Header ── -->
     <template #header>
-      <UDashboardNavbar title="Create New Registration">
+      <AppNavbar title="Create New Registration">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -1190,7 +1276,7 @@ async function cancel() {
             @click="cancel"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <!-- ── Body ── -->
@@ -1223,8 +1309,7 @@ async function cancel() {
         />
 
         <div
-          class="grid gap-5 items-start"
-          style="grid-template-columns: repeat(2, minmax(0, 1fr))"
+          class="grid gap-5 items-start grid-cols-1 xl:grid-cols-2"
         >
           <!-- ══════════════════════════════
                KOLOM KIRI
@@ -1347,17 +1432,20 @@ async function cancel() {
                 />
               </div>
 
-              <div class="p-4 space-y-3">
+              <div class="p-4 space-y-4">
                 <div v-if="!isNewPatient" class="relative overflow-visible">
-                  <UInput
-                    v-model="patientSearch"
-                    icon="i-lucide-search"
-                    :loading="patientPending"
-                    :disabled="!!selectedPatient"
-                    placeholder="Search name, ID number, or patient code..."
-                    @focus="patientDropOpen = true"
-                    @blur="handlePatientBlur"
-                  />
+                  <UFormField label="Find Patient">
+                    <UInput
+                      v-model="patientSearch"
+                      icon="i-lucide-search"
+                      :loading="patientPending"
+                      :disabled="!!selectedPatient"
+                      placeholder="Search name, ID number, or patient code..."
+                      class="w-full"
+                      @focus="patientDropOpen = true"
+                      @blur="handlePatientBlur"
+                    />
+                  </UFormField>
 
                   <div
                     v-if="
@@ -1474,107 +1562,87 @@ async function cancel() {
                       @click="clearPatient"
                     />
                   </div>
-                  <div class="p-3 space-y-2">
-                    <div class="grid grid-cols-3 gap-2">
-                      <UFormField label="First Name" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                  <div class="p-3 space-y-4">
+                    <div>
+                      <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                        Personal Information
+                      </p>
+                      <div class="space-y-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            First Name
+                            <span v-if="personalChanged.firstName" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="personalForm.firstName"
                             size="sm"
                             :disabled="!personalChanged.firstName"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="personalChanged.firstName"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                      <UFormField label="Middle Name" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Middle Name
+                            <span v-if="personalChanged.middleName" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="personalForm.middleName"
                             size="sm"
                             :disabled="!personalChanged.middleName"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="personalChanged.middleName"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                      <UFormField label="Last Name" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Last Name
+                            <span v-if="personalChanged.lastName" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="personalForm.lastName"
                             size="sm"
                             :disabled="!personalChanged.lastName"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="personalChanged.lastName"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                      <UFormField label="Gender" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Gender
+                            <span v-if="personalChanged.gender" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <USelect
                             v-model="personalForm.gender"
                             size="sm"
                             :disabled="!personalChanged.gender"
-                            class="w-full min-w-0"
+                            class="w-full"
                             :items="[
                               { label: 'Male', value: 'MALE' },
                               { label: 'Female', value: 'FEMALE' }
                             ]"
                           />
-                          <UBadge
-                            v-if="personalChanged.gender"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
                         </div>
-                      </UFormField>
-                      <UFormField label="Date of Birth" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Date of Birth
+                            <span v-if="personalChanged.dob" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="personalForm.dob"
                             size="sm"
                             type="date"
                             :disabled="!personalChanged.dob"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="personalChanged.dob"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                      <UFormField label="ID Type" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            ID Type
+                            <span v-if="personalChanged.idType" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <USelect
                             v-model="personalForm.idType"
                             size="sm"
                             :disabled="!personalChanged.idType"
-                            class="w-full min-w-0"
+                            class="w-full"
                             :items="[
                               { label: 'KTP', value: 'KTP' },
                               { label: 'Passport', value: 'PASSPORT' },
@@ -1582,66 +1650,51 @@ async function cancel() {
                               { label: 'KITAS', value: 'KITAS' }
                             ]"
                           />
-                          <UBadge
-                            v-if="personalChanged.idType"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
                         </div>
-                      </UFormField>
-                      <UFormField label="ID Number" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            ID Number
+                            <span v-if="personalChanged.idNumber" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="personalForm.idNumber"
                             size="sm"
                             :disabled="!personalChanged.idNumber"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="personalChanged.idNumber"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                      <UFormField label="Phone No." class="min-w-0">
-                        <div class="flex items-center gap-1">
+                      </div>
+                    </div>
+                    <div class="border-t border-default/50 pt-3">
+                      <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                        Contact
+                      </p>
+                      <div class="space-y-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Phone No.
+                            <span v-if="contactChanged.phone" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="contactForm.phone"
                             size="sm"
                             :disabled="!contactChanged.phone"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="contactChanged.phone"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
-                      <UFormField label="Email" class="min-w-0">
-                        <div class="flex items-center gap-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                          <span class="text-xs text-muted flex items-center gap-1">
+                            Email
+                            <span v-if="contactChanged.email" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                          </span>
                           <UInput
                             v-model="contactForm.email"
                             size="sm"
                             :disabled="!contactChanged.email"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="contactChanged.email"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
+                            class="w-full"
                           />
                         </div>
-                      </UFormField>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1652,15 +1705,10 @@ async function cancel() {
                   class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
                 >
                   <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex items-center gap-2">
-                    <p class="text-sm font-semibold">
+                    <p class="text-sm font-semibold flex items-center gap-1">
                       Allergy Notes
+                      <span v-if="allergyChanged" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
                     </p>
-                    <UBadge
-                      v-if="allergyChanged"
-                      label="Change"
-                      color="warning"
-                      size="xs"
-                    />
                     <p class="ml-auto text-[11px] text-muted">
                       On patient record: {{ selectedPatient.allergyNotes || '-' }}
                     </p>
@@ -1681,7 +1729,7 @@ async function cancel() {
 
                 <!-- Card Contact Info (pasien existing dari portal) -->
                 <div
-                  v-if="selectedPatient && fromTemp"
+                  v-if="selectedPatient"
                   class="w-full min-w-0 rounded-lg border border-default/70 overflow-hidden"
                 >
                   <div class="px-3 py-2 bg-default/5 border-b border-default/70 flex items-center gap-2">
@@ -1690,133 +1738,94 @@ async function cancel() {
                     </p>
                   </div>
                   <div class="p-3 space-y-2">
-                    <div class="grid grid-cols-2 gap-2">
-                      <UFormField label="Address Type" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <USelect
-                            v-model="contactForm.addressType"
-                            size="sm"
-                            :disabled="!addrChanged.addressType"
-                            class="w-full min-w-0"
-                            :items="[
-                              { label: 'Home', value: 'HOME' },
-                              { label: 'Work', value: 'WORK' },
-                              { label: 'Other', value: 'OTHER' }
-                            ]"
-                          />
-                          <UBadge
-                            v-if="addrChanged.addressType"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
-                      <UFormField label="Address Line 1" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <UInput
-                            v-model="contactForm.detail"
-                            size="sm"
-                            :disabled="!addrChanged.detail"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="addrChanged.detail"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        Address Type
+                        <span v-if="addrChanged.addressType" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <USelect
+                        v-model="contactForm.addressType"
+                        size="sm"
+                        :disabled="!addrChanged.addressType"
+                        class="w-full"
+                        :items="[
+                          { label: 'Home', value: 'HOME' },
+                          { label: 'Work', value: 'WORK' },
+                          { label: 'Other', value: 'OTHER' }
+                        ]"
+                      />
                     </div>
-                    <UFormField label="Address Line 2 (Optional)" class="min-w-0">
-                      <div class="flex items-center gap-1">
-                        <UInput
-                          v-model="contactForm.note"
-                          size="sm"
-                          :disabled="!addrChanged.note"
-                          class="w-full min-w-0"
-                        />
-                        <UBadge
-                          v-if="addrChanged.note"
-                          label="Change"
-                          color="warning"
-                          size="xs"
-                          class="shrink-0"
-                        />
-                      </div>
-                    </UFormField>
-                    <div class="grid grid-cols-2 gap-2">
-                      <UFormField label="District" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <UInput
-                            v-model="contactForm.district"
-                            size="sm"
-                            :disabled="!addrChanged.district"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="addrChanged.district"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
-                      <UFormField label="City" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <UInput
-                            v-model="contactForm.city"
-                            size="sm"
-                            :disabled="!addrChanged.city"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="addrChanged.city"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
-                      <UFormField label="Province" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <UInput
-                            v-model="contactForm.province"
-                            size="sm"
-                            :disabled="!addrChanged.province"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="addrChanged.province"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
-                      <UFormField label="Country" class="min-w-0">
-                        <div class="flex items-center gap-1">
-                          <UInput
-                            v-model="contactForm.country"
-                            size="sm"
-                            :disabled="!addrChanged.country"
-                            class="w-full min-w-0"
-                          />
-                          <UBadge
-                            v-if="addrChanged.country"
-                            label="Change"
-                            color="warning"
-                            size="xs"
-                            class="shrink-0"
-                          />
-                        </div>
-                      </UFormField>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        Address Line 1
+                        <span v-if="addrChanged.detail" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.detail"
+                        size="sm"
+                        :disabled="!addrChanged.detail"
+                        class="w-full"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        Address Line 2
+                        <span v-if="addrChanged.note" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.note"
+                        size="sm"
+                        :disabled="!addrChanged.note"
+                        class="w-full"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        District
+                        <span v-if="addrChanged.district" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.district"
+                        size="sm"
+                        :disabled="!addrChanged.district"
+                        class="w-full"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        City
+                        <span v-if="addrChanged.city" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.city"
+                        size="sm"
+                        :disabled="!addrChanged.city"
+                        class="w-full"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        Province
+                        <span v-if="addrChanged.province" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.province"
+                        size="sm"
+                        :disabled="!addrChanged.province"
+                        class="w-full"
+                      />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 sm:items-center">
+                      <span class="text-xs text-muted flex items-center gap-1">
+                        Country
+                        <span v-if="addrChanged.country" class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Edited" />
+                      </span>
+                      <UInput
+                        v-model="contactForm.country"
+                        size="sm"
+                        :disabled="!addrChanged.country"
+                        class="w-full"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1845,124 +1854,203 @@ async function cancel() {
                       "
                     />
                   </div>
-                  <div class="grid grid-cols-3 gap-2">
-                    <UFormField label="First Name *">
-                      <UInput
-                        v-model="newPatient.firstName"
-                        size="sm"
-                        placeholder="John"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Middle">
-                      <UInput
-                        v-model="newPatient.middleName"
-                        size="sm"
-                        placeholder="-"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Last Name">
-                      <UInput
-                        v-model="newPatient.lastName"
-                        size="sm"
-                        placeholder="Doe"
-                        class="w-full"
-                      />
-                    </UFormField>
+                  <div>
+                    <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Personal Information
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <UFormField label="First Name *">
+                        <UInput
+                          v-model="newPatient.firstName"
+                          size="sm"
+                          placeholder="John"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Middle Name">
+                        <UInput
+                          v-model="newPatient.middleName"
+                          size="sm"
+                          placeholder="-"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Last Name">
+                        <UInput
+                          v-model="newPatient.lastName"
+                          size="sm"
+                          placeholder="Doe"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Gender">
+                        <USelect
+                          v-model="newPatient.gender"
+                          size="sm"
+                          :items="[
+                            { label: 'Male', value: 'MALE' },
+                            { label: 'Female', value: 'FEMALE' }
+                          ]"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Date of Birth">
+                        <UInput
+                          v-model="newPatient.dob"
+                          type="date"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="ID Type">
+                        <USelect
+                          v-model="newPatient.idType"
+                          size="sm"
+                          :items="
+                            ['KTP', 'PASSPORT', 'SIM'].map((v) => ({
+                              label: v,
+                              value: v
+                            }))
+                          "
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="ID Number *">
+                        <UInput
+                          v-model="newPatient.idNumber"
+                          size="sm"
+                          placeholder="ID number"
+                          class="w-full"
+                        />
+                      </UFormField>
+                    </div>
                   </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <UFormField label="Gender">
-                      <USelect
-                        v-model="newPatient.gender"
-                        size="sm"
-                        :items="[
-                          { label: 'Male', value: 'MALE' },
-                          { label: 'Female', value: 'FEMALE' }
-                        ]"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Date of Birth">
-                      <UInput
-                        v-model="newPatient.dob"
-                        type="date"
-                        size="sm"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="ID Type">
-                      <USelect
-                        v-model="newPatient.idType"
-                        size="sm"
-                        :items="
-                          ['KTP', 'PASSPORT', 'SIM'].map((v) => ({
-                            label: v,
-                            value: v
-                          }))
-                        "
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="ID Number *">
-                      <UInput
-                        v-model="newPatient.idNumber"
-                        size="sm"
-                        placeholder="ID number"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Phone No.">
-                      <UInput
-                        v-model="newPatient.phone"
-                        size="sm"
-                        placeholder="08xxx"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Email">
-                      <UInput
-                        v-model="newPatient.email"
-                        type="email"
-                        size="sm"
-                        placeholder="email@..."
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Policy Number">
-                      <UInput
-                        v-model="newPatient.policyNumber"
-                        size="sm"
-                        placeholder="Policy no."
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Policy Exp. Date">
-                      <UInput
-                        v-model="newPatient.policyExpDate"
-                        type="date"
-                        size="sm"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Allergy Notes" class="col-span-3">
-                      <UTextarea
-                        v-model="newPatient.allergyNotes"
-                        :rows="2"
-                        size="sm"
-                        placeholder="e.g. Seafood, peanut"
-                        class="w-full"
-                      />
-                    </UFormField>
-                    <UFormField label="Disease Notes" class="col-span-3">
-                      <UTextarea
-                        v-model="newPatient.diseaseNotes"
-                        :rows="2"
-                        size="sm"
-                        placeholder="e.g. Hypertension"
-                        class="w-full"
-                      />
-                    </UFormField>
+                  <div class="border-t border-warning/20 pt-3">
+                    <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Contact
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <UFormField label="Phone No.">
+                        <UInput
+                          v-model="newPatient.phone"
+                          size="sm"
+                          placeholder="08xxx"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Email">
+                        <UInput
+                          v-model="newPatient.email"
+                          type="email"
+                          size="sm"
+                          placeholder="email@..."
+                          class="w-full"
+                        />
+                      </UFormField>
+                    </div>
+                  </div>
+                  <div class="border-t border-warning/20 pt-3">
+                    <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Address
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <UFormField label="Address Type">
+                        <USelect
+                          v-model="contactForm.addressType"
+                          size="sm"
+                          class="w-full"
+                          :items="[
+                            { label: 'Home', value: 'HOME' },
+                            { label: 'Work', value: 'WORK' },
+                            { label: 'Other', value: 'OTHER' }
+                          ]"
+                        />
+                      </UFormField>
+                      <UFormField label="Address Line 1">
+                        <UInput
+                          v-model="contactForm.detail"
+                          size="sm"
+                          placeholder="Street, No."
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Address Line 2 (Optional)" class="sm:col-span-2">
+                        <UInput
+                          v-model="contactForm.note"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="District">
+                        <UInput
+                          v-model="contactForm.district"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="City">
+                        <UInput
+                          v-model="contactForm.city"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Province">
+                        <UInput
+                          v-model="contactForm.province"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Country">
+                        <UInput
+                          v-model="contactForm.country"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                    </div>
+                  </div>
+                  <div class="border-t border-warning/20 pt-3">
+                    <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Insurance & Medical
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <UFormField v-if="regForm.paymentType === 'Insurance'" label="Policy Number">
+                        <UInput
+                          v-model="newPatient.policyNumber"
+                          size="sm"
+                          placeholder="Policy no."
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField v-if="regForm.paymentType === 'Insurance'" label="Policy Exp. Date">
+                        <UInput
+                          v-model="newPatient.policyExpDate"
+                          type="date"
+                          size="sm"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Allergy Notes" class="col-span-full">
+                        <UTextarea
+                          v-model="newPatient.allergyNotes"
+                          :rows="2"
+                          size="sm"
+                          placeholder="e.g. Seafood, peanut"
+                          class="w-full"
+                        />
+                      </UFormField>
+                      <UFormField label="Disease Notes" class="col-span-full">
+                        <UTextarea
+                          v-model="newPatient.diseaseNotes"
+                          :rows="2"
+                          size="sm"
+                          placeholder="e.g. Hypertension"
+                          class="w-full"
+                        />
+                      </UFormField>
+                    </div>
                   </div>
                   <div class="flex items-center justify-between gap-3 pt-1">
                     <p
@@ -2494,7 +2582,7 @@ async function cancel() {
                   <span class="text-xs text-muted ml-0.5">(optional)</span>
                   <UBadge
                     v-if="additionalItems.length"
-                    :label="`${additionalItems.length} item`"
+                    :label="`${additionalItems.length} ${plural(additionalItems.length, 'item', 'items')}`"
                     color="primary"
                     variant="subtle"
                     size="xs"
@@ -2731,55 +2819,66 @@ async function cancel() {
 
         <!-- ── Bottom bar ── -->
         <div
-          class="sticky bottom-0 -mx-4 px-4 py-3 border-t border-default bg-background/90 backdrop-blur flex items-center justify-between gap-3"
+          class="sticky bottom-0 -mx-4 px-4 py-3 border-t border-default bg-background/90 backdrop-blur flex flex-wrap items-center justify-between gap-3"
         >
-          <div class="flex items-center gap-2 flex-wrap text-xs text-muted">
-            <span
-              v-if="selectedBranch"
-              class="flex items-center gap-1 text-success"
+          <div class="flex-1 min-w-0 space-y-1.5">
+            <p class="text-[11px] font-medium text-muted uppercase tracking-wide">
+              Registration status
+            </p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span
+                v-if="selectedBranch"
+                class="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[11px] text-success"
+              >
+                <UIcon name="i-lucide-check-circle-2" class="text-xs" />
+                {{ selectedBranch.nameBranch }}
+              </span>
+              <span
+                v-if="selectedPatient || isNewPatient"
+                class="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[11px] text-success"
+              >
+                <UIcon name="i-lucide-check-circle-2" class="text-xs" />
+                {{ isNewPatient ? "New Patient" : fullName(selectedPatient!) }}
+              </span>
+              <span
+                v-if="selectedService"
+                class="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[11px] text-success"
+              >
+                <UIcon name="i-lucide-check-circle-2" class="text-xs" />
+                {{
+                  SERVICE_TYPES.find((s) => s.value === selectedService)?.label
+                }}
+              </span>
+              <span
+                v-if="selectedService === 'MCU' && selectedPaket"
+                class="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[11px] text-success"
+              >
+                <UIcon name="i-lucide-check-circle-2" class="text-xs" />
+                {{ selectedPaket.name }}
+              </span>
+              <span
+                v-if="selectedService === 'MCU' && additionalItems.length"
+                class="inline-flex items-center gap-1 rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[11px] text-warning"
+              >
+                <UIcon name="i-lucide-plus-circle" class="text-xs" />
+                {{ additionalItems.length }} Additional Items
+              </span>
+              <span
+                v-if="selectedService === 'MCU' && !selectedPaket"
+                class="inline-flex items-center gap-1 rounded-full border border-error/20 bg-error/10 px-2 py-0.5 text-[11px] text-error"
+              >
+                <UIcon name="i-lucide-alert-circle" class="text-xs" />
+                MCU Package Not Selected
+              </span>
+            </div>
+            <p
+              v-if="!canSubmit && missingRequiredFields.length"
+              class="text-[11px] text-muted"
             >
-              <UIcon name="i-lucide-check-circle-2" />
-              {{ selectedBranch.nameBranch }}
-            </span>
-            <span
-              v-if="selectedPatient || isNewPatient"
-              class="flex items-center gap-1 text-success"
-            >
-              <UIcon name="i-lucide-check-circle-2" />
-              {{ isNewPatient ? "New patient" : fullName(selectedPatient!) }}
-            </span>
-            <span
-              v-if="selectedService"
-              class="flex items-center gap-1 text-success"
-            >
-              <UIcon name="i-lucide-check-circle-2" />
-              {{
-                SERVICE_TYPES.find((s) => s.value === selectedService)?.label
-              }}
-            </span>
-            <span
-              v-if="selectedService === 'MCU' && selectedPaket"
-              class="flex items-center gap-1 text-success"
-            >
-              <UIcon name="i-lucide-check-circle-2" />
-              {{ selectedPaket.name }}
-            </span>
-            <span
-              v-if="selectedService === 'MCU' && additionalItems.length"
-              class="flex items-center gap-1 text-warning"
-            >
-              <UIcon name="i-lucide-info" />
-              {{ additionalItems.length }} additional items
-            </span>
-            <span
-              v-if="selectedService === 'MCU' && !selectedPaket"
-              class="flex items-center gap-1 text-error"
-            >
-              <UIcon name="i-lucide-alert-circle" />
-              MCU package not selected
-            </span>
+              Complete: <span class="text-default font-medium">{{ missingRequiredFields.join(', ') }}</span>
+            </p>
           </div>
-          <div class="flex gap-2 flex-shrink-0">
+          <div class="flex gap-2 flex-shrink-0 items-center">
             <UButton
               color="neutral"
               variant="outline"
@@ -2788,15 +2887,22 @@ async function cancel() {
             >
               Cancel
             </UButton>
-            <UButton
-              color="primary"
-              icon="i-lucide-check"
-              :loading="submitting"
-              :disabled="!canSubmit || submitting"
-              @click="submit"
+            <UTooltip
+              :text="canSubmit ? 'Save & create registration' : `Complete required fields: ${missingRequiredFields.join(', ')}`"
             >
-              Save Registration
-            </UButton>
+              <span class="inline-flex">
+                <UButton
+                  color="primary"
+                  icon="i-lucide-check"
+                  :loading="submitting"
+                  :disabled="!canSubmit || submitting"
+                  @click="submit"
+                >
+                  <span class="hidden sm:inline">Save & Create Registration</span>
+                  <span class="sm:hidden">Save</span>
+                </UButton>
+              </span>
+            </UTooltip>
           </div>
         </div>
       </div>
