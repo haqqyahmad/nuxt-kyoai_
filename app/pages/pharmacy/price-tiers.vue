@@ -81,14 +81,14 @@ async function remove(t: PriceTier) {
 <template>
   <UDashboardPanel id="price-tiers">
     <template #header>
-      <UDashboardNavbar title="Price Tier Pasien">
+      <AppNavbar title="Price Tier Pasien">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Tambah Tier" icon="i-lucide-plus" @click="openCreate" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

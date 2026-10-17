@@ -530,11 +530,11 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="temp-registration">
     <template #header>
-      <UDashboardNavbar title="Temp Registration">
+      <AppNavbar title="Temp Registration">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

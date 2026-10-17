@@ -9,7 +9,7 @@ const canAccessSampleReceive = computed(() =>
 <template>
   <UDashboardPanel id="sample-reception">
     <template #header>
-      <UDashboardNavbar title="Sample Receive" />
+      <AppNavbar title="Sample Receive" />
     </template>
 
     <template #body>

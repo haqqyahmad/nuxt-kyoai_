@@ -125,7 +125,7 @@ async function review(id: string, action: 'approve' | 'reject') {
 <template>
   <UDashboardPanel id="pharmacy-stock">
     <template #header>
-      <UDashboardNavbar title="Stok Obat">
+      <AppNavbar title="Stok Obat">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -154,7 +154,7 @@ async function review(id: string, action: 'approve' | 'reject') {
             />
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

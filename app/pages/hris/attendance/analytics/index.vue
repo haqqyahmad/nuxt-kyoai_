@@ -10,7 +10,7 @@ const openDetail = ref(false)
 <template>
   <UDashboardPanel id="attendance-analytics">
     <template #header>
-      <UDashboardNavbar title="Attendance Analytics">
+      <AppNavbar title="Attendance Analytics">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -22,7 +22,7 @@ const openDetail = ref(false)
             class="w-64"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

@@ -959,7 +959,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="items">
     <template #header>
-      <UDashboardNavbar title="List Items">
+      <AppNavbar title="List Items">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -979,7 +979,7 @@ watch(currentPage, (page) => {
             variant="soft"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

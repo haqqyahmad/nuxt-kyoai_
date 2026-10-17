@@ -88,7 +88,7 @@ onMounted(() => {
     class="min-h-0"
   >
     <template #header>
-      <UDashboardNavbar title="National Holidays">
+      <AppNavbar title="National Holidays">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -108,7 +108,7 @@ onMounted(() => {
             </span>
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

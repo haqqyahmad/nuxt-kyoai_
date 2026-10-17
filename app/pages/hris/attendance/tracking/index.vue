@@ -172,11 +172,11 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="attendance-tracking">
     <template #header>
-      <UDashboardNavbar title="Attendance Report">
+      <AppNavbar title="Attendance Report">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

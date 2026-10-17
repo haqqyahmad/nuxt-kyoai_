@@ -151,14 +151,14 @@ async function remove(med: Medicine) {
 <template>
   <UDashboardPanel id="pharmacy-medicines">
     <template #header>
-      <UDashboardNavbar title="Master Obat">
+      <AppNavbar title="Master Obat">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Tambah Obat" icon="i-lucide-plus" @click="openCreate" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

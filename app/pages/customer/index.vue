@@ -263,14 +263,14 @@ const columns: TableColumn<Customer>[] = [
 <template>
   <UDashboardPanel id="customers">
     <template #header>
-      <UDashboardNavbar title="Customer">
+      <AppNavbar title="Customer">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <CustomerCustomeraddmodal @created="refresh" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

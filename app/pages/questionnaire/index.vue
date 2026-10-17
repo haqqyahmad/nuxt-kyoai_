@@ -394,7 +394,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="questionnaire">
     <template #header>
-      <UDashboardNavbar title="Questionnaire">
+      <AppNavbar title="Questionnaire">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -403,7 +403,7 @@ watch(currentPage, (page) => {
           <QuestionnaireCompanyMappingModal />
           <QuestionnaireAddModal @created="refresh" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

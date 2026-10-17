@@ -77,14 +77,14 @@ async function remove(wh: Warehouse) {
 <template>
   <UDashboardPanel id="pharmacy-warehouses">
     <template #header>
-      <UDashboardNavbar title="Master Gudang">
+      <AppNavbar title="Master Gudang">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Tambah Gudang" icon="i-lucide-plus" @click="openCreate" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

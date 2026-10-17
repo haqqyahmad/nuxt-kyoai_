@@ -113,14 +113,14 @@ async function cancelEncounter(row: OutpatientEncounter) {
 <template>
   <UDashboardPanel id="outpatient-waiting">
     <template #header>
-      <UDashboardNavbar title="Ruang Tunggu Umum (Outpatient)">
+      <AppNavbar title="Ruang Tunggu Umum (Outpatient)">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Tambah dari Registrasi" icon="i-lucide-user-plus" @click="openAdd" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

@@ -75,7 +75,7 @@ onMounted(fetchUser)
 <template>
   <UDashboardPanel id="user-edit">
     <template #header>
-      <UDashboardNavbar :title="`Edit User #${userId}`">
+      <AppNavbar :title="`Edit User #${userId}`">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -88,7 +88,7 @@ onMounted(fetchUser)
             @click="router.push('/users')"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

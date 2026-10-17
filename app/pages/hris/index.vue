@@ -64,7 +64,7 @@ const cards = [
 <template>
   <UDashboardPanel id="hris" class="bg-default">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Dashboard HRIS"
         :ui="{
           root: 'border-b border-default bg-default',
@@ -94,7 +94,7 @@ const cards = [
             <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
           </UDropdownMenu>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

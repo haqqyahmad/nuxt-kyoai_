@@ -160,7 +160,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
 <template>
   <UDashboardPanel id="mr-review" class="w-full min-w-0">
     <template #header>
-      <UDashboardNavbar title="MR Review">
+      <AppNavbar title="MR Review">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -174,7 +174,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

@@ -280,11 +280,11 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="sample">
     <template #header>
-      <UDashboardNavbar title="Sample Types">
+      <AppNavbar title="Sample Types">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

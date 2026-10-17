@@ -11,7 +11,7 @@ const openExport = ref(false)
 <template>
   <UDashboardPanel id="attendance">
     <template #header>
-      <UDashboardNavbar title="Attendance Management">
+      <AppNavbar title="Attendance Management">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -23,7 +23,7 @@ const openExport = ref(false)
             class="w-64"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

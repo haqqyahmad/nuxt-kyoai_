@@ -299,7 +299,7 @@ const overallStats = computed(() => {
 <template>
   <UDashboardPanel id="exam-status">
     <template #header>
-      <UDashboardNavbar>
+      <AppNavbar>
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -328,7 +328,7 @@ const overallStats = computed(() => {
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

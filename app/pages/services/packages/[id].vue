@@ -152,7 +152,7 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
 <template>
   <UDashboardPanel :id="`paket-detail-${route.params.id}`">
     <template #header>
-      <UDashboardNavbar title="Detail Paket MCU">
+      <AppNavbar title="Detail Paket MCU">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -195,7 +195,7 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

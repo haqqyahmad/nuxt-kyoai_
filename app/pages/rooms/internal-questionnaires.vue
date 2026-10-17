@@ -223,7 +223,7 @@ async function submit() {
 <template>
   <UDashboardPanel id="internal-questionnaires">
     <template #header>
-      <UDashboardNavbar title="Internal Questionnaires" />
+      <AppNavbar title="Internal Questionnaires" />
     </template>
 
     <template #body>

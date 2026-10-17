@@ -313,7 +313,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="medical-departments">
     <template #header>
-      <UDashboardNavbar title="Departments">
+      <AppNavbar title="Departments">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -321,7 +321,7 @@ watch(currentPage, (page) => {
         <template #right>
           <DepartmentsAddModal @created="refresh" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

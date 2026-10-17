@@ -113,14 +113,14 @@ async function confirmDelete() {
 <template>
   <UDashboardPanel id="prescription-options">
     <template #header>
-      <UDashboardNavbar title="Master Aturan Pakai">
+      <AppNavbar title="Master Aturan Pakai">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Tambah" icon="i-lucide-plus" @click="openCreate" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

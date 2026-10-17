@@ -357,7 +357,7 @@ watch(results, () => {
 <template>
   <UDashboardPanel id="questionnaire-results">
     <template #header>
-      <UDashboardNavbar title="Questionnaire Results">
+      <AppNavbar title="Questionnaire Results">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -373,7 +373,7 @@ watch(results, () => {
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

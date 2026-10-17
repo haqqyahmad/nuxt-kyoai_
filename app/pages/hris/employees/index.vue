@@ -60,11 +60,11 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="employees">
     <template #header>
-      <UDashboardNavbar title="Employee Directory">
+      <AppNavbar title="Employee Directory">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

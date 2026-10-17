@@ -284,7 +284,7 @@ onMounted(load)
 <template>
   <UDashboardPanel id="doctor-result" class="w-full min-w-0">
     <template #header>
-      <UDashboardNavbar title="Doctor Result MCU">
+      <AppNavbar title="Doctor Result MCU">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -306,7 +306,7 @@ onMounted(load)
             Export
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

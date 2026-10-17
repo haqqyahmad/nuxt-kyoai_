@@ -626,7 +626,7 @@ await fetchSourcePakets()
 <template>
   <UDashboardPanel id="paket-mcu-create">
     <template #header>
-      <UDashboardNavbar :title="pageTitle">
+      <AppNavbar :title="pageTitle">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -635,7 +635,7 @@ await fetchSourcePakets()
             :to="isEditMode && paketId ? `/services/packages/${paketId}` : '/services/packages'"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

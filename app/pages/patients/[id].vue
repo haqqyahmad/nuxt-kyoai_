@@ -487,7 +487,7 @@ const deleteAddress = async (addressId: string) => {
     :id="`patient-${route.params.id}`"
     class="h-screen flex flex-col overflow-y-auto"
   >
-    <UDashboardNavbar
+    <AppNavbar
       :title="fullName"
       class="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-accented"
     >
@@ -523,7 +523,7 @@ const deleteAddress = async (addressId: string) => {
           </UButton>
         </div>
       </template>
-    </UDashboardNavbar>
+    </AppNavbar>
 
     <div v-if="!patient" class="flex justify-center items-center h-64">
       <UIcon

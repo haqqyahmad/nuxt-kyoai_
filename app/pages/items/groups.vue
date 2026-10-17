@@ -477,7 +477,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel id="item-groups">
     <template #header>
-      <UDashboardNavbar title="Master Group Lab">
+      <AppNavbar title="Master Group Lab">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -516,7 +516,7 @@ onMounted(async () => {
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

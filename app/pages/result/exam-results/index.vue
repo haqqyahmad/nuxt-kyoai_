@@ -736,7 +736,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel id="exam-results">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         :title="isExternalDoctor ? 'External Doctor Workspace' : 'Exam Results Management'"
         :subtitle="isExternalDoctor ? 'Examinations assigned to you' : 'Manage inline and deferred exam results'"
       >
@@ -755,7 +755,7 @@ onMounted(async () => {
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

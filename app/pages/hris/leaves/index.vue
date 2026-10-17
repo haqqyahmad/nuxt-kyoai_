@@ -76,7 +76,7 @@ function bulkApproveLeave() {
 <template>
   <UDashboardPanel id="leave-management">
     <template #header>
-      <UDashboardNavbar title="Manajemen Cuti & Izin">
+      <AppNavbar title="Manajemen Cuti & Izin">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -96,7 +96,7 @@ function bulkApproveLeave() {
             </span>
           </UButton>
         </template> -->
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

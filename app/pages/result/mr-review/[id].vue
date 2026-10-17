@@ -257,7 +257,7 @@ onMounted(loadAll)
 <template>
   <UDashboardPanel id="mr-review-detail" class="w-full min-w-0">
     <template #header>
-      <UDashboardNavbar :title="`MR Review — ${detail?.examCode ?? '...'}`">
+      <AppNavbar :title="`MR Review — ${detail?.examCode ?? '...'}`">
         <template #leading>
           <UDashboardSidebarCollapse />
           <UButton icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/result/mr-review')" />
@@ -272,7 +272,7 @@ onMounted(loadAll)
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

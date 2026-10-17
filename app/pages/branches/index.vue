@@ -274,7 +274,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="branches">
     <template #header>
-      <UDashboardNavbar title="Branches">
+      <AppNavbar title="Branches">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -282,7 +282,7 @@ watch(currentPage, (page) => {
         <template #right>
           <BranchesAddModal @created="refresh" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

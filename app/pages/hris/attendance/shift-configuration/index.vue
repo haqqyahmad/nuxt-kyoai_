@@ -202,7 +202,7 @@ onMounted(() => {
     class="min-h-0"
   >
     <template #header>
-      <UDashboardNavbar title="Shift Configuration">
+      <AppNavbar title="Shift Configuration">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -236,7 +236,7 @@ onMounted(() => {
             </span>
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

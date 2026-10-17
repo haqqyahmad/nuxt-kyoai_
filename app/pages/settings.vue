@@ -65,11 +65,11 @@ const isWidePage = computed(() =>
 <template>
   <UDashboardPanel id="settings" :ui="{ body: 'lg:py-12' }">
     <template #header>
-      <UDashboardNavbar title="Settings">
+      <AppNavbar title="Settings">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
 
       <!-- <UDashboardToolbar v-if="!route.path.includes('/settings/roles')"> -->
       <UDashboardToolbar>

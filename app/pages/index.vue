@@ -65,7 +65,7 @@ const quickActions = [
 <template>
   <UDashboardPanel id="home">
     <template #header>
-      <UDashboardNavbar title="Dashboard" :ui="{ right: 'gap-3' }">
+      <AppNavbar title="Dashboard" :ui="{ right: 'gap-3' }">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -88,7 +88,7 @@ const quickActions = [
             <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
           </UDropdownMenu>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

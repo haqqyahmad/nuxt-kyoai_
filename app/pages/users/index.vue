@@ -345,7 +345,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="users">
     <template #header>
-      <UDashboardNavbar title="Users">
+      <AppNavbar title="Users">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -353,7 +353,7 @@ watch(currentPage, (page) => {
         <template #right>
           <UsersAddModal @created="refresh" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

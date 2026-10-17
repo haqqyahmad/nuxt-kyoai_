@@ -4,11 +4,11 @@
 <template>
   <UDashboardPanel id="reimbursement">
     <template #header>
-      <UDashboardNavbar title="Reimbursement">
+      <AppNavbar title="Reimbursement">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

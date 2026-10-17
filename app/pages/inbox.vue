@@ -55,7 +55,7 @@ const isMobile = breakpoints.smaller('lg')
     :max-size="30"
     resizable
   >
-    <UDashboardNavbar title="Inbox">
+    <AppNavbar title="Inbox">
       <template #leading>
         <UDashboardSidebarCollapse />
       </template>
@@ -71,7 +71,7 @@ const isMobile = breakpoints.smaller('lg')
           size="xs"
         />
       </template>
-    </UDashboardNavbar>
+    </AppNavbar>
     <InboxList v-model="selectedMail" :mails="filteredMails" />
   </UDashboardPanel>
 

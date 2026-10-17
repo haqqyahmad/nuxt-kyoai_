@@ -711,11 +711,11 @@ async function submitAddPermission() {
 <template>
   <UDashboardPanel id="permissions">
     <template #header>
-      <UDashboardNavbar title="Settings">
+      <AppNavbar title="Settings">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

@@ -135,11 +135,11 @@ const columns: TableColumn<PharmacyOrderGroup>[] = [
 <template>
   <UDashboardPanel id="pharmacy-orders">
     <template #header>
-      <UDashboardNavbar title="Farmasi — Order Obat">
+      <AppNavbar title="Farmasi — Order Obat">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

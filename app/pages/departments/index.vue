@@ -217,14 +217,14 @@ const columns: TableColumn<Department>[] = [
 <template>
   <UDashboardPanel id="dept-non-medical">
     <template #header>
-      <UDashboardNavbar title="Departments (Non Medical)">
+      <AppNavbar title="Departments (Non Medical)">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
           <UButton label="Add Department" icon="i-lucide-plus" @click="openAddModal" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
     <template #body>
       <div class="space-y-4 p-4 sm:p-6">

@@ -74,7 +74,7 @@ function openStatus(idReg: string) {
 <template>
   <UDashboardPanel id="exam-status-list">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Status Examination"
         subtitle="Daftar registrasi & status pengerjaan item pemeriksaan"
       >
@@ -92,7 +92,7 @@ function openStatus(idReg: string) {
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

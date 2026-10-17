@@ -577,11 +577,11 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="master-grading" class="w-full min-w-0">
     <template #header>
-      <UDashboardNavbar title="Master Grade Pemeriksaan">
+      <AppNavbar title="Master Grade Pemeriksaan">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

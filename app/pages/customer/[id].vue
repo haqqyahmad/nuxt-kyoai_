@@ -304,7 +304,7 @@ const deleteAddress = async (id: string) => {
     class="h-screen flex flex-col overflow-y-auto"
   >
     <!-- NAVBAR -->
-    <UDashboardNavbar
+    <AppNavbar
       :title="customer ? shortName : 'Detail Customer'"
       class="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-accented"
     >
@@ -340,7 +340,7 @@ const deleteAddress = async (id: string) => {
           </UButton>
         </div>
       </template>
-    </UDashboardNavbar>
+    </AppNavbar>
 
     <!-- LOADING -->
     <div v-if="!customer" class="flex justify-center items-center h-64">

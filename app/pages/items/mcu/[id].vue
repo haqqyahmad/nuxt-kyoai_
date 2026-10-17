@@ -214,7 +214,7 @@ async function handleReload() {
 <template>
   <UDashboardPanel :id="`item-detail-${itemId}`">
     <template #header>
-      <UDashboardNavbar title="Detail Item">
+      <AppNavbar title="Detail Item">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -238,7 +238,7 @@ async function handleReload() {
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

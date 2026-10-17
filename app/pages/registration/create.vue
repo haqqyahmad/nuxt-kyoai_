@@ -272,7 +272,7 @@ async function submit() {
   <UDashboardPanel id="registration-create">
     <!-- ── Header ── -->
     <template #header>
-      <UDashboardNavbar title="Buat Registrasi Baru">
+      <AppNavbar title="Buat Registrasi Baru">
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -292,7 +292,7 @@ async function submit() {
             Simpan
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <!-- ── Body ── -->

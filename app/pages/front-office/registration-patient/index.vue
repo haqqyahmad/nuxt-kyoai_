@@ -579,7 +579,7 @@ watch(currentPage, (page) => {
 <template>
   <UDashboardPanel id="patient-appointments">
     <template #header>
-      <UDashboardNavbar title="Patient Appointment">
+      <AppNavbar title="Patient Appointment">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -593,7 +593,7 @@ watch(currentPage, (page) => {
             New Appointment
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

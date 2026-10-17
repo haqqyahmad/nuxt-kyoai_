@@ -122,7 +122,7 @@ function saveDraft() {
 <template>
   <UDashboardPanel id="create-leave-request">
     <template #header>
-      <UDashboardNavbar title="Pengajuan Cuti Baru">
+      <AppNavbar title="Pengajuan Cuti Baru">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -137,7 +137,7 @@ function saveDraft() {
             Kembali
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

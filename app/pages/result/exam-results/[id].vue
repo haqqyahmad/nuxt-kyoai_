@@ -282,14 +282,14 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="exam-result-detail">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         :title="isLabScope && result ? patientName : ((result as any)?.item?.name || 'Exam Result')"
         :subtitle="isLabScope && result ? `${labGroupCount} item` : patientName"
       >
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

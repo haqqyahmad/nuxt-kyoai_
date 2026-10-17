@@ -87,7 +87,7 @@ async function submitOverride() {
 <template>
   <UDashboardPanel id="pharmacy-encounter-detail">
     <template #header>
-      <UDashboardNavbar :title="encounter ? `Order Obat — ${encounter.queueCode}` : 'Order Obat'">
+      <AppNavbar :title="encounter ? `Order Obat — ${encounter.queueCode}` : 'Order Obat'">
         <template #leading>
           <UDashboardSidebarCollapse />
           <UButton
@@ -106,7 +106,7 @@ async function submitOverride() {
             icon="i-lucide-flag"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

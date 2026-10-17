@@ -328,7 +328,7 @@ onMounted(fetchLeaveDetail)
 <template>
   <UDashboardPanel id="leave-request-detail">
     <template #header>
-      <UDashboardNavbar title="Detail Permohonan Cuti">
+      <AppNavbar title="Detail Permohonan Cuti">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -343,7 +343,7 @@ onMounted(fetchLeaveDetail)
             Kembali
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

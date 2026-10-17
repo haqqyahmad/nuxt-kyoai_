@@ -10,11 +10,11 @@ if (route.path === '/services') {
 <template>
   <UDashboardPanel id="services" :ui="{ body: 'py-4 sm:py-6' }">
     <template #header>
-      <UDashboardNavbar title="Services">
+      <AppNavbar title="Services">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

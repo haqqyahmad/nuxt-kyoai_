@@ -223,7 +223,7 @@ function saveDescription() {
     class="h-screen flex flex-col overflow-y-auto bg-elevated/30"
   >
     <!-- NAVBAR -->
-    <UDashboardNavbar
+    <AppNavbar
       class="sticky top-0 z-50 bg-background/75 backdrop-blur-xl border-b border-default"
     >
       <!-- LEFT -->
@@ -271,7 +271,7 @@ function saveDescription() {
           </UButton>
         </div>
       </template>
-    </UDashboardNavbar>
+    </AppNavbar>
 
     <!-- CONTENT -->
     <div class="w-full max-w-5xl mx-auto p-4 sm:p-6 space-y-6">

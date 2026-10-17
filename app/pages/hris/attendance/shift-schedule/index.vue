@@ -141,11 +141,11 @@ function getDateRange() {
 <template>
   <UDashboardPanel id="attendance" class="min-h-0">
     <template #header>
-      <UDashboardNavbar title="Shift Schedule">
+      <AppNavbar title="Shift Schedule">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
