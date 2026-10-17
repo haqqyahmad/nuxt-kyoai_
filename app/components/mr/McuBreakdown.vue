@@ -14,15 +14,16 @@ import type { McuBreakdownCategory, McuExamItem, McuSampleCollection } from '~/c
 const props = defineProps<{
   examItems: McuExamItem[]
   sampleCollections: McuSampleCollection[]
+  updatedAt?: string | Date | null
 }>()
 
 const mcuCategories = computed(() =>
   buildMcuCategories(props.examItems, props.sampleCollections)
 )
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(value?: string | Date | null) {
   if (!value) return '-'
-  const d = new Date(value)
+  const d = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(d.getTime())) return '-'
   return d.toLocaleString('id-ID', {
     day: '2-digit',
@@ -77,12 +78,17 @@ function toggleGroup(key: string, attention: boolean) {
         <UIcon name="i-lucide-activity" class="text-primary" />
         MCU Breakdown
       </h3>
-      <UBadge
-        :label="`${mcuCategories.length} department`"
-        color="neutral"
-        variant="subtle"
-        size="sm"
-      />
+      <div class="flex items-center gap-2">
+        <span v-if="props.updatedAt" class="text-xs text-muted">
+          Updated {{ formatDateTime(props.updatedAt) }}
+        </span>
+        <UBadge
+          :label="`${mcuCategories.length} ${plural(mcuCategories.length, 'department')}`"
+          color="neutral"
+          variant="subtle"
+          size="sm"
+        />
+      </div>
     </div>
 
     <div class="divide-y divide-default">
@@ -158,7 +164,7 @@ function toggleGroup(key: string, attention: boolean) {
                       <p class="text-sm font-semibold text-highlighted">
                         {{ group.name }}
                         <UBadge
-                          :label="`${group.itemCount} item`"
+                          :label="`${group.itemCount} ${plural(group.itemCount, 'item')}`"
                           color="neutral"
                           variant="subtle"
                           size="xs"
@@ -170,6 +176,9 @@ function toggleGroup(key: string, attention: boolean) {
                       </p>
                       <p v-if="group.rejectReason" class="mt-0.5 text-xs text-error">
                         {{ group.rejectReason }}
+                      </p>
+                      <p v-if="group.earlierAttentionCount" class="mt-0.5 text-xs text-muted">
+                        +{{ group.earlierAttentionCount }} earlier rejected/rescheduled
                       </p>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
@@ -210,7 +219,7 @@ function toggleGroup(key: string, attention: boolean) {
                   Not Completed
                 </p>
                 <UBadge
-                  :label="`${cat.pendingItems.length} item`"
+                  :label="`${cat.pendingItems.length} ${plural(cat.pendingItems.length, 'item')}`"
                   color="neutral"
                   variant="subtle"
                   size="xs"
@@ -229,7 +238,7 @@ function toggleGroup(key: string, attention: boolean) {
                       <span class="text-xs font-semibold text-highlighted">
                         {{ group.label }}
                         <UBadge
-                          :label="`${group.items.length} item`"
+                          :label="`${group.items.length} ${plural(group.items.length, 'item')}`"
                           color="neutral"
                           variant="subtle"
                           size="xs"
@@ -295,7 +304,7 @@ function toggleGroup(key: string, attention: boolean) {
                   Completed
                 </p>
                 <UBadge
-                  :label="`${cat.completedItems.length} item`"
+                  :label="`${cat.completedItems.length} ${plural(cat.completedItems.length, 'item')}`"
                   color="success"
                   variant="subtle"
                   size="xs"
@@ -311,7 +320,7 @@ function toggleGroup(key: string, attention: boolean) {
                       <span class="text-xs font-semibold text-highlighted">
                         {{ group.label }}
                         <UBadge
-                          :label="`${group.items.length} item`"
+                          :label="`${group.items.length} ${plural(group.items.length, 'item')}`"
                           color="success"
                           variant="subtle"
                           size="xs"

@@ -28,6 +28,7 @@ export type McuExamItem = {
 export type McuSampleCollection = {
   id: string
   status: string
+  createdAt?: string | null
   collectedAt?: string | null
   receivedAt?: string | null
   rejectReason?: string | null
@@ -73,6 +74,7 @@ export type McuSampleGroup = {
   rejectReason: string | null
   itemCount: number
   needsAttention: boolean
+  earlierAttentionCount: number
   items: McuBreakdownItem[]
 }
 
@@ -224,13 +226,6 @@ export function getRescheduleVisitDate(examItems: McuExamItem[], examItemId: str
   return re?.rescheduleVisitDate?.slice(0, 10) ?? ''
 }
 
-const SAMPLE_STATUS_PRIORITY = ['REJECTED', 'RESCHEDULED', 'PENDING', 'COLLECTED', 'RECEIVED']
-function worstSampleStatus(statuses: string[]): string {
-  for (const s of SAMPLE_STATUS_PRIORITY) {
-    if (statuses.includes(s)) return s
-  }
-  return statuses[0] ?? 'PENDING'
-}
 function isAttentionSampleStatus(status: string): boolean {
   return status === 'REJECTED' || status === 'RESCHEDULED'
 }
@@ -252,7 +247,26 @@ export function buildSampleGroups(label: string, items: McuBreakdownItem[]): Mcu
   }
   const out: McuSampleGroup[] = []
   for (const [key, slot] of byType) {
-    const status = worstSampleStatus(slot.samples.map(s => s.status))
+    const recency = (sample: McuSampleCollection) => {
+      const value = sample.createdAt ?? sample.collectedAt ?? sample.receivedAt
+      const time = value ? new Date(value).getTime() : NaN
+      return Number.isNaN(time) ? -1 : time
+    }
+    const ordered = slot.samples
+      .map((sample, index) => ({ sample, index }))
+      .sort((a, b) => {
+        const diff = recency(a.sample) - recency(b.sample)
+        return diff !== 0 ? diff : a.index - b.index
+      })
+      .map(entry => entry.sample)
+
+    const latest = ordered[ordered.length - 1]
+    const status = latest?.status ?? 'PENDING'
+    const earlierAttentionCount = ordered
+      .slice(0, -1)
+      .filter(sample => isAttentionSampleStatus(sample.status))
+      .length
+
     const collected = slot.samples.map(s => s.collectedAt).filter((v): v is string => Boolean(v))
     const received = slot.samples.map(s => s.receivedAt).filter((v): v is string => Boolean(v))
     out.push({
@@ -261,9 +275,10 @@ export function buildSampleGroups(label: string, items: McuBreakdownItem[]): Mcu
       status,
       collectedAt: collected.length ? collected.reduce((a, b) => (a < b ? a : b)) : null,
       receivedAt: received.length ? received.reduce((a, b) => (a > b ? a : b)) : null,
-      rejectReason: slot.samples.find(s => s.rejectReason)?.rejectReason ?? null,
+      rejectReason: latest?.rejectReason ?? null,
       itemCount: slot.items.length,
       needsAttention: isAttentionSampleStatus(status) || slot.items.some(i => isAttentionItemStatus(i.status)),
+      earlierAttentionCount,
       items: slot.items
     })
   }
