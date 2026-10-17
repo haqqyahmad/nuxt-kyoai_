@@ -517,6 +517,7 @@ async function cancelPrescription(order: Prescription) {
 
 /* ── Encounter actions ── */
 const acting = ref(false)
+const isCompleteModalOpen = ref(false)
 async function callPatient() {
   acting.value = true
   try {
@@ -535,11 +536,12 @@ async function returnPatient() {
     acting.value = false
   }
 }
-async function completeEncounter() {
+async function completeEncounter(checkout = true) {
   acting.value = true
   try {
-    await api.patch(`/outpatient/encounters/${encounterId}/complete`)
+    await api.patch(`/outpatient/encounters/${encounterId}/complete`, { checkout })
     toast.add({ title: 'Berhasil', description: 'Encounter selesai', color: 'success' })
+    isCompleteModalOpen.value = false
     await refresh()
   } catch (err) {
     toast.add({ title: 'Gagal', description: (err as ApiError)?.response?.data?.message || 'Gagal', color: 'error' })
@@ -692,7 +694,7 @@ const draftTotal = computed(() => draftItems.value.reduce((sum, it) => sum + (Nu
 <template>
   <UDashboardPanel id="outpatient-encounter">
     <template #header>
-      <UDashboardNavbar :title="encounter ? `Encounter ${encounter.queueCode}` : 'Encounter'">
+      <AppNavbar :title="encounter ? `Encounter ${encounter.queueCode}` : 'Encounter'">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -704,7 +706,7 @@ const draftTotal = computed(() => draftItems.value.reduce((sum, it) => sum + (Nu
             variant="subtle"
           />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -800,7 +802,7 @@ const draftTotal = computed(() => draftItems.value.reduce((sum, it) => sum + (Nu
                     icon="i-lucide-check"
                     color="success"
                     :loading="acting"
-                    @click="completeEncounter"
+                    @click="isCompleteModalOpen = true"
                   />
                 </template>
                 <UButton
@@ -1879,6 +1881,13 @@ const draftTotal = computed(() => draftItems.value.reduce((sum, it) => sum + (Nu
       <OutpatientExamOrderModal
         v-model:open="examOrderOpen"
         @select="addExamItems"
+      />
+
+      <OutpatientCompleteEncounterModal
+        v-model:open="isCompleteModalOpen"
+        :loading="acting"
+        :label="encounter ? `${encounter.queueCode || '-'} · ${encounter.patient?.fullName || '-'}` : null"
+        @confirm="() => completeEncounter(true)"
       />
     </template>
   </UDashboardPanel>

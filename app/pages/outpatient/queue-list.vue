@@ -10,6 +10,8 @@ const activeTab = ref('active')
 const dateFilter = ref(new Date().toISOString().split('T')[0])
 const search = ref('')
 const actionId = ref<string | null>(null)
+const isCompleteModalOpen = ref(false)
+const completeTarget = ref<OutpatientEncounter | null>(null)
 
 const { data, refresh, pending } = await useAsyncData(
   'outpatient-queue',
@@ -44,11 +46,13 @@ async function returnToWaiting(row: OutpatientEncounter) {
   }
 }
 
-async function completeEncounter(row: OutpatientEncounter) {
+async function completeEncounter(row: OutpatientEncounter, checkout = true) {
   actionId.value = row.id
   try {
-    await api.patch(`/outpatient/encounters/${row.id}/complete`)
+    await api.patch(`/outpatient/encounters/${row.id}/complete`, { checkout })
     toast.add({ title: 'Berhasil', description: 'Konsultasi selesai', color: 'success' })
+    isCompleteModalOpen.value = false
+    completeTarget.value = null
     await refresh()
   } catch (err) {
     toast.add({ title: 'Gagal', description: (err as ApiError)?.response?.data?.message || 'Gagal', color: 'error' })
@@ -73,19 +77,21 @@ async function reopenEncounter(row: OutpatientEncounter) {
 function handleStatusAction(row: OutpatientEncounter, action: 'open' | 'return' | 'complete' | 'reopen') {
   if (action === 'open') openEncounter(row)
   else if (action === 'return') returnToWaiting(row)
-  else if (action === 'complete') completeEncounter(row)
-  else if (action === 'reopen') reopenEncounter(row)
+  else if (action === 'complete') {
+    completeTarget.value = row
+    isCompleteModalOpen.value = true
+  } else if (action === 'reopen') reopenEncounter(row)
 }
 </script>
 
 <template>
   <UDashboardPanel id="outpatient-queue">
     <template #header>
-      <UDashboardNavbar title="Outpatient Queue">
+      <AppNavbar title="Outpatient Queue">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -175,4 +181,11 @@ function handleStatusAction(row: OutpatientEncounter, action: 'open' | 'return' 
       </div>
     </template>
   </UDashboardPanel>
+
+  <OutpatientCompleteEncounterModal
+    v-model:open="isCompleteModalOpen"
+    :loading="actionId === completeTarget?.id"
+    :label="completeTarget ? `${completeTarget.queueCode || '-'} · ${completeTarget.patient?.fullName || '-'}` : null"
+    @confirm="completeTarget && completeEncounter(completeTarget, true)"
+  />
 </template>
