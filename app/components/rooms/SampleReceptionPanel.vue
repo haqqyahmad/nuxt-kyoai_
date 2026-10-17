@@ -93,10 +93,8 @@ function visibleSampleItems(sample: ReceptionSample): string[] {
 
 const columns: TableColumn<ReceptionSample>[] = [
   { id: 'patient', header: 'Pasien' },
-  { id: 'examDate', header: 'Tanggal Exam', meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } } },
-  { id: 'sample', header: 'Sample / Item' },
-  { id: 'collection', header: 'Collection', meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
-  { id: 'receive', header: 'Receive', meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
+  { id: 'examDate', header: 'Tanggal Exam' },
+  { id: 'sample', header: 'Sample' },
   { accessorKey: 'status', header: 'Status' },
   { id: 'action', header: 'Aksi' }
 ]
@@ -267,6 +265,96 @@ watch(isReceiveModalOpen, (open) => {
   if (!open && modalLockAcquired.value) void releaseModalLock()
 })
 
+function canReject(sample: ReceptionSample) {
+  return sample.status === 'COLLECTED'
+}
+
+const isRejectModalOpen = ref(false)
+const rejectTarget = ref<ReceptionSample | null>(null)
+const rejectReason = ref('')
+const rejectSubmitting = ref(false)
+
+function openRejectModal(sample: ReceptionSample) {
+  if (!canReject(sample)) return
+  rejectTarget.value = sample
+  rejectReason.value = ''
+  isRejectModalOpen.value = true
+}
+
+function closeRejectModal() {
+  isRejectModalOpen.value = false
+  rejectTarget.value = null
+  rejectReason.value = ''
+}
+
+async function submitReject() {
+  const target = rejectTarget.value
+  if (!target || rejectSubmitting.value) return
+  if (!rejectReason.value.trim()) {
+    toast.add({ title: 'Alasan wajib diisi', color: 'warning' })
+    return
+  }
+  rejectSubmitting.value = true
+  try {
+    await api.patch(`/medical/exams/queue/samples/${target.id}/reject`, {
+      rejectReason: rejectReason.value.trim()
+    })
+    toast.add({
+      title: 'Berhasil',
+      description: 'Sample ditolak.',
+      color: 'success'
+    })
+    closeRejectModal()
+    await loadSamples()
+  } catch (value: unknown) {
+    toast.add({
+      title: 'Gagal menolak sample',
+      description: getErrorMessage(value, 'Sample tidak dapat ditolak.'),
+      color: 'error'
+    })
+  } finally {
+    rejectSubmitting.value = false
+  }
+}
+
+const isDetailModalOpen = ref(false)
+const detailSample = ref<ReceptionSample | null>(null)
+
+function openDetailModal(sample: ReceptionSample) {
+  detailSample.value = sample
+  isDetailModalOpen.value = true
+}
+
+function closeDetailModal() {
+  isDetailModalOpen.value = false
+  detailSample.value = null
+}
+
+function sampleActions(sample: ReceptionSample) {
+  return [
+    {
+      label: 'Receive Sample',
+      icon: 'i-lucide-package-check',
+      color: 'success' as const,
+      disabled: !canReceive(sample),
+      onSelect: () => openReceiveModal(sample)
+    },
+    {
+      label: 'Reject Sample',
+      icon: 'i-lucide-ban',
+      color: 'error' as const,
+      disabled: !canReject(sample),
+      onSelect: () => openRejectModal(sample)
+    },
+    {
+      label: 'Detail Item',
+      icon: 'i-lucide-list-tree',
+      color: 'neutral' as const,
+      onSelect: () => openDetailModal(sample)
+    }
+  ]
+}
+
 watch([statusFilter, queueDateFrom, queueDateTo], () => {
   if (currentPage.value !== 1) currentPage.value = 1
   else void loadSamples()
@@ -300,7 +388,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UCard class="w-full max-w-none border border-default/80 shadow-sm">
+  <UCard class="w-full max-w-none border border-default/80 shadow-sm shrink-0">
     <template #header>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -366,7 +454,7 @@ onBeforeUnmount(() => {
       :description="error"
     />
 
-    <div class="max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-auto rounded-lg border border-default">
+    <div class="hidden md:block max-h-[calc(100vh-22rem)] min-h-80 w-full overflow-y-auto overflow-x-auto rounded-lg border border-default">
       <UTable
         :data="samples"
         :columns="columns"
@@ -374,10 +462,10 @@ onBeforeUnmount(() => {
         sticky
         class="w-full"
         :ui="{
-          base: 'w-full table-fixed',
+          base: 'w-full',
           thead: 'sticky top-0 z-10 [&>tr]:bg-elevated',
-          th: 'whitespace-nowrap',
-          td: 'align-top whitespace-normal break-words'
+          th: 'whitespace-nowrap lg:text-base',
+          td: 'align-top whitespace-normal break-words lg:text-base'
         }"
       >
         <template #patient-cell="{ row }">
@@ -401,48 +489,10 @@ onBeforeUnmount(() => {
             <p class="font-medium text-highlighted">
               {{ row.original.sampleType?.name || 'Sample' }}
             </p>
-            <div
-              v-if="sampleItemNames(row.original).length"
-              class="mt-1 flex flex-wrap gap-1"
-              :title="sampleItemNames(row.original).join(', ')"
-            >
-              <span
-                v-for="name in visibleSampleItems(row.original)"
-                :key="name"
-                class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
-              >
-                {{ name }}
-              </span>
-              <button
-                v-if="sampleItemNames(row.original).length > SAMPLE_ITEMS_VISIBLE"
-                type="button"
-                class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
-                @click="toggleSampleItems(row.original.id)"
-              >
-                {{ expandedSampleItems[row.original.id] ? 'Show less' : `+${sampleItemNames(row.original).length - SAMPLE_ITEMS_VISIBLE} more` }}
-              </button>
-            </div>
-            <p v-else class="text-xs text-muted">
-              -
-            </p>
             <p class="text-xs text-muted">
               {{ row.original.tubeCount ?? 1 }} tabung · {{ row.original.barcode || 'Tanpa barcode' }}
             </p>
           </div>
-        </template>
-
-        <template #collection-cell="{ row }">
-          <p>{{ row.original.collectedByUser?.name || '-' }}</p>
-          <p class="text-xs text-muted">
-            {{ formatDateTime(row.original.collectedAt) }}
-          </p>
-        </template>
-
-        <template #receive-cell="{ row }">
-          <p>{{ row.original.receivedByUser?.name || '-' }}</p>
-          <p class="text-xs text-muted">
-            {{ formatDateTime(row.original.receivedAt) }}
-          </p>
         </template>
 
         <template #status-cell="{ row }">
@@ -455,26 +505,49 @@ onBeforeUnmount(() => {
         </template>
 
         <template #action-cell="{ row }">
-          <div v-if="row.original.status === 'COLLECTED'">
+          <div class="hidden lg:flex items-center justify-end gap-1">
             <UButton
-              color="success"
-              variant="soft"
-              size="sm"
               icon="i-lucide-package-check"
+              color="success"
+              variant="ghost"
+              size="sm"
+              title="Receive Sample"
               :loading="actionLoading[row.original.id]"
               :disabled="!canReceive(row.original)"
               @click="openReceiveModal(row.original)"
-            >
-              Terima Sample
-            </UButton>
-            <p
-              v-if="row.original.takenBy != null && !isTakenByMe(row.original)"
-              class="mt-1 text-xs text-warning"
-            >
-              Diproses petugas lain
-            </p>
+            />
+            <UButton
+              icon="i-lucide-ban"
+              color="error"
+              variant="ghost"
+              size="sm"
+              title="Reject Sample"
+              :disabled="!canReject(row.original)"
+              @click="openRejectModal(row.original)"
+            />
+            <UButton
+              icon="i-lucide-list-tree"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              title="Detail Item"
+              @click="openDetailModal(row.original)"
+            />
           </div>
-          <span v-else class="text-xs text-muted">-</span>
+
+          <UDropdownMenu
+            class="lg:hidden"
+            :items="sampleActions(row.original)"
+            :content="{ align: 'end' }"
+          >
+            <UButton
+              icon="i-lucide-ellipsis-vertical"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              title="Aksi"
+            />
+          </UDropdownMenu>
         </template>
 
         <template #empty>
@@ -483,6 +556,133 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </UTable>
+    </div>
+
+    <!-- < md: card list -->
+    <div class="md:hidden mb-4">
+      <div v-if="loading" class="space-y-3">
+        <USkeleton class="h-32 rounded-lg" />
+        <USkeleton class="h-32 rounded-lg" />
+        <USkeleton class="h-32 rounded-lg" />
+      </div>
+
+      <div
+        v-else-if="!samples.length"
+        class="rounded-lg border border-dashed border-default py-10 text-center text-sm text-muted"
+      >
+        Tidak ada data sample.
+      </div>
+
+      <div v-else class="divide-y divide-default rounded-lg border border-default">
+        <div
+          v-for="row in samples"
+          :key="row.id"
+          class="space-y-3 p-4"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-medium text-highlighted truncate">
+                {{ formatPatient(row.queueEntry) }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ row.queueEntry?.registration?.id_reg || '-' }}
+                · {{ row.queueEntry?.queueCode || '-' }}
+              </p>
+            </div>
+            <UBadge
+              :color="row.status === 'RECEIVED' ? 'success' : (row.status === 'COLLECTED' ? 'info' : 'warning')"
+              variant="soft"
+              class="shrink-0"
+            >
+              {{ getSampleStatusLabel(row.status) }}
+            </UBadge>
+          </div>
+
+          <div>
+            <p class="font-medium text-highlighted">
+              {{ row.sampleType?.name || 'Sample' }}
+            </p>
+            <div
+              v-if="sampleItemNames(row).length"
+              class="mt-1 flex flex-wrap gap-1"
+            >
+              <span
+                v-for="name in visibleSampleItems(row)"
+                :key="name"
+                class="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted"
+              >
+                {{ name }}
+              </span>
+              <button
+                v-if="sampleItemNames(row).length > SAMPLE_ITEMS_VISIBLE"
+                type="button"
+                class="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                @click="toggleSampleItems(row.id)"
+              >
+                {{ expandedSampleItems[row.id] ? 'Show less' : `+${sampleItemNames(row).length - SAMPLE_ITEMS_VISIBLE} more` }}
+              </button>
+            </div>
+            <p class="text-xs text-muted mt-1">
+              {{ row.tubeCount ?? 1 }} tabung · {{ row.barcode || 'Tanpa barcode' }}
+            </p>
+          </div>
+
+          <p class="text-xs text-muted">
+            Exam Date: <span class="font-medium text-highlighted">{{ row.queueEntry?.registration?.examDate || '-' }}</span>
+          </p>
+
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p class="text-muted">Collection</p>
+              <p class="font-medium text-highlighted">
+                {{ row.collectedByUser?.name || '-' }}
+              </p>
+              <p class="text-muted">{{ formatDateTime(row.collectedAt) }}</p>
+            </div>
+            <div>
+              <p class="text-muted">Receive</p>
+              <p class="font-medium text-highlighted">
+                {{ row.receivedByUser?.name || '-' }}
+              </p>
+              <p class="text-muted">{{ formatDateTime(row.receivedAt) }}</p>
+            </div>
+          </div>
+
+          <div v-if="row.status === 'COLLECTED'" class="space-y-1">
+            <div class="flex gap-2">
+              <UButton
+                class="flex-1"
+                color="success"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-package-check"
+                :loading="actionLoading[row.id]"
+                :disabled="!canReceive(row)"
+                @click="openReceiveModal(row)"
+              >
+                Terima Sample
+              </UButton>
+              <UButton
+                class="flex-1"
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-ban"
+                :disabled="!canReject(row)"
+                @click="openRejectModal(row)"
+              >
+                Reject Sample
+              </UButton>
+            </div>
+            <p
+              v-if="row.takenBy != null && !isTakenByMe(row)"
+              class="text-xs text-warning"
+            >
+              Diproses petugas lain
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -597,6 +797,160 @@ onBeforeUnmount(() => {
           @click="confirmReceive"
         >
           Konfirmasi Terima Sample
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isDetailModalOpen"
+    title="Detail Item"
+    :ui="{ content: 'sm:max-w-2xl' }"
+  >
+    <template #body>
+      <div v-if="detailSample" class="space-y-5">
+        <UAlert
+          color="info"
+          variant="soft"
+          icon="i-lucide-user-round"
+          title="Detail sample"
+          :description="`${formatPatient(detailSample.queueEntry)} · ${detailSample.queueEntry?.registration?.id_reg || '-'} · ${detailSample.queueEntry?.queueCode || '-'}`"
+        />
+
+        <div class="grid gap-3 rounded-xl border border-default p-4 sm:grid-cols-2">
+          <div>
+            <p class="text-xs text-muted">
+              Jenis sample
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ detailSample.sampleType?.name || 'Sample' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">
+              Tabung / Barcode
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ detailSample.tubeCount ?? 1 }} / {{ detailSample.barcode || '-' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted">
+              Status
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ getSampleStatusLabel(detailSample.status) }}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="rounded-xl border border-default p-4">
+            <p class="text-xs text-muted">
+              Collection
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ detailSample.collectedByUser?.name || '-' }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ formatDateTime(detailSample.collectedAt) }}
+            </p>
+          </div>
+          <div class="rounded-xl border border-default p-4">
+            <p class="text-xs text-muted">
+              Receive
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ detailSample.receivedByUser?.name || '-' }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ formatDateTime(detailSample.receivedAt) }}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-2 text-sm font-semibold text-highlighted">
+            Item pemeriksaan terkait
+          </p>
+          <div v-if="detailSample.items?.length" class="space-y-2">
+            <div
+              v-for="item in detailSample.items"
+              :key="item.id"
+              class="flex items-center gap-3 rounded-lg border border-default px-3 py-2"
+            >
+              <UBadge color="neutral" variant="soft">
+                {{ item.item?.code || '-' }}
+              </UBadge>
+              <span class="text-sm text-highlighted">
+                {{ item.item?.name || 'Item pemeriksaan' }}
+              </span>
+            </div>
+          </div>
+          <p v-else class="text-sm text-muted">
+            Tidak ada item pemeriksaan terkait.
+          </p>
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end">
+        <UButton
+          color="neutral"
+          variant="soft"
+          @click="closeDetailModal"
+        >
+          Tutup
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isRejectModalOpen"
+    title="Reject Sample"
+    :ui="{ content: 'sm:max-w-lg' }"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="error"
+          variant="soft"
+          icon="i-lucide-ban"
+          title="Tolak sample"
+          :description="rejectTarget ? `${formatPatient(rejectTarget.queueEntry)} · ${rejectTarget.sampleType?.name || 'Sample'}` : ''"
+        />
+
+        <UFormField label="Alasan penolakan" required>
+          <UTextarea
+            v-model="rejectReason"
+            :rows="3"
+            placeholder="Masukkan alasan penolakan sample..."
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="rejectSubmitting"
+          @click="closeRejectModal"
+        >
+          Batal
+        </UButton>
+        <UButton
+          color="error"
+          icon="i-lucide-ban"
+          :loading="rejectSubmitting"
+          :disabled="!rejectReason.trim()"
+          @click="submitReject"
+        >
+          Reject Sample
         </UButton>
       </div>
     </template>

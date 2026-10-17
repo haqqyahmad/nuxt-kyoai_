@@ -3,6 +3,7 @@
 import type { Room, RoomForm } from '~/types/room'
 
 const toast = useToast()
+const router = useRouter()
 const { isSuperAdmin } = await useCurrentUser()
 
 const {
@@ -150,12 +151,83 @@ watch(polling, (enabled) => {
 onBeforeUnmount(() => {
   if (interval) clearInterval(interval)
 })
+
+type NavAction = {
+  key: string
+  label: string
+  icon: string
+  to?: string
+  onClick?: () => void
+}
+
+const secondaryActions = computed<NavAction[]>(() => {
+  const list: NavAction[] = []
+  if (isSuperAdmin.value) {
+    list.push({
+      key: 'audio',
+      label: 'Audio Mapping',
+      icon: 'i-lucide-audio-lines',
+      onClick: () => {
+        isAudioMappingOpen.value = true
+      }
+    })
+  }
+  list.push({
+    key: 'assignment',
+    label: 'Room Assignment',
+    icon: 'i-lucide-users-round',
+    to: '/rooms/assignments'
+  })
+  list.push({
+    key: 'queue',
+    label: 'Room Queue',
+    icon: 'i-lucide-clipboard-list',
+    to: '/rooms/queue'
+  })
+  list.push({
+    key: 'types',
+    label: 'Room Types',
+    icon: 'i-lucide-folder-cog',
+    to: '/rooms/types'
+  })
+  return list
+})
+
+const dropdownItems = computed(() => {
+  const items: Array<Record<string, unknown>> = secondaryActions.value.map(a => ({
+    label: a.label,
+    icon: a.icon,
+    onSelect: () => {
+      if (a.to) {
+        void router.push(a.to)
+      } else if (a.onClick) {
+        a.onClick()
+      }
+    }
+  }))
+
+  items.push({ type: 'separator' })
+  items.push({
+    label: 'Realtime',
+    icon: 'i-lucide-radio',
+    type: 'checkbox',
+    checked: polling.value,
+    onUpdateChecked: (value: boolean) => {
+      polling.value = value
+    },
+    onSelect: (e?: Event) => {
+      e?.preventDefault()
+    }
+  })
+
+  return items
+})
 </script>
 
 <template>
   <UDashboardPanel id="rooms">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Rooms"
         subtitle="Manage Rooms"
       >
@@ -164,51 +236,68 @@ onBeforeUnmount(() => {
         </template>
 
         <template #right>
-          <UButton
-            v-if="isSuperAdmin"
-            label="Audio Mapping"
-            icon="i-lucide-audio-lines"
-            color="neutral"
-            variant="soft"
-            @click="isAudioMappingOpen = true"
-          />
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Primary action -->
+            <UButton
+              icon="i-lucide-plus"
+              @click="openAddModal"
+            >
+              <span class="hidden sm:inline">Tambah Ruangan</span>
+            </UButton>
 
-          <UButton
-            to="/rooms/assignments"
-            label="Room Assignment"
-            icon="i-lucide-users-round"
-            color="neutral"
-            variant="soft"
-          />
+            <!-- lg+: secondary actions inline -->
+            <div class="hidden lg:flex items-center gap-1.5">
+              <UButton
+                v-if="isSuperAdmin"
+                label="Audio Mapping"
+                icon="i-lucide-audio-lines"
+                color="neutral"
+                variant="soft"
+                @click="isAudioMappingOpen = true"
+              />
+              <UButton
+                to="/rooms/assignments"
+                label="Room Assignment"
+                icon="i-lucide-users-round"
+                color="neutral"
+                variant="soft"
+              />
+              <UButton
+                to="/rooms/queue"
+                label="Room Queue"
+                icon="i-lucide-clipboard-list"
+                color="neutral"
+                variant="soft"
+              />
+              <UButton
+                to="/rooms/types"
+                label="Room Types"
+                icon="i-lucide-folder-cog"
+                color="neutral"
+                variant="soft"
+              />
+              <USwitch
+                v-model="polling"
+                label="Realtime"
+              />
+            </div>
 
-          <UButton
-            to="/rooms/queue"
-            label="Room Queue"
-            icon="i-lucide-clipboard-list"
-            color="neutral"
-            variant="soft"
-          />
-
-          <UButton
-            to="/rooms/types"
-            label="Room Types"
-            icon="i-lucide-folder-cog"
-            color="neutral"
-            variant="soft"
-          />
-
-          <USwitch
-            v-model="polling"
-            label="Realtime"
-          />
-
-          <UButton
-            label="Tambah Ruangan"
-            icon="i-lucide-plus"
-            @click="openAddModal"
-          />
+            <!-- < lg: overflow dropdown -->
+            <UDropdownMenu
+              class="lg:hidden"
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="soft"
+                title="More actions"
+              />
+            </UDropdownMenu>
+          </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

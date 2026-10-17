@@ -707,6 +707,15 @@ const historyItems = computed(() =>
 )
 
 const PRIORITY_RANK: Record<string, number> = { Emergency: 0, VIP: 1, Normal: 2 }
+const PATIENT_GENDER_META: Record<string, { icon: string, label: string, class: string }> = {
+  MALE: { icon: 'i-lucide-mars', label: 'Male', class: 'text-blue-500' },
+  FEMALE: { icon: 'i-lucide-venus', label: 'Female', class: 'text-pink-500' }
+}
+
+function patientGenderMeta(gender?: string | null) {
+  return PATIENT_GENDER_META[gender ?? ''] ?? null
+}
+
 const PRIORITY_BADGE_COLOR: Record<string, 'warning' | 'error' | 'neutral'> = {
   VIP: 'warning',
   Emergency: 'error',
@@ -1001,6 +1010,16 @@ function formatExamDate(dateString?: string | null) {
   return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium'
   }).format(new Date(year, month - 1, day))
+}
+
+function isRescheduledDate(row: QueueHistoryRow): boolean {
+  const exam = row.examDate ? row.examDate.slice(0, 10) : null
+  const reschedule = row.rescheduleDate ? row.rescheduleDate.slice(0, 10) : null
+  return Boolean(reschedule && (!exam || reschedule > exam))
+}
+
+function effectiveExamDate(row: QueueHistoryRow): string | null {
+  return isRescheduledDate(row) ? row.rescheduleDate : row.examDate
 }
 
 function formatPatientName(patient?: PatientName | null) {
@@ -1616,7 +1635,7 @@ watch(
 <template>
   <UDashboardPanel id="room-queue-history">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Room Queue"
         subtitle="Completed queue history and waiting patient list"
       >
@@ -1625,43 +1644,65 @@ watch(
         </template>
 
         <template #right>
-          <UBadge
-            class="hidden sm:inline-flex"
-            :color="activeRoomSession ? 'success' : 'neutral'"
-            variant="subtle"
-            :label="roomSessionPending ? 'Checking room session...' : getRoomSessionLabel()"
-          />
+          <div class="flex items-center justify-end gap-1.5">
+            <UBadge
+              class="hidden sm:inline-flex"
+              :color="activeRoomSession ? 'success' : 'neutral'"
+              variant="subtle"
+              :label="roomSessionPending ? 'Checking room session...' : getRoomSessionLabel()"
+            />
 
-          <UButton
-            icon="i-lucide-rotate-ccw"
-            color="neutral"
-            variant="soft"
-            :loading="assignmentPending || roomEnterActionLoading || roomExitActionLoading"
-            @click="openChangeRoomModal"
-          >
-            <span class="hidden lg:inline">Change Room</span>
-          </UButton>
+            <!-- Primary action -->
+            <UButton
+              icon="i-lucide-users-round"
+              color="primary"
+              variant="soft"
+              @click="openWaitingPatientsModal"
+            >
+              <span class="hidden sm:inline">View Waiting Patients</span>
+            </UButton>
 
-          <UButton
-            icon="i-lucide-users-round"
-            color="neutral"
-            variant="soft"
-            @click="openWaitingPatientsModal"
-          >
-            <span class="hidden lg:inline">View Waiting Patients</span>
-          </UButton>
+            <!-- lg+: secondary actions inline -->
+            <div class="hidden lg:flex items-center gap-1.5">
+              <UButton
+                icon="i-lucide-rotate-ccw"
+                color="neutral"
+                variant="soft"
+                :loading="assignmentPending || roomEnterActionLoading || roomExitActionLoading"
+                @click="openChangeRoomModal"
+              >
+                Change Room
+              </UButton>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                :loading="assignmentPending || historyPending || waitingPending"
+                @click="refreshAll"
+              >
+                Refresh
+              </UButton>
+            </div>
 
-          <UButton
-            icon="i-lucide-refresh-cw"
-            color="neutral"
-            variant="soft"
-            :loading="assignmentPending || historyPending || waitingPending"
-            @click="refreshAll"
-          >
-            <span class="hidden lg:inline">Refresh</span>
-          </UButton>
+            <!-- < lg: overflow dropdown -->
+            <UDropdownMenu
+              class="lg:hidden"
+              :items="[
+                { label: 'Change Room', icon: 'i-lucide-rotate-ccw', onSelect: () => openChangeRoomModal() },
+                { label: 'Refresh', icon: 'i-lucide-refresh-cw', onSelect: () => refreshAll() }
+              ]"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="soft"
+                title="More actions"
+              />
+            </UDropdownMenu>
+          </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -1935,119 +1976,192 @@ watch(
             </p>
           </div>
 
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full border-separate border-spacing-0">
-              <thead>
-                <tr class="bg-muted/30">
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Regist No.
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Patient
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Queue
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Exam Date
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Reschedule
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Room
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Item
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Status
-                  </th>
-                  <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in historyRows"
-                  :key="row.id"
-                  class="align-top hover:bg-muted/20"
-                >
-                  <td class="border-b border-default px-4 py-4">
-                    <div class="space-y-1">
-                      <p class="font-medium text-highlighted">
-                        {{ row.patientReg }}
+          <div v-else>
+            <!-- ≥ md: table -->
+            <div class="hidden md:block overflow-x-auto">
+              <table class="min-w-full border-separate border-spacing-0">
+                <thead>
+                  <tr class="bg-muted/30">
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Regist No.
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Patient
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Queue
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Exam Date
+                    </th>
+                    <th class="hidden lg:table-cell border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Reschedule
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Room
+                    </th>
+                    <th class="hidden lg:table-cell border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Item
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                      Status
+                    </th>
+                    <th class="border-b border-default px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in historyRows"
+                    :key="row.id"
+                    class="align-top hover:bg-muted/20"
+                  >
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="space-y-1">
+                        <p class="font-medium text-highlighted">
+                          {{ row.patientReg }}
+                        </p>
+                      </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="space-y-1">
+                        <p class="font-medium text-highlighted">
+                          {{ row.patientName }} ( {{ formatPatientMeta(row.patientGender, row.patientDob) }} )
+                        </p>
+                      </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="space-y-1">
+                        <p class="font-semibold text-highlighted">
+                          {{ row.queueCode }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          {{ row.queueType }}
+                        </p>
+                      </div>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm text-highlighted">
+                          {{ formatExamDate(effectiveExamDate(row)) }}
+                        </p>
+                        <UBadge
+                          v-if="isRescheduledDate(row)"
+                          label="Rescheduled"
+                          color="info"
+                          variant="subtle"
+                          size="xs"
+                        />
+                      </div>
+                    </td>
+
+                    <td class="hidden lg:table-cell border-b border-default px-4 py-4">
+                      <p class="text-sm text-highlighted">
+                        {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
                       </p>
-                    </div>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <div class="space-y-1">
-                      <p class="font-medium text-highlighted">
-                        {{ row.patientName }} ( {{ formatPatientMeta(row.patientGender, row.patientDob) }} )
-                      </p>
-                    </div>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <div class="space-y-1">
-                      <p class="font-semibold text-highlighted">
-                        {{ row.queueCode }}
+                    </td>
+
+                    <td class="border-b border-default px-4 py-4">
+                      <p class="text-sm text-highlighted">
+                        {{ row.roomName }}
                       </p>
                       <p class="text-xs text-muted">
-                        {{ row.queueType }}
+                        ( Tier {{ row.tierOrder }} )
                       </p>
-                    </div>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-highlighted">
-                      {{ formatExamDate(row.examDate) }}
-                    </p>
-                  </td>
-
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-highlighted">
-                      {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
-                    </p>
-                  </td>
-
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-highlighted">
-                      {{ row.roomName }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      ( Tier {{ row.tierOrder }} )
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <p class="text-sm text-highlighted">
-                      {{ row.itemSummary }}
-                    </p>
-                  </td>
-                  <td class="border-b border-default px-4 py-4">
-                    <UBadge
-                      :label="row.statusLabel"
-                      :color="row.statusColor"
-                      variant="subtle"
-                    />
-                  </td>
-                  <td class="border-b border-default px-4 py-4 text-right">
-                    <UDropdownMenu
-                      :items="getHistoryRowActions(row)"
-                      :content="{ align: 'end' }"
-                    >
-                      <UButton
-                        icon="i-lucide-ellipsis-vertical"
-                        color="neutral"
-                        variant="ghost"
+                    </td>
+                    <td class="hidden lg:table-cell border-b border-default px-4 py-4">
+                      <p class="text-sm text-highlighted">
+                        {{ row.itemSummary }}
+                      </p>
+                    </td>
+                    <td class="border-b border-default px-4 py-4">
+                      <UBadge
+                        :label="row.statusLabel"
+                        :color="row.statusColor"
+                        variant="subtle"
                       />
-                    </UDropdownMenu>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    </td>
+                    <td class="border-b border-default px-4 py-4 text-right">
+                      <UDropdownMenu
+                        :items="getHistoryRowActions(row)"
+                        :content="{ align: 'end' }"
+                      >
+                        <UButton
+                          icon="i-lucide-ellipsis-vertical"
+                          color="neutral"
+                          variant="ghost"
+                        />
+                      </UDropdownMenu>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- < md: card list -->
+            <div class="divide-y divide-default md:hidden">
+              <div
+                v-for="row in historyRows"
+                :key="row.id"
+                class="space-y-3 p-4"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-highlighted truncate">{{ row.patientReg }}</p>
+                    <p class="text-sm text-muted truncate">
+                      {{ row.patientName }} ( {{ formatPatientMeta(row.patientGender, row.patientDob) }} )
+                    </p>
+                  </div>
+                  <UBadge
+                    :label="row.statusLabel"
+                    :color="row.statusColor"
+                    variant="subtle"
+                    class="shrink-0"
+                  />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <span class="text-muted">
+                    Queue: <span class="font-medium text-highlighted">{{ row.queueCode }}</span>
+                    <span class="text-muted"> · {{ row.queueType }}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-muted">Exam Date:</span>
+                    <span class="font-medium text-highlighted">{{ formatExamDate(effectiveExamDate(row)) }}</span>
+                    <UBadge
+                      v-if="isRescheduledDate(row)"
+                      label="Rescheduled"
+                      color="info"
+                      variant="subtle"
+                      size="xs"
+                    />
+                  </span>
+                  <span class="text-muted">
+                    Room: <span class="font-medium text-highlighted">{{ row.roomName }}</span>
+                    <span class="text-muted"> ( Tier {{ row.tierOrder }} )</span>
+                  </span>
+                </div>
+
+                <div class="flex justify-end">
+                  <UDropdownMenu
+                    :items="getHistoryRowActions(row)"
+                    :content="{ align: 'end' }"
+                  >
+                    <UButton
+                      icon="i-lucide-ellipsis-vertical"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      title="Actions"
+                    />
+                  </UDropdownMenu>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div v-if="historyRows.length" class="flex items-center justify-between border-t border-default px-4 py-3">
+          <div v-if="historyRows.length" class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-3">
             <div class="flex items-center gap-2">
               <span class="text-xs text-muted">Rows per page</span>
               <USelect
@@ -2070,29 +2184,39 @@ watch(
         </UCard>
       </div>
 
-      <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-6xl', header: 'relative pr-16' }">
+      <UModal v-model:open="isWaitingModalOpen" :ui="{ content: 'sm:max-w-7xl' }">
         <template #header>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-lg font-semibold text-highlighted">
-              Patients in Waiting Room
-            </h3>
-            <p class="mt-0.5 text-sm text-muted">
-              List of patients still waiting. This can only be opened with a room assignment, except for super admin.
-            </p>
+          <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <h3 class="text-lg font-semibold text-highlighted">
+                Patients in Waiting Room
+              </h3>
+              <p class="mt-0.5 text-sm text-muted">
+                Patients still waiting in the active room.
+              </p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                :loading="waitingPending"
+                @click="() => void refreshWaiting()"
+              >
+                Refresh
+              </UButton>
+              <UButton
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                aria-label="Close"
+                @click="isWaitingModalOpen = false"
+              />
+            </div>
           </div>
-          <UButton
-            icon="i-lucide-refresh-cw"
-            color="neutral"
-            variant="soft"
-            class="absolute right-4 top-1/2 -translate-y-1/2"
-            :loading="waitingPending"
-            @click="() => void refreshWaiting()"
-          >
-            Refresh
-          </UButton>
         </template>
         <template #body>
-          <div class="space-y-4 rounded-2xl bg-default p-6 shadow-xl">
+          <div class="space-y-4 rounded-2xl bg-default p-4 shadow-xl">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4" :class="isSuperAdmin ? '' : 'lg:grid-cols-3'">
               <UFormField
                 v-if="isSuperAdmin"
@@ -2167,7 +2291,7 @@ watch(
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                       Reschedule
                     </th>
-                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
                       Item
                     </th>
                     <th class="border-b border-default px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -2204,6 +2328,14 @@ watch(
                           <p class="font-medium text-highlighted">
                             {{ row.patientName }}
                           </p>
+                          <UIcon
+                            v-if="patientGenderMeta(row.patientGender)"
+                            :name="patientGenderMeta(row.patientGender)?.icon ?? ''"
+                            :title="patientGenderMeta(row.patientGender)?.label"
+                            :aria-label="patientGenderMeta(row.patientGender)?.label"
+                            class="size-4 shrink-0"
+                            :class="patientGenderMeta(row.patientGender)?.class"
+                          />
                           <UBadge
                             v-if="isPriorityPatient(row.priorityRegist)"
                             :label="row.priorityRegist || ''"
@@ -2215,9 +2347,12 @@ watch(
                         <p class="text-xs text-muted">
                           RM {{ row.patientId }}
                         </p>
-                        <p v-if="formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone)" class="text-xs text-muted">
-                          {{ formatPatientMeta(row.patientGender, row.patientDob, row.patientPhone) }}
-                        </p>
+                        <UBadge
+                          :label="row.statusLabel"
+                          :color="row.statusColor"
+                          variant="subtle"
+                          size="sm"
+                        />
                       </div>
                     </td>
                     <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
@@ -2230,7 +2365,7 @@ watch(
                         {{ row.rescheduleDate ? formatExamDate(row.rescheduleDate) : '-' }}
                       </p>
                     </td>
-                    <td class="border-b border-default px-4 py-4">
+                    <td class="border-b border-default px-4 py-4 hidden lg:table-cell">
                       <p class="text-sm text-highlighted">
                         {{ row.itemSummary }}
                       </p>
@@ -2252,31 +2387,41 @@ watch(
                           Done
                         </p>
                       </template>
-                      <UBadge
-                        v-else
-                        :label="row.statusLabel"
-                        :color="row.statusColor"
-                        variant="subtle"
-                      />
+                      <p v-else class="text-xs text-muted">
+                        -
+                      </p>
                     </td>
                     <td class="border-b border-default px-4 py-4 text-right">
                       <div class="flex items-center justify-end gap-2">
-                        <UButton
-                          size="sm"
-                          color="neutral"
-                          variant="soft"
-                          icon="i-lucide-clipboard-list"
-                          @click="openQueueWork(row.id)"
-                        >
-                          View Queue Work
-                        </UButton>
                         <UBadge
-                          v-if="stageUsageLabel(row.stageId)"
+                          v-if="row.meal?.status === 'IN_PROGRESS'"
+                          as="button"
+                          type="button"
+                          color="info"
+                          variant="subtle"
+                          icon="i-lucide-loader"
+                          class="whitespace-nowrap cursor-pointer transition hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          :disabled="!row.meal.examId"
+                          :title="row.meal.examId ? 'Complete meal' : 'Meal exam not available'"
+                          @click="askCompleteMeal(row)"
+                        >
+                          Meal · {{ mealTimeRemaining(row) }}
+                        </UBadge>
+                        <UBadge
+                          v-else-if="stageUsageLabel(row.stageId)"
                           :label="stageUsageLabel(row.stageId)"
                           :color="stageUsageColor(row.stageId)"
                           variant="subtle"
                           icon="i-lucide-users"
                           class="whitespace-nowrap"
+                        />
+                        <UButton
+                          icon="i-lucide-clipboard-list"
+                          color="neutral"
+                          variant="ghost"
+                          size="sm"
+                          title="View Queue Work"
+                          @click="openQueueWork(row.id)"
                         />
                         <UButton
                           v-if="row.stageId && row.meal?.status !== 'IN_PROGRESS'"
@@ -2290,25 +2435,6 @@ watch(
                           @click="handleWaitingRowCall(row)"
                         >
                           Pick Patient
-                        </UButton>
-                        <UBadge
-                          v-else-if="row.meal?.status === 'IN_PROGRESS'"
-                          color="info"
-                          variant="subtle"
-                          class="whitespace-nowrap"
-                          icon="i-lucide-loader"
-                        >
-                          Meal · {{ mealTimeRemaining(row) }}
-                        </UBadge>
-                        <UButton
-                          v-if="row.meal?.status === 'IN_PROGRESS' && row.meal.examId"
-                          size="sm"
-                          color="success"
-                          variant="soft"
-                          icon="i-lucide-check"
-                          @click="askCompleteMeal(row)"
-                        >
-                          Complete Meal
                         </UButton>
                       </div>
                     </td>

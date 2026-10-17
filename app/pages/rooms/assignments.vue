@@ -3,6 +3,7 @@ import type { RoomAssignmentBatchRow, RoomAssignmentRecord } from '~/types/room-
 
 const toast = useToast()
 const api = useApi()
+const router = useRouter()
 
 const { session: mySession, enterRoomSession, exitRoomSession } = await useRoomSession()
 
@@ -624,12 +625,39 @@ onMounted(async () => {
   await refreshMyAssignment()
   await refreshActiveSessions()
 })
+
+type NavAction = {
+  key: string
+  label: string
+  icon: string
+  to: string
+}
+
+const secondaryActions = computed<NavAction[]>(() => {
+  const list: NavAction[] = []
+  if (isSuperAdmin.value) {
+    list.push({ key: 'rooms', label: 'Rooms', icon: 'i-lucide-door-open', to: '/rooms' })
+    list.push({ key: 'roomTypes', label: 'Room Types', icon: 'i-lucide-folder-cog', to: '/rooms/types' })
+  }
+  list.push({ key: 'queue', label: 'Room Queue', icon: 'i-lucide-clipboard-list', to: '/rooms/queue' })
+  return list
+})
+
+const dropdownItems = computed(() =>
+  secondaryActions.value.map(a => ({
+    label: a.label,
+    icon: a.icon,
+    onSelect: () => {
+      void router.push(a.to)
+    }
+  }))
+)
 </script>
 
 <template>
   <UDashboardPanel id="room-assignments">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Room Assignment"
         subtitle="Manage staff, rooms, and daily assignments"
       >
@@ -638,49 +666,66 @@ onMounted(async () => {
         </template>
 
         <template #right>
-          <UButton
-            v-if="isSuperAdmin"
-            to="/rooms"
-            label="Rooms"
-            icon="i-lucide-door-open"
-            color="neutral"
-            variant="soft"
-          />
-
-          <UButton
-            v-if="isSuperAdmin"
-            to="/rooms/types"
-            label="Room Types"
-            icon="i-lucide-folder-cog"
-            color="neutral"
-            variant="soft"
-          />
-
-          <UButton
-            to="/rooms/queue"
-            label="Room Queue"
-            icon="i-lucide-clipboard-list"
-            color="neutral"
-            variant="soft"
-          />
-
-          <UButton
-            v-if="activeSession"
-            :loading="exitRoomSaving"
-            label="Exit Room"
-            icon="i-lucide-log-out"
-            color="error"
-            variant="soft"
-            @click="handleExitRoom"
-          >
-            <template #trailing>
-              <span v-if="activeSession?.room" class="text-xs text-muted">
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Primary contextual: Exit Room (only when in a session) -->
+            <UButton
+              v-if="activeSession"
+              :loading="exitRoomSaving"
+              icon="i-lucide-log-out"
+              color="error"
+              variant="soft"
+              @click="handleExitRoom"
+            >
+              <span>Exit Room</span>
+              <span v-if="activeSession?.room" class="hidden sm:inline text-xs text-muted">
                 {{ activeSession.room.code }}
               </span>
-            </template>
-          </UButton>
+            </UButton>
+
+            <!-- lg+: secondary actions inline -->
+            <div class="hidden lg:flex items-center gap-1.5">
+              <UButton
+                v-if="isSuperAdmin"
+                to="/rooms"
+                label="Rooms"
+                icon="i-lucide-door-open"
+                color="neutral"
+                variant="soft"
+              />
+              <UButton
+                v-if="isSuperAdmin"
+                to="/rooms/types"
+                label="Room Types"
+                icon="i-lucide-folder-cog"
+                color="neutral"
+                variant="soft"
+              />
+              <UButton
+                to="/rooms/queue"
+                label="Room Queue"
+                icon="i-lucide-clipboard-list"
+                color="neutral"
+                variant="soft"
+              />
+            </div>
+
+            <!-- < lg: overflow dropdown -->
+            <UDropdownMenu
+              v-if="dropdownItems.length"
+              class="lg:hidden"
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="soft"
+                title="More actions"
+              />
+            </UDropdownMenu>
+          </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

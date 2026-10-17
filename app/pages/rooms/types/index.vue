@@ -3,6 +3,7 @@ import type { RoomTypeForm, RoomTypeRecord, RoomTypeStage } from '~/types/room'
 import { serviceTypeBadgeColor } from '~/constants/room-types'
 
 const toast = useToast()
+const router = useRouter()
 
 const {
   roomTypes,
@@ -280,7 +281,7 @@ async function handleDeleteStage() {
 <template>
   <UDashboardPanel id="room-types">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Room Types"
         subtitle="Master room type untuk room dan assignment"
       >
@@ -289,21 +290,43 @@ async function handleDeleteStage() {
         </template>
 
         <template #right>
-          <UButton
-            to="/rooms"
-            label="Rooms"
-            icon="i-lucide-door-open"
-            color="neutral"
-            variant="soft"
-          />
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Primary action -->
+            <UButton
+              icon="i-lucide-plus"
+              @click="openAddModal"
+            >
+              <span class="hidden sm:inline">Tambah Room Type</span>
+            </UButton>
 
-          <UButton
-            icon="i-lucide-plus"
-            label="Tambah Room Type"
-            @click="openAddModal"
-          />
+            <!-- sm+: secondary action inline -->
+            <UButton
+              to="/rooms"
+              label="Rooms"
+              icon="i-lucide-door-open"
+              color="neutral"
+              variant="soft"
+              class="hidden sm:inline-flex"
+            />
+
+            <!-- < sm: overflow dropdown -->
+            <UDropdownMenu
+              class="sm:hidden"
+              :items="[
+                { label: 'Rooms', icon: 'i-lucide-door-open', onSelect: () => router.push('/rooms') }
+              ]"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="soft"
+                title="More actions"
+              />
+            </UDropdownMenu>
+          </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -490,7 +513,7 @@ async function handleDeleteStage() {
 
               <div class="flex gap-2 pt-2">
                 <UButton
-                  block
+                  class="flex-1"
                   size="sm"
                   color="info"
                   variant="soft"
@@ -501,7 +524,7 @@ async function handleDeleteStage() {
                 </UButton>
 
                 <UButton
-                  block
+                  class="flex-1"
                   size="sm"
                   color="neutral"
                   variant="soft"

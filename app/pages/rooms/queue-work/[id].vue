@@ -1,8 +1,9 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import DentalExamWorkPanel from '~/components/rooms/DentalExamWorkPanel.vue'
 import PhysicalExamWorkPanel from '~/components/rooms/PhysicalExamWorkPanel.vue'
 import DoctorTestWorkPanel from '~/components/rooms/DoctorTestWorkPanel.vue'
 import TreadmillScreeningWorkPanel from '~/components/rooms/TreadmillScreeningWorkPanel.vue'
+import ClearanceQuestionnairePanel from '~/components/rooms/ClearanceQuestionnairePanel.vue'
 import { resolveRenderer } from '~/constants/exam-renderers'
 import HistoryTimeline from '~/pages/result/exam-results/components/HistoryTimeline.vue'
 import { useAudit } from '~/composables/useAudit'
@@ -2366,12 +2367,30 @@ async function handleSubmitItemAction() {
         notes: itemActionNote.value.trim() || null
       })
     } else if (actionType === 'retest') {
+      if (!itemActionReason.value.trim()) {
+        toast.add({
+          title: 'Reason is required',
+          description: 'Enter the retest reason before continuing.',
+          color: 'warning'
+        })
+        return
+      }
+
       await api.patch(`/medical/exams/queue/exam-item/${item.id}/retest`, {
         retestedBy: currentUserId.value,
-        retestReason: itemActionReason.value.trim() || 'Retest requested',
+        retestReason: itemActionReason.value.trim(),
         notes: itemActionNote.value.trim() || null
       })
     } else {
+      if (!itemActionNote.value.trim()) {
+        toast.add({
+          title: 'Note is required',
+          description: 'Enter the reschedule note before continuing.',
+          color: 'warning'
+        })
+        return
+      }
+
       await api.patch(`/medical/exams/queue/exam-item/${item.id}/reschedule`, {
         rescheduledBy: currentUserId.value,
         rescheduleNote: itemActionNote.value.trim() || null
@@ -2406,7 +2425,7 @@ async function handleSubmitItemAction() {
 <template>
   <UDashboardPanel id="room-queue-work">
     <template #header>
-      <UDashboardNavbar
+      <AppNavbar
         title="Room Work"
         :subtitle="roomQueueDetail?.queueEntry?.registration?.id_reg || 'Room staff examination detail'"
       >
@@ -2445,7 +2464,7 @@ async function handleSubmitItemAction() {
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -2548,16 +2567,6 @@ async function handleSubmitItemAction() {
               </div>
 
               <div class="flex w-full flex-col gap-3 lg:w-72">
-                <UButton
-                  class="lg:hidden"
-                  color="primary"
-                  variant="soft"
-                  icon="i-lucide-list-checks"
-                  @click="toggleDrawer()"
-                >
-                  Select Item
-                </UButton>
-
                 <!-- Medical Notes (allergy & disease) -->
                 <div v-if="patient" class="w-full rounded-lg bg-muted/30 p-3 text-left">
                   <div class="flex items-center justify-between gap-2">
@@ -2881,6 +2890,17 @@ async function handleSubmitItemAction() {
               />
             </UButton>
           </div>
+
+          <UButton
+            v-if="!isLabRoom && !isFullWidthWork"
+            class="lg:hidden w-full"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-list-checks"
+            @click="toggleDrawer()"
+          >
+            Select Item
+          </UButton>
 
           <div v-if="!isLabRoom" class="grid grid-cols-12 items-start gap-5">
             <div
@@ -3583,51 +3603,56 @@ async function handleSubmitItemAction() {
     <template #body>
       <div class="space-y-4">
         <UAlert
-          :color="(selectedItemActionType === 'skip' || selectedItemActionType === 'refuse') ? 'error' : 'warning'"
+          :color="(selectedItemActionType === 'skip' || selectedItemActionType === 'refuse') ? 'error' : selectedItemActionType === 'retest' ? 'info' : 'warning'"
           :title="selectedItemAction?.trxExamItem?.item?.name || 'Examination item'"
           :description="selectedItemActionType === 'skip'
             ? 'This item will be marked as skipped (cancelled by admin/staff).'
             : selectedItemActionType === 'refuse'
               ? 'This item will be marked as refused by the patient.'
               : selectedItemActionType === 'retest'
-                ? 'This item will be rescheduled for re-examination.'
+                ? 'This item will be marked for re-examination (retest).'
                 : 'This item will be rescheduled for the next visit.'"
         />
 
-        <div v-if="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse'" class="space-y-2">
-          <label class="block text-sm font-medium text-highlighted">
-            {{ selectedItemActionType === 'refuse' ? 'Refusal reason' : 'Skip reason' }}
-          </label>
+        <UFormField
+          v-if="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse'"
+          :label="selectedItemActionType === 'refuse' ? 'Refusal reason' : 'Skip reason'"
+          required
+        >
           <UTextarea
             v-model="itemActionReason"
-            :rows="4"
+            :rows="3"
+            class="w-full"
             :placeholder="selectedItemActionType === 'refuse'
               ? 'Example: patient does not want to be examined, other conditions...'
               : 'Example: sample unavailable, other conditions...'"
           />
-        </div>
+        </UFormField>
 
-        <div v-else-if="selectedItemActionType === 'retest'" class="space-y-2">
-          <label class="block text-sm font-medium text-highlighted">
-            Retest reason
-          </label>
+        <UFormField
+          v-else-if="selectedItemActionType === 'retest'"
+          label="Retest reason"
+          required
+        >
           <UTextarea
             v-model="itemActionReason"
-            :rows="4"
+            :rows="3"
+            class="w-full"
             placeholder="Example: invalid result, equipment issue, other conditions..."
           />
-        </div>
+        </UFormField>
 
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-highlighted">
-            Notes
-          </label>
+        <UFormField
+          :label="selectedItemActionType === 'reschedule' ? 'Reschedule note' : 'Notes (optional)'"
+          :required="selectedItemActionType === 'reschedule'"
+        >
           <UTextarea
             v-model="itemActionNote"
-            :rows="4"
+            :rows="3"
+            class="w-full"
             placeholder="Optional additional notes"
           />
-        </div>
+        </UFormField>
       </div>
     </template>
 
@@ -3644,6 +3669,7 @@ async function handleSubmitItemAction() {
         <UButton
           :color="selectedItemActionType === 'skip' || selectedItemActionType === 'refuse' ? 'error' : selectedItemActionType === 'retest' ? 'primary' : 'warning'"
           :loading="itemActionSubmitLoading"
+          :disabled="((selectedItemActionType === 'skip' || selectedItemActionType === 'refuse') && !itemActionReason.trim()) || (selectedItemActionType === 'reschedule' && !itemActionNote.trim()) || (selectedItemActionType === 'retest' && !itemActionReason.trim())"
           @click="handleSubmitItemAction"
         >
           {{ selectedItemActionType === 'skip' ? 'Skip Item' : selectedItemActionType === 'refuse' ? 'Refuse Item' : selectedItemActionType === 'retest' ? 'Retest Item' : 'Reschedule Item' }}
@@ -3660,20 +3686,20 @@ async function handleSubmitItemAction() {
       <div class="space-y-4">
         <UAlert
           color="error"
+          variant="soft"
+          icon="i-lucide-ban"
           :title="rejectSampleTarget?.sampleName || 'Sample'"
           description="This sample will be rejected. Examination items using this sample cannot be processed until the sample is re-collected."
         />
 
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-highlighted">
-            Rejection reason
-          </label>
+        <UFormField label="Rejection reason" required>
           <UTextarea
             v-model="rejectSampleReason"
-            :rows="4"
+            :rows="3"
             placeholder="Example: patient refused, hemolyzed sample, insufficient volume..."
+            class="w-full"
           />
-        </div>
+        </UFormField>
       </div>
     </template>
 
@@ -3691,6 +3717,7 @@ async function handleSubmitItemAction() {
           color="error"
           icon="i-lucide-ban"
           :loading="rejectSampleSubmitting"
+          :disabled="!rejectSampleReason.trim()"
           @click="submitRejectSample"
         >
           Reject Sample
