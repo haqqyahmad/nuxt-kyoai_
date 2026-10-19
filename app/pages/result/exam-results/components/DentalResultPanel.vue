@@ -77,6 +77,17 @@ function handleSaved() {
 
 const isSubmitted = computed(() => data.value?.status === 'SUBMITTED')
 const canEdit = computed(() => data.value?.canEdit === true)
+const submittedByOriginal = computed(() => data.value?.originalSubmittedByName || data.value?.submittedByName || 'user')
+const submittedByLast = computed(() => data.value?.lastSubmittedByName || data.value?.submittedByName || null)
+const showResubmitter = computed(() => isSubmitted.value && !!submittedByLast.value && submittedByLast.value !== submittedByOriginal.value)
+
+function formatDateTime(value?: string | null) {
+  if (!value) return undefined
+  const d = new Date(value)
+  return Number.isNaN(d.getTime())
+    ? undefined
+    : d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+}
 const canPrint = computed(() => props.resultStatus === 'DEPARTMENT_APPROVED')
 
 function printDental() {
@@ -104,8 +115,15 @@ function printDental() {
 
         <div class="flex flex-wrap items-center gap-2">
           <UBadge
-            :label="isSubmitted ? `Submitted by ${data?.submittedByName || 'user'}` : data?.status === 'DRAFT' ? 'Draft' : 'Ready'"
+            :label="isSubmitted ? `Submitted by ${submittedByOriginal}` : data?.status === 'DRAFT' ? 'Draft' : 'Ready'"
             :color="isSubmitted ? 'success' : 'warning'"
+            variant="soft"
+          />
+          <UBadge
+            v-if="showResubmitter"
+            :label="`Last re-submitted by ${submittedByLast}`"
+            :title="formatDateTime(data?.lastSubmittedAt)"
+            color="neutral"
             variant="soft"
           />
           <UBadge :label="approvalStatus.label" :color="approvalStatus.color" variant="soft" />

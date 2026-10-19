@@ -5,13 +5,15 @@ type AuditMeta = {
   departmentName?: string | null
   examItemId?: string | null
   itemName?: string | null
+  sampleTypeName?: string | null
+  sampleCollectionId?: string | null
 } | null
 
 export type DiffAuditEntry = {
   id: number
   entity: string
   entityId: string
-  scope?: 'item' | 'exam'
+  scope?: 'item' | 'exam' | 'sample'
   meta?: AuditMeta
   actorId: number | null
   actorName: string | null

@@ -33,6 +33,7 @@ export type MedicalReportListItem = {
 export type MedicalReportAction = {
   action: string
   actorId: number | null
+  actorName?: string | null
   reason: string | null
   payload: Record<string, unknown> | null
   createdAt: string

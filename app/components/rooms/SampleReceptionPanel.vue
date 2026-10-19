@@ -45,11 +45,6 @@ const samples = ref<ReceptionSample[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const actionLoading = ref<Record<string, boolean>>({})
-const isReceiveModalOpen = ref(false)
-const selectedSample = ref<ReceptionSample | null>(null)
-const receiveLoading = ref(false)
-const modalLockAcquired = ref(false)
-const releasingModalLock = ref(false)
 
 const statusFilter = ref('ALL')
 const today = new Date().toISOString().slice(0, 10)
@@ -179,7 +174,7 @@ function getErrorMessage(value: unknown, fallback: string) {
   return fallback
 }
 
-async function openReceiveModal(sample: ReceptionSample) {
+async function receiveSample(sample: ReceptionSample) {
   if (!canReceive(sample)) {
     toast.add({
       title: 'Sample sedang diproses',
@@ -188,68 +183,16 @@ async function openReceiveModal(sample: ReceptionSample) {
     })
     return
   }
+  if (actionLoading.value[sample.id]) return
 
   actionLoading.value = { ...actionLoading.value, [sample.id]: true }
   try {
-    modalLockAcquired.value = isTakenByMe(sample)
-    if (sample.takenBy == null) {
-      await api.patch(`/medical/exams/queue/samples/${sample.id}/take`)
-      modalLockAcquired.value = true
-    }
-
-    const response = await api.get(`/medical/exams/queue/samples/receive/${sample.id}`)
-    selectedSample.value = (response.data?.data ?? response.data) as ReceptionSample
-    isReceiveModalOpen.value = true
-  } catch (value: unknown) {
-    if (modalLockAcquired.value) {
-      await api.patch(`/medical/exams/queue/samples/${sample.id}/release`).catch(() => undefined)
-      modalLockAcquired.value = false
-    }
-    toast.add({
-      title: 'Gagal membuka detail sample',
-      description: getErrorMessage(value, 'Sample mungkin sudah diproses petugas lain.'),
-      color: 'error'
-    })
-    await loadSamples()
-  } finally {
-    actionLoading.value = { ...actionLoading.value, [sample.id]: false }
-  }
-}
-
-async function releaseModalLock() {
-  if (!modalLockAcquired.value || !selectedSample.value || releasingModalLock.value) return
-
-  releasingModalLock.value = true
-  try {
-    await api.patch(`/medical/exams/queue/samples/${selectedSample.value.id}/release`)
-  } finally {
-    modalLockAcquired.value = false
-    releasingModalLock.value = false
-    await loadSamples()
-  }
-}
-
-async function closeReceiveModal() {
-  isReceiveModalOpen.value = false
-  await releaseModalLock()
-  selectedSample.value = null
-}
-
-async function confirmReceive() {
-  if (!selectedSample.value || receiveLoading.value) return
-
-  receiveLoading.value = true
-  try {
-    await api.patch(`/medical/exams/queue/samples/${selectedSample.value.id}/receive`)
-    modalLockAcquired.value = false
-    isReceiveModalOpen.value = false
-    selectedSample.value = null
+    await api.patch(`/medical/exams/queue/samples/${sample.id}/receive`)
     toast.add({
       title: 'Berhasil',
       description: 'Sample diterima dan diverifikasi.',
       color: 'success'
     })
-    await loadSamples()
   } catch (value: unknown) {
     toast.add({
       title: 'Gagal menerima sample',
@@ -257,13 +200,10 @@ async function confirmReceive() {
       color: 'error'
     })
   } finally {
-    receiveLoading.value = false
+    actionLoading.value = { ...actionLoading.value, [sample.id]: false }
+    await loadSamples()
   }
 }
-
-watch(isReceiveModalOpen, (open) => {
-  if (!open && modalLockAcquired.value) void releaseModalLock()
-})
 
 function canReject(sample: ReceptionSample) {
   return sample.status === 'COLLECTED'
@@ -337,7 +277,7 @@ function sampleActions(sample: ReceptionSample) {
       icon: 'i-lucide-package-check',
       color: 'success' as const,
       disabled: !canReceive(sample),
-      onSelect: () => openReceiveModal(sample)
+      onSelect: () => receiveSample(sample)
     },
     {
       label: 'Reject Sample',
@@ -514,7 +454,7 @@ onBeforeUnmount(() => {
               title="Receive Sample"
               :loading="actionLoading[row.original.id]"
               :disabled="!canReceive(row.original)"
-              @click="openReceiveModal(row.original)"
+              @click="receiveSample(row.original)"
             />
             <UButton
               icon="i-lucide-ban"
@@ -658,7 +598,7 @@ onBeforeUnmount(() => {
                 icon="i-lucide-package-check"
                 :loading="actionLoading[row.id]"
                 :disabled="!canReceive(row)"
-                @click="openReceiveModal(row)"
+                @click="receiveSample(row)"
               >
                 Terima Sample
               </UButton>
@@ -704,103 +644,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </UCard>
-
-  <UModal
-    v-model:open="isReceiveModalOpen"
-    title="Konfirmasi Penerimaan Sample"
-    :ui="{ content: 'sm:max-w-2xl' }"
-  >
-    <template #body>
-      <div v-if="selectedSample" class="space-y-5">
-        <UAlert
-          color="info"
-          variant="soft"
-          icon="i-lucide-user-round"
-          title="Detail pasien"
-          :description="`${formatPatient(selectedSample.queueEntry)} · ${selectedSample.queueEntry?.registration?.patient?.PatientId || '-'} · ${selectedSample.queueEntry?.registration?.id_reg || '-'} · Queue ${selectedSample.queueEntry?.queueCode || '-'}`"
-        />
-
-        <div class="grid gap-3 rounded-xl border border-default p-4 sm:grid-cols-2">
-          <div>
-            <p class="text-xs text-muted">
-              Jenis sample
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ selectedSample.sampleType?.name || 'Sample' }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Tabung / Barcode
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ selectedSample.tubeCount ?? 1 }} / {{ selectedSample.barcode || '-' }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Dikumpulkan oleh
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ selectedSample.collectedByUser?.name || '-' }}
-            </p>
-          </div>
-          <div>
-            <p class="text-xs text-muted">
-              Waktu pengambilan
-            </p>
-            <p class="font-medium text-highlighted">
-              {{ formatDateTime(selectedSample.collectedAt) }}
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <p class="mb-2 text-sm font-semibold text-highlighted">
-            Item pemeriksaan terkait
-          </p>
-          <div v-if="selectedSample.items?.length" class="space-y-2">
-            <div
-              v-for="item in selectedSample.items"
-              :key="item.id"
-              class="flex items-center gap-3 rounded-lg border border-default px-3 py-2"
-            >
-              <UBadge color="neutral" variant="soft">
-                {{ item.item?.code || '-' }}
-              </UBadge>
-              <span class="text-sm text-highlighted">
-                {{ item.item?.name || 'Item pemeriksaan' }}
-              </span>
-            </div>
-          </div>
-          <p v-else class="text-sm text-muted">
-            Tidak ada item pemeriksaan terkait.
-          </p>
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <div class="flex w-full justify-end gap-2">
-        <UButton
-          color="neutral"
-          variant="soft"
-          :disabled="receiveLoading || releasingModalLock"
-          @click="closeReceiveModal"
-        >
-          Batal
-        </UButton>
-        <UButton
-          color="success"
-          icon="i-lucide-package-check"
-          :loading="receiveLoading"
-          @click="confirmReceive"
-        >
-          Konfirmasi Terima Sample
-        </UButton>
-      </div>
-    </template>
-  </UModal>
 
   <UModal
     v-model:open="isDetailModalOpen"

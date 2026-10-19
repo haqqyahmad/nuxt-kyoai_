@@ -96,9 +96,12 @@ const columns: TableColumn<MedicalReportListItem>[] = [
   },
   {
     id: 'exam',
-    header: 'Exam',
+    header: 'No. Reg',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
-      h('span', { class: 'font-mono text-sm font-semibold' }, row.original.examCode ?? '-'),
+      h('span', {
+        class: 'font-mono text-sm font-semibold',
+        title: row.original.examCode ? `Exam code: ${row.original.examCode}` : undefined
+      }, row.original.queueCode ?? '-'),
       h('span', { class: 'text-xs text-muted' }, formatDate(row.original.examDate))
     ])
   },
@@ -231,7 +234,7 @@ onMounted(() => loadList({ page: 1, limit: pageSize.value }))
         <div class="flex flex-wrap items-center gap-2">
           <UInput
             v-model="search"
-            placeholder="Search patient / exam code..."
+            placeholder="Search patient / no. reg..."
             icon="i-lucide-search"
             class="w-64"
           />

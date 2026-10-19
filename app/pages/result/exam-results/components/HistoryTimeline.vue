@@ -6,12 +6,13 @@ type AuditMeta = {
   departmentName?: string | null
   examItemId?: string | null
   itemName?: string | null
+  sampleTypeName?: string | null
 } | null
 
 type DiffAuditEntry = {
   id?: number
   entity?: string
-  scope?: 'item' | 'exam'
+  scope?: 'item' | 'exam' | 'sample'
   meta?: AuditMeta
   action?: string
   actorId?: number | null
@@ -90,12 +91,37 @@ function getActionDef(action?: string): ActionDef {
 }
 
 const SAMPLE_ACTIONS = new Set(['COLLECT_SAMPLE', 'RECEIVE_SAMPLE', 'REJECT_SAMPLE', 'RESCHEDULE_SAMPLE', 'TAKE_SAMPLE'])
-function getActionTitle(entry: DiffAuditEntry): string {
-  const base = getActionDef(entry.action).title
-  if (SAMPLE_ACTIONS.has(entry.action ?? '')) {
-    return `${base} by ${actorLabel(entry.actorName, entry.actorId)}`
+const SAMPLE_VERBS: Record<string, string> = {
+  COLLECT_SAMPLE: 'collected',
+  RECEIVE_SAMPLE: 'received',
+  REJECT_SAMPLE: 'rejected',
+  RESCHEDULE_SAMPLE: 'rescheduled',
+  TAKE_SAMPLE: 'taken'
+}
+
+type TitleSegment = { text?: string, chip?: string }
+
+function getTitleSegments(entry: DiffAuditEntry): TitleSegment[] {
+  const action = entry.action ?? ''
+  const actor = actorLabel(entry.actorName, entry.actorId)
+  if (SAMPLE_ACTIONS.has(action)) {
+    const sample = entry.meta?.sampleTypeName
+    const verb = SAMPLE_VERBS[action] ?? 'processed'
+    return sample
+      ? [{ text: 'Sample ' }, { chip: sample }, { text: ` ${verb} by ${actor}` }]
+      : [{ text: `Sample ${verb} by ${actor}` }]
   }
-  return base
+  const item = entry.meta?.itemName
+  if (action === 'APPROVE_ITEM') {
+    const by = (entry.actorName || entry.actorId != null) ? actor : 'department reviewer'
+    return item
+      ? [{ chip: item }, { text: ` approved by ${by}` }]
+      : [{ text: `Item approved by ${by}` }]
+  }
+  const title = getActionDef(action).title
+  return item
+    ? [{ chip: item }, { text: ` ${title}` }]
+    : [{ text: title }]
 }
 
 // ── Derived data ───────────────────────────────────────────
@@ -114,7 +140,7 @@ const filteredEntries = computed(() => {
       const valueText = e.payloadAfter
         ? Object.entries(e.payloadAfter).map(([k, v]) => `${k} ${v.from} ${v.to}`).join(' ')
         : ''
-      const searchable = [e.action, e.notes, actor, diffText, valueText].join(' ').toLowerCase()
+      const searchable = [e.action, e.notes, actor, diffText, valueText, e.meta?.itemName, e.meta?.sampleTypeName, e.meta?.departmentName].join(' ').toLowerCase()
       return searchable.includes(q)
     })
   }
@@ -125,12 +151,13 @@ const filteredEntries = computed(() => {
 type EntrySection = { label?: string, entries: DiffAuditEntry[] }
 type EntryGroup = { key: string, title: string, sub: string, count: number, sections: EntrySection[] }
 
-const examCollapsed = ref(true)
-function toggleExamCollapsed() {
-  examCollapsed.value = !examCollapsed.value
+const collapsedGroups = ref<Record<string, boolean>>({ item: false, sample: false, exam: true })
+function toggleGroup(key: string) {
+  collapsedGroups.value[key] = !collapsedGroups.value[key]
 }
+const isGroupCollapsed = (key: string) => collapsedGroups.value[key] === true
 
-const groupByScope = (scope: 'item' | 'exam') => filteredEntries.value.filter(e => (e.scope ?? 'item') === scope)
+const groupByScope = (scope: 'item' | 'exam' | 'sample') => filteredEntries.value.filter(e => (e.scope ?? 'item') === scope)
 
 const hasCtx = () => Boolean(props.currentDepartmentId || props.currentExamItemId)
 const matchesCtx = (e: DiffAuditEntry) => {
@@ -149,10 +176,12 @@ const groups = computed<EntryGroup[]>(() => {
   }
   const out: EntryGroup[] = []
   const item = groupByScope('item')
+  const sample = groupByScope('sample')
   const examAll = groupByScope('exam')
   const exam = hasCtx() ? examAll.filter(e => e.meta != null && matchesCtx(e)) : examAll
   const general = hasCtx() ? examAll.filter(e => e.meta == null) : []
   if (item.length) out.push({ key: 'item', title: 'Item History', sub: 'Actions for this examination item.', count: item.length, sections: [{ entries: item }] })
+  if (sample.length) out.push({ key: 'sample', title: 'Sample History', sub: 'Collection, reception, rejection, and reschedule events for samples in this examination.', count: sample.length, sections: [{ entries: sample }] })
   const sections: EntrySection[] = []
   if (exam.length) sections.push({ entries: exam })
   if (general.length) sections.push({ label: 'General', entries: general })
@@ -168,9 +197,6 @@ const groups = computed<EntryGroup[]>(() => {
   return out
 })
 
-const isExamGroup = (key: string) => key === 'exam'
-
-// ── Helpers ────────────────────────────────────────────────
 function formatDate(dateString?: string | null) {
   if (!dateString) return { date: '-', time: '-' }
   const d = new Date(dateString)
@@ -320,11 +346,11 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                   {{ group.sub }}
                 </div>
               </div>
-              <button v-if="isExamGroup(group.key)" class="ht-section-toggle" @click="toggleExamCollapsed">
-                {{ examCollapsed ? 'Show' : 'Hide' }}
+              <button v-if="group.title" class="ht-section-toggle" @click="toggleGroup(group.key)">
+                {{ isGroupCollapsed(group.key) ? 'Show' : 'Hide' }}
               </button>
             </div>
-            <template v-if="!isExamGroup(group.key) || !examCollapsed">
+            <template v-if="!isGroupCollapsed(group.key)">
               <template v-for="(section, si) in group.sections" :key="si">
                 <div v-if="section.label" class="ht-subsection-head">
                   <span class="ht-subsection-title">{{ section.label }}</span>
@@ -350,7 +376,12 @@ function getStatusDiffs(entry: DiffAuditEntry) {
                     <div class="ht-card-head" @click="entry.id != null && toggleExpand(entry.id)">
                       <div>
                         <div class="ht-title-row">
-                          <span class="ht-card-title">{{ getActionTitle(entry) }}</span>
+                          <span class="ht-card-title">
+                            <template v-for="(seg, si) in getTitleSegments(entry)" :key="si">
+                              <span v-if="seg.chip" class="ht-badge ht-badge-blue">{{ seg.chip }}</span>
+                              <template v-else>{{ seg.text }}</template>
+                            </template>
+                          </span>
                           <span class="ht-badge" :class="isInputAction(entry.action) ? 'ht-badge-green' : 'ht-badge-gray'">
                             {{ getActionDef(entry.action).badge }}
                           </span>
@@ -536,6 +567,7 @@ function getStatusDiffs(entry: DiffAuditEntry) {
 .ht-badge-green { color: #72f4bc; background: #103428; border-color: #1a5b43; }
 .ht-badge-amber { color: #ffd47c; background: #382d16; border-color: #5f4c20; }
 .ht-badge-pink { color: #ff83c0; background: #351b2a; border-color: #613049; }
+.ht-badge-blue { color: #8fc0ff; background: #16283d; border-color: #2f4e72; }
 .ht-badge-gray { color: #bdc5c1; background: #252927; border-color: #3b413e; }
 
 /* ── Timeline ─────────────────────────────────────────────── */

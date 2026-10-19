@@ -226,8 +226,9 @@ function getStatusLabel(status?: string) {
 function getRowStatus(result: ExamResult) {
   const itemStatus = result.resultStatus
   if (!itemStatus) return result.departmentResultStatus || result.status || ''
-  // Item external yang belum disubmit → status external, bukan Ready generik.
-  if (result.isExternalResult && itemStatus !== 'SUBMITTED') {
+  // Item external: status assignment menang walau resultStatus sudah SUBMITTED
+  // (mis. item pernah disubmit internal lalu ditugaskan ke dokter luar).
+  if (result.isExternalResult) {
     if (result.externalStatus === 'PROCESSING') return 'EXTERNAL_PROCESSING'
     if (result.externalStatus === 'ASSIGNED') {
       return result.openRevision ? 'EXTERNAL_RETURNED' : 'EXTERNAL_ASSIGNED'
@@ -237,13 +238,13 @@ function getRowStatus(result: ExamResult) {
   if (itemStatus !== 'SUBMITTED') return itemStatus
 
   const departmentStatus = result.departmentResultStatus
-  // Sudah dikirim ke dokter: event level exam → berlaku semua item submitted.
-  if (departmentStatus === 'SUBMITTED_TO_DOCTOR') return 'SUBMITTED_TO_DOCTOR'
-  // Approval per item: badge "Approved" hanya untuk item yang benar di-approve.
-  if (result.itemApproved) return 'DEPARTMENT_APPROVED'
+  // Approval per item: badge "Approved"/"Sent to Doctor" hanya untuk item yang
+  // benar di-approve, walau department sudah DEPARTMENT_APPROVED/SUBMITTED_TO_DOCTOR.
+  if (result.itemApproved) {
+    return departmentStatus === 'SUBMITTED_TO_DOCTOR' ? 'SUBMITTED_TO_DOCTOR' : 'DEPARTMENT_APPROVED'
+  }
   const isLabRow = String(result.item?.department?.code ?? '').toUpperCase() === 'LAB'
-  // Non-LAB per-item: item SUBMITTED yang belum approved = Pending Approval
-  // (walau department sudah DEPARTMENT_APPROVED/SUBMITTED_TO_DOCTOR).
+  // Non-LAB per-item: item SUBMITTED yang belum approved = Pending Approval.
   if (!isLabRow) return 'SUBMITTED'
   // Item SUBMITTED di department LAB yang di-return: tandai sebagai "Dept Returned"
   // (menunggu dept resubmit) — bedakan dari item yang benar di-return.
@@ -281,12 +282,9 @@ function getQueryValue(value: unknown) {
 
 function isStatusMatchFilter(filter: string, status?: string | null) {
   const norm = (status || '').trim()
-  if (filter === 'completed') {
-    return ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(norm)
-  }
-  if (filter === 'pending') {
-    return ['pending', 'DRAFT', 'DEPARTMENT_REVIEW', 'RETURNED_TO_DEPARTMENT'].includes(norm)
-  }
+  const completed = ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(norm)
+  if (filter === 'completed') return completed
+  if (filter === 'pending') return !completed
   return true
 }
 
@@ -356,7 +354,7 @@ const filteredResults = computed(() => {
     }
 
     // Status filter
-    if (statusFilter.value !== 'all' && !isStatusMatchFilter(statusFilter.value, result.status)) {
+    if (statusFilter.value !== 'all' && !isStatusMatchFilter(statusFilter.value, getRowStatus(result))) {
       return false
     }
 
@@ -485,10 +483,6 @@ async function loadResults() {
 
     if (roomTypeFilter.value !== 'all') {
       params.roomTypeId = roomTypeFilter.value
-    }
-
-    if (statusFilter.value !== 'all') {
-      params.status = statusFilter.value
     }
 
     if (resultTypeFilter.value !== 'all') {

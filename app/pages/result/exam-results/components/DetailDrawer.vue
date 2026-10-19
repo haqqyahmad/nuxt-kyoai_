@@ -171,6 +171,16 @@ type ExamResultDetail = {
   sampleImpacts?: SampleImpact[]
   sampleBlocked?: boolean
   sampleBlockedReason?: string | null
+  skippedItems?: Array<{
+    id: string
+    name?: string | null
+    code?: string | null
+    workStatus?: string | null
+    sampleName?: string | null
+    sampleCode?: string | null
+    sampleCollectionId?: string | null
+  }>
+  sampleCollectionIds?: string[]
   workHistory?: WorkHistoryEvent[]
   checkinAt?: string | null
   completedAt?: string | null
@@ -217,6 +227,37 @@ const resultItemsLabel = computed(() => {
 })
 
 const externalContextOpen = ref(true)
+
+// Ringkasan item yang dilewati (sample ditolak/skip), dikelompokkan per sample:
+// "Urin (URINE) — Macroscopic Urine Lengkap, Microscopic Urin Lengkap"
+// Maks 3 nama per sample; sisanya di balik tombol Show all.
+const SKIPPED_ITEMS_VISIBLE = 3
+const skippedItemsExpanded = ref(false)
+const skippedGroups = computed(() => {
+  const groups = new Map<string, string[]>()
+  for (const item of props.result?.skippedItems ?? []) {
+    const sample = item.sampleName
+      ? (item.sampleCode ? `${item.sampleName} (${item.sampleCode})` : item.sampleName)
+      : 'Unknown sample'
+    const label = item.name || item.code || item.id
+    groups.set(sample, [...(groups.get(sample) ?? []), label])
+  }
+  return [...groups.entries()].map(([sample, items]) => ({ sample, items }))
+})
+const skippedTotal = computed(() =>
+  skippedGroups.value.reduce((sum, group) => sum + group.items.length, 0)
+)
+const hasHiddenSkippedItems = computed(() =>
+  skippedGroups.value.some(group => group.items.length > SKIPPED_ITEMS_VISIBLE)
+)
+const visibleSkippedGroups = computed(() =>
+  skippedGroups.value.map((group) => {
+    const items = skippedItemsExpanded.value
+      ? group.items
+      : group.items.slice(0, SKIPPED_ITEMS_VISIBLE)
+    return { sample: group.sample, items, hiddenCount: group.items.length - items.length }
+  })
+)
 
 const api = useApi()
 const toast = useToast()
@@ -446,7 +487,7 @@ const auditCtxItemId = computed(() => {
   if (Array.isArray(r?.items) && r.items.length) return null
   return r?.id ?? null
 })
-const tagScope = (rows: DiffAuditEntry[], scope: 'item' | 'exam') => rows.map(row => ({ ...row, scope }))
+const tagScope = (rows: DiffAuditEntry[], scope: 'item' | 'exam' | 'sample') => rows.map(row => ({ ...row, scope }))
 async function fetchAllAudit() {
   if (!props.result?.id) {
     resetAudit()
@@ -460,13 +501,26 @@ async function fetchAllAudit() {
     const examItemIds = props.result.items?.length
       ? props.result.items.map(item => item.id)
       : [props.result.id]
+    const sampleCollectionIds = props.result.sampleCollectionIds
+      ?? props.result.sampleImpacts?.map(impact => impact.collectionId).filter(Boolean)
+      ?? (props.result.sampleImpact?.collectionId ? [props.result.sampleImpact.collectionId] : [])
 
-    const [roomLogs, externalLogs, examLogs, trxExamItemLogs] = await Promise.all([
+    const itemNameById = new Map<string, string>()
+    for (const item of props.result.items ?? []) {
+      if (item.id && item.item?.name) itemNameById.set(String(item.id), item.item.name)
+    }
+    const withItemName = (rows: DiffAuditEntry[], itemId: string | null) => rows.map((row) => {
+      const itemName = (itemId ? itemNameById.get(String(itemId)) : null) ?? row.meta?.itemName ?? null
+      if (!itemName && !itemId) return row
+      return { ...row, meta: { ...(row.meta ?? {}), itemName, examItemId: itemId ?? row.meta?.examItemId ?? null } }
+    })
+
+    const [roomLogs, externalLogs, examLogs, trxExamItemLogs, sampleLogs] = await Promise.all([
       Promise.all(
         examItemIds.map((id: string) =>
           api
             .get(`/audit/RoomExamItem/${id}`)
-            .then(r => r.data?.data ?? [])
+            .then(r => withItemName(r.data?.data ?? [], id))
             .catch(() => [])
         )
       ).then(rows => rows.flat()),
@@ -474,7 +528,7 @@ async function fetchAllAudit() {
         examItemIds.map((id: string) =>
           api
             .get(`/audit/ExternalResultAssignment/${id}`)
-            .then(r => r.data?.data ?? [])
+            .then(r => withItemName(r.data?.data ?? [], id))
             .catch(() => [])
         )
       ).then(rows => rows.flat()),
@@ -488,6 +542,14 @@ async function fetchAllAudit() {
         examItemIds.map((id: string) =>
           api
             .get(`/audit/TrxExamItem/${id}`)
+            .then(r => withItemName(r.data?.data ?? [], id))
+            .catch(() => [])
+        )
+      ).then(rows => rows.flat()),
+      Promise.all(
+        sampleCollectionIds.map((id: string) =>
+          api
+            .get(`/audit/QueueSampleCollection/${id}`)
             .then(r => r.data?.data ?? [])
             .catch(() => [])
         )
@@ -497,7 +559,8 @@ async function fetchAllAudit() {
       ...tagScope(roomLogs, 'item'),
       ...tagScope(externalLogs, 'item'),
       ...tagScope(examLogs, 'exam'),
-      ...tagScope(trxExamItemLogs, 'item')
+      ...tagScope(trxExamItemLogs, 'item'),
+      ...tagScope(sampleLogs, 'sample')
     ].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     )
@@ -1892,6 +1955,7 @@ watch(
   () => props.result,
   () => {
     resultDrafts.value = {}
+    skippedItemsExpanded.value = false
     if (props.result) {
       seedDraftsFromExistingResults()
       if (props.result.id) {
@@ -3031,6 +3095,31 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="flex min-w-0 flex-col gap-5">
+              <UAlert
+                v-if="props.grouped && result?.skippedItems?.length"
+                class="order-0"
+                icon="i-lucide-info"
+                color="warning"
+                variant="soft"
+                title="Some items were skipped"
+              >
+                <template #description>
+                  <p>{{ skippedTotal }} item(s) cannot be processed because the sample was rejected/skipped:</p>
+                  <div class="mt-1 space-y-0.5">
+                    <p v-for="group in visibleSkippedGroups" :key="group.sample">
+                      <span class="font-semibold">{{ group.sample }}</span> — {{ group.items.join(', ') }}<span v-if="group.hiddenCount > 0"> (+{{ group.hiddenCount }} more)</span>
+                    </p>
+                  </div>
+                  <button
+                    v-if="hasHiddenSkippedItems"
+                    type="button"
+                    class="mt-1 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                    @click="skippedItemsExpanded = !skippedItemsExpanded"
+                  >
+                    {{ skippedItemsExpanded ? 'Show less' : 'Show all' }}
+                  </button>
+                </template>
+              </UAlert>
               <HistoryTimeline
                 class="order-2 mb-4 pb-2"
                 :loading="auditLoading"

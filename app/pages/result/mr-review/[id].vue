@@ -12,11 +12,16 @@ const reportId = String(route.params.id)
 const api = useApi()
 const toast = useToast()
 
-const { roles } = await useCurrentUser()
+const { roles, isSuperAdmin } = await useCurrentUser()
 const isMrReviewRole = computed(() =>
   roles.value.some(role => role.toLowerCase().replace(/[\s_-]+/g, '') === 'medicalrecord')
 )
+const canViewResultExamTabs = computed(() => isMrReviewRole.value || isSuperAdmin.value)
 const activeTab = ref<'result' | 'exam'>('result')
+const tabItems = [
+  { label: 'Result', value: 'result' },
+  { label: 'Exam', value: 'exam' }
+]
 const breakdown = ref<{ examItems: McuExamItem[], sampleCollections: McuSampleCollection[] }>({
   examItems: [],
   sampleCollections: []
@@ -64,9 +69,21 @@ const {
 const doctorResult = ref<DoctorResultResponse | null>(null)
 const doctorResultLoading = ref(false)
 
-function formatDate(d: string | null) {
+function formatDateOnly(d: string | null) {
   if (!d) return '-'
-  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatDateTime(d: string | null) {
+  if (!d) return '-'
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return '-'
+  const day = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${day}, ${hh}:${mm}`
 }
 
 function statusColor(status?: string) {
@@ -79,6 +96,57 @@ function examStatusLabel(status?: string | null) {
   if (!status) return '-'
   return EXAM_STATUS_LABEL[status] ?? status
 }
+
+const MR_ACTION_META: Record<string, { label: string, color: 'success' | 'warning' | 'primary' | 'info' | 'neutral' }> = {
+  SUBMIT: { label: 'Submitted', color: 'info' },
+  APPROVE: { label: 'Approved', color: 'success' },
+  RESUBMIT: { label: 'Resubmitted', color: 'info' },
+  VERIFY: { label: 'Verified', color: 'success' },
+  RETURN: { label: 'Returned', color: 'warning' },
+  RELEASE: { label: 'Released', color: 'primary' }
+}
+
+type ActionItemLike = {
+  action?: string
+  payload?: Record<string, unknown> | null
+}
+
+function actionMeta(action?: ActionItemLike) {
+  const step = (action?.payload as { step?: string } | null)?.step
+  if (action?.action === 'VERIFY' && step === 'start') {
+    return { label: 'Review Started', color: 'info' as const }
+  }
+  return MR_ACTION_META[action?.action ?? ''] ?? { label: action?.action ?? 'Unknown', color: 'neutral' as const }
+}
+
+function actorDisplay(action: { actorName?: string | null, actorId?: number | null }) {
+  return action.actorName || (action.actorId != null ? `User #${action.actorId}` : 'System')
+}
+
+type ReturnedPayloadItem = {
+  inputanId?: string
+  label?: string | null
+  itemCode?: string | null
+  department?: string | null
+  note?: string | null
+}
+
+function returnPayloadItems(action: { payload?: Record<string, unknown> | null }): ReturnedPayloadItem[] {
+  const items = (action.payload as { items?: ReturnedPayloadItem[] } | null)?.items
+  return Array.isArray(items) ? items : []
+}
+
+function submitSummary(action: { payload?: Record<string, unknown> | null }): string | null {
+  const p = action.payload as { finalGrade?: string | null, fitnessLevel?: string | null } | null
+  if (!p) return null
+  const parts = [
+    p.finalGrade ? `Grade: ${p.finalGrade}` : null,
+    p.fitnessLevel ? `Fitness: ${p.fitnessLevel}` : null
+  ].filter(Boolean)
+  return parts.length ? parts.join(' • ') : null
+}
+
+const orderedActions = computed(() => (detail.value?.actions ?? []).slice().reverse())
 
 const canVerify = computed(() => {
   const s = detail.value?.status
@@ -257,7 +325,7 @@ onMounted(loadAll)
 <template>
   <UDashboardPanel id="mr-review-detail" class="w-full min-w-0">
     <template #header>
-      <AppNavbar :title="`MR Review — ${detail?.examCode ?? '...'}`">
+      <AppNavbar :title="`MR Review — ${detail?.queueCode ?? '...'}`">
         <template #leading>
           <UDashboardSidebarCollapse />
           <UButton icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/result/mr-review')" />
@@ -291,7 +359,7 @@ onMounted(loadAll)
               size="lg"
               variant="subtle"
             />
-            <span class="text-sm text-muted">Exam: <strong class="font-mono">{{ detail.examCode }}</strong></span>
+            <span class="text-sm text-muted">No. Reg: <strong class="font-mono" :title="detail.examCode ? `Exam code: ${detail.examCode}` : undefined">{{ detail.queueCode ?? '-' }}</strong></span>
             <span v-if="detail.examStatus" class="text-sm text-muted">Status: {{ examStatusLabel(detail.examStatus) }}</span>
           </div>
           <div class="flex gap-2">
@@ -358,12 +426,6 @@ onMounted(loadAll)
             </div>
             <div>
               <div class="text-xs text-muted">
-                Queue Code
-              </div>
-              <div>{{ detail.queueCode ?? '-' }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-muted">
                 Company
               </div>
               <div>{{ detail.companyName ?? detail.company ?? '-' }}</div>
@@ -372,29 +434,23 @@ onMounted(loadAll)
               <div class="text-xs text-muted">
                 Exam Date
               </div>
-              <div>{{ formatDate(detail.examDate) }}</div>
+              <div>{{ formatDateOnly(detail.examDate) }}</div>
             </div>
           </div>
         </UCard>
 
         <div
-          v-if="isMrReviewRole"
-          class="flex flex-wrap gap-2 border-b border-default pb-4"
+          v-if="canViewResultExamTabs"
+          class="border-b border-default pb-4"
         >
-          <UButton
-            :variant="activeTab === 'result' ? 'solid' : 'outline'"
-            :color="activeTab === 'result' ? 'primary' : 'neutral'"
-            @click="setTab('result')"
-          >
-            Result
-          </UButton>
-          <UButton
-            :variant="activeTab === 'exam' ? 'solid' : 'outline'"
-            :color="activeTab === 'exam' ? 'primary' : 'neutral'"
-            @click="setTab('exam')"
-          >
-            Exam
-          </UButton>
+          <UTabs
+            :model-value="activeTab"
+            :items="tabItems"
+            :content="false"
+            variant="pill"
+            size="sm"
+            @update:model-value="(value) => setTab(String(value) as 'result' | 'exam')"
+          />
         </div>
 
         <div v-if="activeTab === 'exam'" class="flex flex-col gap-4">
@@ -606,14 +662,35 @@ onMounted(loadAll)
             No actions yet
           </div>
           <div v-else class="space-y-2">
-            <div v-for="(action, i) in detail.actions" :key="i" class="flex items-start gap-3 rounded border p-3">
-              <UBadge :label="action.action" :color="action.action === 'VERIFY' ? 'success' : action.action === 'RETURN' ? 'warning' : action.action === 'RELEASE' ? 'primary' : 'neutral'" variant="subtle" />
-              <div class="flex-1">
-                <div class="text-sm">
-                  {{ action.reason ?? '-' }}
+            <div v-for="(action, i) in orderedActions" :key="i" class="flex items-start gap-3 rounded border p-3">
+              <UBadge
+                :label="actionMeta(action).label"
+                :color="actionMeta(action).color"
+                variant="subtle"
+              />
+              <div class="flex-1 min-w-0">
+                <div v-if="action.reason" class="text-sm text-highlighted">
+                  {{ action.reason }}
                 </div>
+                <div v-if="submitSummary(action)" class="text-xs text-muted">
+                  {{ submitSummary(action) }}
+                </div>
+                <ul
+                  v-if="action.action === 'RETURN' && returnPayloadItems(action).length"
+                  class="mt-2 space-y-1 text-xs text-muted"
+                >
+                  <li
+                    v-for="(item, idx) in returnPayloadItems(action)"
+                    :key="idx"
+                    class="rounded bg-elevated/40 px-2 py-1"
+                  >
+                    <span class="font-medium text-highlighted">{{ item.label || item.inputanId }}</span>
+                    <span v-if="item.department" class="text-muted"> &mdash; {{ item.department }}</span>
+                    <span v-if="item.note" class="italic text-warning"> ({{ item.note }})</span>
+                  </li>
+                </ul>
                 <div class="mt-1 text-xs text-muted">
-                  {{ formatDate(action.createdAt) }} · Actor #{{ action.actorId ?? '?' }}
+                  {{ formatDateTime(action.createdAt) }} &bull; {{ actorDisplay(action) }}
                 </div>
               </div>
             </div>

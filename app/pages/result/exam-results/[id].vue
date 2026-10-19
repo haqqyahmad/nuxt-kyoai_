@@ -12,6 +12,8 @@ type DetailResult = NonNullable<
 type StructuredResult = DetailResult & {
   item?: (DetailResult['item'] & { rendererKey?: string | null }) | null
   doctorExam?: { rendererKey?: string | null } | null
+  skippedItems?: Array<{ id: string, name?: string | null, code?: string | null, workStatus?: string | null, sampleName?: string | null, sampleCode?: string | null, sampleCollectionId?: string | null }>
+  sampleCollectionIds?: string[]
 }
 
 type AuditEntry = {
@@ -80,6 +82,7 @@ async function loadLabGroup() {
     sortOrder?: number | null
     itemApproved?: boolean | null
     item?: (DetailResult['item'] & { sampleCode?: string | null, sampleName?: string | null }) | null
+    skippedItems?: Array<{ id: string, name?: string | null, code?: string | null, workStatus?: string | null, sampleName?: string | null, sampleCode?: string | null, sampleCollectionId?: string | null }>
   }>
   if (!rows.length) {
     error.value = 'Result not found or inaccessible.'
@@ -114,6 +117,10 @@ async function loadLabGroup() {
     }
   }
   const statuses = rows.map(row => row.resultStatus ?? 'NOT_READY')
+  const sampleCollectionIds = [...new Set([
+    ...rows.flatMap(row => row.sampleImpact?.collectionId ? [row.sampleImpact.collectionId] : []),
+    ...(first.skippedItems ?? []).map(item => item.sampleCollectionId).filter((id): id is string => Boolean(id))
+  ])]
   const allSubmitted = statuses.length > 0 && statuses.every(s => s === 'SUBMITTED')
   const resultStatus = allSubmitted
     ? 'SUBMITTED'
@@ -153,6 +160,8 @@ async function loadLabGroup() {
     canSubmitResult: rows.some(row => row.canSubmitResult),
     sampleBlocked: rows.some(row => row.sampleBlocked),
     sampleBlockedReason: rows.flatMap(row => row.sampleBlockedReason ? [row.sampleBlockedReason] : []).join('; ') || null,
+    skippedItems: first.skippedItems ?? [],
+    sampleCollectionIds,
     exam: { id: examId.value, results: mergedResults }
   } as StructuredResult
 }

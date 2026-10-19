@@ -58,6 +58,12 @@ export type DentalExamData = DentalPatient & {
   doctorName?: string | null
   doctorSip?: string | null
   submittedByName?: string | null
+  originalSubmittedByName?: string | null
+  originalSubmittedAt?: string | null
+  lastSubmittedByName?: string | null
+  lastSubmittedAt?: string | null
+  submitCount?: number
+  resubmitted?: boolean
   extraOral: string[]
   extraOralNote: string | null
   intraOral: string[]
