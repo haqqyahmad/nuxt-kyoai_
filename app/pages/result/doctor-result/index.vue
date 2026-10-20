@@ -159,10 +159,13 @@ const columns: TableColumn<ExamListItem>[] = [
   },
   {
     id: 'exam',
-    header: 'Exam',
+    header: 'No. Reg',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
-      h('span', { class: 'font-mono text-sm font-semibold' }, row.original.examCode ?? row.original.exam?.examCode ?? '-'),
-      h('span', { class: 'text-xs text-muted' }, row.original.examDate ?? row.original.queueCode ?? '-')
+      h('span', {
+        class: 'font-mono text-sm font-semibold',
+        title: row.original.examCode ?? row.original.exam?.examCode ?? undefined
+      }, row.original.queueCode ?? '-'),
+      h('span', { class: 'text-xs text-muted' }, row.original.examDate ?? '-')
     ])
   },
   {
