@@ -625,12 +625,12 @@ const externalStarting = ref(false)
 const externalDefaultsApplied = ref(false)
 
 function defaultSelectedValue(inputan: ExamInput): string | null {
+  const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
   const options = sortedOpsis(inputan)
-  const wanted = ['normal', 'no', 'sinus rhythm']
+  const wanted = ['normal', 'no', 'tidak ada', 'sinus rhythm', 'ctr < 50 %', 'ctr < 50%']
   for (const key of wanted) {
     const match = options.find(option =>
-      String(option.value ?? '').trim().toLowerCase() === key
-      || String(option.label ?? '').trim().toLowerCase() === key
+      normalize(option.value) === key || normalize(option.label) === key
     )
     if (match) return match.value
   }

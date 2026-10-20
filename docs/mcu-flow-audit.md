@@ -176,3 +176,5 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - Default juga diterapkan tepat setelah `Start Process` sukses dan saat membuka item yang sudah PROCESSING; nilai existing tidak ditimpa dan belum disimpan sampai Save Draft/Submit.
 - Banner "Default answers applied" ditampilkan sebagai pengingat review.
 - Verifikasi Playwright sebagai `dokter2@kyoai.com` pada ECG `4be357c6…`: Hypertrophy/Transition/ST/T/W/Arrhythmia/Q/P/Axis = Normal, Others = No, Heart Rhythm = Sinus Rhythm, tanpa console error. User internal tidak mendapat default.
+
+- Perluasan default Radiologi: normal-equivalent `Tidak Ada` dan `CTR < 50 %`. Verifikasi Thorax AP/PA `32184bf1…` sebagai `dokter2`: 14/14 field terisi (Cor `CTR < 50 %`, Nodul/Infiltrat `Tidak Ada`), tanpa error.
