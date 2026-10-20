@@ -47,7 +47,6 @@ const schema = z.object({
   password: z
     .string()
     .min(1, 'Password is required')
-    .min(8, 'Must be at least 8 characters')
 })
 
 type Schema = z.infer<typeof schema>

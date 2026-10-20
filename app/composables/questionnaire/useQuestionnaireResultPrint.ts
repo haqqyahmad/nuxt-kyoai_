@@ -37,9 +37,20 @@ export type QuestionnairePrintRow = {
   answers?: Array<PrintAnswer & { answered?: boolean }>
 }
 
+const PRINT_CSP = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; script-src \'none\'; frame-src \'none\'; object-src \'none\'; connect-src \'none\'; base-uri \'none\'; form-action \'none\'">'
+
 export function questionnaireDocumentLogoUrl(): string {
   if (!import.meta.client) return '/logo.png'
   return new URL('/logo.png', window.location.origin).toString()
+}
+
+function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function fmtLongDate(value?: string | null): string {
@@ -126,8 +137,8 @@ function legacyDocContent(row: QuestionnairePrintRow): string {
     ? answers.map(a => `
         <li class="question-item">
           <div class="flex-row">
-            <span>${a.questionText}</span>
-            <span class="answer">${a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-')}</span>
+            <span>${esc(a.questionText)}</span>
+            <span class="answer">${esc(a.answerText != null && a.answerText !== '' ? a.answerText : (a.optionText || a.optionId || '-'))}</span>
           </div>
         </li>
       `).join('')
@@ -137,14 +148,14 @@ function legacyDocContent(row: QuestionnairePrintRow): string {
               <div class="document-page">
                 <div class="section-title">DATA DIRI</div>
           <table class="data-diri-table">
-            <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td>${row.patientName} &nbsp;&nbsp;&nbsp; ( ${genderLabel(row.patientGender)} )</td></tr>
-            <tr><td class="label">Tgl, Bln, Tahun Lahir</td><td class="colon">:</td><td>${row.patientDob ? fmtLongDate(row.patientDob) : '-'} &nbsp;&nbsp;&nbsp; ( Umur : ${row.patientAge != null ? `${row.patientAge} Tahun` : '-'} )</td></tr>
-            <tr><td class="label">Perusahaan</td><td class="colon">:</td><td>${row.companyName || '-'}</td></tr>
-            <tr><td class="label">Status Pernikahan</td><td class="colon">:</td><td>${maritalLabel(row.patientMaritalStatus)}</td></tr>
-            <tr><td class="label">Alamat Rumah</td><td class="colon">:</td><td>${row.patientAddress || '-'}</td></tr>
-            <tr><td class="label">Telepon</td><td class="colon">:</td><td>${row.patientPhone || '-'}</td></tr>
-            <tr><td class="label">Posisi Pekerjaan</td><td class="colon">:</td><td>${row.patientPosition || '-'}</td></tr>
-            <tr><td class="label">No. RM / Registrasi</td><td class="colon">:</td><td>${row.patientCode || '-'} / ${row.registrationRef}</td></tr>
+            <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td>${esc(row.patientName)} &nbsp;&nbsp;&nbsp; ( ${esc(genderLabel(row.patientGender))} )</td></tr>
+            <tr><td class="label">Tgl, Bln, Tahun Lahir</td><td class="colon">:</td><td>${esc(row.patientDob ? fmtLongDate(row.patientDob) : '-')} &nbsp;&nbsp;&nbsp; ( Umur : ${esc(row.patientAge != null ? `${row.patientAge} Tahun` : '-')} )</td></tr>
+            <tr><td class="label">Perusahaan</td><td class="colon">:</td><td>${esc(row.companyName || '-')}</td></tr>
+            <tr><td class="label">Status Pernikahan</td><td class="colon">:</td><td>${esc(maritalLabel(row.patientMaritalStatus))}</td></tr>
+            <tr><td class="label">Alamat Rumah</td><td class="colon">:</td><td>${esc(row.patientAddress || '-')}</td></tr>
+            <tr><td class="label">Telepon</td><td class="colon">:</td><td>${esc(row.patientPhone || '-')}</td></tr>
+            <tr><td class="label">Posisi Pekerjaan</td><td class="colon">:</td><td>${esc(row.patientPosition || '-')}</td></tr>
+            <tr><td class="label">No. RM / Registrasi</td><td class="colon">:</td><td>${esc(row.patientCode || '-')} / ${esc(row.registrationRef)}</td></tr>
           </table>
 
           ${questionsHtml
@@ -165,16 +176,16 @@ function legacyDocContent(row: QuestionnairePrintRow): string {
 
             <div class="signature-area">
               <div class="signature-block">
-                <div class="sign-city">${extractBranchCity(row.branchName).toUpperCase()}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                <div class="sign-city">${esc(extractBranchCity(row.branchName).toUpperCase())}${row.branchName ? ', ' : ''}${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                 <div class="signature-space"></div>
                 <div class="sign-ttd">( ttd )</div>
-                <div class="sign-name">${row.patientName}</div>
+                <div class="sign-name">${esc(row.patientName)}</div>
               </div>
             </div>
           </div>
 
           <div class="document-footer">
-            <div>${row.patientName} &nbsp;|&nbsp; ${row.patientCode || '-'}</div>
+            <div>${esc(row.patientName)} &nbsp;|&nbsp; ${esc(row.patientCode || '-')}</div>
           </div>`
             : '<div>Belum ada jawaban tersimpan.</div>'}
               </div>`
@@ -186,7 +197,8 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
   return `
     <html lang="id">
       <head>
-        <title>${row.questionnaire_name} - ${row.patientName}</title>
+        ${PRINT_CSP}
+        <title>${esc(row.questionnaire_name)} - ${esc(row.patientName)}</title>
         <style>${PRINT_CSS}${printHeaderCss()}${sideImageCss}${pageSetupCss(row.patientName, row.patientCode || '-')}</style>
       </head>
       <body>
@@ -256,7 +268,8 @@ function templatePrintHtml(row: QuestionnairePrintRow, tpl: string): string {
   return `
     <html lang="id">
       <head>
-        <title>${t.ctx.documentTitle} - ${t.ctx.patientName}</title>
+        ${PRINT_CSP}
+        <title>${esc(t.ctx.documentTitle)} - ${esc(t.ctx.patientName)}</title>
         <style>${PRINT_CSS}</style>
         ${t.styles}
         <style>${printHeaderCss()}</style>
@@ -310,13 +323,14 @@ export function buildAllQuestionnaireResultsHtml(rows: QuestionnairePrintRow[]):
   const extraStyles = docs.map(d => d.extraStyles).filter(Boolean).join('\n')
   const bodyDocs = docs.map(d => `
     <div class="batch-doc">
-      <div class="batch-doc-title">${d.title}</div>
+      <div class="batch-doc-title">${esc(d.title)}</div>
       ${d.content}
     </div>`).join('')
   return `
     <html lang="id">
       <head>
-        <title>Questionnaire Results - ${first.patientName}</title>
+        ${PRINT_CSP}
+        <title>Questionnaire Results - ${esc(first.patientName)}</title>
         <style>${PRINT_CSS}</style>
         ${extraStyles}
         <style>${printHeaderCss()}</style>

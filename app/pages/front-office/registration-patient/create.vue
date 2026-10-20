@@ -469,12 +469,13 @@ async function selectPatient(p: Patient) {
   regForm.value.position = p.histories?.[0]?.position ?? ''
   fillFormsFromPatient(p)
 
-  // Autofill perusahaan dari company history terbaru pasien
+  // Autofill perusahaan dari company history terbaru pasien.
+  // Jangan kosongkan pilihan yang sudah diisi FO bila history tidak cocok.
   const companyName = p.histories?.[0]?.company ?? p.histories?.[0]?.companyName ?? ''
   const matchedCompany = companyName
     ? (companies.value ?? []).find(c => c.customerName?.toLowerCase() === companyName.toLowerCase())
     : null
-  regForm.value.companyId = matchedCompany ? String(matchedCompany.id) : ''
+  if (matchedCompany) regForm.value.companyId = String(matchedCompany.id)
 
   // Alur manual (bukan temp): ambil detail lengkap (termasuk alamat) bila belum ada
   if (!fromTemp.value && (!p.addresses || p.addresses.length === 0)) {
@@ -1107,7 +1108,17 @@ const missingRequiredFields = computed(() => {
 })
 
 async function submit() {
-  if (!canSubmit.value || submitting.value) return
+  if (submitting.value) return
+  if (!canSubmit.value) {
+    toast.add({
+      title: 'Lengkapi data dulu',
+      description: missingRequiredFields.value.length
+        ? `Field wajib belum lengkap: ${missingRequiredFields.value.join(', ')}`
+        : 'Beberapa field wajib belum lengkap.',
+      color: 'warning'
+    })
+    return
+  }
   submitting.value = true
 
   try {
@@ -2895,7 +2906,7 @@ async function cancel() {
                   color="primary"
                   icon="i-lucide-check"
                   :loading="submitting"
-                  :disabled="!canSubmit || submitting"
+                  :disabled="submitting"
                   @click="submit"
                 >
                   <span class="hidden sm:inline">Save & Create Registration</span>

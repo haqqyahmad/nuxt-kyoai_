@@ -6,12 +6,14 @@ const props = withDefaults(
     entity?: string
     title?: string
     description?: string
+    confirmLabel?: string
     loading?: boolean
   }>(),
   {
     open: false,
     count: 1,
     entity: 'item',
+    confirmLabel: 'Delete',
     loading: false
   }
 )
@@ -68,7 +70,7 @@ function onConfirm() {
         />
 
         <UButton
-          label="Delete"
+          :label="confirmLabel"
           color="error"
           variant="solid"
           :loading="loading"

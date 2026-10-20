@@ -1748,19 +1748,6 @@ function seedDraftsFromExistingResults() {
     if (existing?.valueCalculated != null && draft.valueCalculated === undefined) {
       draft.valueCalculated = String(existing.valueCalculated)
     }
-
-    // [Autoselect] Unfilled choice → default to first option (remains editable).
-    if (draft.valueSelected === undefined && inputan.inputType === 'selected') {
-      const firstOption = sortedOpsis(inputan)[0]
-      if (firstOption) draft.valueSelected = firstOption.value
-    }
-
-    // [Others] Unfilled "( Others )" text field → default to "-".
-    if (draft.valueString === undefined
-      && inputan.inputType === 'string'
-      && /\blain[- ]+lain\b/i.test(inputan.label)) {
-      draft.valueString = '-'
-    }
   }
 
   recomputeCalculatedDrafts(false)

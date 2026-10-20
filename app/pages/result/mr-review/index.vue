@@ -157,7 +157,7 @@ watch([statusFilter], () => {
   loadList({ status: currentStatusParam(), page: 1, limit: pageSize.value })
 })
 
-onMounted(() => loadList({ page: 1, limit: pageSize.value }))
+onMounted(() => loadList({ status: currentStatusParam(), page: 1, limit: pageSize.value }))
 </script>
 
 <template>

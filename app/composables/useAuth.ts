@@ -73,9 +73,7 @@ export const useAuth = () => {
     localStorage.removeItem(PERSIST_KEY)
     clearSessionMarker()
 
-    clearNuxtData('current-user')
-    clearNuxtData('permission-catalog')
-    clearNuxtData('room-session-me')
+    clearNuxtData()
   }
 
   const getToken = () => {
@@ -106,9 +104,7 @@ export const useAuth = () => {
       setSessionMarker()
     }
 
-    clearNuxtData('current-user')
-    clearNuxtData('permission-catalog')
-    clearNuxtData('room-session-me')
+    clearNuxtData()
   }
 
   const logout = async () => {

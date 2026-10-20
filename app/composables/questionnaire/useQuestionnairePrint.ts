@@ -251,10 +251,15 @@ export function printHeaderCss(): string {
 }
 
 export function printHeaderHtml(ctx: Pick<QuestionnairePrintContext, 'documentTitle' | 'patientName' | 'patientCode' | 'logoUrl'>): string {
+  const esc = (s: string) => (s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
   const logo = ctx.logoUrl
-    ? `<span class="ph-logo"><img src="${ctx.logoUrl}" alt="Gambar dokumen" /></span>`
+    ? `<span class="ph-logo"><img src="${esc(ctx.logoUrl)}" alt="Gambar dokumen" /></span>`
     : `<span class="ph-logo-text">LOGO</span>`
-  const esc = (s: string) => (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/</g, '&lt;')
   return `
     <div class="print-head">
       ${logo}

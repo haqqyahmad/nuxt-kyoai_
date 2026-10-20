@@ -14,6 +14,7 @@ const toast = useToast()
 
 type Patient = {
   id: string
+  registrationId: string
   id_reg: string
   patientCode: string
   patientName: string
@@ -57,6 +58,7 @@ type PatientApiPatient = {
 }
 
 type PatientApiItem = {
+  id: string
   id_reg: string
   statusRegistration?: string
   examDate: string
@@ -73,6 +75,7 @@ type PatientApiItem = {
 function mapPatient(item: PatientApiItem): Patient & { id_reg: string } {
   return {
     id: item.patient?.id,
+    registrationId: item.id,
     patientCode: item.patient?.patientCode,
     patientName: item.patient?.patientName,
 
@@ -161,35 +164,36 @@ const columnFilters = ref([
 const columnVisibility = ref()
 const rowSelection = ref({})
 
-const selectedDeleteId = ref<string | null>(null)
-async function deletePatient(id: string) {
+const selectedCancelId = ref<string | null>(null)
+async function cancelRegistration(registrationId: string) {
   try {
-    await api.delete(`/patient/${id}`)
+    await api.patch(`/registration/${registrationId}/cancel`, {})
 
     toast.add({
       title: 'Success',
-      description: 'Patient deleted successfully',
+      description: 'Registration cancelled successfully',
       color: 'success'
     })
 
     await refresh()
-  } catch {
+  } catch (err) {
+    const e = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
       title: 'Failed',
-      description: 'Failed to delete patient',
+      description: e?.response?.data?.message || e?.message || 'Failed to cancel registration',
       color: 'error'
     })
   }
 }
 
-async function handleDeleteById() {
-  if (!selectedDeleteId.value) return
+async function handleCancelById() {
+  if (!selectedCancelId.value) return
 
-  await deletePatient(selectedDeleteId.value)
-  selectedDeleteId.value = null
+  await cancelRegistration(selectedCancelId.value)
+  selectedCancelId.value = null
 }
 
-async function deleteSelectedPatients() {
+async function cancelSelectedRegistrations() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
@@ -197,27 +201,28 @@ async function deleteSelectedPatients() {
 
   try {
     await Promise.all(
-      selectedRows.map((row: Row<Patient>) => api.delete(`/patient/${row.original.id}`))
+      selectedRows.map((row: Row<Patient>) => api.patch(`/registration/${row.original.registrationId}/cancel`, {}))
     )
 
     toast.add({
       title: 'Success',
-      description: 'Patient data deleted successfully',
+      description: 'Selected registrations cancelled successfully',
       color: 'success'
     })
 
     table.value?.tableApi?.resetRowSelection()
     await refresh()
-  } catch {
+  } catch (err) {
+    const e = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
       title: 'Failed',
-      description: 'Failed to delete data',
+      description: e?.response?.data?.message || e?.message || 'Failed to cancel registrations',
       color: 'error'
     })
   }
 }
 
-const isDeleteModalOpen = ref(false)
+const isCancelModalOpen = ref(false)
 
 const isPatientEditOpen = ref(false)
 const patientEditId = ref<string | null>(null)
@@ -255,12 +260,13 @@ function getRowItems(row: Row<Patient>) {
       type: 'separator'
     },
     {
-      label: 'Delete patient',
-      icon: 'i-lucide-trash',
+      label: 'Cancel registration',
+      icon: 'i-lucide-ban',
       color: 'error',
+      disabled: row.original.statusRegistration === 'cancel',
       onSelect() {
-        selectedDeleteId.value = row.original.id
-        isDeleteModalOpen.value = true
+        selectedCancelId.value = row.original.registrationId
+        isCancelModalOpen.value = true
       }
     }
   ]
@@ -608,15 +614,18 @@ watch(currentPage, (page) => {
         <div class="flex flex-wrap items-center gap-1.5">
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-            entity="patient"
-            @confirm="deleteSelectedPatients"
+            entity="registration"
+            title="Cancel registrations?"
+            description="Registrasi yang dipilih akan dibatalkan. Riwayat pasien tetap tersimpan."
+            confirm-label="Cancel Registration"
+            @confirm="cancelSelectedRegistrations"
           >
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-              label="Delete"
+              label="Cancel"
               color="error"
               variant="subtle"
-              icon="i-lucide-trash"
+              icon="i-lucide-ban"
             >
               <template #trailing>
                 <UKbd>
@@ -710,10 +719,13 @@ watch(currentPage, (page) => {
         </div>
       </div>
       <BaseDeleteModal
-        v-model:open="isDeleteModalOpen"
+        v-model:open="isCancelModalOpen"
         :count="1"
-        entity="patient"
-        @confirm="handleDeleteById"
+        entity="registration"
+        title="Cancel registration?"
+        description="Registrasi akan dibatalkan. Riwayat pasien tetap tersimpan."
+        confirm-label="Cancel Registration"
+        @confirm="handleCancelById"
       />
       <PatientsEditModal
         v-model:open="isPatientEditOpen"

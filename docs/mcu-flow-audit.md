@@ -1,6 +1,6 @@
 # MCU Flow Audit — Registrasi Portal s/d MR Released & Checkout
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 Scope: `Portal/regist_portal` → `BE/db_express` → `FE/my-app`
 Sumber kontrak domain: `BE/db_express/docs/bmad/12-mcu-flow.md`
 
@@ -114,3 +114,26 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 | Lint/typecheck FE | `eslint` + `nuxt typecheck` | ✅ bersih |
 
 **Belum diuji (perlu UI/browser):** happy-path penuh via UI untuk `REG-20260926-01-0001` (check-in → ruangan → hasil → dept → dokter → MR → checkout) dan verifikasi visual tab Result/Exam di MR Review.
+
+---
+
+## 8. P0 Fix Batch � 2026-10-20 (pra-merge `feature/dev` ? `master`)
+
+### Diperbaiki
+- **Security**: escape nilai dinamis + CSP di print questionnaire (`useQuestionnaireResultPrint.ts`, `useQuestionnairePrint.ts`) dan CSS string print MR (`useMrPrintHtml.ts`); DTO minimal `patient-lookup` (tanpa `diseaseNotes`/data internal) + rate limit lookup 10/10 menit (`public-registration.service.js`, `public-registration.route.js`); Portal result memakai `PUBLIC_DECODE_URL` (`env.ts`, `result/+page.svelte`).
+- **Print/release**: `GET /mcu/exams/:id/print` & `print.pdf` hanya untuk report `RELEASED`; endpoint baru `GET /mcu/exams/:id/print/preview` (status `MR_VERIFIED`/`READY_TO_RELEASE`) dengan `internalNote` hanya di preview. FE MR: tombol `Preview MR` (watermark, tanpa auto-print) saat belum released, `Cetak PDF` hanya saat `RELEASED` (`MrMcuDetail.vue`, `useMrPrintHtml.ts`, `exam.service.js`, `exam.controller.js`, `mcu.route.js`).
+- **Audit/status**: `status=all` (atau status tak dikenal) ? 400 + validasi enum (`medical-report.service.js`); MR list memuat status awal yang benar (`mr-review/index.vue`); verify/release/return atomik + payload audit; return pasca-verify wajib pilih item + clear `mrVerifiedBy/At`.
+- **Locking**: grade dokter & hasil dental terkunci setelah `DOCTOR_APPROVED`; hasil dokter luar terkunci pasca-approve (`exam.service.js`, `dental.service.js`, `exam.repository.js`).
+- **Konsistensi**: item terminal dikecualikan dari validasi grading submit dokter; sample `RESCHEDULED`/`REJECTED` menyinkronkan `TrxExamItem.workStatus`; version snapshot menerima department `SUBMITTED_TO_DOCTOR`; kunjungan kembali tidak lagi men-set `TrxExam=completed`.
+- **FO/FE**: delete patient diganti **Cancel registration** (`PATCH /registration/:id/cancel`); pilihan company tidak lagi terhapus saat pilih pasien; submit menampilkan field yang kurang; autoselect opsi pertama & default `"-"` dihapus; `clearNuxtData()` global saat login/logout; validasi password login min 8 dihapus; jawaban kuesioner Portal retry 3� + antrean `pending_questionnaire_answers` + warning.
+
+### Verifikasi
+- `node --check` 10 file BE: OK.
+- `npm test` BE: 68 pass / 1 fail (pre-existing `checkout-eligibility` i18n expectation), tidak ada failure baru.
+- FE `npx vue-tsc --noEmit -p .nuxt/tsconfig.json`: EXIT=0.
+- Portal `svelte-check`: file yang diubah (env, result, registration) tanpa error; 80 error lama di halaman service/statis tidak terkait.
+
+### Belum dikerjakan / deferred
+- **Non-MCU/Outpatient (HOLD)**: reuse encounter `CANCELLED`/`DONE`, cancel reset registration, check-in atomik, `today()` UTC, history `statusIn`, `call` default doctor, permission FO, eligibility preview, picker `Open`.
+- Enforce `UserResultAccess` menyeluruh, four-eyes efektif di semua jalur approval, helper tunggal checkout list/detail, light revision map `id`, dan normalisasi timezone MCU/queue/exam/registration belum disentuh pada batch ini.
+- E2E UI penuh (Portal ? FO ? ruangan ? dokter ? MR ? checkout) belum dijalankan pada batch ini.

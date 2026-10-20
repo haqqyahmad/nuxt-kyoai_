@@ -1,6 +1,17 @@
 # Project Task Status
 
-Last updated: 2026-10-07
+Last updated: 2026-10-20
+
+## P0 Fix Batch - 2026-10-20 (pra-merge MCU)
+
+- Security print questionnaire & MR (escape + CSP), DTO minimal patient lookup + rate limit, Portal decode URL via env.
+- Print final hanya `RELEASED`; preview MR baru (`/print/preview`, watermark, tanpa download/auto-print, `internalNote` hanya preview).
+- MR verify/release/return atomik; `status=all` -> 400; return pasca-verify wajib item + clear verifikasi.
+- Lock grade dokter/dental/dokter luar pasca `DOCTOR_APPROVED`; item terminal dikecualikan dari gate grading.
+- Sample `RESCHEDULED`/`REJECTED` sinkron ke `TrxExamItem.workStatus`; version snapshot menerima `SUBMITTED_TO_DOCTOR`; kunjungan kembali tidak men-set exam completed.
+- FO: Cancel registration (bukan delete patient), company tidak terhapus, submit tidak silent, autoselect dihapus, cache lintas user, login tanpa min 8, jawaban kuesioner retry + warning.
+- Verifikasi: BE `npm test` 68/1 (pre-existing), FE `vue-tsc` EXIT=0, Portal file terkait bersih, `node --check` OK.
+- Detail & sisa deferred: `docs/mcu-flow-audit.md` section 8.
 
 ## Fixed — 2026-10-07: Doctor Result tak bisa di-submit karena group "structured"
 

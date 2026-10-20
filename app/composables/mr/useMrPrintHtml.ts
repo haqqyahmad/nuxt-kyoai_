@@ -18,6 +18,7 @@ export type MrPrintPayload = {
   doctorName: string | null
   branchName: string | null
   logoUrl: string
+  preview?: boolean
 }
 
 function esc(value: unknown): string {
@@ -32,6 +33,13 @@ function cssStr(value: unknown): string {
   return String(value ?? '')
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '\\A ')
+    .replace(/</g, '\\3C ')
+    .replace(/>/g, '\\3E ')
+    .replace(/\{/g, '\\7B ')
+    .replace(/\}/g, '\\7D ')
+    .replace(/;/g, '\\3B ')
 }
 
 function formatDate(value?: string | null): string {
@@ -104,7 +112,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 
   const fitness = mr?.meta?.fitnessLevel || dr?.submission?.fitnessLevel || '-'
   const finalComment = mr?.meta?.finalComment || dr?.submission?.finalComment || '-'
-  const internalNote = mr?.meta?.internalNote || ''
+  const internalNote = payload.preview ? (mr?.meta?.internalNote || '') : ''
 
   const departments: DoctorResultDepartment[] = dr?.departments ?? []
   const byCode = (re: RegExp) => departments.filter(d => re.test(d.departmentCode))
@@ -156,6 +164,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Hasil Medical Check Up - ${esc(patientName)}</title>
 <style>
   @page {
@@ -220,6 +229,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
   .print-frame > tbody > tr > td { border: 0; padding: 0; background: transparent; text-transform: none; letter-spacing: normal; }
   .print-frame > thead > tr > th { padding-bottom: 10px; }
   .print-frame > tbody > tr > td { vertical-align: top; padding-bottom: 10px; }
+  .preview-watermark { position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%) rotate(-24deg); font-size: 58pt; color: rgba(220, 38, 38, 0.18); font-weight: 800; letter-spacing: 4px; z-index: 9999; pointer-events: none; white-space: nowrap; }
   @media print {
     body { padding: 0; background: none; }
     .page { width: auto; min-height: auto; margin: 0; border: none; box-shadow: none; padding: 0; }
@@ -229,6 +239,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 </style>
 </head>
 <body>
+  ${payload.preview ? '<div class="preview-watermark">PREVIEW - BELUM DIRILIS</div>' : ''}
   <div class="page">
     <table class="print-frame">
       <thead>

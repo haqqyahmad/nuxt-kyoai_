@@ -210,7 +210,9 @@ function flagLabel(flag?: string | null) {
   return '±'
 }
 
-function printPage() {
+const isReleased = computed(() => mr.value?.status === 'RELEASED')
+
+function openReportHtml(preview: boolean, autoPrint: boolean) {
   if (!import.meta.client || !detail.value) return
 
   const html = buildMrPrintHtml({
@@ -219,14 +221,15 @@ function printPage() {
     companyHistory: detail.value.companyHistory,
     doctorName: detail.value.doctorName,
     branchName: detail.value.branchName,
-    logoUrl: new URL('/logo.png', window.location.origin).toString()
+    logoUrl: new URL('/logo.png', window.location.origin).toString(),
+    preview
   })
 
   const win = window.open('', '_blank')
   if (!win) {
     toast.add({
       title: 'Popup diblokir',
-      description: 'Izinkan popup untuk mencetak hasil MCU.',
+      description: 'Izinkan popup untuk membuka hasil MCU.',
       color: 'warning'
     })
     return
@@ -235,7 +238,24 @@ function printPage() {
   win.document.write(html)
   win.document.close()
   win.focus()
-  window.setTimeout(() => win.print(), 500)
+  if (autoPrint) window.setTimeout(() => win.print(), 500)
+}
+
+function previewPage() {
+  openReportHtml(true, false)
+}
+
+function printPage() {
+  if (!isReleased.value) {
+    toast.add({
+      title: 'Belum dirilis',
+      description: 'Hasil MCU baru dapat dicetak setelah status RELEASED. Gunakan preview MR.',
+      color: 'warning'
+    })
+    previewPage()
+    return
+  }
+  openReportHtml(false, true)
 }
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -343,9 +363,9 @@ watch(
           <button
             class="btn primary"
             type="button"
-            @click="printPage"
+            @click="isReleased ? printPage() : previewPage()"
           >
-            ⎙ Cetak PDF
+            {{ isReleased ? 'Cetak PDF' : 'Preview MR' }}
           </button>
         </div>
       </div>
