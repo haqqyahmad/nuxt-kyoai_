@@ -170,3 +170,9 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - Halaman `/result/exam-results/b05f0061…` sebagai superadmin: warning `Step "Approve FInal" hanya boleh diapprove oleh role yang ditunjuk` hilang; `departmentCanApprove=true`.
 - Nilai `0` pada Refraction Left/Right tetap tampil (bukan bug); input disabled karena hasil sudah `SUBMITTED`.
 - Test BE: `tests/result-access.test.mjs` (superadmin bypass, non-super ditolak, four-eyes).
+
+### 9.2 Default answers dokter luar (2026-10-20)
+- `DetailDrawer.vue`: saat external doctor workspace berstatus `PROCESSING`, input `selected` yang masih kosong diisi default: `Normal` -> `No` -> `Sinus Rhythm`; input number/string/calculated tidak diisi.
+- Default juga diterapkan tepat setelah `Start Process` sukses dan saat membuka item yang sudah PROCESSING; nilai existing tidak ditimpa dan belum disimpan sampai Save Draft/Submit.
+- Banner "Default answers applied" ditampilkan sebagai pengingat review.
+- Verifikasi Playwright sebagai `dokter2@kyoai.com` pada ECG `4be357c6…`: Hypertrophy/Transition/ST/T/W/Arrhythmia/Q/P/Axis = Normal, Others = No, Heart Rhythm = Sinus Rhythm, tanpa console error. User internal tidak mendapat default.

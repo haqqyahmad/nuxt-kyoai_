@@ -622,12 +622,56 @@ const externalProcessingRemainingLabel = computed(() => {
 })
 
 const externalStarting = ref(false)
+const externalDefaultsApplied = ref(false)
+
+function defaultSelectedValue(inputan: ExamInput): string | null {
+  const options = sortedOpsis(inputan)
+  const wanted = ['normal', 'no', 'sinus rhythm']
+  for (const key of wanted) {
+    const match = options.find(option =>
+      String(option.value ?? '').trim().toLowerCase() === key
+      || String(option.label ?? '').trim().toLowerCase() === key
+    )
+    if (match) return match.value
+  }
+  return null
+}
+
+function seedExternalDefaults(force = false) {
+  if (!isExternalDoctorWorkspace.value) return
+  if (!force && props.result?.exam?.externalStatus !== 'PROCESSING') return
+
+  const resultMap = new Map(
+    (props.result?.exam?.results || []).map(result => [result.inputanId, result])
+  )
+  let applied = false
+
+  for (const inputan of props.result?.item?.inputans || []) {
+    if (inputan.inputType !== 'selected') continue
+    const existing = resultMap.get(inputan.id)
+    if (existing?.valueSelected != null) continue
+
+    const draft = getInputDraft(inputan.id)
+    if (getDraftText(draft.valueSelected)) continue
+
+    const value = defaultSelectedValue(inputan)
+    if (!value) continue
+    draft.valueSelected = value
+    applied = true
+  }
+
+  if (applied) {
+    externalDefaultsApplied.value = true
+    recomputeCalculatedDrafts(false)
+  }
+}
 async function startExternalProcessing() {
   const examItemId = getExternalExamItemId()
   if (!props.result?.exam?.id || !examItemId || externalStarting.value) return
   externalStarting.value = true
   try {
     await api.post(`/mcu/exams/${props.result?.exam?.id}/external-processing/start`, { examItemId })
+    seedExternalDefaults(true)
     toast.add({
       title: 'Success',
       description: 'External doctor examination started. Submit deadline 3 hours.',
@@ -1944,8 +1988,10 @@ watch(
   () => {
     resultDrafts.value = {}
     skippedItemsExpanded.value = false
+    externalDefaultsApplied.value = false
     if (props.result) {
       seedDraftsFromExistingResults()
+      seedExternalDefaults()
       if (props.result.id) {
         fetchAllAudit()
         void loadExternalAttachmentPreview()
@@ -1962,6 +2008,7 @@ watch(
 onMounted(() => {
   if (props.result) {
     seedDraftsFromExistingResults()
+    seedExternalDefaults()
     void loadExternalAttachmentPreview()
   }
 })
@@ -2335,6 +2382,16 @@ onBeforeUnmount(() => {
           </div>
           <!-- v-show externalContextOpen -->
         </UCard>
+
+        <UAlert
+          v-if="externalDefaultsApplied"
+          class="mb-4"
+          color="info"
+          variant="soft"
+          icon="i-lucide-info"
+          title="Default answers applied"
+          description="Review every answer before saving or submitting."
+        />
 
         <div
           class="grid gap-4"
