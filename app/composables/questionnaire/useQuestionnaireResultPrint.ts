@@ -16,6 +16,7 @@ import {
   renderQuestionnaireTemplate,
   wrapDocumentImage
 } from '~/composables/questionnaire/useQuestionnairePrint'
+import { buildPrintCsp } from '~/utils/printCsp'
 
 export type QuestionnairePrintRow = {
   questionnaire_name: string
@@ -37,7 +38,6 @@ export type QuestionnairePrintRow = {
   answers?: Array<PrintAnswer & { answered?: boolean }>
 }
 
-const PRINT_CSP = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; script-src \'none\'; frame-src \'none\'; object-src \'none\'; connect-src \'none\'; base-uri \'none\'; form-action \'none\'">'
 
 export function questionnaireDocumentLogoUrl(): string {
   if (!import.meta.client) return '/logo.png'
@@ -197,7 +197,7 @@ function legacyPrintHtml(row: QuestionnairePrintRow): string {
   return `
     <html lang="id">
       <head>
-        ${PRINT_CSP}
+        ${buildPrintCsp()}
         <title>${esc(row.questionnaire_name)} - ${esc(row.patientName)}</title>
         <style>${PRINT_CSS}${printHeaderCss()}${sideImageCss}${pageSetupCss(row.patientName, row.patientCode || '-')}</style>
       </head>
@@ -268,7 +268,7 @@ function templatePrintHtml(row: QuestionnairePrintRow, tpl: string): string {
   return `
     <html lang="id">
       <head>
-        ${PRINT_CSP}
+        ${buildPrintCsp()}
         <title>${esc(t.ctx.documentTitle)} - ${esc(t.ctx.patientName)}</title>
         <style>${PRINT_CSS}</style>
         ${t.styles}
@@ -329,7 +329,7 @@ export function buildAllQuestionnaireResultsHtml(rows: QuestionnairePrintRow[]):
   return `
     <html lang="id">
       <head>
-        ${PRINT_CSP}
+        ${buildPrintCsp()}
         <title>Questionnaire Results - ${esc(first.patientName)}</title>
         <style>${PRINT_CSS}</style>
         ${extraStyles}

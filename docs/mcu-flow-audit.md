@@ -197,3 +197,9 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - `releaseMedicalReport` menyimpan payload audit `step` (`ready`/`release`), `fromStatus`, `toStatus`.
 - FE MR timeline memetakan `RELEASE` step `ready` ? **Ready to Release**, step `release` ? **Released** (fallback legacy via `toStatus`).
 - Backfill 27 aksi RELEASE lama: pasangan pertama `ready`, terakhir `release`. Report `8dd4f82f…` sekarang menampilkan satu **Ready to Release** dan satu **Released**.
+
+### 9.6 Print logo CSP (2026-10-20)
+- Logo print MR/History tidak tampil karena CSP `img-src data: blob:` memblokir `http://localhost:3000/logo.png`.
+- Util baru `app/utils/printCsp.ts`: `img-src` menyertakan origin FE secara dinamis; script/connect/frame tetap diblokir.
+- Diterapkan di print MR, questionnaire result, questionnaire template, dan MCU report preview.
+- Verifikasi Playwright MR History -> Cetak PDF: `<img src="/logo.png">` `naturalWidth=150` (sebelumnya 0).

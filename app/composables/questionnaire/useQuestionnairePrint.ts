@@ -3,6 +3,7 @@
 // Data context dikumpulkan dari baris hasil questionnaire + detail jawaban.
 
 import { renderTemplate } from '~/utils/jinjaTemplate'
+import { buildPrintCsp } from '~/utils/printCsp'
 
 export type PrintAnswer = {
   questionId: string
@@ -338,7 +339,7 @@ export function printQuestionnaireHtml(
   const pageCss = pageSetupCss(ctx.patientName, ctx.patientCode)
   const sideImageCss = ctx.image ? documentImageCss() : ''
   const content = wrapDocumentImage(rendered, ctx.image)
-  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
+  const csp = buildPrintCsp()
   return `
     <html lang="id">
       <head>

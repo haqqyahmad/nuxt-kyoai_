@@ -5,6 +5,7 @@
 import type { DoctorResultResponse, DoctorResultDepartment, DoctorResultItem } from '~/types/doctor-result'
 import type { MedicalReportDetail } from '~/types/medical-report'
 import { extractBranchCity } from '~/composables/questionnaire/useQuestionnairePrint'
+import { buildPrintCsp } from '~/utils/printCsp'
 
 type CompanyHistory = {
   company?: string | null
@@ -164,7 +165,7 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+${buildPrintCsp()}
 <title>Hasil Medical Check Up - ${esc(patientName)}</title>
 <style>
   @page {

@@ -4,6 +4,7 @@
 // Data & pagination (resultPages, gradeRows, physical) diagregasi oleh BE.
 
 import { renderTemplate } from '~/utils/jinjaTemplate'
+import { buildPrintCsp } from '~/utils/printCsp'
 
 export type McuPrintPayload = {
   printTemplate: string
@@ -352,7 +353,7 @@ export function useMcuReportPrint() {
   }
 
   // CSP ketat untuk print window: blok script, connect, frame, object.
-  const printCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; script-src 'none'; frame-src 'none'; object-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">`
+  const printCsp = buildPrintCsp()
 
   // Wajib standards mode: tanpa doctype, iframe/preview render quirks mode →
   // tabel tidak mewarisi font-size (default 16px) sehingga beda dari design.
