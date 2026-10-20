@@ -13,6 +13,13 @@ Last updated: 2026-10-20
 - Verifikasi: BE `npm test` 68/1 (pre-existing), FE `vue-tsc` EXIT=0, Portal file terkait bersih, `node --check` OK.
 - Detail & sisa deferred: `docs/mcu-flow-audit.md` section 8.
 
+## Phase 1 Closure - 2026-10-20
+
+- `UserResultAccess` enforced pada approve + effective submitter four-eyes; checkout list/detail memakai `evaluateCheckoutEligibility` (paket + additional); revision item `id` dikirim; timezone WIB via `APP_TIME_ZONE` untuk queue/registration.
+- BE `npm test` 75/75 pass; FE `vue-tsc` EXIT=0; Portal file terkait bersih.
+- E2E Playwright 10/10: Portal page, MR verify/ready/release, final print PDF, checkout `REG-20261019-01-0002` -> `CheckOut`.
+- Bukti & data uji: `docs/mcu-flow-audit.md` section 9.
+
 ## Fixed — 2026-10-07: Doctor Result tak bisa di-submit karena group "structured"
 
 - **Gejala:** `/result/doctor-result/:id` — Final Grade & Fitness Level terisi, item "Graded 2/2", tapi tombol **Submit to MR Review** tetap disabled + alert "2 abnormal groups not graded" (ROMBERG TEST, Physical Examination).

@@ -137,3 +137,30 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - **Non-MCU/Outpatient (HOLD)**: reuse encounter `CANCELLED`/`DONE`, cancel reset registration, check-in atomik, `today()` UTC, history `statusIn`, `call` default doctor, permission FO, eligibility preview, picker `Open`.
 - Enforce `UserResultAccess` menyeluruh, four-eyes efektif di semua jalur approval, helper tunggal checkout list/detail, light revision map `id`, dan normalisasi timezone MCU/queue/exam/registration belum disentuh pada batch ini.
 - E2E UI penuh (Portal ? FO ? ruangan ? dokter ? MR ? checkout) belum dijalankan pada batch ini.
+
+---
+
+## 9. Phase 1 Closure — 2026-10-20
+
+### Implementasi
+- **UserResultAccess**: `approveExamItem` selalu memanggil `assertCanAccessResultDepartment` (superadmin bypass, dokter luar via assignment); helper akses yang sama dipakai list/detail approval.
+- **Four-eyes efektif**: `resolveEffectiveSubmitterId` (dept `submittedBy` ? audit SUBMIT terakhir ? `TrxExamItem.resultSubmittedBy`), dipakai di approve dan badge `departmentCanApprove`.
+- **Checkout satu helper**: `evaluateCheckoutEligibility` dipakai list & detail; kanonik semua item `paket` + `additional`; reschedule room tetap boleh checkout dengan warning.
+- **Revision map `id`**: `examResultRevisionItem.id` disertakan di response; tipe FE diperbarui.
+- **Timezone WIB**: `src/utils/date.js` (`APP_TIME_ZONE`, default `Asia/Jakarta`), dipakai queue/registration/queue repository; `generateCode` menerima tanggal lokal dari registration.
+- **Preview print**: status preview mencakup `DOCTOR_APPROVED`/`MR_REVIEW`/`MR_VERIFIED`/`READY_TO_RELEASE`; final print tetap hanya `RELEASED`.
+
+### Verifikasi
+- `npm test` BE: **75 pass / 0 fail** (termasuk test checkout helper & timezone).
+- FE `vue-tsc`: EXIT=0. Portal `svelte-check`: file yang diubah bersih (80 error lama tidak terkait).
+- Runtime: `GET /medical-reports?status=all` ? **400**; status valid ? 200.
+- E2E Playwright: **10/10 check** (`tests/e2e/mcu-flow.e2e.mjs`), artefak `tests/e2e/artifacts/2026-10-20T04-36-49-007Z`.
+  - Portal registration page 200 + form tampil.
+  - MR preview 200; verify ? `MR_VERIFIED`; ready ? `READY_TO_RELEASE`; release ? `RELEASED`.
+  - Final print API 200, `internalNote` kosong di final; UI memicu `/print.pdf` 200 dan membuka output.
+  - Checkout `REG-20261019-01-0002` ? `CheckOut` (run sebelumnya, artefak `2026-10-20T04-35-13-455Z`).
+- Data uji: report `a30d4d19-e18c-4567-ad93-26f91e651cf0` (exam `d8ddf7a7…`) di-release; 2 department (Nurse, Lab) di-approve; item ECG & Dental di-submit; attachment `ECG.pdf` yang file-nya hilang ditandai deleted agar PDF bisa dibuat. Tidak ada data E2E- baru; data lama dev yang dipakai.
+
+### Catatan
+- Print pre-release 409 sudah tervalidasi sebelum report di-release (run `2026-10-20T04-33-18-902Z`).
+- Negative test lintas-department/four-eyes via UI belum ditambahkan ke script; enforcement-nya ada di service dan unit test dasar.

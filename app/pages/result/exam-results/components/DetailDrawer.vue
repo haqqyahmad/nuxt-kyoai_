@@ -123,6 +123,7 @@ type ExamResultDetail = {
   departmentApproveDisableReason?: string | null
   returnReason?: string | null
   revisionItems?: Array<{
+    id?: string | null
     inputanId: string | null
     examItemId: string | null
     examItemName?: string | null

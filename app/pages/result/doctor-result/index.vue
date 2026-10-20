@@ -22,6 +22,7 @@ type ExamListItem = {
   needsRevision?: boolean
   revisionCount?: number
   revisionItems?: Array<{
+    id?: string | null
     inputanId: string
     label?: string | null
     note?: string | null
