@@ -192,3 +192,8 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - Exam code list memakai field root `examCode` (sebelumnya kolom Exam menampilkan `-`).
 - Statistik total tidak lagi per halaman; Export disabled.
 - Verifikasi: default 5 `Needs Review`, stats 5/1/1/295, `All Status` menampilkan `Ready for MR Review` + `View Result`, 78/78 test BE, `vue-tsc` EXIT=0.
+
+### 9.5 MR release audit labels (2026-10-20)
+- `releaseMedicalReport` menyimpan payload audit `step` (`ready`/`release`), `fromStatus`, `toStatus`.
+- FE MR timeline memetakan `RELEASE` step `ready` ? **Ready to Release**, step `release` ? **Released** (fallback legacy via `toStatus`).
+- Backfill 27 aksi RELEASE lama: pasangan pertama `ready`, terakhir `release`. Report `8dd4f82f…` sekarang menampilkan satu **Ready to Release** dan satu **Released**.

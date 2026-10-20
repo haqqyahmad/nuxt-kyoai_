@@ -112,9 +112,16 @@ type ActionItemLike = {
 }
 
 function actionMeta(action?: ActionItemLike) {
-  const step = (action?.payload as { step?: string } | null)?.step
+  const payload = (action?.payload ?? null) as { step?: string, toStatus?: string } | null
+  const step = payload?.step
   if (action?.action === 'VERIFY' && step === 'start') {
     return { label: 'Review Started', color: 'info' as const }
+  }
+  if (action?.action === 'RELEASE') {
+    if (step === 'ready' || payload?.toStatus === 'READY_TO_RELEASE') {
+      return { label: 'Ready to Release', color: 'info' as const }
+    }
+    return { label: 'Released', color: 'primary' as const }
   }
   return MR_ACTION_META[action?.action ?? ''] ?? { label: action?.action ?? 'Unknown', color: 'neutral' as const }
 }
