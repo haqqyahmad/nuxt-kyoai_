@@ -19,6 +19,7 @@ type ExamListItem = {
     lastName?: string | null
   } | null
   status?: string
+  medicalReportStatus?: string | null
   needsRevision?: boolean
   revisionCount?: number
   revisionItems?: Array<{
@@ -30,6 +31,7 @@ type ExamListItem = {
   itemCount?: number
   completedItemCount?: number
   progress?: number
+  examCode?: string | null
   exam?: {
     examCode?: string | null
   } | null
@@ -70,7 +72,13 @@ const table = ref<DoctorResultTable | null>(null)
 const loading = ref(false)
 const exams = ref<ExamListItem[]>([])
 const search = ref('')
-const statusFilter = ref('all')
+const statusFilter = ref('pending')
+const summary = ref({
+  needsDoctorReview: 0,
+  readyForMrReview: 0,
+  needsRevision: 0,
+  totalItems: 0
+})
 const companyFilter = ref('all')
 const packageFilter = ref('all')
 const examDateFrom = ref('')
@@ -82,9 +90,9 @@ const pageSize = ref(20)
 
 const statusOptions = [
   { label: 'All Status', value: 'all' },
-  { label: 'Pending', value: 'pending' },
+  { label: 'Needs Review', value: 'pending' },
   { label: 'Needs Revision', value: 'needs_revision' },
-  { label: 'Completed', value: 'completed' }
+  { label: 'Ready for MR Review', value: 'completed' }
 ]
 
 const companyOptions = computed(() => [
@@ -98,6 +106,7 @@ const filteredExams = computed(() => {
   return exams.value.filter((e) => {
     const patientName = getPatientName(e)
     const hay = [
+      e.examCode,
       e.exam?.examCode,
       e.queueCode,
       e.company,
@@ -117,11 +126,10 @@ const filteredExams = computed(() => {
   })
 })
 
-const totalPending = computed(() => exams.value.filter(e => e.status !== 'completed').length)
-const totalCompleted = computed(() => exams.value.filter(e => e.status === 'completed').length)
-const totalItems = computed(() => exams.value.reduce((sum, exam) => sum + (exam.itemCount ?? 0), 0))
+const totalPending = computed(() => summary.value.needsDoctorReview)
+const totalCompleted = computed(() => summary.value.readyForMrReview)
+const totalItems = computed(() => summary.value.totalItems)
 const revisionExams = computed(() => exams.value.filter(e => e.needsRevision))
-const totalRevisionItems = computed(() => revisionExams.value.reduce((sum, e) => sum + (e.revisionCount ?? 0), 0))
 
 const displayColumnItems = computed(() =>
   table.value?.tableApi
@@ -153,7 +161,7 @@ const columns: TableColumn<ExamListItem>[] = [
     id: 'exam',
     header: 'Exam',
     cell: ({ row }) => h('div', { class: 'flex flex-col' }, [
-      h('span', { class: 'font-mono text-sm font-semibold' }, row.original.exam?.examCode ?? '-'),
+      h('span', { class: 'font-mono text-sm font-semibold' }, row.original.examCode ?? row.original.exam?.examCode ?? '-'),
       h('span', { class: 'text-xs text-muted' }, row.original.examDate ?? row.original.queueCode ?? '-')
     ])
   },
@@ -178,7 +186,7 @@ const columns: TableColumn<ExamListItem>[] = [
     header: 'Status',
     cell: ({ row }) => h(UBadge, {
       label: displayStatus(row.original),
-      color: statusColor(row.original.needsRevision ? 'needs_revision' : row.original.status),
+      color: reportStatusColor(row.original),
       variant: 'subtle'
     })
   },
@@ -198,8 +206,8 @@ const columns: TableColumn<ExamListItem>[] = [
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Action'),
     cell: ({ row }) => h('div', { class: 'text-right' }, h(UButton, {
-      label: 'Fill Result',
-      icon: 'i-lucide-stethoscope',
+      label: actionLabel(row.original),
+      icon: actionLabel(row.original) === 'View Result' ? 'i-lucide-eye' : 'i-lucide-stethoscope',
       trailingIcon: 'i-lucide-arrow-right',
       size: 'sm',
       onClick: () => openDoctorResult(row.original)
@@ -232,6 +240,20 @@ async function load() {
       ? payload
       : (payload?.data ?? [])
     totalExams.value = res.data?.meta?.total ?? exams.value.length
+    const metaSummary = res.data?.meta?.summary
+    summary.value = metaSummary
+      ? {
+          needsDoctorReview: Number(metaSummary.needsDoctorReview ?? 0),
+          readyForMrReview: Number(metaSummary.readyForMrReview ?? 0),
+          needsRevision: Number(metaSummary.needsRevision ?? 0),
+          totalItems: Number(metaSummary.totalItems ?? 0)
+        }
+      : {
+          needsDoctorReview: exams.value.filter(e => e.medicalReportStatus === 'DOCTOR_REVIEW').length,
+          readyForMrReview: exams.value.filter(e => e.medicalReportStatus === 'DOCTOR_APPROVED').length,
+          needsRevision: exams.value.filter(e => e.needsRevision).length,
+          totalItems: exams.value.reduce((sum, exam) => sum + (exam.itemCount ?? 0), 0)
+        }
   } catch (err) {
     const errMsg = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
@@ -255,13 +277,34 @@ function getPatientName(exam: ExamListItem) {
     || '-'
 }
 
-function statusColor(status?: string) {
-  return status === 'completed' ? 'success' : status === 'needs_revision' ? 'error' : 'warning'
+function isEditableReport(exam: ExamListItem) {
+  const status = exam.medicalReportStatus ?? null
+  return status == null || ['DOCTOR_REVIEW', 'MR_RETURNED_TO_DOCTOR', 'RETURNED_TO_DEPARTMENT'].includes(status)
 }
 
 function displayStatus(exam: ExamListItem) {
   if (exam.needsRevision) return 'Needs Revision'
-  return exam.status === 'completed' ? 'completed' : exam.status ?? 'pending'
+  const status = exam.medicalReportStatus ?? null
+  if (status === 'DOCTOR_REVIEW') return 'Needs Review'
+  if (status === 'DOCTOR_APPROVED') return 'Ready for MR Review'
+  if (status === 'MR_REVIEW') return 'In MR Review'
+  if (status === 'MR_VERIFIED') return 'MR Verified'
+  if (status === 'READY_TO_RELEASE') return 'Ready to Release'
+  if (status === 'RELEASED') return 'Released'
+  return 'Waiting Department'
+}
+
+function reportStatusColor(exam: ExamListItem): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
+  if (exam.needsRevision) return 'error'
+  const status = exam.medicalReportStatus ?? null
+  if (status === 'DOCTOR_APPROVED' || status === 'RELEASED') return 'success'
+  if (status === 'DOCTOR_REVIEW') return 'warning'
+  if (['MR_REVIEW', 'MR_VERIFIED', 'READY_TO_RELEASE'].includes(status ?? '')) return 'info'
+  return 'neutral'
+}
+
+function actionLabel(exam: ExamListItem) {
+  return isEditableReport(exam) ? 'Fill Result' : 'View Result'
 }
 
 function progressValue(exam: ExamListItem) {
@@ -303,6 +346,8 @@ onMounted(load)
             icon="i-lucide-download"
             variant="outline"
             color="neutral"
+            disabled
+            title="Export belum tersedia"
           >
             Export
           </UButton>
@@ -368,22 +413,26 @@ onMounted(load)
 
         <!-- [MR] Alert: exams returned by MR and needing revision -->
         <UAlert
-          v-if="revisionExams.length"
+          v-if="summary.needsRevision > 0"
           icon="i-lucide-rotate-ccw"
           color="error"
           variant="soft"
           title="Report returned by MR"
-          :description="`${revisionExams.length} exams need revision (${totalRevisionItems} items flagged). Fix and resubmit to MR.`"
+          :description="`${summary.needsRevision} exams need revision. Fix and resubmit to MR.`"
         >
           <template #description>
             <div class="mt-1 space-y-1.5">
+              <p class="text-xs">
+                {{ summary.needsRevision }} exams need revision.
+                <span v-if="!revisionExams.length">Open “Needs Revision” to see the flagged items.</span>
+              </p>
               <div
                 v-for="exam in revisionExams"
                 :key="exam.id"
                 class="flex flex-wrap items-start gap-2 rounded bg-error/10 px-2 py-1.5"
               >
                 <span class="font-medium">{{ exam.patientName || [exam.patient?.firstName, exam.patient?.lastName].filter(Boolean).join(' ') || '-' }}</span>
-                <span class="font-mono text-xs">{{ exam.exam?.examCode }}</span>
+                <span class="font-mono text-xs">{{ exam.examCode ?? exam.exam?.examCode }}</span>
                 <span v-if="(exam.revisionCount ?? 0) > 0" class="text-xs">{{ exam.revisionCount }} items flagged</span>
                 <ul v-if="(exam.revisionItems?.length ?? 0) > 0" class="w-full pl-4 text-xs text-muted">
                   <li v-for="item in exam.revisionItems" :key="item.inputanId">
@@ -409,14 +458,14 @@ onMounted(load)
             <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h2 class="font-semibold">
-                  Patients Ready for Review
+                  {{ statusFilter === 'pending' ? 'Patients Ready for Review' : 'Doctor Results' }}
                 </h2>
                 <p class="text-xs text-muted">
                   {{ filteredExams.length }} exams
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <UBadge color="info" variant="soft">
+                <UBadge v-if="statusFilter === 'pending'" color="info" variant="soft">
                   Department approved
                 </UBadge>
                 <UDropdownMenu

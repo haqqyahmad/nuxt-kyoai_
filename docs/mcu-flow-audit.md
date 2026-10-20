@@ -184,3 +184,11 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - `canSubmit` hanya untuk status editable (`not_submitted`, `DOCTOR_REVIEW`, `MR_RETURNED_TO_DOCTOR`, `RETURNED_TO_DEPARTMENT`); grade/komentar/final grade/fitness/return dikunci saat read-only.
 - Auto-grade normal tidak dijalankan saat read-only (mencegah POST grade ditolak backend).
 - Verifikasi `c980fd33…` (`DOCTOR_APPROVED`): badge benar, banner view-only, dua tombol Submit disabled, tanpa console error.
+
+### 9.4 Doctor Result worklist (2026-10-20)
+- Default filter worklist = `DOCTOR_REVIEW`; opsi `All Status` tetap tersedia.
+- `meta.summary` ditambahkan di BE (`needsDoctorReview`, `readyForMrReview`, `needsRevision`, `totalItems`) untuk `groupBy=exam`.
+- Status/aksi list memakai `medicalReportStatus`: `Fill Result` hanya untuk status editable, selain itu `View Result`.
+- Exam code list memakai field root `examCode` (sebelumnya kolom Exam menampilkan `-`).
+- Statistik total tidak lagi per halaman; Export disabled.
+- Verifikasi: default 5 `Needs Review`, stats 5/1/1/295, `All Status` menampilkan `Ready for MR Review` + `View Result`, 78/78 test BE, `vue-tsc` EXIT=0.
