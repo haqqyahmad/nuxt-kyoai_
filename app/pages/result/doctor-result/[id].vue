@@ -55,6 +55,8 @@ const {
   gradedCount,
   totalGradable,
   canSubmit,
+  submissionStatus,
+  isReadOnly,
   load,
   selectGrade,
   clearGrade,
@@ -86,6 +88,21 @@ const mrReturned = computed(() => data.value?.submission?.status === 'MR_RETURNE
 const mrReturnedToDept = computed(() => data.value?.submission?.status === 'RETURNED_TO_DEPARTMENT')
 const mrReturnReason = computed(() => data.value?.mrReturnReason ?? null)
 const mrReturnRevisions = computed(() => data.value?.mrReturnRevisions ?? [])
+const submissionBadge = computed(() => {
+  const status = submissionStatus.value
+  const map: Record<string, { label: string, color: 'info' | 'success' | 'warning' | 'error' | 'neutral' | 'primary' }> = {
+    not_submitted: { label: 'NOT_SUBMITTED', color: 'neutral' },
+    DOCTOR_REVIEW: { label: 'DOCTOR_REVIEW', color: 'info' },
+    DOCTOR_APPROVED: { label: 'DOCTOR_APPROVED', color: 'success' },
+    MR_REVIEW: { label: 'MR_REVIEW', color: 'info' },
+    MR_RETURNED_TO_DOCTOR: { label: 'MR_RETURNED_TO_DOCTOR', color: 'warning' },
+    RETURNED_TO_DEPARTMENT: { label: 'RETURNED_TO_DEPARTMENT', color: 'warning' },
+    MR_VERIFIED: { label: 'MR_VERIFIED', color: 'info' },
+    READY_TO_RELEASE: { label: 'READY_TO_RELEASE', color: 'warning' },
+    RELEASED: { label: 'RELEASED', color: 'success' }
+  }
+  return map[status] ?? { label: status.replace(/_/g, ' '), color: 'neutral' as const }
+})
 const revisionMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {}
   for (const rev of mrReturnRevisions.value) {
@@ -339,6 +356,7 @@ const structuredItemColumns: TableColumn<DoctorResultItem>[] = itemColumns.filte
 )
 
 async function onGradeChange(item: DoctorResultItem, grade: string) {
+  if (isReadOnly.value) return
   gradeLoading.value[item.inputanId] = true
   try {
     if (!grade) {
@@ -366,7 +384,7 @@ async function loadGradeOptions() {
     const isNormal = String(item.flag || 'normal').toLowerCase() === 'normal'
     const hasGrade = selectedGrades.value[item.inputanId] || item.grade
     const autoGrade = options.find(option => String(option).toUpperCase() === 'A') ?? options[0]
-    if (isNormal && !hasGrade && autoGrade) {
+    if (!isReadOnly.value && isNormal && !hasGrade && autoGrade) {
       await onGradeChange(item, autoGrade)
     }
   }
@@ -374,7 +392,7 @@ async function loadGradeOptions() {
 
 // [F] Group grade: grade + comment (optional)
 async function onGroupGradeChange(group: DoctorResultGroup, grade: string, _comment: string) {
-  if (!group.groupId) return
+  if (isReadOnly.value || !group.groupId) return
   // preserve the user's comment: if already filled manually, keep it
   const existing = groupGrades.value[group.groupId]?.comment ?? group.comment ?? ''
   const finalComment = existing || (grade ? groupCommentFor(group, grade) : '')
@@ -393,6 +411,7 @@ async function onGroupGradeChange(group: DoctorResultGroup, grade: string, _comm
 }
 
 function onGroupCommentChange(group: DoctorResultGroup, comment: string) {
+  if (isReadOnly.value) return
   group.comment = comment
   const grade = group.groupId ? groupGrades.value[group.groupId]?.grade : null
   if (group.groupId && grade) {
@@ -407,6 +426,7 @@ function groupCommentFor(group: DoctorResultGroup, grade: string) {
 
 // Remove grade via the Grading Summary card — auto syncs to the select (selectedGrades)
 async function removeGrade(item: DoctorResultItem) {
+  if (isReadOnly.value) return
   gradeLoading.value[item.inputanId] = true
   try {
     await clearGrade(item)
@@ -517,7 +537,7 @@ function renderGradeCell(item: DoctorResultItem) {
     'size': 'sm',
     'class': 'w-28',
     'loading': gradeLoading.value[item.inputanId] || !options,
-    'disabled': !options,
+    'disabled': !options || isReadOnly.value,
     'placeholder': 'Select',
     'onUpdate:modelValue': (value: string) => onGradeChange(item, value)
   })
@@ -669,8 +689,17 @@ onBeforeUnmount(() => {
           icon="i-lucide-share-2"
           color="info"
           variant="soft"
-          title="Returned to department — awaiting department revision"
+          title="Returned to department - awaiting department revision"
           :description="mrReturnReason || 'This report was sent to the department for revision.'"
+        />
+
+        <UAlert
+          v-if="isReadOnly"
+          icon="i-lucide-lock"
+          color="info"
+          variant="soft"
+          title="Doctor result already submitted - view only"
+          :description="`Status: ${submissionBadge.label}. Editing and submit are disabled.`"
         />
 
         <UCard v-if="loading" class="w-full min-w-0">
@@ -688,8 +717,8 @@ onBeforeUnmount(() => {
                 <h2 class="font-semibold">
                   Patient Data
                 </h2>
-                <UBadge color="info" variant="soft">
-                  DOCTOR_REVIEW
+                <UBadge :color="submissionBadge.color" variant="soft">
+                  {{ submissionBadge.label }}
                 </UBadge>
               </div>
             </template>
@@ -931,12 +960,14 @@ onBeforeUnmount(() => {
                           :items="(group.gradeOptions ?? []).map(o => ({ label: `${o.grade} - ${o.label}`, value: o.grade }))"
                           placeholder="Select"
                           :loading="group.groupId ? groupGradeLoading[group.groupId] : false"
+                          :disabled="isReadOnly"
                           @update:model-value="onGroupGradeChange(group, $event as string, groupCommentFor(group, $event as string))"
                         />                       <UInput
                           class="min-w-48 flex-1"
                           size="sm"
                           :model-value="groupGrades[group.groupId!]?.comment ?? group.comment ?? ''"
                           placeholder="Group comment (optional)"
+                          :disabled="isReadOnly"
                           @update:model-value="(v) => onGroupCommentChange(group, v as string)"
                         />
                         <small v-if="!group.isAbnormal" class="text-xs text-success">
@@ -1055,6 +1086,7 @@ onBeforeUnmount(() => {
                           color="error"
                           variant="ghost"
                           :loading="gradeLoading[entry.item.inputanId]"
+                          :disabled="isReadOnly"
                           aria-label="Delete grade"
                           @click="removeGrade(entry.item)"
                         />
@@ -1071,6 +1103,7 @@ onBeforeUnmount(() => {
                       :items="[...FINAL_GRADES]"
                       placeholder="Select final grade"
                       class="w-full"
+                      :disabled="isReadOnly"
                     />
                   </UFormField>
 
@@ -1080,6 +1113,7 @@ onBeforeUnmount(() => {
                       :items="[...FITNESS_LEVELS]"
                       placeholder="Select fitness level"
                       class="w-full"
+                      :disabled="isReadOnly"
                     />
                   </UFormField>
 
@@ -1089,6 +1123,7 @@ onBeforeUnmount(() => {
                       :rows="8"
                       placeholder="Auto comment will appear after a grade is selected."
                       class="w-full"
+                      :disabled="isReadOnly"
                     />
                     <p v-if="!finalComment && autoCommentText" class="mt-1 text-xs text-muted">
                       Auto: {{ autoCommentText }}
@@ -1101,6 +1136,7 @@ onBeforeUnmount(() => {
                       :rows="4"
                       placeholder="Internal note, not shown on the certificate."
                       class="w-full"
+                      :disabled="isReadOnly"
                     />
                   </UFormField>
 

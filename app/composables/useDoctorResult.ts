@@ -77,8 +77,20 @@ export function useDoctorResult(examId: string) {
     )
   )
 
+  const EDITABLE_SUBMISSION_STATUSES = [
+    'not_submitted',
+    'DOCTOR_REVIEW',
+    'MR_RETURNED_TO_DOCTOR',
+    'RETURNED_TO_DEPARTMENT'
+  ]
+
+  const submissionStatus = computed(() => data.value?.submission?.status ?? 'not_submitted')
+  const isEditable = computed(() => EDITABLE_SUBMISSION_STATUSES.includes(submissionStatus.value))
+  const isReadOnly = computed(() => !isEditable.value)
+
   const canSubmit = computed(() =>
-    pendingCount.value === 0
+    isEditable.value
+    && pendingCount.value === 0
     && pendingGroups.value.length === 0
     && Boolean(finalGrade.value)
     && Boolean(fitnessLevel.value)
@@ -161,6 +173,7 @@ export function useDoctorResult(examId: string) {
 
   // ── select grade ───────────────────────────────────────────────────
   async function selectGrade(item: DoctorResultItem, grade: string) {
+    if (isReadOnly.value) return false
     // optimistic
     selectedGrades.value[item.inputanId] = grade
 
@@ -195,7 +208,7 @@ export function useDoctorResult(examId: string) {
   }
 
   async function clearGrade(item: DoctorResultItem) {
-    if (item.locked) return false
+    if (isReadOnly.value || item.locked) return false
     // save the old value for rollback
     const prevGrade = selectedGrades.value[item.inputanId] ?? item.grade ?? ''
     const prevComment = comments.value[item.inputanId] ?? item.comment ?? ''
@@ -225,6 +238,7 @@ export function useDoctorResult(examId: string) {
 
   // ── [F] group grade ──────────────────────────────────────────────
   async function selectGroupGrade(groupId: string, grade: string, comment: string) {
+    if (isReadOnly.value) return false
     // optimistic
     groupGrades.value[groupId] = { grade, comment }
     try {
@@ -242,6 +256,7 @@ export function useDoctorResult(examId: string) {
   }
 
   async function clearGroupGrade(groupId: string) {
+    if (isReadOnly.value) return false
     const prev = groupGrades.value[groupId]
     Reflect.deleteProperty(groupGrades.value, groupId)
     try {
@@ -260,6 +275,7 @@ export function useDoctorResult(examId: string) {
 
   // ── return to department (after MR return) ─────────────────────────
   async function returnToDepartment(payload: { reason: string, items: { inputanId: string, note: string }[] }) {
+    if (isReadOnly.value) return false
     submitting.value = true
     try {
       const res = await api.post(`/mcu/exams/${examId}/doctor-result/return-department`, payload)
@@ -326,6 +342,9 @@ export function useDoctorResult(examId: string) {
     gradedCount,
     totalGradable,
     canSubmit,
+    submissionStatus,
+    isEditable,
+    isReadOnly,
     load,
     selectGrade,
     clearGrade,

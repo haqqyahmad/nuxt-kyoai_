@@ -178,3 +178,9 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 - Verifikasi Playwright sebagai `dokter2@kyoai.com` pada ECG `4be357c6…`: Hypertrophy/Transition/ST/T/W/Arrhythmia/Q/P/Axis = Normal, Others = No, Heart Rhythm = Sinus Rhythm, tanpa console error. User internal tidak mendapat default.
 
 - Perluasan default Radiologi: normal-equivalent `Tidak Ada` dan `CTR < 50 %`. Verifikasi Thorax AP/PA `32184bf1…` sebagai `dokter2`: 14/14 field terisi (Cor `CTR < 50 %`, Nodul/Infiltrat `Tidak Ada`), tanpa error.
+
+### 9.3 Doctor Result status lock (2026-10-20)
+- Badge Doctor Result sekarang memakai `submission.status` (bukan hardcoded `DOCTOR_REVIEW`).
+- `canSubmit` hanya untuk status editable (`not_submitted`, `DOCTOR_REVIEW`, `MR_RETURNED_TO_DOCTOR`, `RETURNED_TO_DEPARTMENT`); grade/komentar/final grade/fitness/return dikunci saat read-only.
+- Auto-grade normal tidak dijalankan saat read-only (mencegah POST grade ditolak backend).
+- Verifikasi `c980fd33…` (`DOCTOR_APPROVED`): badge benar, banner view-only, dua tombol Submit disabled, tanpa console error.
