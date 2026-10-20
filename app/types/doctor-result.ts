@@ -6,6 +6,7 @@ export type DoctorResultPatient = {
   name: string
   gender: 'MALE' | 'FEMALE'
   age: number | string
+  queueCode?: string | null
   examCode: string
   examDate: string
   company: string

@@ -737,10 +737,13 @@ onBeforeUnmount(() => {
               </div>
               <div class="min-w-0">
                 <div class="text-xs font-semibold uppercase text-muted">
-                  Exam Code
+                  No. Reg
                 </div>
-                <div class="truncate font-mono text-sm font-semibold">
-                  {{ data.patient.examCode }}
+                <div
+                  class="truncate font-mono text-sm font-semibold"
+                  :title="data.patient.examCode"
+                >
+                  {{ data.patient.queueCode ?? data.patient.examCode ?? '-' }}
                 </div>
               </div>
               <div class="min-w-0">
