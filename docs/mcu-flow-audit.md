@@ -164,3 +164,9 @@ Dijalankan pada DB dev (`db_express_dev`), 2026-09-28:
 ### Catatan
 - Print pre-release 409 sudah tervalidasi sebelum report di-release (run `2026-10-20T04-33-18-902Z`).
 - Negative test lintas-department/four-eyes via UI belum ditambahkan ke script; enforcement-nya ada di service dan unit test dasar.
+
+### 9.1 Follow-up — Superadmin reviewer bypass (2026-10-20)
+- `canUserReviewStep` menerima `isSuperAdmin` dan langsung `allowed`; dipakai di approve item, list result, dan detail result.
+- Halaman `/result/exam-results/b05f0061…` sebagai superadmin: warning `Step "Approve FInal" hanya boleh diapprove oleh role yang ditunjuk` hilang; `departmentCanApprove=true`.
+- Nilai `0` pada Refraction Left/Right tetap tampil (bukan bug); input disabled karena hasil sudah `SUBMITTED`.
+- Test BE: `tests/result-access.test.mjs` (superadmin bypass, non-super ditolak, four-eyes).
