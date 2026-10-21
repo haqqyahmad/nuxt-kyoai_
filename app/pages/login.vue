@@ -64,7 +64,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   try {
     const res = await api.post('/auth/login', {
-      email: payload.data.email,
+      email: payload.data.email.trim().toLowerCase(),
       password: payload.data.password,
       remember: loginState.remember
     })
@@ -99,10 +99,17 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       ?? (import.meta.client ? new URLSearchParams(window.location.search).get('redirect') : null)
     await navigateTo(safeRedirect(redirectQuery) ?? roleTarget)
   } catch (err: unknown) {
-    const message
-      = err && typeof err === 'object' && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : 'Koneksi gagal. Periksa jaringan Anda.'
+    const response = err && typeof err === 'object' && 'response' in err
+      ? (err as { response?: { status?: number, data?: { message?: string } } }).response
+      : undefined
+    let message = response?.data?.message
+    if (response?.status === 401) {
+      message = 'Email atau password salah. Periksa kembali data Anda.'
+    } else if (response?.status === 429) {
+      message = message || 'Terlalu banyak percobaan login. Coba lagi beberapa saat.'
+    } else if (!response) {
+      message = 'Tidak dapat terhubung ke server. Periksa jaringan Anda.'
+    }
     toast.add({
       title: 'Login gagal',
       description: message || 'Terjadi kesalahan',
@@ -159,6 +166,10 @@ const loginState = reactive({
           }"
           @submit="onSubmit"
         />
+
+        <p class="mt-4 text-center text-sm text-muted">
+          Lupa password? Hubungi admin/IT.
+        </p>
       </UPageCard>
     </div>
   </div>

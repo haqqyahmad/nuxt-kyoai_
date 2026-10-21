@@ -1576,3 +1576,11 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Redirect setelah login mempertahankan halaman asal via `/login?redirect=...` (validasi internal path).
 - `isJwtExpired` menolak token tanpa `exp` valid.
 - E2E `tests/e2e/login-remember.e2e.mjs`: 12/12 pass (remember 30d + persist, non-remember 1d + session marker, deep-link redirect).
+
+## Login UX & Security Follow-up - 2026-10-20
+
+- Client validation tetap spesifik (email wajib/format/password wajib); error kredensial generik + teks “Lupa password? Hubungi admin/IT.”
+- Email di-trim/lowercase sebelum login; pesan 429 dan network error dipisah.
+- Interceptor 401 tidak lagi memproses `/auth/login` (menghindari redirect ganda).
+- BE memakai dummy bcrypt compare saat email tidak ditemukan untuk mengurangi timing leak.
+- E2E `login-remember`: 15/15 pass (validasi field, pesan generik, help text, remember/non-remember, deep-link).

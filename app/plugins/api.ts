@@ -25,7 +25,9 @@ export default defineNuxtPlugin(() => {
   api.interceptors.response.use(
     res => res,
     (error) => {
-      if (error.response?.status === 401) {
+      const url = String(error.config?.url || '')
+      const isLoginRequest = url.includes('/auth/login')
+      if (error.response?.status === 401 && !isLoginRequest) {
         removeToken()
         router.push('/login')
       }
