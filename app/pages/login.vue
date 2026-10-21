@@ -133,9 +133,9 @@ const loginState = reactive({
       <!-- Logo -->
       <div class="text-center mb-6">
         <img
-          src="/logo.png"
+          src="/logo-login.png"
           alt="Kyoai Medical Services"
-          class="h-40 w-auto mx-auto"
+          class="h-auto w-[150px] mx-auto"
         >
 
         <h1 class="mt-4 text-2xl font-bold">
