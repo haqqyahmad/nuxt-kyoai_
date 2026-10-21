@@ -2792,7 +2792,7 @@ onBeforeUnmount(() => {
 
         <UAlert
           v-if="missingExternalPdf && !isExternalDoctor"
-          class="m-3 max-w-xl sm:mx-4"
+          class="my-3"
           color="warning"
           variant="soft"
           icon="i-lucide-file-warning"
