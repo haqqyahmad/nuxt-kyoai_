@@ -880,6 +880,12 @@ const hasExternalResultContext = computed(() =>
 const isExternalDoctorWorkspace = computed(() =>
   Boolean(isExternalDoctor.value && hasExternalResultContext.value)
 )
+const missingExternalPdf = computed(() =>
+  Boolean(props.result?.isExternalResult)
+  && props.result?.exam?.externalStatus !== 'CANCELLED'
+  && !props.result?.exam?.attachmentUrl
+  && !props.result?.exam?.externalAttachment
+)
 const isExternalInputTwoColumns = computed(() => externalInputColumns.value === 'two')
 
 async function loadExternalDoctors() {
@@ -2783,6 +2789,16 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
+
+        <UAlert
+          v-if="missingExternalPdf && !isExternalDoctor"
+          class="m-3 sm:mx-4"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-file-warning"
+          title="Examination PDF not uploaded"
+          description="Upload the PDF result before the external doctor fills in the examination parameters."
+        />
 
         <div class="shrink-0 border-b border-default/70 px-4 py-4 sm:px-6">
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
