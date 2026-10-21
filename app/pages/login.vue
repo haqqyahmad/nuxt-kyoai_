@@ -167,7 +167,7 @@ const loginState = reactive({
           @submit="onSubmit"
         />
 
-        <p class="mt-4 text-center text-sm text-muted">
+        <p class="mt-0 text-center text-sm text-muted">
           Lupa password? Hubungi admin/IT.
         </p>
       </UPageCard>
