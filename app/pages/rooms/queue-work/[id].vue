@@ -832,9 +832,26 @@ const allItemsFinal = computed(() =>
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
-// [Back to Called] Disembunyikan juga setelah ada sample yang diambil/diterima.
+const roomExamItemIds = computed(() =>
+  new Set(
+    roomExamItems.value
+      .map(item => item.trxExamItem?.item?.id)
+      .filter((id): id is string => Boolean(id))
+  )
+)
+const roomSampleCollectionIds = computed(() =>
+  new Set(
+    roomExamItems.value
+      .map(item => item.sampleImpact?.collectionId)
+      .filter((id): id is string => Boolean(id))
+  )
+)
 const hasStartedSampleCollection = computed(() =>
-  sampleCollections.value.some(sample => sample.status && sample.status !== 'PENDING')
+  sampleCollections.value.some((sample) => {
+    if (!sample.status || sample.status === 'PENDING') return false
+    if (roomSampleCollectionIds.value.has(sample.id)) return true
+    return (sample.items ?? []).some(item => roomExamItemIds.value.has(item.itemId))
+  })
 )
 
 const allSamplesReceived = computed(() =>

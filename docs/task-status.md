@@ -1591,3 +1591,9 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Modal per-row/bulk menutup setelah sukses, tetap terbuka jika gagal; `selectedCancelId` hanya di-reset saat sukses/close.
 - Tambah loading state dan label dismiss `Back` via prop `cancelLabel` di `BaseDeleteModal`.
 - Verifikasi Playwright: bulk modal + per-row modal tampil, Back menutup, confirm menutup modal (PATCH di-mock), tanpa console error.
+
+## Back to Called Sample Scope Fix - 2026-10-21
+
+- `hasStartedSampleCollection` di `rooms/queue-work/[id].vue` sekarang hanya menghitung sample yang terkait item room aktif (`sampleImpact.collectionId` atau `sample.items.itemId`).
+- Sample Lab yang sudah COLLECTED tidak lagi menyembunyikan Back to Called di room VitalSign.
+- Verifikasi sebagai nurse1 pada queue `47346c31…`: tombol Back to Called tampil; sample Lab tidak memblokir.
