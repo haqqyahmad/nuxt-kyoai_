@@ -1584,3 +1584,10 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Interceptor 401 tidak lagi memproses `/auth/login` (menghindari redirect ganda).
 - BE memakai dummy bcrypt compare saat email tidak ditemukan untuk mengurangi timing leak.
 - E2E `login-remember`: 15/15 pass (validasi field, pesan generik, help text, remember/non-remember, deep-link).
+
+## Cancel Registration Modal Fix - 2026-10-21
+
+- Bulk trigger dipisah dari `BaseDeleteModal` (default slot tidak dirender); tombol bulk Cancel sekarang muncul.
+- Modal per-row/bulk menutup setelah sukses, tetap terbuka jika gagal; `selectedCancelId` hanya di-reset saat sukses/close.
+- Tambah loading state dan label dismiss `Back` via prop `cancelLabel` di `BaseDeleteModal`.
+- Verifikasi Playwright: bulk modal + per-row modal tampil, Back menutup, confirm menutup modal (PATCH di-mock), tanpa console error.

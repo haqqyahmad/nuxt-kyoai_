@@ -165,7 +165,10 @@ const columnVisibility = ref()
 const rowSelection = ref({})
 
 const selectedCancelId = ref<string | null>(null)
-async function cancelRegistration(registrationId: string) {
+const cancelLoading = ref(false)
+const isBulkCancelOpen = ref(false)
+
+async function cancelRegistration(registrationId: string): Promise<boolean> {
   try {
     await api.patch(`/registration/${registrationId}/cancel`, {})
 
@@ -176,6 +179,7 @@ async function cancelRegistration(registrationId: string) {
     })
 
     await refresh()
+    return true
   } catch (err) {
     const e = err as { response?: { data?: { message?: string } }, message?: string }
     toast.add({
@@ -183,13 +187,23 @@ async function cancelRegistration(registrationId: string) {
       description: e?.response?.data?.message || e?.message || 'Failed to cancel registration',
       color: 'error'
     })
+    return false
   }
 }
 
 async function handleCancelById() {
-  if (!selectedCancelId.value) return
+  if (!selectedCancelId.value || cancelLoading.value) return
 
-  await cancelRegistration(selectedCancelId.value)
+  cancelLoading.value = true
+  const ok = await cancelRegistration(selectedCancelId.value)
+  cancelLoading.value = false
+  if (ok) {
+    isCancelModalOpen.value = false
+    selectedCancelId.value = null
+  }
+}
+
+function closeCancelModal() {
   selectedCancelId.value = null
 }
 
@@ -197,8 +211,9 @@ async function cancelSelectedRegistrations() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
 
-  if (!selectedRows.length) return
+  if (!selectedRows.length || cancelLoading.value) return
 
+  cancelLoading.value = true
   try {
     await Promise.all(
       selectedRows.map((row: Row<Patient>) => api.patch(`/registration/${row.original.registrationId}/cancel`, {}))
@@ -210,6 +225,7 @@ async function cancelSelectedRegistrations() {
       color: 'success'
     })
 
+    isBulkCancelOpen.value = false
     table.value?.tableApi?.resetRowSelection()
     await refresh()
   } catch (err) {
@@ -219,10 +235,16 @@ async function cancelSelectedRegistrations() {
       description: e?.response?.data?.message || e?.message || 'Failed to cancel registrations',
       color: 'error'
     })
+  } finally {
+    cancelLoading.value = false
   }
 }
 
 const isCancelModalOpen = ref(false)
+
+watch(isCancelModalOpen, (open) => {
+  if (!open && !cancelLoading.value) selectedCancelId.value = null
+})
 
 const isPatientEditOpen = ref(false)
 const patientEditId = ref<string | null>(null)
@@ -612,30 +634,33 @@ watch(currentPage, (page) => {
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <UButton
+            v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            label="Cancel"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-ban"
+            @click="isBulkCancelOpen = true"
+          >
+            <template #trailing>
+              <UKbd>
+                {{
+                  table?.tableApi?.getFilteredSelectedRowModel().rows.length
+                }}
+              </UKbd>
+            </template>
+          </UButton>
           <BaseDeleteModal
+            v-model:open="isBulkCancelOpen"
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="registration"
             title="Cancel registrations?"
             description="Registrasi yang dipilih akan dibatalkan. Riwayat pasien tetap tersimpan."
             confirm-label="Cancel Registration"
+            cancel-label="Back"
+            :loading="cancelLoading"
             @confirm="cancelSelectedRegistrations"
-          >
-            <UButton
-              v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-              label="Cancel"
-              color="error"
-              variant="subtle"
-              icon="i-lucide-ban"
-            >
-              <template #trailing>
-                <UKbd>
-                  {{
-                    table?.tableApi?.getFilteredSelectedRowModel().rows.length
-                  }}
-                </UKbd>
-              </template>
-            </UButton>
-          </BaseDeleteModal>
+          />
 
           <UDropdownMenu
             :items="
@@ -725,7 +750,10 @@ watch(currentPage, (page) => {
         title="Cancel registration?"
         description="Registrasi akan dibatalkan. Riwayat pasien tetap tersimpan."
         confirm-label="Cancel Registration"
+        cancel-label="Back"
+        :loading="cancelLoading"
         @confirm="handleCancelById"
+        @close="closeCancelModal"
       />
       <PatientsEditModal
         v-model:open="isPatientEditOpen"

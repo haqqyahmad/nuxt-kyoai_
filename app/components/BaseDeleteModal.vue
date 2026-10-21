@@ -7,6 +7,7 @@ const props = withDefaults(
     title?: string
     description?: string
     confirmLabel?: string
+    cancelLabel?: string
     loading?: boolean
   }>(),
   {
@@ -14,6 +15,7 @@ const props = withDefaults(
     count: 1,
     entity: 'item',
     confirmLabel: 'Delete',
+    cancelLabel: 'Cancel',
     loading: false
   }
 )
@@ -62,7 +64,7 @@ function onConfirm() {
     <template #body>
       <div class="flex justify-end gap-2">
         <UButton
-          label="Cancel"
+          :label="cancelLabel"
           color="neutral"
           variant="subtle"
           :disabled="loading"
