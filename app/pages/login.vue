@@ -3,6 +3,7 @@ import * as z from 'zod'
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
 
 const api = useApi()
+const route = useRoute()
 const { setToken } = useAuth()
 const toast = useToast()
 
@@ -51,6 +52,12 @@ const schema = z.object({
 
 type Schema = z.infer<typeof schema>
 
+function safeRedirect(value: unknown): string | null {
+  const path = Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : ''
+  if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/login')) return null
+  return path
+}
+
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   if (loading.value) return
   loading.value = true
@@ -76,7 +83,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const medicalRecordRole = 'medical-record'
     const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
-    const target = isExternalDoctor
+    const roleTarget = isExternalDoctor
       ? '/result/exam-results'
       : roles.includes(queueSearchRole)
         ? '/queue-search'
@@ -88,7 +95,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
               ? '/rooms/assignments'
               : '/'
 
-    await navigateTo(target)
+    const redirectQuery = route.query.redirect
+      ?? (import.meta.client ? new URLSearchParams(window.location.search).get('redirect') : null)
+    await navigateTo(safeRedirect(redirectQuery) ?? roleTarget)
   } catch (err: unknown) {
     const message
       = err && typeof err === 'object' && 'response' in err

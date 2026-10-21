@@ -13,6 +13,7 @@ function isJwtExpired(token: string): boolean {
     const payload = token.split('.')[1]
     if (!payload) return true
     const decoded = JSON.parse(base64UrlDecode(payload))
+    if (typeof decoded.exp !== 'number' || decoded.exp <= 0) return true
     return decoded.exp * 1000 < Date.now()
   } catch {
     return true

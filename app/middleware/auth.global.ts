@@ -15,6 +15,9 @@ export default defineNuxtRouteMiddleware((to) => {
   const authenticated = !!token && !isJwtExpired(token)
 
   if (!authenticated) {
-    return navigateTo('/login')
+    return navigateTo({
+      path: '/login',
+      query: to.fullPath && to.fullPath !== '/' ? { redirect: to.fullPath } : undefined
+    })
   }
 })

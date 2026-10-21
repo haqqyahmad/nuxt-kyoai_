@@ -1569,3 +1569,10 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Jika ada perubahan PRD atau kontrak backend, perbarui dokumen ini sebelum implementasi lanjutan.
 - Jika task menyentuh FE dan BE, pecah menjadi dua task dengan owner yang jelas.
 - Semua perubahan penting harus punya history singkat dan status pengerjaan.
+
+## Login Flow Hardening - 2026-10-20
+
+- Login error generik `401 Invalid email or password` untuk email tidak dikenal maupun password salah (anti user enumeration).
+- Redirect setelah login mempertahankan halaman asal via `/login?redirect=...` (validasi internal path).
+- `isJwtExpired` menolak token tanpa `exp` valid.
+- E2E `tests/e2e/login-remember.e2e.mjs`: 12/12 pass (remember 30d + persist, non-remember 1d + session marker, deep-link redirect).
