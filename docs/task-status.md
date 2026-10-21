@@ -1591,3 +1591,10 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Modal per-row/bulk menutup setelah sukses, tetap terbuka jika gagal; `selectedCancelId` hanya di-reset saat sukses/close.
 - Tambah loading state dan label dismiss `Back` via prop `cancelLabel` di `BaseDeleteModal`.
 - Verifikasi Playwright: bulk modal + per-row modal tampil, Back menutup, confirm menutup modal (PATCH di-mock), tanpa console error.
+
+## Cancel Visibility Guard - 2026-10-21
+
+- Menu Cancel registration hanya tampil untuk status `Open`/`Reschedule`; status `Checkin`, `PartialExam`, `CheckOut`, `Cancel` tidak menampilkan menu.
+- Bulk Cancel hanya tampil jika ada row terpilih yang eligible; confirm hanya memproses row eligible dan menampilkan jumlah yang dilewati.
+- Backend cancel belum diubah (masih bisa dipanggil langsung); guard server dapat ditambahkan terpisah.
+- Verifikasi Playwright: row check-in tanpa menu Cancel dan bulk tersembunyi; row Open menampilkan Cancel + bulk modal.

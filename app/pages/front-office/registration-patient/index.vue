@@ -168,6 +168,15 @@ const selectedCancelId = ref<string | null>(null)
 const cancelLoading = ref(false)
 const isBulkCancelOpen = ref(false)
 
+function canCancelRegistration(status?: string) {
+  return status === 'open' || status === 'reschedule'
+}
+
+const cancellableSelectedRows = computed(() => {
+  const rows = (table.value?.tableApi?.getFilteredSelectedRowModel().rows || []) as Row<Patient>[]
+  return rows.filter(row => canCancelRegistration(row.original.statusRegistration))
+})
+
 async function cancelRegistration(registrationId: string): Promise<boolean> {
   try {
     await api.patch(`/registration/${registrationId}/cancel`, {})
@@ -210,18 +219,22 @@ function closeCancelModal() {
 async function cancelSelectedRegistrations() {
   const selectedRows
     = table.value?.tableApi?.getFilteredSelectedRowModel().rows || []
+  const cancellableRows = cancellableSelectedRows.value
 
-  if (!selectedRows.length || cancelLoading.value) return
+  if (!cancellableRows.length || cancelLoading.value) return
 
   cancelLoading.value = true
   try {
     await Promise.all(
-      selectedRows.map((row: Row<Patient>) => api.patch(`/registration/${row.original.registrationId}/cancel`, {}))
+      cancellableRows.map(row => api.patch(`/registration/${row.original.registrationId}/cancel`, {}))
     )
 
+    const skipped = selectedRows.length - cancellableRows.length
     toast.add({
       title: 'Success',
-      description: 'Selected registrations cancelled successfully',
+      description: skipped > 0
+        ? `Selected registrations cancelled successfully (${skipped} skipped)`
+        : 'Selected registrations cancelled successfully',
       color: 'success'
     })
 
@@ -281,16 +294,17 @@ function getRowItems(row: Row<Patient>) {
     {
       type: 'separator'
     },
-    {
-      label: 'Cancel registration',
-      icon: 'i-lucide-ban',
-      color: 'error',
-      disabled: row.original.statusRegistration === 'cancel',
-      onSelect() {
-        selectedCancelId.value = row.original.registrationId
-        isCancelModalOpen.value = true
-      }
-    }
+    ...(canCancelRegistration(row.original.statusRegistration)
+      ? [{
+          label: 'Cancel registration',
+          icon: 'i-lucide-ban',
+          color: 'error',
+          onSelect() {
+            selectedCancelId.value = row.original.registrationId
+            isCancelModalOpen.value = true
+          }
+        }]
+      : [])
   ]
 }
 
@@ -635,7 +649,7 @@ watch(currentPage, (page) => {
 
         <div class="flex flex-wrap items-center gap-1.5">
           <UButton
-            v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            v-if="cancellableSelectedRows.length"
             label="Cancel"
             color="error"
             variant="subtle"
@@ -644,15 +658,13 @@ watch(currentPage, (page) => {
           >
             <template #trailing>
               <UKbd>
-                {{
-                  table?.tableApi?.getFilteredSelectedRowModel().rows.length
-                }}
+                {{ cancellableSelectedRows.length }}
               </UKbd>
             </template>
           </UButton>
           <BaseDeleteModal
             v-model:open="isBulkCancelOpen"
-            :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
+            :count="cancellableSelectedRows.length"
             entity="registration"
             title="Cancel registrations?"
             description="Registrasi yang dipilih akan dibatalkan. Riwayat pasien tetap tersimpan."
