@@ -1603,3 +1603,14 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - `retestRoomExamItem` tidak lagi mereset seluruh stage/room/queue call; hanya item yang diretest yang dikembalikan ke `PENDING` + `workStatus=RETEXT`.
 - Stage tetap `IN_PROGRESS`, item lain tidak berubah, dan item retest bisa langsung di-start ulang di room yang sama.
 - Verifikasi: BE `npm test` 78/78; `node --check` OK.
+
+## Multi-Measurement & Same-Visit Recall - 2026-10-22
+
+- Item config baru: `measurementMode` (`SINGLE`/`MULTIPLE`), `allowDeferMeasurement`, `allowSameVisitRecall`; BP `BASC-00003` di-set MULTIPLE + defer + recall.
+- Tabel baru `trx_exam_item_measurement` + `trx_exam_item_measurement_value`; status `DEFERRED` pada item/room.
+- API measurements: GET/POST, PATCH select, PATCH defer; select meng-upsert `TrxExamResult`; defer menyimpan riwayat dan mengosongkan hasil terpilih.
+- Auto-recall saat QueueEntry WAITING/DONE/PARTIAL (bukan CheckOut): room yang sama dibuka kembali WAITING, item DEFERRED kembali PENDING.
+- Room completion menerima DEFERRED; checkout tetap menolak DEFERRED.
+- FE: config di `ItemsAddModal` (add/edit), panel Blood Pressure Measurements di room work, riwayat read-only di DetailDrawer.
+- Migration `20261022100000_measurement_config_and_tables`; backup `db_express_dev_backup_20261022_104901.sql`; dry-run restore + apply dev OK.
+- Verifikasi: API create/list/select/defer + promote auto-recall; BE `npm test` 78/78; FE `vue-tsc` EXIT=0.

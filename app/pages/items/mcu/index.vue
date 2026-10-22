@@ -25,6 +25,9 @@ type Item = {
   resultTiming?: 'inline' | 'deferred'
   externalResult?: boolean
   requiresAttachmentForDone?: boolean
+  measurementMode?: 'SINGLE' | 'MULTIPLE'
+  allowDeferMeasurement?: boolean
+  allowSameVisitRecall?: boolean
   mealPrerequisite?: boolean
   sampleTypes?: Array<{
     sampleTypeId: string

@@ -83,6 +83,23 @@ type SampleImpact = {
   rescheduledAt?: string | null
 }
 
+type MeasurementHistory = {
+  id: string
+  measuredAt: string
+  measuredByName?: string | null
+  note?: string | null
+  isSelected: boolean
+  values: Array<{
+    inputanId: string
+    label?: string | null
+    uom?: string | null
+    valueNumber?: number | null
+    valueString?: string | null
+    valueSelected?: string | null
+    valueCalculated?: number | null
+  }>
+}
+
 type ExamResultDetail = {
   id: string
   queueCode: string
@@ -94,6 +111,9 @@ type ExamResultDetail = {
     code?: string | null
     department?: Department | null
     inputans?: ExamInput[]
+    measurementMode?: 'SINGLE' | 'MULTIPLE'
+    allowDeferMeasurement?: boolean
+    allowSameVisitRecall?: boolean
   } | null
   items?: Array<{
     id: string
@@ -623,6 +643,30 @@ const externalProcessingRemainingLabel = computed(() => {
 
 const externalStarting = ref(false)
 const externalDefaultsApplied = ref(false)
+const measurementHistory = ref<MeasurementHistory[]>([])
+const measurementHistoryLoading = ref(false)
+
+async function loadMeasurementHistory() {
+  const item = props.result
+  if (!item || item.item?.measurementMode !== 'MULTIPLE' || !item.id) {
+    measurementHistory.value = []
+    return
+  }
+  measurementHistoryLoading.value = true
+  try {
+    const res = await api.get(`/medical/exams/queue/exam-item/${item.id}/measurements`)
+    const payload = res.data?.data ?? res.data
+    measurementHistory.value = Array.isArray(payload) ? payload : []
+  } catch {
+    measurementHistory.value = []
+  } finally {
+    measurementHistoryLoading.value = false
+  }
+}
+
+watch(() => props.result, () => {
+  void loadMeasurementHistory()
+}, { immediate: true })
 
 function defaultSelectedValue(inputan: ExamInput): string | null {
   const normalize = (value: unknown) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
@@ -2230,6 +2274,55 @@ onBeforeUnmount(() => {
           </template>
         </UAlert>
       </div>
+
+      <UCard v-if="measurementHistory.length" class="m-3 sm:mx-4">
+        <template #header>
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="text-sm font-semibold text-highlighted">
+              Measurement History
+            </h4>
+            <UBadge v-if="measurementHistoryLoading" color="neutral" variant="soft">
+              Loading...
+            </UBadge>
+          </div>
+        </template>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-default text-left text-xs uppercase tracking-wide text-muted">
+                <th class="py-2 pr-3">Time</th>
+                <th v-for="value in measurementHistory[0]?.values ?? []" :key="value.inputanId" class="py-2 pr-3">
+                  {{ value.label || '-' }}
+                </th>
+                <th class="py-2 pr-3">Note</th>
+                <th class="py-2 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="measurement in measurementHistory" :key="measurement.id" class="border-b border-default/60 last:border-0">
+                <td class="py-2 pr-3 whitespace-nowrap">
+                  {{ formatDateTime(measurement.measuredAt) }}
+                  <div v-if="measurement.measuredByName" class="text-xs text-muted">
+                    {{ measurement.measuredByName }}
+                  </div>
+                </td>
+                <td v-for="value in measurementHistory[0]?.values ?? []" :key="value.inputanId" class="py-2 pr-3">
+                  {{ measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueNumber
+                    ?? measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueString
+                    ?? measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueSelected
+                    ?? '-' }}
+                </td>
+                <td class="py-2 pr-3 text-muted">{{ measurement.note || '-' }}</td>
+                <td class="py-2 text-right">
+                  <UBadge :color="measurement.isSelected ? 'success' : 'neutral'" variant="soft">
+                    {{ measurement.isSelected ? 'Selected' : 'History' }}
+                  </UBadge>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </UCard>
 
       <div
         v-if="result && isExternalDoctorWorkspace"

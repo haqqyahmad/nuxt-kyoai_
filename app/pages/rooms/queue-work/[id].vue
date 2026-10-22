@@ -51,6 +51,26 @@ type SampleCollection = {
   items?: Array<{ itemId: string }>
 }
 
+type MeasurementValue = {
+  inputanId: string
+  label?: string | null
+  uom?: string | null
+  inputType?: string | null
+  valueNumber?: number | null
+  valueString?: string | null
+  valueSelected?: string | null
+  valueCalculated?: number | null
+}
+
+type Measurement = {
+  id: string
+  measuredAt: string
+  measuredByName?: string | null
+  note?: string | null
+  isSelected: boolean
+  values: MeasurementValue[]
+}
+
 type RoomAssignment = {
   id: string
   assignedDate: string
@@ -225,6 +245,9 @@ type RoomExamItem = {
       resultTiming?: 'inline' | 'deferred' | null
       externalResult?: boolean
       requiresAttachmentForDone?: boolean
+      measurementMode?: 'SINGLE' | 'MULTIPLE'
+      allowDeferMeasurement?: boolean
+      allowSameVisitRecall?: boolean
       mealPrerequisite?: boolean
       rendererKey?: string | null
       clearanceQuestionnaireId?: string | null
@@ -311,6 +334,11 @@ const itemActionLoading = ref<Record<string, boolean>>({})
 const collectionActionLoading = ref<Record<string, boolean>>({})
 const resultSaveLoading = ref<Record<string, boolean>>({})
 const resultDrafts = reactive<Record<string, Record<string, ResultDraft>>>({})
+const measurements = ref<Measurement[]>([])
+const measurementLoading = ref(false)
+const measurementSaving = ref(false)
+const measurementDraft = reactive<Record<string, string>>({})
+const measurementNote = ref('')
 const itemNotes = reactive<Record<string, string>>({})
 const { loading: auditLoading, entries: auditEntries, resetAudit } = useAudit()
 const isItemActionModalOpen = ref(false)
@@ -398,6 +426,7 @@ function getStatusColor(status: string): BadgeColor {
   if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
   if (status === 'REFUSED' || status === 'REJECTED') return 'error'
   if (status === 'RETEXT') return 'warning'
+  if (status === 'DEFERRED') return 'warning'
   return 'neutral'
 }
 
@@ -410,6 +439,7 @@ function getStatusLabel(status: string) {
   if (status === 'REFUSED') return 'Patient refused'
   if (status === 'REJECTED') return 'Sample rejected'
   if (status === 'RETEXT') return 'Retest needed'
+  if (status === 'DEFERRED') return 'Deferred measurement'
   return 'Waiting'
 }
 
@@ -828,7 +858,7 @@ const currentRoomWorkStatus = computed(() => {
     ?? 'WAITING'
 })
 const allItemsFinal = computed(() =>
-  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED'].includes(item.status))
+  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED', 'DEFERRED'].includes(item.status))
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
@@ -1174,6 +1204,120 @@ const selectedItem = computed(() =>
     ? roomExamItems.value.find(item => item.id === selectedItemId.value) ?? null
     : null
 )
+
+function isMultiMeasurementItem(item: RoomExamItem | null) {
+  return item?.trxExamItem?.item?.measurementMode === 'MULTIPLE'
+}
+
+const measurementInputans = computed(() => selectedItem.value?.trxExamItem?.item?.inputans ?? [])
+
+function resetMeasurementDraft() {
+  for (const key of Object.keys(measurementDraft)) delete measurementDraft[key]
+  for (const inputan of measurementInputans.value) measurementDraft[inputan.id] = ''
+  measurementNote.value = ''
+}
+
+async function loadMeasurements(item: RoomExamItem | null = selectedItem.value) {
+  if (!item || !isMultiMeasurementItem(item)) {
+    measurements.value = []
+    return
+  }
+  measurementLoading.value = true
+  try {
+    const res = await api.get(`/medical/exams/queue/exam-item/${item.id}/measurements`)
+    const payload = res.data?.data ?? res.data
+    measurements.value = Array.isArray(payload) ? payload : []
+  } catch (error) {
+    measurements.value = []
+    toast.add({
+      title: 'Failed to load measurements',
+      description: getErrorMessage(error, 'Could not load measurement history.'),
+      color: 'error'
+    })
+  } finally {
+    measurementLoading.value = false
+  }
+}
+
+async function addMeasurement() {
+  const item = selectedItem.value
+  if (!item || measurementSaving.value) return
+  const values = measurementInputans.value
+    .map(inputan => ({ inputanId: inputan.id, valueNumber: measurementDraft[inputan.id] }))
+    .filter(value => String(value.valueNumber ?? '').trim() !== '')
+    .map(value => ({ inputanId: value.inputanId, valueNumber: Number(value.valueNumber) }))
+
+  if (!values.length) {
+    toast.add({ title: 'Measurement is empty', description: 'Fill at least one measurement value.', color: 'warning' })
+    return
+  }
+
+  measurementSaving.value = true
+  try {
+    await api.post(`/medical/exams/queue/exam-item/${item.id}/measurements`, {
+      values,
+      note: measurementNote.value.trim() || null
+    })
+    resetMeasurementDraft()
+    await loadMeasurements(item)
+    toast.add({ title: 'Measurement saved', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Failed to save measurement',
+      description: getErrorMessage(error, 'Could not save the measurement.'),
+      color: 'error'
+    })
+  } finally {
+    measurementSaving.value = false
+  }
+}
+
+async function selectMeasurement(measurement: Measurement) {
+  const item = selectedItem.value
+  if (!item || measurementSaving.value) return
+  measurementSaving.value = true
+  try {
+    await api.patch(`/medical/exams/queue/exam-item/${item.id}/measurements/${measurement.id}/select`, {})
+    await loadMeasurements(item)
+    await loadPage(true)
+    toast.add({ title: 'Measurement selected', description: 'Selected values saved as the final result.', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Failed to select measurement',
+      description: getErrorMessage(error, 'Could not use this measurement.'),
+      color: 'error'
+    })
+  } finally {
+    measurementSaving.value = false
+  }
+}
+
+async function deferMeasurement() {
+  const item = selectedItem.value
+  if (!item || measurementSaving.value) return
+  measurementSaving.value = true
+  try {
+    await api.patch(`/medical/exams/queue/exam-item/${item.id}/defer`, {
+      note: measurementNote.value.trim() || null
+    })
+    await loadPage(true)
+    toast.add({ title: 'Measurement deferred', description: 'Patient can continue other examinations and will be recalled when waiting.', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Failed to defer measurement',
+      description: getErrorMessage(error, 'Could not defer this measurement.'),
+      color: 'error'
+    })
+  } finally {
+    measurementSaving.value = false
+  }
+}
+
+watch(selectedItemId, () => {
+  resetMeasurementDraft()
+  void loadMeasurements()
+})
+
 
 const selectedMaster = computed(() =>
   masterItems.value.find(m => m.id === selectedItemId.value) ?? null
@@ -2280,8 +2424,19 @@ async function handleSubmitResults(item: RoomExamItem) {
 
   setResultSaving(item.id, true)
   try {
-    const saved = await saveResultsDraft(item, false)
-    if (!saved) return
+    if (isMultiMeasurementItem(item)) {
+      if (!measurements.value.some(measurement => measurement.isSelected)) {
+        toast.add({
+          title: 'Pilih pengukuran dulu',
+          description: 'Pilih satu pengukuran sebagai hasil final sebelum submit.',
+          color: 'warning'
+        })
+        return
+      }
+    } else {
+      const saved = await saveResultsDraft(item, false)
+      if (!saved) return
+    }
 
     await api.post(`/mcu/exams/${examId}/results/submit`, {
       departmentId: item.trxExamItem?.item?.department?.id ?? undefined,
@@ -3090,7 +3245,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
+                        v-if="!isMultiMeasurementItem(selectedItem) && hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
                         color="primary"
                         variant="soft"
                         icon="i-lucide-save"
@@ -3101,7 +3256,7 @@ async function handleSubmitItemAction() {
                       </UButton>
 
                       <UButton
-                        v-if="hasStructuredInputs(selectedItem) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
+                        v-if="(isMultiMeasurementItem(selectedItem) || hasStructuredInputs(selectedItem)) && selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.item?.resultTiming !== 'deferred' && !isExamResultSubmitted(selectedItem)"
                         color="primary"
                         variant="soft"
                         icon="i-lucide-send"
@@ -3195,8 +3350,121 @@ async function handleSubmitItemAction() {
                       @updated="loadPage(true)"
                     />
 
+                    <div v-if="isMultiMeasurementItem(selectedItem)" class="space-y-4">
+                      <div class="rounded-xl border border-default/80 bg-default p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h4 class="text-sm font-semibold text-highlighted">
+                              Blood Pressure Measurements
+                            </h4>
+                            <p class="mt-1 text-xs text-muted">
+                              Simpan beberapa pengukuran, lalu pilih satu sebagai hasil final.
+                            </p>
+                          </div>
+                          <UBadge v-if="selectedItem.status === 'DEFERRED'" color="warning" variant="soft">
+                            Deferred
+                          </UBadge>
+                        </div>
+
+                        <div v-if="selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.resultStatus !== 'SUBMITTED'" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <UFormField
+                            v-for="inputan in measurementInputans"
+                            :key="inputan.id"
+                            :label="`${inputan.label}${inputan.uom ? ` (${inputan.uom})` : ''}`"
+                          >
+                            <UInput
+                              v-model="measurementDraft[inputan.id]"
+                              type="number"
+                              :placeholder="`Enter ${inputan.label}`"
+                              class="w-full"
+                            />
+                          </UFormField>
+                          <UFormField label="Note" class="md:col-span-2">
+                            <UInput v-model="measurementNote" placeholder="Optional note" class="w-full" />
+                          </UFormField>
+                          <div class="flex flex-wrap items-end gap-2 md:col-span-2">
+                            <UButton
+                              color="primary"
+                              icon="i-lucide-plus"
+                              :loading="measurementSaving"
+                              @click="addMeasurement"
+                            >
+                              Add Measurement
+                            </UButton>
+                            <UButton
+                              v-if="selectedItem.trxExamItem?.item?.allowDeferMeasurement"
+                              color="warning"
+                              variant="soft"
+                              icon="i-lucide-clock"
+                              :loading="measurementSaving"
+                              :disabled="measurements.length === 0"
+                              @click="deferMeasurement"
+                            >
+                              Measure Later
+                            </UButton>
+                          </div>
+                        </div>
+
+                        <div v-if="measurementLoading" class="mt-4 text-sm text-muted">
+                          Loading measurements...
+                        </div>
+                        <div v-else-if="!measurements.length" class="mt-4 rounded-lg border border-dashed border-default p-4 text-sm text-muted">
+                          Belum ada pengukuran tersimpan.
+                        </div>
+                        <div v-else class="mt-4 overflow-x-auto">
+                          <table class="w-full text-sm">
+                            <thead>
+                              <tr class="border-b border-default text-left text-xs uppercase tracking-wide text-muted">
+                                <th class="py-2 pr-3">Time</th>
+                                <th v-for="inputan in measurementInputans" :key="inputan.id" class="py-2 pr-3">
+                                  {{ inputan.label }}
+                                </th>
+                                <th class="py-2 pr-3">Note</th>
+                                <th class="py-2 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr
+                                v-for="measurement in measurements"
+                                :key="measurement.id"
+                                class="border-b border-default/60 last:border-0"
+                                :class="measurement.isSelected ? 'bg-success/5' : ''"
+                              >
+                                <td class="py-2 pr-3 whitespace-nowrap">
+                                  {{ formatDate(measurement.measuredAt) }}
+                                  <div v-if="measurement.measuredByName" class="text-xs text-muted">
+                                    {{ measurement.measuredByName }}
+                                  </div>
+                                </td>
+                                <td v-for="inputan in measurementInputans" :key="inputan.id" class="py-2 pr-3 font-medium">
+                                  {{ measurement.values.find(v => v.inputanId === inputan.id)?.valueNumber ?? '-' }}
+                                  <span v-if="inputan.uom" class="text-xs font-normal text-muted">{{ inputan.uom }}</span>
+                                </td>
+                                <td class="py-2 pr-3 text-muted">{{ measurement.note || '-' }}</td>
+                                <td class="py-2 text-right">
+                                  <UBadge v-if="measurement.isSelected" color="success" variant="soft">
+                                    Selected
+                                  </UBadge>
+                                  <UButton
+                                    v-else
+                                    size="xs"
+                                    color="primary"
+                                    variant="soft"
+                                    :disabled="measurementSaving || selectedItem.status !== 'IN_PROGRESS' || selectedItem.trxExamItem?.resultStatus === 'SUBMITTED'"
+                                    @click="selectMeasurement(measurement)"
+                                  >
+                                    Use This
+                                  </UButton>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
                     <div
-                      v-if="canRenderExamInputs(selectedItem) && !isPhysicalExamItem(selectedItem)"
+                      v-else-if="canRenderExamInputs(selectedItem) && !isPhysicalExamItem(selectedItem)"
                       class="space-y-3"
                     >
                       <div class="flex items-center justify-between gap-3 px-0.5">

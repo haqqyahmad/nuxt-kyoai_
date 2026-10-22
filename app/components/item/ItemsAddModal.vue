@@ -19,6 +19,9 @@ const props = defineProps<{
     externalResult?: boolean
     externalProcessSlaDays?: number | null
     requiresAttachmentForDone?: boolean
+    measurementMode?: 'SINGLE' | 'MULTIPLE'
+    allowDeferMeasurement?: boolean
+    allowSameVisitRecall?: boolean
     departmentId?: string | null
     roomTypeId?: string
     groupId?: string | null
@@ -85,6 +88,9 @@ const form = reactive({
   externalResult: false,
   externalProcessSlaDays: 3,
   requiresAttachmentForDone: false,
+  measurementMode: 'SINGLE' as 'SINGLE' | 'MULTIPLE',
+  allowDeferMeasurement: false,
+  allowSameVisitRecall: false,
   departmentId: '',
   roomTypeId: '',
   groupId: '',
@@ -168,6 +174,9 @@ watch(() => props.item, (item) => {
     form.externalResult = Boolean(item.externalResult)
     form.externalProcessSlaDays = item.externalProcessSlaDays ?? 3
     form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
+    form.measurementMode = item.measurementMode ?? 'SINGLE'
+    form.allowDeferMeasurement = Boolean(item.allowDeferMeasurement)
+    form.allowSameVisitRecall = Boolean(item.allowSameVisitRecall)
     form.departmentId = item.departmentId || ''
     form.roomTypeId = item.roomTypeId ?? ''
     form.groupId = item.groupId || ''
@@ -258,11 +267,28 @@ watch(
   }
 )
 
+watch(
+  () => [form.measurementMode, form.allowDeferMeasurement],
+  () => {
+    if (form.measurementMode !== 'MULTIPLE') {
+      form.allowDeferMeasurement = false
+      form.allowSameVisitRecall = false
+    } else if (!form.allowDeferMeasurement) {
+      form.allowSameVisitRecall = false
+    }
+  }
+)
+
 const isValid = computed(() => form.code.trim() && form.name.trim() && form.departmentId && form.roomTypeId)
 
 const resultTimingOptions = [
   { label: 'Inline', value: 'inline' },
   { label: 'Deferred', value: 'deferred' }
+]
+
+const measurementModeOptions = [
+  { label: 'Single measurement', value: 'SINGLE' },
+  { label: 'Multiple measurements', value: 'MULTIPLE' }
 ]
 
 const tabs = computed(() => [
@@ -287,6 +313,9 @@ function resetAll() {
   form.externalResult = false
   form.externalProcessSlaDays = 3
   form.requiresAttachmentForDone = false
+  form.measurementMode = 'SINGLE'
+  form.allowDeferMeasurement = false
+  form.allowSameVisitRecall = false
   form.departmentId = ''
   form.roomTypeId = ''
   form.groupId = ''
@@ -317,6 +346,9 @@ watch(open, (val) => {
       form.rendererKey = item.rendererKey ?? 'GENERIC'
       form.externalResult = Boolean(item.externalResult)
       form.requiresAttachmentForDone = Boolean(item.requiresAttachmentForDone)
+      form.measurementMode = item.measurementMode ?? 'SINGLE'
+      form.allowDeferMeasurement = Boolean(item.allowDeferMeasurement)
+      form.allowSameVisitRecall = Boolean(item.allowSameVisitRecall)
       form.departmentId = item.departmentId || ''
       form.roomTypeId = item.roomTypeId ?? ''
       form.groupId = item.groupId || ''
@@ -358,6 +390,9 @@ async function ensureItemCreated() {
       externalResult: form.externalResult,
       externalProcessSlaDays: form.externalProcessSlaDays,
       requiresAttachmentForDone: form.requiresAttachmentForDone,
+      measurementMode: form.measurementMode,
+      allowDeferMeasurement: form.allowDeferMeasurement,
+      allowSameVisitRecall: form.allowSameVisitRecall,
       departmentId: form.departmentId || null,
       roomTypeId: form.roomTypeId,
       groupId: form.subgroupId || form.groupId || null,
@@ -426,6 +461,9 @@ async function submit() {
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
+      measurementMode: form.measurementMode,
+      allowDeferMeasurement: form.allowDeferMeasurement,
+      allowSameVisitRecall: form.allowSameVisitRecall,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -455,6 +493,9 @@ async function submit() {
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
+      measurementMode: form.measurementMode,
+      allowDeferMeasurement: form.allowDeferMeasurement,
+      allowSameVisitRecall: form.allowSameVisitRecall,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -671,6 +712,38 @@ function handleDone() {
                 <UFormField label="Info">
                   <div class="flex h-10 items-center text-sm text-muted">
                     `inline` untuk hasil yang diisi saat pemeriksaan, `deferred` untuk hasil setelah room selesai.
+                  </div>
+                </UFormField>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Measurement Mode">
+                  <USelectMenu
+                    v-model="form.measurementMode"
+                    :items="measurementModeOptions"
+                    value-key="value"
+                    label-key="label"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Measure Later" description="Izinkan item ditunda lalu diukur ulang pada kunjungan yang sama.">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox
+                      v-model="form.allowDeferMeasurement"
+                      :disabled="form.measurementMode !== 'MULTIPLE'"
+                      label="Allow deferred measurement"
+                    />
+                  </div>
+                </UFormField>
+
+                <UFormField label="Same-Visit Recall" description="Buka kembali room secara otomatis saat pasien berstatus waiting.">
+                  <div class="flex h-10 items-center">
+                    <UCheckbox
+                      v-model="form.allowSameVisitRecall"
+                      :disabled="form.measurementMode !== 'MULTIPLE' || !form.allowDeferMeasurement"
+                      label="Allow same-visit recall"
+                    />
                   </div>
                 </UFormField>
               </div>
