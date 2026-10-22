@@ -31,6 +31,23 @@ export type DoctorResultItem = {
   recommendation: string | null
   source: 'department' | 'doctor'
   locked: boolean
+  measurementMode?: 'SINGLE' | 'MULTIPLE'
+  measurements?: Array<{
+    id: string
+    measuredAt: string
+    measuredBy?: number | null
+    note?: string | null
+    isSelected: boolean
+    values: Array<{
+      inputanId: string
+      label?: string | null
+      uom?: string | null
+      valueNumber?: number | null
+      valueString?: string | null
+      valueSelected?: string | null
+      valueCalculated?: number | null
+    }>
+  }>
 }
 
 export type DoctorResultGroup = {

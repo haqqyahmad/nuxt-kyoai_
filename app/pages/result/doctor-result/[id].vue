@@ -350,6 +350,28 @@ const itemColumns: TableColumn<DoctorResultItem>[] = [
   }
 ]
 
+function measurementHistory(group: DoctorResultGroup) {
+  return group.items.find(item => item.measurements?.length)?.measurements ?? []
+}
+
+function measurementLabels(rows: ReturnType<typeof measurementHistory>) {
+  return (rows[0]?.values ?? []).map(value => ({
+    inputanId: value.inputanId,
+    label: value.label || 'Value',
+    uom: value.uom || ''
+  }))
+}
+
+function measurementValue(row: ReturnType<typeof measurementHistory>[number], inputanId: string) {
+  const value = row.values.find(entry => entry.inputanId === inputanId)
+  return value?.valueNumber ?? value?.valueSelected ?? value?.valueString ?? value?.valueCalculated ?? '-'
+}
+
+function formatMeasurementTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('id-ID')
+}
+
 // Physical/DoctorExam use the same table, without item grade and group grade.
 const structuredItemColumns: TableColumn<DoctorResultItem>[] = itemColumns.filter(column =>
   ['item', 'result', 'status'].includes(String(column.id))
@@ -976,6 +998,65 @@ onBeforeUnmount(() => {
                         <small v-if="!group.isAbnormal" class="text-xs text-success">
                           auto A, editable
                         </small>
+                      </div>
+
+                      <div v-if="measurementHistory(group).length" class="border-b border-default bg-primary/5 px-4 py-3">
+                        <div class="mb-2 flex items-center gap-2">
+                          <h5 class="text-xs font-semibold uppercase tracking-wide text-muted">
+                            Measurement History
+                          </h5>
+                          <UBadge color="primary" variant="soft" size="sm">
+                            {{ measurementHistory(group).length }} measurements
+                          </UBadge>
+                        </div>
+                        <div class="overflow-x-auto">
+                          <table class="w-full min-w-80 text-left text-sm">
+                            <thead class="text-xs text-muted">
+                              <tr>
+                                <th class="whitespace-nowrap py-1 pr-4 font-medium">
+                                  Measured At
+                                </th>
+                                <th
+                                  v-for="label in measurementLabels(measurementHistory(group))"
+                                  :key="label.inputanId"
+                                  class="whitespace-nowrap py-1 pr-4 font-medium"
+                                >
+                                  {{ label.label }}<span v-if="label.uom" class="font-normal"> ({{ label.uom }})</span>
+                                </th>
+                                <th class="py-1 font-medium">
+                                  Status
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr
+                                v-for="(row, index) in measurementHistory(group)"
+                                :key="row.id"
+                                class="border-t border-default/50"
+                              >
+                                <td class="whitespace-nowrap py-1.5 pr-4 text-muted">
+                                  {{ formatMeasurementTime(row.measuredAt) }}
+                                </td>
+                                <td
+                                  v-for="label in measurementLabels(measurementHistory(group))"
+                                  :key="`${row.id}-${label.inputanId}`"
+                                  class="whitespace-nowrap py-1.5 pr-4 font-medium"
+                                >
+                                  {{ measurementValue(row, label.inputanId) }}
+                                </td>
+                                <td class="py-1.5">
+                                  <UBadge v-if="row.isSelected" color="success" variant="soft" size="sm">
+                                    Selected
+                                  </UBadge>
+                                  <UBadge v-else-if="index === measurementHistory(group).length - 1" color="neutral" variant="soft" size="sm">
+                                    Latest
+                                  </UBadge>
+                                  <span v-else class="text-xs text-muted">-</span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
 
                       <div class="w-full min-w-0 overflow-x-auto">

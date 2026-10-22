@@ -67,6 +67,29 @@ const supportDept = computed(() =>
 const vitalItems = computed<DoctorResultItem[]>(() =>
   nurseDept.value.flatMap(d => d.groups.flatMap(g => g.items))
 )
+type MeasurementHistoryRow = NonNullable<DoctorResultItem['measurements']>[number]
+const vitalMeasurements = computed<MeasurementHistoryRow[]>(() =>
+  vitalItems.value.find(item => item.measurements?.length)?.measurements ?? []
+)
+const vitalMeasurementLabels = computed(() =>
+  (vitalMeasurements.value[0]?.values ?? []).map(value => ({
+    inputanId: value.inputanId,
+    label: value.label || 'Value',
+    uom: value.uom || ''
+  }))
+)
+
+function measurementValue(row: MeasurementHistoryRow, inputanId: string) {
+  const value = row.values.find(entry => entry.inputanId === inputanId)
+  return value?.valueNumber ?? value?.valueSelected ?? value?.valueString ?? value?.valueCalculated ?? '-'
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('id-ID')
+}
 const dokGroups = computed<DoctorResultGroup[]>(() => dokDept.value.flatMap(d => d.groups))
 const physicalGroup = computed<DoctorResultGroup | null>(() =>
   dokGroups.value.find(g => g.items.length > 0) ?? dokGroups.value[0] ?? null
@@ -544,6 +567,36 @@ watch(
                   <span class="name">{{ item.inputanLabel }}</span>
                   <span class="val">{{ resultText(item) }}</span>
                 </div>
+              </div>
+
+              <div v-if="vitalMeasurements.length" style="margin-top: 16px">
+                <div class="sub-title">
+                  Riwayat Pengukuran
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Waktu</th>
+                      <th v-for="label in vitalMeasurementLabels" :key="label.inputanId">
+                        {{ label.label }}<span v-if="label.uom"> ({{ label.uom }})</span>
+                      </th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, index) in vitalMeasurements" :key="row.id">
+                      <td>{{ formatDateTime(row.measuredAt) }}</td>
+                      <td v-for="label in vitalMeasurementLabels" :key="`${row.id}-${label.inputanId}`">
+                        {{ measurementValue(row, label.inputanId) }}
+                      </td>
+                      <td>
+                        <span v-if="row.isSelected" class="status is-normal">Dipilih</span>
+                        <span v-else-if="index === vitalMeasurements.length - 1">Terbaru</span>
+                        <span v-else>-</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

@@ -1579,7 +1579,7 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 
 ## Login UX & Security Follow-up - 2026-10-20
 
-- Client validation tetap spesifik (email wajib/format/password wajib); error kredensial generik + teks “Lupa password? Hubungi admin/IT.”
+- Client validation tetap spesifik (email wajib/format/password wajib); error kredensial generik + teks ï¿½Lupa password? Hubungi admin/IT.ï¿½
 - Email di-trim/lowercase sebelum login; pesan 429 dan network error dipisah.
 - Interceptor 401 tidak lagi memproses `/auth/login` (menghindari redirect ganda).
 - BE memakai dummy bcrypt compare saat email tidak ditemukan untuk mengurangi timing leak.
@@ -1596,7 +1596,7 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 
 - `hasStartedSampleCollection` di `rooms/queue-work/[id].vue` sekarang hanya menghitung sample yang terkait item room aktif (`sampleImpact.collectionId` atau `sample.items.itemId`).
 - Sample Lab yang sudah COLLECTED tidak lagi menyembunyikan Back to Called di room VitalSign.
-- Verifikasi sebagai nurse1 pada queue `47346c31…`: tombol Back to Called tampil; sample Lab tidak memblokir.
+- Verifikasi sebagai nurse1 pada queue `47346c31ï¿½`: tombol Back to Called tampil; sample Lab tidak memblokir.
 
 ## Retest Item Scope Fix - 2026-10-22
 
@@ -1614,3 +1614,5 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - FE: config di `ItemsAddModal` (add/edit), panel Blood Pressure Measurements di room work, riwayat read-only di DetailDrawer.
 - Migration `20261022100000_measurement_config_and_tables`; backup `db_express_dev_backup_20261022_104901.sql`; dry-run restore + apply dev OK.
 - Verifikasi: API create/list/select/defer + promote auto-recall; BE `npm test` 78/78; FE `vue-tsc` EXIT=0.
+- Riwayat pengukuran juga tampil read-only di Doctor Result dan Medical Record (`MrMcuDetail`); `getDoctorResult` menyertakan `measurementMode` + `measurements` per item hasil.
+- Verifikasi payload `getDoctorResult` dengan measurement sementara: 2 baris inputan BP mendapat riwayat yang sama, lalu data uji dihapus.
