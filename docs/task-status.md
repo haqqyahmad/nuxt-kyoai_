@@ -1597,3 +1597,9 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - `hasStartedSampleCollection` di `rooms/queue-work/[id].vue` sekarang hanya menghitung sample yang terkait item room aktif (`sampleImpact.collectionId` atau `sample.items.itemId`).
 - Sample Lab yang sudah COLLECTED tidak lagi menyembunyikan Back to Called di room VitalSign.
 - Verifikasi sebagai nurse1 pada queue `47346c31…`: tombol Back to Called tampil; sample Lab tidak memblokir.
+
+## Retest Item Scope Fix - 2026-10-22
+
+- `retestRoomExamItem` tidak lagi mereset seluruh stage/room/queue call; hanya item yang diretest yang dikembalikan ke `PENDING` + `workStatus=RETEXT`.
+- Stage tetap `IN_PROGRESS`, item lain tidak berubah, dan item retest bisa langsung di-start ulang di room yang sama.
+- Verifikasi: BE `npm test` 78/78; `node --check` OK.
