@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { EXAM_STATUS_LABEL, MR_STATUS_COLOR, MR_STATUS_LABEL } from '~/types/medical-report'
 import type { DoctorResultResponse, DoctorResultItem, DoctorResultGroup } from '~/types/doctor-result'
 import type { McuExamItem, McuSampleCollection } from '~/composables/mr/useMcuBreakdown'
+import { useMcuReportPrint } from '~/composables/mcu/useMcuReportPrint'
 
 definePageMeta({ title: 'MR Review Detail' })
 
@@ -65,6 +66,14 @@ const {
   doReturn,
   release
 } = useMedicalReport()
+
+const { loading: printLoading, printMcuReport } = useMcuReportPrint()
+
+async function handlePrintReport() {
+  const examId = detail.value?.examId
+  if (!examId) return
+  await printMcuReport(examId)
+}
 
 const doctorResult = ref<DoctorResultResponse | null>(null)
 const doctorResultLoading = ref(false)
@@ -338,6 +347,15 @@ onMounted(loadAll)
           <UButton icon="i-lucide-arrow-left" variant="ghost" @click="router.push('/result/mr-review')" />
         </template>
         <template #right>
+          <UButton
+            icon="i-lucide-printer"
+            variant="outline"
+            :loading="printLoading"
+            :disabled="!detail || loading"
+            @click="handlePrintReport"
+          >
+            Print PDF
+          </UButton>
           <UButton
             icon="i-lucide-refresh-cw"
             variant="outline"

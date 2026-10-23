@@ -92,7 +92,8 @@ const statusOptions = [
   { label: 'All Status', value: 'all' },
   { label: 'Needs Review', value: 'pending' },
   { label: 'Needs Revision', value: 'needs_revision' },
-  { label: 'Ready for MR Review', value: 'completed' }
+  { label: 'Ready for MR Review', value: 'completed' },
+  { label: 'Released', value: 'released' }
 ]
 
 const companyOptions = computed(() => [
@@ -234,6 +235,7 @@ async function load() {
     if (statusFilter.value === 'pending') params.medicalReportStatus = 'DOCTOR_REVIEW'
     else if (statusFilter.value === 'needs_revision') params.medicalReportStatus = 'MR_RETURNED_TO_DOCTOR,RETURNED_TO_DEPARTMENT'
     else if (statusFilter.value === 'completed') params.medicalReportStatus = 'DOCTOR_APPROVED'
+    else if (statusFilter.value === 'released') params.medicalReportStatus = 'RELEASED'
     if (examDateFrom.value) params.examDateFrom = examDateFrom.value
     if (examDateTo.value) params.examDateTo = examDateTo.value
 
