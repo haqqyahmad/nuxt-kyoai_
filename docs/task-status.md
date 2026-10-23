@@ -1616,3 +1616,17 @@ Workflow approval untuk hasil pemeriksaan medis, dari input hasil hingga release
 - Verifikasi: API create/list/select/defer + promote auto-recall; BE `npm test` 78/78; FE `vue-tsc` EXIT=0.
 - Riwayat pengukuran juga tampil read-only di Doctor Result dan Medical Record (`MrMcuDetail`); `getDoctorResult` menyertakan `measurementMode` + `measurements` per item hasil.
 - Verifikasi payload `getDoctorResult` dengan measurement sementara: 2 baris inputan BP mendapat riwayat yang sama, lalu data uji dihapus.
+- Batas normal BP (`Systolic 100–139 mmHg`, `Diastolic 60–89 mmHg`) ditampilkan kembali pada input & riwayat room, Doctor Result, dan MR, lengkap dengan badge Normal/Low/High/Critical.
+- Tooltip info diterapkan pada seluruh helper text statis di tab Info Item melalui komponen `FieldLabelTooltip`.
+- Exam-results detail: tombol **History BP** di card Examination Result Input membuka modal riwayat; endpoint read baru memakai TrxExamItem ID (`GET /medical/exams/items/:examItemId/measurements`), response hasil kini menyertakan `measurementMode` + flag defer/recall.
+- Doctor Result: panel riwayat inline diganti tombol **History BP** per grup + modal; isi modal tetap menampilkan batas normal dan badge Normal/Low/High.
+- MR (`MrMcuDetail`): riwayat BP inline diganti tombol **History BP** di card Vital Sign + modal; cetakan PDF MR tetap hanya memuat Vital Sign terpilih (tanpa riwayat).
+- Doctor Result list: tambah filter **Released** (`medicalReportStatus=RELEASED`) tanpa perubahan backend.
+- Master group Lab: 17 item exam `c5859721` dipetakan ke 7 panel klinis (Renal, Carbo, Lipid, Hematologi, Liver, Hepatitis, Urinalisis); duplikat grup Renal function, Urinalisis, dan Kimia Klinik dibersihkan. Backup: `backups/lab_group_cleanup_20261022_085437.json`.
+- Doctor Result read-only: banner pending grading dan abnormal group tidak lagi tampil untuk report yang sudah tidak editable (mis. `RELEASED`); banner tetap aktif saat `DOCTOR_REVIEW`.
+- MR Review detail: tombol **Print PDF** memakai endpoint existing `/mcu/exams/:examId/print.pdf`; tersedia selama data report tersedia.
+- MR (`MrMcuDetail`) tab Pemeriksaan: Vital Sign difilter hanya group **Vital Sign**; **Eye Exam** dan **ECG** dipindah ke tab Penunjang agar tidak tercampur.
+- Cetak PDF MR (`buildMrPrintHtml`): section Tanda Vital hanya memuat group Vital Sign; Eye Exam + ECG dipindah ke section Pemeriksaan Penunjang Medik.
+- Retest item: tambah kolom khusus `retestedBy`, `retestedAt`, `retestReason`; retest tidak lagi menulis `rescheduled*`/`rescheduleNote`. Panel **Catatan Internal Nakes** di queue-work menampilkan retest reason + notes. Migration `20261022110000_room_exam_item_retest_fields`; backup `backups/db_express_dev_before_retest_fields_20261022_095408.sql`; backfill 8 histori dari `diff_audit_logs`.
+- Retest queue scope: setelah retest, room/stage kembali `WAITING` hanya jika tidak ada item lain `PENDING`/`IN_PROGRESS`; item lain tidak diubah. Queue `20bddedb` yang sudah retest sebelum fix sudah direset ke waiting (item tetap PENDING/RETEXT).
+- Start item guard: BE menolak start item jika stage room belum `IN_PROGRESS`; FE menampilkan warning + reload. Data queue `20bddedb` yang sempat item IN_PROGRESS saat stage WAITING sudah direpair ke item PENDING/RETEXT + room WAITING.
