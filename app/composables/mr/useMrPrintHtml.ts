@@ -117,7 +117,15 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
 
   const departments: DoctorResultDepartment[] = dr?.departments ?? []
   const byCode = (re: RegExp) => departments.filter(d => re.test(d.departmentCode))
-  const nurseItems = byCode(/NURSE/i).flatMap(d => d.groups.flatMap(g => g.items))
+  const nurseGroups = byCode(/NURSE/i).flatMap(d => d.groups.map(group => ({
+    departmentName: d.departmentName,
+    group
+  })))
+  const nurseItems = nurseGroups
+    .filter(entry => /^vital\s*sign$/i.test(entry.group.groupName.trim()))
+    .flatMap(entry => entry.group.items)
+  const nurseSupportGroups = nurseGroups
+    .filter(entry => /^(eye\s*exam|ecg)$/i.test(entry.group.groupName.trim()))
   const physicalItems = byCode(/^DOK/i).flatMap(d => d.groups.flatMap(g => g.items))
   const labItems = byCode(/LAB/i).flatMap(d => d.groups.flatMap(g => [{ group: g.groupName, items: g.items }]))
   const supportDepts = departments.filter(d => !/NURSE|^DOK|LAB/i.test(d.departmentCode))
@@ -150,13 +158,26 @@ export function buildMrPrintHtml(payload: MrPrintPayload): string {
       </tr>`).join('')).join('')
     : '<tr><td colspan="5" class="muted">Tidak ada data.</td></tr>'
 
-  const supportRows = supportDepts.length
-    ? supportDepts.flatMap(d => d.groups.map(group => group.items.map(item => `
+  const supportEntries = [
+    ...nurseSupportGroups.map(entry => ({
+      departmentName: entry.departmentName,
+      groupName: entry.group.groupName,
+      items: entry.group.items
+    })),
+    ...supportDepts.flatMap(d => d.groups.map(group => ({
+      departmentName: d.departmentName,
+      groupName: group.groupName,
+      items: group.items
+    })))
+  ]
+
+  const supportRows = supportEntries.length
+    ? supportEntries.flatMap(entry => entry.items.map(item => `
       <tr>
         <td>${esc(item.inputanLabel)}</td>
         <td>${esc(resultText(item))}</td>
-        <td>${esc(d.departmentName)} — ${esc(group.groupName)}</td>
-      </tr>`).join('')).join('')).join('')
+        <td>${esc(entry.departmentName)} — ${esc(entry.groupName)}</td>
+      </tr>`).join('')).join('')
     : '<tr><td colspan="3" class="muted">Tidak ada data.</td></tr>'
 
   const city = extractCity(branchName)

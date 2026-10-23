@@ -35,6 +35,7 @@ type HistoryRow = {
 const loading = ref(true)
 const detail = ref<McuDetail | null>(null)
 const history = ref<HistoryRow[]>([])
+const measurementHistoryOpen = ref(false)
 
 const TABS = [
   { key: 'summary', label: 'Ringkasan' },
@@ -64,8 +65,18 @@ const supportDept = computed(() =>
   departments.value.filter(d => !/NURSE|^DOK|LAB/i.test(d.departmentCode))
 )
 
-const vitalItems = computed<DoctorResultItem[]>(() =>
-  nurseDept.value.flatMap(d => d.groups.flatMap(g => g.items))
+const nurseGroups = computed(() =>
+  nurseDept.value.flatMap(d => d.groups.map(group => ({
+    departmentName: d.departmentName,
+    group
+  })))
+)
+const vitalGroup = computed(() =>
+  nurseGroups.value.find(entry => /^vital\s*sign$/i.test(entry.group.groupName))?.group ?? null
+)
+const vitalItems = computed<DoctorResultItem[]>(() => vitalGroup.value?.items ?? [])
+const nurseSupportGroups = computed(() =>
+  nurseGroups.value.filter(entry => /^(eye\s*exam|ecg)$/i.test(entry.group.groupName.trim()))
 )
 type MeasurementHistoryRow = NonNullable<DoctorResultItem['measurements']>[number]
 const vitalMeasurements = computed<MeasurementHistoryRow[]>(() =>
@@ -82,6 +93,29 @@ const vitalMeasurementLabels = computed(() =>
 function measurementValue(row: MeasurementHistoryRow, inputanId: string) {
   const value = row.values.find(entry => entry.inputanId === inputanId)
   return value?.valueNumber ?? value?.valueSelected ?? value?.valueString ?? value?.valueCalculated ?? '-'
+}
+
+function measurementItem(inputanId: string) {
+  return vitalItems.value.find(item => item.inputanId === inputanId)
+}
+
+function measurementRangeText(inputanId: string) {
+  const item = measurementItem(inputanId)
+  if (!item || (item.normalMin == null && item.normalMax == null)) return ''
+  const low = item.normalMin ?? '-∞'
+  const high = item.normalMax ?? '∞'
+  return `Normal ${low}–${high}${item.uom ? ` ${item.uom}` : ''}`
+}
+
+function measurementValueStatus(row: MeasurementHistoryRow, inputanId: string): { label: string, color: 'success' | 'error' } | null {
+  const item = measurementItem(inputanId)
+  const rawValue = row.values.find(entry => entry.inputanId === inputanId)
+  const value = rawValue?.valueNumber ?? rawValue?.valueCalculated
+  if (!item || typeof value !== 'number') return null
+  if (item.normalMin != null && value < item.normalMin) return { label: 'Low', color: 'error' }
+  if (item.normalMax != null && value > item.normalMax) return { label: 'High', color: 'error' }
+  if (item.normalMin != null || item.normalMax != null) return { label: 'Normal', color: 'success' }
+  return null
 }
 
 function formatDateTime(value?: string | null) {
@@ -555,8 +589,17 @@ watch(
         <!-- Pemeriksaan -->
         <div class="tab-panel" :class="{ active: activeTab === 'exam' }">
           <div class="card">
-            <div class="card-head">
-              Vital Sign
+            <div class="card-head" style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+              <span>Vital Sign</span>
+              <UButton
+                v-if="vitalMeasurements.length"
+                size="xs"
+                color="primary"
+                variant="soft"
+                icon="i-lucide-history"
+                label="History BP"
+                @click="measurementHistoryOpen = true"
+              />
             </div>
             <div class="card-body" style="padding: 10px">
               <div v-if="!vitalItems.length" class="empty">
@@ -567,36 +610,6 @@ watch(
                   <span class="name">{{ item.inputanLabel }}</span>
                   <span class="val">{{ resultText(item) }}</span>
                 </div>
-              </div>
-
-              <div v-if="vitalMeasurements.length" style="margin-top: 16px">
-                <div class="sub-title">
-                  Riwayat Pengukuran
-                </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Waktu</th>
-                      <th v-for="label in vitalMeasurementLabels" :key="label.inputanId">
-                        {{ label.label }}<span v-if="label.uom"> ({{ label.uom }})</span>
-                      </th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(row, index) in vitalMeasurements" :key="row.id">
-                      <td>{{ formatDateTime(row.measuredAt) }}</td>
-                      <td v-for="label in vitalMeasurementLabels" :key="`${row.id}-${label.inputanId}`">
-                        {{ measurementValue(row, label.inputanId) }}
-                      </td>
-                      <td>
-                        <span v-if="row.isSelected" class="status is-normal">Dipilih</span>
-                        <span v-else-if="index === vitalMeasurements.length - 1">Terbaru</span>
-                        <span v-else>-</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -666,8 +679,27 @@ watch(
               Pemeriksaan Penunjang
             </div>
             <div class="card-body">
-              <div v-if="!supportDept.length" class="empty">
+              <div v-if="!supportDept.length && !nurseSupportGroups.length" class="empty">
                 Tidak ada data.
+              </div>
+              <div
+                v-for="entry in nurseSupportGroups"
+                :key="`${entry.departmentName}-${entry.group.groupName}`"
+              >
+                <div class="sub-title">
+                  {{ entry.departmentName }} — {{ entry.group.groupName }}
+                </div>
+                <table>
+                  <thead>
+                    <tr><th>Jenis</th><th>Hasil</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in entry.group.items" :key="item.inputanId">
+                      <td>{{ item.inputanLabel }}</td>
+                      <td>{{ resultText(item) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <div v-for="dept in supportDept" :key="dept.departmentId">
                 <div v-for="group in dept.groups" :key="group.groupName">
@@ -734,6 +766,108 @@ watch(
       Medical record tidak ditemukan.
     </div>
   </div>
+
+  <UModal
+    v-model:open="measurementHistoryOpen"
+    title="Blood Pressure Measurement History"
+    description="All saved measurements for this visit. The selected measurement is used as the final result."
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div
+        v-if="!vitalMeasurements.length"
+        class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
+      >
+        No measurements have been saved for this visit.
+      </div>
+      <div v-else class="overflow-x-auto">
+        <table class="w-full min-w-[640px] text-left text-sm">
+          <thead>
+            <tr class="border-b border-default text-xs uppercase tracking-wide text-muted">
+              <th class="py-2 pr-3 font-medium">
+                Measured At
+              </th>
+              <th
+                v-for="label in vitalMeasurementLabels"
+                :key="label.inputanId"
+                class="py-2 pr-3 font-medium"
+              >
+                <div>
+                  {{ label.label }}<span v-if="label.uom" class="font-normal"> ({{ label.uom }})</span>
+                </div>
+                <div
+                  v-if="measurementRangeText(label.inputanId)"
+                  class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-success"
+                >
+                  {{ measurementRangeText(label.inputanId) }}
+                </div>
+              </th>
+              <th class="py-2 font-medium">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, index) in vitalMeasurements"
+              :key="row.id"
+              class="border-b border-default/60 last:border-0"
+            >
+              <td class="whitespace-nowrap py-2 pr-3 text-muted">
+                {{ formatDateTime(row.measuredAt) }}
+              </td>
+              <td
+                v-for="label in vitalMeasurementLabels"
+                :key="`${row.id}-${label.inputanId}`"
+                class="py-2 pr-3"
+              >
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="font-medium text-highlighted">
+                    {{ measurementValue(row, label.inputanId) }}
+                  </span>
+                  <span v-if="label.uom" class="text-xs text-muted">{{ label.uom }}</span>
+                  <UBadge
+                    v-if="measurementValueStatus(row, label.inputanId)"
+                    :color="measurementValueStatus(row, label.inputanId)?.color"
+                    variant="soft"
+                    size="sm"
+                    :label="measurementValueStatus(row, label.inputanId)?.label"
+                  />
+                </div>
+              </td>
+              <td class="py-2">
+                <UBadge
+                  v-if="row.isSelected"
+                  color="success"
+                  variant="soft"
+                  size="sm"
+                >
+                  Selected
+                </UBadge>
+                <UBadge
+                  v-else-if="index === vitalMeasurements.length - 1"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                >
+                  Latest
+                </UBadge>
+                <span v-else class="text-xs text-muted">History</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end">
+        <UButton color="neutral" variant="outline" @click="measurementHistoryOpen = false">
+          Close
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <style scoped>

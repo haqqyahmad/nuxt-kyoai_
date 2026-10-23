@@ -115,6 +115,8 @@ function itemRevisionNote(item: DoctorResultItem) {
 }
 
 // [DOCTOR] Return item ke department setelah MR return
+const measurementHistoryOpen = ref(false)
+const activeMeasurementGroup = ref<DoctorResultGroup | null>(null)
 const showReturnDeptModal = ref(false)
 const returnDeptReason = ref('')
 const returnDeptSearch = ref('')
@@ -367,9 +369,73 @@ function measurementValue(row: ReturnType<typeof measurementHistory>[number], in
   return value?.valueNumber ?? value?.valueSelected ?? value?.valueString ?? value?.valueCalculated ?? '-'
 }
 
+function measurementItem(group: DoctorResultGroup, inputanId: string) {
+  return group.items.find(item => item.inputanId === inputanId)
+}
+
+function measurementRangeText(group: DoctorResultGroup, inputanId: string) {
+  const item = measurementItem(group, inputanId)
+  if (!item || (item.normalMin == null && item.normalMax == null)) return ''
+  const low = item.normalMin ?? '-∞'
+  const high = item.normalMax ?? '∞'
+  return `Normal ${low}–${high}${item.uom ? ` ${item.uom}` : ''}`
+}
+
+function measurementNumericValue(row: ReturnType<typeof measurementHistory>[number], inputanId: string) {
+  const value = row.values.find(entry => entry.inputanId === inputanId)
+  const numeric = value?.valueNumber ?? value?.valueCalculated
+  return typeof numeric === 'number' ? numeric : null
+}
+
+function measurementValueStatus(
+  group: DoctorResultGroup,
+  row: ReturnType<typeof measurementHistory>[number],
+  inputanId: string
+): { label: string, color: 'success' | 'error' } | null {
+  const item = measurementItem(group, inputanId)
+  const value = measurementNumericValue(row, inputanId)
+  if (!item || value == null) return null
+  if (item.normalMin != null && value < item.normalMin) return { label: 'Low', color: 'error' }
+  if (item.normalMax != null && value > item.normalMax) return { label: 'High', color: 'error' }
+  if (item.normalMin != null || item.normalMax != null) return { label: 'Normal', color: 'success' }
+  return null
+}
+
+function measurementValueClass(group: DoctorResultGroup, row: ReturnType<typeof measurementHistory>[number], inputanId: string) {
+  const status = measurementValueStatus(group, row, inputanId)
+  if (status?.color === 'success') return 'text-success'
+  if (status?.color === 'error') return 'text-error'
+  return 'text-highlighted'
+}
+
 function formatMeasurementTime(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('id-ID')
+}
+
+const activeMeasurementRows = computed(() =>
+  activeMeasurementGroup.value ? measurementHistory(activeMeasurementGroup.value) : []
+)
+const activeMeasurementLabels = computed(() => measurementLabels(activeMeasurementRows.value))
+
+function openMeasurementHistory(group: DoctorResultGroup) {
+  activeMeasurementGroup.value = group
+  measurementHistoryOpen.value = true
+}
+
+function activeMeasurementRangeText(inputanId: string) {
+  const group = activeMeasurementGroup.value
+  return group ? measurementRangeText(group, inputanId) : ''
+}
+
+function activeMeasurementValueClass(row: ReturnType<typeof measurementHistory>[number], inputanId: string) {
+  const group = activeMeasurementGroup.value
+  return group ? measurementValueClass(group, row, inputanId) : 'text-highlighted'
+}
+
+function activeMeasurementValueStatus(row: ReturnType<typeof measurementHistory>[number], inputanId: string) {
+  const group = activeMeasurementGroup.value
+  return group ? measurementValueStatus(group, row, inputanId) : null
 }
 
 // Physical/DoctorExam use the same table, without item grade and group grade.
@@ -804,7 +870,7 @@ onBeforeUnmount(() => {
           </UCard>
 
           <UAlert
-            v-if="pendingCount > 0"
+            v-if="!isReadOnly && pendingCount > 0"
             icon="i-lucide-alert-triangle"
             color="warning"
             variant="soft"
@@ -813,7 +879,7 @@ onBeforeUnmount(() => {
           />
 
           <UAlert
-            v-if="abnormalGroupsPending.length > 0"
+            v-if="!isReadOnly && abnormalGroupsPending.length > 0"
             icon="i-lucide-alert-triangle"
             color="error"
             variant="soft"
@@ -959,16 +1025,27 @@ onBeforeUnmount(() => {
                           </h4>
                           <small class="text-xs text-muted">Result approved by department</small>
                         </div>
-                        <UBadge
-                          v-if="group.isAbnormal"
-                          color="error"
-                          variant="soft"
-                        >
-                          ⚠ {{ group.abnormalCount }} abnormal
-                        </UBadge>
-                        <span v-else class="text-xs font-semibold text-success">
-                          ✓ Normal
-                        </span>
+                        <div class="flex items-center gap-2">
+                          <UButton
+                            v-if="measurementHistory(group).length"
+                            size="xs"
+                            color="primary"
+                            variant="soft"
+                            icon="i-lucide-history"
+                            label="History BP"
+                            @click="openMeasurementHistory(group)"
+                          />
+                          <UBadge
+                            v-if="group.isAbnormal"
+                            color="error"
+                            variant="soft"
+                          >
+                            ⚠ {{ group.abnormalCount }} abnormal
+                          </UBadge>
+                          <span v-else class="text-xs font-semibold text-success">
+                            ✓ Normal
+                          </span>
+                        </div>
                       </div>
 
                       <!-- [F] group grade strip -->
@@ -998,65 +1075,6 @@ onBeforeUnmount(() => {
                         <small v-if="!group.isAbnormal" class="text-xs text-success">
                           auto A, editable
                         </small>
-                      </div>
-
-                      <div v-if="measurementHistory(group).length" class="border-b border-default bg-primary/5 px-4 py-3">
-                        <div class="mb-2 flex items-center gap-2">
-                          <h5 class="text-xs font-semibold uppercase tracking-wide text-muted">
-                            Measurement History
-                          </h5>
-                          <UBadge color="primary" variant="soft" size="sm">
-                            {{ measurementHistory(group).length }} measurements
-                          </UBadge>
-                        </div>
-                        <div class="overflow-x-auto">
-                          <table class="w-full min-w-80 text-left text-sm">
-                            <thead class="text-xs text-muted">
-                              <tr>
-                                <th class="whitespace-nowrap py-1 pr-4 font-medium">
-                                  Measured At
-                                </th>
-                                <th
-                                  v-for="label in measurementLabels(measurementHistory(group))"
-                                  :key="label.inputanId"
-                                  class="whitespace-nowrap py-1 pr-4 font-medium"
-                                >
-                                  {{ label.label }}<span v-if="label.uom" class="font-normal"> ({{ label.uom }})</span>
-                                </th>
-                                <th class="py-1 font-medium">
-                                  Status
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr
-                                v-for="(row, index) in measurementHistory(group)"
-                                :key="row.id"
-                                class="border-t border-default/50"
-                              >
-                                <td class="whitespace-nowrap py-1.5 pr-4 text-muted">
-                                  {{ formatMeasurementTime(row.measuredAt) }}
-                                </td>
-                                <td
-                                  v-for="label in measurementLabels(measurementHistory(group))"
-                                  :key="`${row.id}-${label.inputanId}`"
-                                  class="whitespace-nowrap py-1.5 pr-4 font-medium"
-                                >
-                                  {{ measurementValue(row, label.inputanId) }}
-                                </td>
-                                <td class="py-1.5">
-                                  <UBadge v-if="row.isSelected" color="success" variant="soft" size="sm">
-                                    Selected
-                                  </UBadge>
-                                  <UBadge v-else-if="index === measurementHistory(group).length - 1" color="neutral" variant="soft" size="sm">
-                                    Latest
-                                  </UBadge>
-                                  <span v-else class="text-xs text-muted">-</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
                       </div>
 
                       <div class="w-full min-w-0 overflow-x-auto">
@@ -1469,6 +1487,110 @@ onBeforeUnmount(() => {
                 </div>
               </template>
             </UCard>
+          </template>
+        </UModal>
+
+        <UModal
+          v-model:open="measurementHistoryOpen"
+          title="Blood Pressure Measurement History"
+          description="All saved measurements for this group. The selected measurement is used as the final result."
+          :ui="{ content: 'sm:max-w-3xl' }"
+        >
+          <template #body>
+            <div
+              v-if="!activeMeasurementRows.length"
+              class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
+            >
+              No measurements have been saved for this group.
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr class="border-b border-default text-xs uppercase tracking-wide text-muted">
+                    <th class="py-2 pr-3 font-medium">
+                      Measured At
+                    </th>
+                    <th
+                      v-for="label in activeMeasurementLabels"
+                      :key="label.inputanId"
+                      class="py-2 pr-3 font-medium"
+                    >
+                      <div>
+                        {{ label.label }}<span v-if="label.uom" class="font-normal"> ({{ label.uom }})</span>
+                      </div>
+                      <div
+                        v-if="activeMeasurementRangeText(label.inputanId)"
+                        class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-success"
+                      >
+                        {{ activeMeasurementRangeText(label.inputanId) }}
+                      </div>
+                    </th>
+                    <th class="py-2 font-medium">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, index) in activeMeasurementRows"
+                    :key="row.id"
+                    class="border-b border-default/60 last:border-0"
+                  >
+                    <td class="whitespace-nowrap py-2 pr-3 text-muted">
+                      {{ formatMeasurementTime(row.measuredAt) }}
+                    </td>
+                    <td
+                      v-for="label in activeMeasurementLabels"
+                      :key="`${row.id}-${label.inputanId}`"
+                      class="py-2 pr-3"
+                    >
+                      <div class="flex flex-wrap items-center gap-1">
+                        <span
+                          class="font-medium"
+                          :class="activeMeasurementValueClass(row, label.inputanId)"
+                        >
+                          {{ measurementValue(row, label.inputanId) }}
+                        </span>
+                        <UBadge
+                          v-if="activeMeasurementValueStatus(row, label.inputanId)"
+                          :color="activeMeasurementValueStatus(row, label.inputanId)?.color"
+                          variant="soft"
+                          size="sm"
+                          :label="activeMeasurementValueStatus(row, label.inputanId)?.label"
+                        />
+                      </div>
+                    </td>
+                    <td class="py-2">
+                      <UBadge
+                        v-if="row.isSelected"
+                        color="success"
+                        variant="soft"
+                        size="sm"
+                      >
+                        Selected
+                      </UBadge>
+                      <UBadge
+                        v-else-if="index === activeMeasurementRows.length - 1"
+                        color="neutral"
+                        variant="soft"
+                        size="sm"
+                      >
+                        Latest
+                      </UBadge>
+                      <span v-else class="text-xs text-muted">History</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+
+          <template #footer>
+            <div class="flex w-full justify-end">
+              <UButton color="neutral" variant="outline" @click="measurementHistoryOpen = false">
+                Close
+              </UButton>
+            </div>
           </template>
         </UModal>
 

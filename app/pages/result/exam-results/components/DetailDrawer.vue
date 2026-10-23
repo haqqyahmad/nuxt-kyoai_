@@ -645,6 +645,7 @@ const externalStarting = ref(false)
 const externalDefaultsApplied = ref(false)
 const measurementHistory = ref<MeasurementHistory[]>([])
 const measurementHistoryLoading = ref(false)
+const measurementHistoryOpen = ref(false)
 
 async function loadMeasurementHistory() {
   const item = props.result
@@ -654,7 +655,7 @@ async function loadMeasurementHistory() {
   }
   measurementHistoryLoading.value = true
   try {
-    const res = await api.get(`/medical/exams/queue/exam-item/${item.id}/measurements`)
+    const res = await api.get(`/medical/exams/items/${item.id}/measurements`)
     const payload = res.data?.data ?? res.data
     measurementHistory.value = Array.isArray(payload) ? payload : []
   } catch {
@@ -662,6 +663,11 @@ async function loadMeasurementHistory() {
   } finally {
     measurementHistoryLoading.value = false
   }
+}
+
+async function openMeasurementHistory() {
+  measurementHistoryOpen.value = true
+  await loadMeasurementHistory()
 }
 
 watch(() => props.result, () => {
@@ -1363,6 +1369,54 @@ function isInputanVisibleForGender(inputan: ExamInput): boolean {
 const visibleInputans = computed(() =>
   (props.result?.item?.inputans ?? []).filter(isInputanVisibleForGender)
 )
+
+const measurementHistoryInputans = computed(() =>
+  visibleInputans.value.filter(inputan =>
+    measurementHistory.value.some(measurement =>
+      measurement.values.some(value => value.inputanId === inputan.id)
+    )
+  )
+)
+
+function getMeasurementNormalRangeText(inputan: ExamInput) {
+  const range = getVisibleNormalRanges(inputan)[0]
+  if (!range) return ''
+  return `Normal ${formatNormalRange(range, inputan.uom, inputan.numberFormat ?? undefined)}`
+}
+
+function getMeasurementValue(inputanId: string, measurement: MeasurementHistory) {
+  return measurement.values.find(value => value.inputanId === inputanId)
+}
+
+function getMeasurementValueStatus(
+  inputan: ExamInput,
+  measurement: MeasurementHistory
+): { label: string, color: 'success' | 'error' } | null {
+  const raw = getMeasurementValue(inputan.id, measurement)
+  const numeric = raw?.valueNumber ?? raw?.valueCalculated
+  if (typeof numeric !== 'number') return null
+
+  const ranges = getPatientMatchedNormalRanges(inputan)
+  if (!ranges.length) return null
+
+  const matched = ranges.some((range) => {
+    const lowOk = range.minValue == null || numeric >= range.minValue
+    const highOk = range.maxValue == null || numeric <= range.maxValue
+    return lowOk && highOk
+  })
+  if (matched) return { label: 'Normal', color: 'success' }
+
+  const tooLow = ranges.some(range => range.minValue != null && numeric < range.minValue)
+  const tooHigh = ranges.some(range => range.maxValue != null && numeric > range.maxValue)
+  if (tooLow && tooHigh) return { label: 'Out of range', color: 'error' }
+  if (tooLow) return { label: 'Low', color: 'error' }
+  return { label: 'High', color: 'error' }
+}
+
+function getMeasurementValueText(inputanId: string, measurement: MeasurementHistory) {
+  const value = getMeasurementValue(inputanId, measurement)
+  return value?.valueNumber ?? value?.valueString ?? value?.valueSelected ?? value?.valueCalculated ?? '-'
+}
 
 type ItemSection = { key: string, title: string | null, inputans: ExamInput[] }
 type SampleGroup = { key: string, sampleCode: string | null, sampleName: string | null, items: ItemSection[] }
@@ -2274,55 +2328,6 @@ onBeforeUnmount(() => {
           </template>
         </UAlert>
       </div>
-
-      <UCard v-if="measurementHistory.length" class="m-3 sm:mx-4">
-        <template #header>
-          <div class="flex items-center justify-between gap-2">
-            <h4 class="text-sm font-semibold text-highlighted">
-              Measurement History
-            </h4>
-            <UBadge v-if="measurementHistoryLoading" color="neutral" variant="soft">
-              Loading...
-            </UBadge>
-          </div>
-        </template>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-default text-left text-xs uppercase tracking-wide text-muted">
-                <th class="py-2 pr-3">Time</th>
-                <th v-for="value in measurementHistory[0]?.values ?? []" :key="value.inputanId" class="py-2 pr-3">
-                  {{ value.label || '-' }}
-                </th>
-                <th class="py-2 pr-3">Note</th>
-                <th class="py-2 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="measurement in measurementHistory" :key="measurement.id" class="border-b border-default/60 last:border-0">
-                <td class="py-2 pr-3 whitespace-nowrap">
-                  {{ formatDateTime(measurement.measuredAt) }}
-                  <div v-if="measurement.measuredByName" class="text-xs text-muted">
-                    {{ measurement.measuredByName }}
-                  </div>
-                </td>
-                <td v-for="value in measurementHistory[0]?.values ?? []" :key="value.inputanId" class="py-2 pr-3">
-                  {{ measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueNumber
-                    ?? measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueString
-                    ?? measurement.values.find(entry => entry.inputanId === value.inputanId)?.valueSelected
-                    ?? '-' }}
-                </td>
-                <td class="py-2 pr-3 text-muted">{{ measurement.note || '-' }}</td>
-                <td class="py-2 text-right">
-                  <UBadge :color="measurement.isSelected ? 'success' : 'neutral'" variant="soft">
-                    {{ measurement.isSelected ? 'Selected' : 'History' }}
-                  </UBadge>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </UCard>
 
       <div
         v-if="result && isExternalDoctorWorkspace"
@@ -3299,7 +3304,18 @@ onBeforeUnmount(() => {
                         Fill in the results according to the parameters and the patient's normal range.
                       </p>
                     </div>
-                    <UIcon name="i-lucide-file-pen-line" class="size-4 text-muted" />
+                    <div class="flex shrink-0 items-center gap-2">
+                      <UButton
+                        v-if="result.item?.measurementMode === 'MULTIPLE'"
+                        size="xs"
+                        color="primary"
+                        variant="soft"
+                        icon="i-lucide-history"
+                        label="History BP"
+                        @click="openMeasurementHistory"
+                      />
+                      <UIcon name="i-lucide-file-pen-line" class="size-4 text-muted" />
+                    </div>
                   </div>
                 </template>
 
@@ -3769,6 +3785,104 @@ onBeforeUnmount(() => {
       </div>
     </template>
   </BaseFullscreenModal>
+
+  <UModal
+    v-model:open="measurementHistoryOpen"
+    title="Blood Pressure Measurement History"
+    description="All saved measurements for this item. The selected measurement is used as the final result."
+    :ui="{ content: 'sm:max-w-3xl' }"
+  >
+    <template #body>
+      <div v-if="measurementHistoryLoading" class="flex items-center justify-center gap-2 py-10 text-sm text-muted">
+        <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+        Loading measurements...
+      </div>
+      <div
+        v-else-if="!measurementHistory.length"
+        class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
+      >
+        No measurements have been saved for this item.
+      </div>
+      <div v-else class="overflow-x-auto">
+        <table class="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr class="border-b border-default text-left text-xs uppercase tracking-wide text-muted">
+              <th class="py-2 pr-3">
+                Time
+              </th>
+              <th
+                v-for="inputan in measurementHistoryInputans"
+                :key="inputan.id"
+                class="py-2 pr-3"
+              >
+                <div>
+                  {{ inputan.label }}<span v-if="inputan.uom" class="font-normal"> ({{ inputan.uom }})</span>
+                </div>
+                <div v-if="getMeasurementNormalRangeText(inputan)" class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-success">
+                  {{ getMeasurementNormalRangeText(inputan) }}
+                </div>
+              </th>
+              <th class="py-2 pr-3">
+                Note
+              </th>
+              <th class="py-2 text-right">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="measurement in measurementHistory"
+              :key="measurement.id"
+              class="border-b border-default/60 last:border-0"
+            >
+              <td class="whitespace-nowrap py-2 pr-3">
+                {{ formatDateTime(measurement.measuredAt) }}
+                <div v-if="measurement.measuredByName" class="text-xs text-muted">
+                  {{ measurement.measuredByName }}
+                </div>
+              </td>
+              <td
+                v-for="inputan in measurementHistoryInputans"
+                :key="`${measurement.id}-${inputan.id}`"
+                class="py-2 pr-3"
+              >
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="font-medium text-highlighted">
+                    {{ getMeasurementValueText(inputan.id, measurement) }}
+                  </span>
+                  <span v-if="inputan.uom" class="text-xs text-muted">{{ inputan.uom }}</span>
+                  <UBadge
+                    v-if="getMeasurementValueStatus(inputan, measurement)"
+                    :color="getMeasurementValueStatus(inputan, measurement)?.color"
+                    variant="soft"
+                    size="sm"
+                    :label="getMeasurementValueStatus(inputan, measurement)?.label"
+                  />
+                </div>
+              </td>
+              <td class="py-2 pr-3 text-muted">
+                {{ measurement.note || '-' }}
+              </td>
+              <td class="py-2 text-right">
+                <UBadge :color="measurement.isSelected ? 'success' : 'neutral'" variant="soft" size="sm">
+                  {{ measurement.isSelected ? 'Selected' : 'History' }}
+                </UBadge>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end">
+        <UButton color="neutral" variant="outline" @click="measurementHistoryOpen = false">
+          Close
+        </UButton>
+      </div>
+    </template>
+  </UModal>
 
   <UModal
     v-model:open="cancelExternalOpen"
