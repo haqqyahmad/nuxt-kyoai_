@@ -203,6 +203,8 @@ type RoomExamItem = {
   status: string
   createdAt?: string | null
   notes?: string | null
+  retestedAt?: string | null
+  retestReason?: string | null
   operationalStatus?: string
   blockedReason?: string | null
   sampleImpact?: {
@@ -681,9 +683,8 @@ function getInputContainerClass(itemId: string, inputan: ExamInput) {
 
   return 'rounded-xl border border-default bg-muted/20 p-3'
 }
-function getInputValueClass(itemId: string, inputan: ExamInput) {
+function getValueClassForEvaluation(evaluation: ReturnType<typeof getNumberEvaluation>) {
   const base = 'w-full rounded-lg border bg-default px-3 py-2 text-sm outline-none transition focus:ring-2'
-  const evaluation = getInputEvaluation(itemId, inputan)
 
   if (evaluation?.status === 'normal') {
     return `${base} border-success/50 text-success focus:border-success focus:ring-success/20`
@@ -698,6 +699,17 @@ function getInputValueClass(itemId: string, inputan: ExamInput) {
   }
 
   return `${base} border-default text-highlighted focus:border-primary/60 focus:ring-primary/15`
+}
+
+function getInputValueClass(itemId: string, inputan: ExamInput) {
+  return getValueClassForEvaluation(getInputEvaluation(itemId, inputan))
+}
+
+function getEvaluationShortLabel(status?: 'normal' | 'out-of-range' | 'critical') {
+  if (status === 'normal') return 'Normal'
+  if (status === 'critical') return 'Critical'
+  if (status === 'out-of-range') return 'Out of range'
+  return 'Unknown'
 }
 
 const queuePatient = computed(() => roomQueueDetail.value?.queueEntry?.registration?.patient ?? null)
@@ -1211,8 +1223,36 @@ function isMultiMeasurementItem(item: RoomExamItem | null) {
 
 const measurementInputans = computed(() => selectedItem.value?.trxExamItem?.item?.inputans ?? [])
 
+function getMeasurementEvaluation(inputan: ExamInput) {
+  return getNumberEvaluation(inputan, measurementDraft[inputan.id])
+}
+
+function getMeasurementInputClass(inputan: ExamInput) {
+  return getValueClassForEvaluation(getMeasurementEvaluation(inputan))
+}
+
+function getMeasurementNormalRangeLines(inputan: ExamInput) {
+  return getNumericNormalRanges(inputan).map(range => formatNumericNormalRange(inputan, range))
+}
+
+function getMeasurementValue(inputan: ExamInput, measurement: Measurement) {
+  return measurement.values.find(value => value.inputanId === inputan.id)?.valueNumber ?? null
+}
+
+function getMeasurementValueEvaluation(inputan: ExamInput, measurement: Measurement) {
+  const value = getMeasurementValue(inputan, measurement)
+  return value == null ? null : getNumberEvaluation(inputan, String(value))
+}
+
+function getMeasurementValueClass(inputan: ExamInput, measurement: Measurement) {
+  const status = getMeasurementValueEvaluation(inputan, measurement)?.status
+  if (status === 'normal') return 'text-success'
+  if (status === 'critical' || status === 'out-of-range') return 'text-error'
+  return 'text-highlighted'
+}
+
 function resetMeasurementDraft() {
-  for (const key of Object.keys(measurementDraft)) delete measurementDraft[key]
+  for (const key of Object.keys(measurementDraft)) measurementDraft[key] = ''
   for (const inputan of measurementInputans.value) measurementDraft[inputan.id] = ''
   measurementNote.value = ''
 }
@@ -1317,7 +1357,6 @@ watch(selectedItemId, () => {
   resetMeasurementDraft()
   void loadMeasurements()
 })
-
 
 const selectedMaster = computed(() =>
   masterItems.value.find(m => m.id === selectedItemId.value) ?? null
@@ -1980,7 +2019,7 @@ async function handleExitRoom() {
 
 function seedLocalState() {
   for (const item of roomExamItems.value) {
-    if (itemNotes[item.id] === undefined) {
+    if (itemNotes[item.id] === undefined || (!itemNotes[item.id]?.trim() && item.notes?.trim())) {
       itemNotes[item.id] = item.notes ?? ''
     }
 
@@ -2306,6 +2345,15 @@ async function handleFinishStage() {
 
 async function handleStartItem(item: RoomExamItem) {
   if (itemActionLoading.value[item.id]) return
+  if (!roomStageInProgress.value) {
+    toast.add({
+      title: 'Stage belum dimulai',
+      description: 'Panggil pasien dan mulai stage room terlebih dahulu.',
+      color: 'warning'
+    })
+    await loadPage(true)
+    return
+  }
 
   setItemLoading(item.id, true)
   try {
@@ -2505,6 +2553,7 @@ async function handleSubmitItemAction() {
 
   const item = selectedItemAction.value
   const actionType = selectedItemActionType.value
+  let returnedToWaiting = false
   itemActionSubmitLoading.value = true
 
   try {
@@ -2548,11 +2597,13 @@ async function handleSubmitItemAction() {
         return
       }
 
-      await api.patch(`/medical/exams/queue/exam-item/${item.id}/retest`, {
+      const res = await api.patch(`/medical/exams/queue/exam-item/${item.id}/retest`, {
         retestedBy: currentUserId.value,
         retestReason: itemActionReason.value.trim(),
         notes: itemActionNote.value.trim() || null
       })
+      returnedToWaiting = Boolean(res.data?.data?.returnedToWaiting)
+      itemNotes[item.id] = itemActionNote.value.trim()
     } else {
       if (!itemActionNote.value.trim()) {
         toast.add({
@@ -2577,11 +2628,16 @@ async function handleSubmitItemAction() {
         : actionType === 'refuse'
           ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} refused by patient.`
           : actionType === 'retest'
-            ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} marked for retest.`
+            ? returnedToWaiting
+              ? `Item ${item.trxExamItem?.item?.name ?? 'examination'} marked for retest. Patient returned to waiting.`
+              : `Item ${item.trxExamItem?.item?.name ?? 'examination'} marked for retest.`
             : `Item ${item.trxExamItem?.item?.name ?? 'examination'} rescheduled.`,
       color: 'success'
     })
     closeItemActionModal()
+    if (actionType === 'retest' && returnedToWaiting) {
+      await router.push('/rooms/queue')
+    }
   } catch (error: unknown) {
     toast.add({
       title: actionType === 'skip' ? 'Failed to skip item' : actionType === 'refuse' ? 'Failed to refuse item' : actionType === 'retest' ? 'Failed to retest item' : 'Failed to reschedule item',
@@ -3319,6 +3375,25 @@ async function handleSubmitItemAction() {
 
                   <div class="flex-1 space-y-4 p-5">
                     <UAlert
+                      v-if="selectedItem.retestedAt && (selectedItem.retestReason || selectedItem.notes)"
+                      icon="i-lucide-sticky-note"
+                      color="info"
+                      variant="soft"
+                      title="Catatan Internal Nakes"
+                    >
+                      <template #description>
+                        <div class="space-y-1">
+                          <p v-if="selectedItem.retestReason">
+                            <span class="font-semibold">Retest reason:</span> {{ selectedItem.retestReason }}
+                          </p>
+                          <p v-if="selectedItem.notes">
+                            <span class="font-semibold">Notes:</span> {{ selectedItem.notes }}
+                          </p>
+                        </div>
+                      </template>
+                    </UAlert>
+
+                    <UAlert
                       v-if="isSampleManagedItem(selectedItem) && !isExamStageActive()"
                       color="warning"
                       title="Not in the exam stage yet"
@@ -3366,17 +3441,40 @@ async function handleSubmitItemAction() {
                           </UBadge>
                         </div>
 
-                        <div v-if="selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.resultStatus !== 'SUBMITTED'" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div v-if="selectedItem.status === 'IN_PROGRESS' && selectedItem.trxExamItem?.resultStatus !== 'SUBMITTED'" class="mt-4 grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
                           <UFormField
                             v-for="inputan in measurementInputans"
                             :key="inputan.id"
                             :label="`${inputan.label}${inputan.uom ? ` (${inputan.uom})` : ''}`"
                           >
+                            <template #label>
+                              <span class="flex w-full items-center justify-between gap-2">
+                                <span>{{ inputan.label }}<span v-if="inputan.uom" class="text-xs text-muted"> ({{ inputan.uom }})</span></span>
+                                <UBadge
+                                  v-if="getMeasurementEvaluation(inputan)"
+                                  :color="getEvaluationBadgeColor(getMeasurementEvaluation(inputan)?.status)"
+                                  variant="soft"
+                                  size="sm"
+                                  :label="getEvaluationShortLabel(getMeasurementEvaluation(inputan)?.status)"
+                                />
+                              </span>
+                            </template>
+                            <div
+                              v-if="getMeasurementNormalRangeLines(inputan).length"
+                              class="mb-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                            >
+                              <p
+                                v-for="(line, index) in getMeasurementNormalRangeLines(inputan)"
+                                :key="index"
+                              >
+                                {{ line }}
+                              </p>
+                            </div>
                             <UInput
                               v-model="measurementDraft[inputan.id]"
                               type="number"
                               :placeholder="`Enter ${inputan.label}`"
-                              class="w-full"
+                              :class="getMeasurementInputClass(inputan)"
                             />
                           </UFormField>
                           <UFormField label="Note" class="md:col-span-2">
@@ -3415,12 +3513,25 @@ async function handleSubmitItemAction() {
                           <table class="w-full text-sm">
                             <thead>
                               <tr class="border-b border-default text-left text-xs uppercase tracking-wide text-muted">
-                                <th class="py-2 pr-3">Time</th>
-                                <th v-for="inputan in measurementInputans" :key="inputan.id" class="py-2 pr-3">
-                                  {{ inputan.label }}
+                                <th class="py-2 pr-3">
+                                  Time
                                 </th>
-                                <th class="py-2 pr-3">Note</th>
-                                <th class="py-2 text-right">Action</th>
+                                <th v-for="inputan in measurementInputans" :key="inputan.id" class="py-2 pr-3">
+                                  <div>{{ inputan.label }}</div>
+                                  <div
+                                    v-for="(line, index) in getMeasurementNormalRangeLines(inputan)"
+                                    :key="index"
+                                    class="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-success"
+                                  >
+                                    {{ line }}
+                                  </div>
+                                </th>
+                                <th class="py-2 pr-3">
+                                  Note
+                                </th>
+                                <th class="py-2 text-right">
+                                  Action
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
@@ -3437,10 +3548,23 @@ async function handleSubmitItemAction() {
                                   </div>
                                 </td>
                                 <td v-for="inputan in measurementInputans" :key="inputan.id" class="py-2 pr-3 font-medium">
-                                  {{ measurement.values.find(v => v.inputanId === inputan.id)?.valueNumber ?? '-' }}
-                                  <span v-if="inputan.uom" class="text-xs font-normal text-muted">{{ inputan.uom }}</span>
+                                  <div class="flex flex-wrap items-center gap-1">
+                                    <span :class="getMeasurementValueClass(inputan, measurement)">
+                                      {{ getMeasurementValue(inputan, measurement) ?? '-' }}
+                                    </span>
+                                    <span v-if="inputan.uom" class="text-xs font-normal text-muted">{{ inputan.uom }}</span>
+                                    <UBadge
+                                      v-if="getMeasurementValueEvaluation(inputan, measurement)"
+                                      :color="getEvaluationBadgeColor(getMeasurementValueEvaluation(inputan, measurement)?.status)"
+                                      variant="soft"
+                                      size="sm"
+                                      :label="getEvaluationShortLabel(getMeasurementValueEvaluation(inputan, measurement)?.status)"
+                                    />
+                                  </div>
                                 </td>
-                                <td class="py-2 pr-3 text-muted">{{ measurement.note || '-' }}</td>
+                                <td class="py-2 pr-3 text-muted">
+                                  {{ measurement.note || '-' }}
+                                </td>
                                 <td class="py-2 text-right">
                                   <UBadge v-if="measurement.isSelected" color="success" variant="soft">
                                     Selected
