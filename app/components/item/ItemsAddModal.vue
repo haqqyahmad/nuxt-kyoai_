@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch, ref } from 'vue'
 import ItemExamTemplate from '~/components/item/ItemExamTemplate.vue'
+import FieldLabelTooltip from '~/components/item/FieldLabelTooltip.vue'
 import { useRoomTypes } from '~/composables/useRoomTypes'
 import { RENDERER_OPTIONS } from '~/constants/exam-renderers'
 import type { RendererKey } from '~/types/physical'
@@ -461,9 +462,9 @@ async function submit() {
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
-      measurementMode: form.measurementMode,
-      allowDeferMeasurement: form.allowDeferMeasurement,
-      allowSameVisitRecall: form.allowSameVisitRecall,
+        measurementMode: form.measurementMode,
+        allowDeferMeasurement: form.allowDeferMeasurement,
+        allowSameVisitRecall: form.allowSameVisitRecall,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -493,9 +494,9 @@ async function submit() {
         externalResult: form.externalResult,
         externalProcessSlaDays: form.externalProcessSlaDays,
         requiresAttachmentForDone: form.requiresAttachmentForDone,
-      measurementMode: form.measurementMode,
-      allowDeferMeasurement: form.allowDeferMeasurement,
-      allowSameVisitRecall: form.allowSameVisitRecall,
+        measurementMode: form.measurementMode,
+        allowDeferMeasurement: form.allowDeferMeasurement,
+        allowSameVisitRecall: form.allowSameVisitRecall,
         departmentId: form.departmentId || null,
         roomTypeId: form.roomTypeId,
         groupId: form.subgroupId || form.groupId || null,
@@ -589,220 +590,277 @@ function handleDone() {
         <div class="overflow-y-auto h-full px-6 py-4">
           <!-- Tab: Info Item -->
           <div v-if="activeTab === 'info'" class="space-y-5">
-            <form @submit.prevent="submit">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Item Code" required>
-                  <UInput
-                    v-model="form.code"
-                    :placeholder="props.item ? 'EX: LAB001' : autoCode || 'Pilih department/group untuk kode otomatis'"
-                    class="w-full"
-                  />
-                  <p
-                    v-if="!props.item && autoCode && form.code !== autoCode"
-                    class="mt-1 text-xs text-muted"
+            <form class="space-y-6" @submit.prevent="submit">
+              <section class="space-y-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-5 w-1 rounded-full bg-primary" />
+                  <h3 class="text-sm font-semibold">
+                    Informasi Item
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <UFormField label="Item Code" required>
+                    <UInput
+                      v-model="form.code"
+                      :placeholder="props.item ? 'EX: LAB001' : autoCode || 'Pilih department/group untuk kode otomatis'"
+                      class="w-full"
+                    />
+                    <p
+                      v-if="!props.item && autoCode && form.code !== autoCode"
+                      class="mt-1 text-xs text-muted"
+                    >
+                      Kode otomatis: <code class="font-mono text-primary">{{ autoCode }}</code>
+                    </p>
+                  </UFormField>
+
+                  <UFormField label="Item Name" required>
+                    <UInput
+                      v-model="form.name"
+                      placeholder="Input item name"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Department" required>
+                    <USelectMenu
+                      v-model="form.departmentId"
+                      :items="(departments || []).map((d: any) => ({ label: d.name, value: d.id }))"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select department"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Room Type" required>
+                    <USelectMenu
+                      v-model="form.roomTypeId"
+                      :items="roomTypeOptions"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select room type"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Group">
+                    <USelectMenu
+                      v-model="form.groupId"
+                      :disabled="!form.departmentId"
+                      :items="rootGroups.map((g: any) => ({ label: g.name, value: g.id }))"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select group"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Sub Group">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Sub Group"
+                        tooltip="Disimpan ke subgroup jika dipilih; jika tidak, ke group utama."
+                      />
+                    </template>
+                    <USelectMenu
+                      v-model="form.subgroupId"
+                      :disabled="!form.groupId"
+                      :items="subgroupOptions.map((g: any) => ({ label: g.name, value: g.id }))"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select subgroup"
+                      class="w-full"
+                    />
+                    <p v-if="hierarchySelectionError" class="mt-2 text-xs text-error">
+                      {{ hierarchySelectionError }}
+                    </p>
+                  </UFormField>
+                </div>
+              </section>
+
+              <USeparator />
+
+              <section class="space-y-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-5 w-1 rounded-full bg-primary" />
+                  <h3 class="text-sm font-semibold">
+                    Konfigurasi Hasil
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <UFormField label="Result Timing" required>
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Result Timing"
+                        tooltip="Inline untuk hasil saat pemeriksaan; deferred untuk hasil setelah room selesai."
+                      />
+                    </template>
+                    <USelectMenu
+                      v-model="form.resultTiming"
+                      :items="resultTimingOptions"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select timing"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Renderer">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Renderer"
+                        tooltip="Tampilan input custom saat pemeriksaan (item dokter)."
+                      />
+                    </template>
+                    <USelectMenu
+                      v-model="form.rendererKey"
+                      :items="RENDERER_OPTIONS"
+                      value-key="value"
+                      label-key="label"
+                      placeholder="Select renderer"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField
+                    label="Hasil dokter luar"
+                    :class="form.externalResult ? '' : 'md:col-span-2'"
                   >
-                    Kode otomatis: <code class="font-mono text-primary">{{ autoCode }}</code>
-                  </p>
-                </UFormField>
+                    <div class="flex h-10 items-center">
+                      <UCheckbox v-model="form.externalResult" label="Dikerjakan oleh dokter luar" />
+                    </div>
+                  </UFormField>
 
-                <UFormField label="Department" required>
-                  <USelectMenu
-                    v-model="form.departmentId"
-                    :items="(departments || []).map((d: any) => ({ label: d.name, value: d.id }))"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select department"
-                    class="w-full"
-                  />
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Room Type" required>
-                  <USelectMenu
-                    v-model="form.roomTypeId"
-                    :items="roomTypeOptions"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select room type"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Kewajiban PDF">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
-                  </div>
-                </UFormField>
-
-                <UFormField label="Info">
-                  <div class="flex h-10 items-center text-sm text-muted">
-                    Item wajib tahu room type yang boleh dimasuki saat check-in.
-                  </div>
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Item Name" required>
-                  <UInput
-                    v-model="form.name"
-                    placeholder="Input item name"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Group">
-                  <USelectMenu
-                    v-model="form.groupId"
-                    :disabled="!form.departmentId"
-                    :items="rootGroups.map((g: any) => ({ label: g.name, value: g.id }))"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select group"
-                    class="w-full"
-                  />
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Result Timing" required>
-                  <USelectMenu
-                    v-model="form.resultTiming"
-                    :items="resultTimingOptions"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select timing"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Renderer" description="Tampilan input custom saat pemeriksaan (item dokter).">
-                  <USelectMenu
-                    v-model="form.rendererKey"
-                    :items="RENDERER_OPTIONS"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select renderer"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Hasil dokter luar">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox v-model="form.externalResult" label="Dikerjakan oleh dokter luar" />
-                  </div>
-                </UFormField>
-                <UFormField
-                  label="SLA Proses Dokter Luar (hari)"
-                  description="Alert muncul jika hasil belum diproses melewati batas hari setelah dikirim ke dokter."
-                >
-                  <UInput
-                    v-model="form.externalProcessSlaDays"
-                    type="number"
-                    min="0"
-                    class="w-full"
-                  />
-                </UFormField>
-                <UFormField label="Kewajiban PDF">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
-                  </div>
-                </UFormField>
-
-                <UFormField label="Info">
-                  <div class="flex h-10 items-center text-sm text-muted">
-                    `inline` untuk hasil yang diisi saat pemeriksaan, `deferred` untuk hasil setelah room selesai.
-                  </div>
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Measurement Mode">
-                  <USelectMenu
-                    v-model="form.measurementMode"
-                    :items="measurementModeOptions"
-                    value-key="value"
-                    label-key="label"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Measure Later" description="Izinkan item ditunda lalu diukur ulang pada kunjungan yang sama.">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox
-                      v-model="form.allowDeferMeasurement"
-                      :disabled="form.measurementMode !== 'MULTIPLE'"
-                      label="Allow deferred measurement"
+                  <UFormField v-if="form.externalResult" label="SLA Proses Dokter Luar (hari)">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="SLA Proses Dokter Luar (hari)"
+                        tooltip="Alert muncul jika hasil belum diproses melewati batas hari setelah dikirim ke dokter."
+                      />
+                    </template>
+                    <UInput
+                      v-model="form.externalProcessSlaDays"
+                      type="number"
+                      min="0"
+                      class="w-full"
                     />
-                  </div>
-                </UFormField>
+                  </UFormField>
 
-                <UFormField label="Same-Visit Recall" description="Buka kembali room secara otomatis saat pasien berstatus waiting.">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox
-                      v-model="form.allowSameVisitRecall"
-                      :disabled="form.measurementMode !== 'MULTIPLE' || !form.allowDeferMeasurement"
-                      label="Allow same-visit recall"
+                  <UFormField class="md:col-span-2" label="Kewajiban PDF">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Kewajiban PDF"
+                        tooltip="Aktifkan jika item tidak boleh selesai sebelum PDF diunggah."
+                      />
+                    </template>
+                    <div class="flex h-10 items-center">
+                      <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
+                    </div>
+                  </UFormField>
+                </div>
+              </section>
+
+              <USeparator />
+
+              <section class="space-y-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-5 w-1 rounded-full bg-primary" />
+                  <h3 class="text-sm font-semibold">
+                    Pengukuran
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+                  <UFormField label="Measurement Mode">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Measurement Mode"
+                        tooltip="Single untuk satu hasil; Multiple untuk beberapa pengukuran per kunjungan."
+                      />
+                    </template>
+                    <USelectMenu
+                      v-model="form.measurementMode"
+                      :items="measurementModeOptions"
+                      value-key="value"
+                      label-key="label"
+                      class="w-full"
                     />
-                  </div>
-                </UFormField>
-              </div>
+                  </UFormField>
 
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Sub Group">
-                  <USelectMenu
-                    v-model="form.subgroupId"
-                    :disabled="!form.groupId"
-                    :items="subgroupOptions.map((g: any) => ({ label: g.name, value: g.id }))"
-                    value-key="value"
-                    label-key="label"
-                    placeholder="Select subgroup"
+                  <UFormField label="Opsi Pengukuran">
+                    <template #label>
+                      <FieldLabelTooltip
+                        label="Opsi Pengukuran"
+                        tooltip="Tersedia hanya saat Measurement Mode bernilai Multiple."
+                      />
+                    </template>
+                    <div class="space-y-3 rounded-lg border border-default bg-elevated/30 p-3">
+                      <div class="flex items-center gap-1">
+                        <UCheckbox
+                          v-model="form.allowDeferMeasurement"
+                          :disabled="form.measurementMode !== 'MULTIPLE'"
+                          label="Measure Later"
+                        />
+                        <FieldLabelTooltip
+                          tooltip="Izinkan item ditunda lalu diukur ulang pada kunjungan yang sama."
+                          sr-label="Informasi Measure Later"
+                        />
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <UCheckbox
+                          v-model="form.allowSameVisitRecall"
+                          :disabled="form.measurementMode !== 'MULTIPLE' || !form.allowDeferMeasurement"
+                          label="Same-Visit Recall"
+                        />
+                        <FieldLabelTooltip
+                          tooltip="Buka kembali room otomatis saat pasien berstatus waiting."
+                          sr-label="Informasi Same-Visit Recall"
+                        />
+                      </div>
+                    </div>
+                  </UFormField>
+                </div>
+              </section>
+
+              <USeparator />
+
+              <section class="space-y-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-5 w-1 rounded-full bg-primary" />
+                  <h3 class="text-sm font-semibold">
+                    Harga & Status
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <UFormField label="Price">
+                    <UInput
+                      v-model="form.price"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Status">
+                    <div class="flex h-10 items-center">
+                      <USwitch v-model="form.isActive" label="Active" />
+                    </div>
+                  </UFormField>
+                </div>
+
+                <UFormField label="Description">
+                  <UTextarea
+                    v-model="form.description"
+                    :rows="3"
+                    placeholder="Input description..."
                     class="w-full"
                   />
-                  <p v-if="hierarchySelectionError" class="mt-2 text-xs text-error">
-                    {{ hierarchySelectionError }}
-                  </p>
                 </UFormField>
-
-                <UFormField label="Kewajiban PDF">
-                  <div class="flex h-10 items-center">
-                    <UCheckbox v-model="form.requiresAttachmentForDone" label="PDF wajib sebelum item selesai" />
-                  </div>
-                </UFormField>
-
-                <UFormField label="Info">
-                  <div class="flex h-10 items-center text-sm text-muted">
-                    Item akan disimpan ke subgroup jika dipilih, atau ke group utama jika tidak ada subgroup.
-                  </div>
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Price">
-                  <UInput
-                    v-model="form.price"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    class="w-full"
-                  />
-                </UFormField>
-
-                <UFormField label="Status">
-                  <div class="flex h-10 items-center">
-                    <USwitch v-model="form.isActive" label="Active" />
-                  </div>
-                </UFormField>
-              </div>
-
-              <UFormField label="Description">
-                <UTextarea
-                  v-model="form.description"
-                  :rows="3"
-                  placeholder="Input description..."
-                  class="w-full"
-                />
-              </UFormField>
+              </section>
 
               <div class="flex items-center justify-end gap-2 border-t border-default pt-4">
                 <UButton color="neutral" variant="soft" @click="open = false">
