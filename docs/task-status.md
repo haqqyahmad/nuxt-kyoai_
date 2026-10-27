@@ -8,6 +8,7 @@ Last updated: 2026-10-27
 - Handle `i-lucide-grip-vertical` di tiap item; item hanya bisa dipindah lewat handle sehingga klik judul tetap berfungsi untuk expand/collapse.
 - Urutan baru otomatis dikirim sebagai urutan `itemIds` pada submit create/update; BE `paket.repository.js` memetakan index ke `mst_paket_item.sortOrder` (tanpa perubahan backend).
 - Edit paket memuat ulang item sesuai `sortOrder` (`applyPaketDetail`/`applySourcePaket` sudah sort ascending).
+- Modal **Tambah Item Pemeriksaan** diperbaiki agar tetap bisa di-scroll & tombol **Selesai** selalu terlihat saat item terpilih banyak: card `max-h-[90vh] flex flex-col overflow-hidden`, header & footer `shrink-0`, chip item terpilih dibatasi `max-h-24 overflow-y-auto`, dan body hasil pencarian `flex-1 min-h-0 overflow-y-auto` (sebelumnya `max-height: min(65vh, 620px)` sehingga footer terdorong keluar layar).
 - Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; halaman `/services/packages/create` 200.
 
 ## Master Grading Laboratorium + Grade D/E - 2026-10-27

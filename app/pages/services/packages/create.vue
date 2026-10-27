@@ -1144,7 +1144,7 @@ await fetchSourcePakets()
         <Transition name="modal-pop">
           <div
             v-if="additionalModalOpen"
-            class="relative w-full max-w-3xl overflow-visible rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
+            class="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl"
             style="
               box-shadow:
                 0 30px 80px rgba(0, 0, 0, 0.55),
@@ -1153,7 +1153,7 @@ await fetchSourcePakets()
           >
             <!-- HEADER -->
             <div
-              class="px-6 pt-5 pb-4 border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]"
+              class="shrink-0 px-6 pt-5 pb-4 border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]"
             >
               <div class="flex items-start justify-between gap-4">
                 <!-- LEFT -->
@@ -1243,7 +1243,7 @@ await fetchSourcePakets()
               <!-- SELECTED ITEMS -->
               <div
                 v-if="additionalItems.length"
-                class="flex flex-wrap gap-2 mt-4"
+                class="flex flex-wrap gap-2 mt-4 max-h-24 overflow-y-auto pr-1"
               >
                 <div
                   v-for="item in additionalItems"
@@ -1267,7 +1267,7 @@ await fetchSourcePakets()
             </div>
 
             <!-- BODY -->
-            <div class="overflow-y-auto relative z-0" style="max-height: min(65vh, 620px)">
+            <div class="flex-1 min-h-0 overflow-y-auto relative z-0">
               <!-- LOADING -->
               <div
                 v-if="additionalPending && !additionalResults.length"
@@ -1417,7 +1417,7 @@ await fetchSourcePakets()
 
             <!-- FOOTER -->
             <div
-              class="px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
+              class="shrink-0 px-6 py-4 border-t border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] flex items-center justify-between"
             >
               <p class="text-[11px] text-neutral-500">
                 <template v-if="additionalItems.length">
