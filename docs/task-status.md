@@ -9,6 +9,9 @@ Last updated: 2026-10-27
 - Urutan baru otomatis dikirim sebagai urutan `itemIds` pada submit create/update; BE `paket.repository.js` memetakan index ke `mst_paket_item.sortOrder` (tanpa perubahan backend).
 - Edit paket memuat ulang item sesuai `sortOrder` (`applyPaketDetail`/`applySourcePaket` sudah sort ascending).
 - Modal **Tambah Item Pemeriksaan** diperbaiki agar tetap bisa di-scroll & tombol **Selesai** selalu terlihat saat item terpilih banyak: card `max-h-[90vh] flex flex-col overflow-hidden`, header & footer `shrink-0`, chip item terpilih dibatasi `max-h-24 overflow-y-auto`, dan body hasil pencarian `flex-1 min-h-0 overflow-y-auto` (sebelumnya `max-height: min(65vh, 620px)` sehingga footer terdorong keluar layar).
+- Pilih **Company** di form paket kini memakai `USelectMenu` (searchable, `value-key="value"`): saat keyword tidak cocok muncul opsi `Tambah company "[keyword]"` (`create-item`), plus tombol **Company Baru** di label field.
+- `components/customer/Customeraddmodal.vue` dibuat bisa dikontrol dari luar: props `hideTrigger`/`defaultName`/`title`, expose `open(name?)`, dan emit `created` membawa data customer (`codeCostumer`) — dipakai `@created="() => refresh()"` di `pages/customer/index.vue`.
+- Setelah company baru dibuat, `fetchCompanies()` dijalankan ulang dan company tersebut otomatis terpilih (`companyCode`), sehingga preview kode paket langsung ikut.
 - Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; halaman `/services/packages/create` 200.
 
 ## Master Grading Laboratorium + Grade D/E - 2026-10-27

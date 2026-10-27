@@ -133,6 +133,11 @@ const pageTitle = computed(() =>
 )
 
 const companies = ref<Company[]>([])
+const companiesPending = ref(false)
+const companyMenuOpen = ref(false)
+const companySearchTerm = ref('')
+const companyAddModal = ref<{ open: (name?: string) => void } | null>(null)
+
 const companyOptions = computed(() =>
   companies.value
     .filter(c => c.CustomerType !== 'Personal')
@@ -147,6 +152,8 @@ const personalCode = computed(() =>
 )
 
 async function fetchCompanies() {
+  companiesPending.value = true
+
   try {
     const res = await api.get('/customer')
     const payload = res.data?.data
@@ -154,6 +161,29 @@ async function fetchCompanies() {
   } catch (err) {
     console.error('fetch companies error:', err)
     companies.value = []
+  } finally {
+    companiesPending.value = false
+  }
+}
+
+function openAddCompanyModal(name?: string) {
+  companyMenuOpen.value = false
+  companyAddModal.value?.open(typeof name === 'string' ? name : undefined)
+}
+
+async function handleCompanyCreated(customer?: { codeCostumer?: string, customerName?: string }) {
+  await fetchCompanies()
+
+  const createdCode = customer?.codeCostumer
+  const matchedCode = createdCode && companyOptions.value.some(option => option.value === createdCode)
+    ? createdCode
+    : companies.value
+        .filter(company => company.CustomerType !== 'Personal')
+        .find(company => company.customerName?.toLowerCase() === customer?.customerName?.toLowerCase())
+        ?.codeCostumer
+
+  if (matchedCode) {
+    companyCode.value = matchedCode
   }
 }
 
@@ -730,14 +760,36 @@ await fetchSourcePakets()
                   v-if="paketType === 'company' && !isEditMode"
                   label="Company *"
                 >
-                  <USelect
+                  <USelectMenu
                     v-model="companyCode"
+                    v-model:open="companyMenuOpen"
+                    v-model:search-term="companySearchTerm"
                     :items="companyOptions"
-                    placeholder="Pilih company"
+                    value-key="value"
+                    search-input
+                    :create-item="{ position: 'bottom', when: 'empty' }"
+                    placeholder="Cari / pilih company"
                     icon="i-lucide-building-2"
-                    :loading="!companies.length"
+                    :loading="companiesPending"
                     class="w-full"
-                  />
+                    @create="openAddCompanyModal"
+                  >
+                    <template #create-item-label="{ item }">
+                      Tambah company "{{ item }}"
+                    </template>
+                  </USelectMenu>
+
+                  <template #hint>
+                    <UButton
+                      icon="i-lucide-plus"
+                      size="xs"
+                      color="primary"
+                      variant="link"
+                      label="Company Baru"
+                      class="p-0"
+                      @click="openAddCompanyModal()"
+                    />
+                  </template>
                 </UFormField>
 
                 <UFormField
@@ -1444,4 +1496,11 @@ await fetchSourcePakets()
       </div>
     </Transition>
   </Teleport>
+
+  <CustomerCustomeraddmodal
+    ref="companyAddModal"
+    hide-trigger
+    title="Tambah Company"
+    @created="handleCompanyCreated"
+  />
 </template>

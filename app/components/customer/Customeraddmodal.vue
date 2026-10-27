@@ -1,6 +1,23 @@
 <script setup lang="ts">
+type CreatedCustomer = {
+  id?: string | number
+  codeCostumer?: string
+  customerName?: string
+  CustomerType?: string
+}
+
+const props = withDefaults(defineProps<{
+  hideTrigger?: boolean
+  defaultName?: string
+  title?: string
+}>(), {
+  hideTrigger: false,
+  defaultName: '',
+  title: 'Tambah Customer'
+})
+
 const emit = defineEmits<{
-  created: []
+  created: [customer?: CreatedCustomer]
 }>()
 
 const api = useApi()
@@ -59,14 +76,22 @@ const addressTypeOptions = [
   { value: 'CUSTOMER', label: 'Customer' }
 ]
 
-const open = () => {
-  form.value = defaultForm()
+const open = (name?: string) => {
+  const prefill = typeof name === 'string' ? name : props.defaultName
+
+  form.value = {
+    ...defaultForm(),
+    customerName: (prefill ?? '').trim()
+  }
+
   isOpen.value = true
 }
 
 const close = () => {
   isOpen.value = false
 }
+
+defineExpose({ open })
 
 const submit = async () => {
   if (!form.value.customerName.trim()) {
@@ -85,6 +110,11 @@ const submit = async () => {
     const customerId
       = customerRes.data?.data?.id
         ?? customerRes.data?.id
+
+    const createdCustomer: CreatedCustomer
+      = customerRes.data?.data
+        ?? customerRes.data
+        ?? { customerName: form.value.customerName.trim() }
 
     // 2. Optionally add contact
     if (form.value.contactValue.trim() && customerId) {
@@ -116,12 +146,14 @@ const submit = async () => {
       color: 'success'
     })
 
-    emit('created')
+    emit('created', createdCustomer)
     close()
-  } catch {
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+
     toast.add({
       title: 'Gagal',
-      description: 'Gagal menambahkan customer',
+      description: message ?? 'Gagal menambahkan customer',
       color: 'error'
     })
   } finally {
@@ -133,16 +165,17 @@ const submit = async () => {
 <template>
   <!-- Trigger Button -->
   <UButton
+    v-if="!hideTrigger"
     label="Tambah Customer"
     icon="i-lucide-house-plus"
     color="primary"
-    @click="open"
+    @click="open()"
   />
 
   <!-- Modal -->
   <UModal
     v-model:open="isOpen"
-    title="Tambah Customer"
+    :title="title"
     description="Isi informasi customer baru. Kontak dan alamat bersifat opsional."
     :ui="{ content: 'max-w-2xl' }"
   >

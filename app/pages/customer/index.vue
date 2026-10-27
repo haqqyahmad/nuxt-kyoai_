@@ -268,7 +268,7 @@ const columns: TableColumn<Customer>[] = [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <CustomerCustomeraddmodal @created="refresh" />
+          <CustomerCustomeraddmodal @created="() => refresh()" />
         </template>
       </AppNavbar>
     </template>
