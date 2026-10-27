@@ -35,6 +35,8 @@ const gradeOptions = [
   { label: 'B', value: 'B' },
   { label: 'BF', value: 'BF' },
   { label: 'C', value: 'C' },
+  { label: 'D', value: 'D' },
+  { label: 'E', value: 'E' },
   { label: 'F', value: 'F' }
 ]
 
@@ -378,6 +380,8 @@ function gradeClass(grade: string) {
     B: 'text-primary',
     BF: 'text-warning',
     C: 'text-error',
+    D: 'text-orange-600',
+    E: 'text-amber-700',
     F: 'text-red-900'
   }[grade] ?? 'text-highlighted'
 

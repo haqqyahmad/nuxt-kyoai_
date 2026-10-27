@@ -1,6 +1,14 @@
 # Project Task Status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-27
+
+## Master Grading Laboratorium + Grade D/E - 2026-10-27
+
+- `app/pages/medical/master-grading.vue`: filter & form grade menerima **D** dan **E**; badge D/E diberi warna sendiri.
+- `app/types/doctor-result.ts`: `GradeRule.grade` menerima `D`/`E`. `FINAL_GRADES` (final grade dokter) tetap `A/B/BF/C/F`.
+- Rule Laboratorium: **181 rule** dari spreadsheet referensi (hanya item + inputan yang ada di `mst_item`/`mst_item_inputan` Lab) di-seed ke `mst_grade_rule` via `BE/db_express/prisma/seedLabGradeRules.js` (idempotent, backup tabel otomatis). Total rule Lab kini **186**.
+- BE: `grade-rule.service.js` (`validGrades`) dan `exam.service.js` (item grade + group grade) menerima D/E.
+- Verifikasi: BE `npm test` 78/78 pass; FE `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0.
 
 ## P0 Fix Batch - 2026-10-20 (pra-merge MCU)
 

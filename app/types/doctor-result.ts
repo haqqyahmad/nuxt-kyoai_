@@ -143,7 +143,7 @@ export type GradeRule = {
   inputanCode?: string | null
   gradable: boolean
   condition: 'normal' | 'increase' | 'decrease' | 'qualitative' | string
-  grade: 'A' | 'B' | 'BF' | 'C' | 'F' | string
+  grade: 'A' | 'B' | 'BF' | 'C' | 'D' | 'E' | 'F' | string
   comment: string
   recommendation?: string | null
   priority: number
