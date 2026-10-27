@@ -657,20 +657,21 @@ await fetchSourcePakets()
 
 <template>
   <UDashboardPanel id="paket-mcu-create">
-    <template #header>
-      <AppNavbar :title="pageTitle">
-        <template #leading>
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            :to="isEditMode && paketId ? `/services/packages/${paketId}` : '/services/packages'"
-          />
-        </template>
-      </AppNavbar>
-    </template>
-
     <template #body>
+      <div class="flex items-center gap-2 px-4 pb-3 border-b border-default">
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          aria-label="Kembali"
+          :to="isEditMode && paketId ? `/services/packages/${paketId}` : '/services/packages'"
+        />
+
+        <h1 class="text-lg font-semibold tracking-tight truncate">
+          {{ pageTitle }}
+        </h1>
+      </div>
+
       <div
         v-if="formPending"
         class="flex items-center justify-center py-20"

@@ -12,6 +12,7 @@ Last updated: 2026-10-27
 - Pilih **Company** di form paket kini memakai `USelectMenu` (searchable, `value-key="value"`): saat keyword tidak cocok muncul opsi `Tambah company "[keyword]"` (`create-item`), plus tombol **Company Baru** di label field.
 - `components/customer/Customeraddmodal.vue` dibuat bisa dikontrol dari luar: props `hideTrigger`/`defaultName`/`title`, expose `open(name?)`, dan emit `created` membawa data customer (`codeCostumer`) — dipakai `@created="() => refresh()"` di `pages/customer/index.vue`.
 - Setelah company baru dibuat, `fetchCompanies()` dijalankan ulang dan company tersebut otomatis terpilih (`companyCode`), sehingga preview kode paket langsung ikut.
+- Hilangkan navbar ganda di halaman paket: parent `pages/services.vue` sudah merender `AppNavbar` (judul "Services" + sidebar toggle), sehingga `packages/create.vue` dan `packages/[id].vue` tidak lagi memakai `AppNavbar`/`#header` sendiri. Judul + tombol back (dan aksi Edit/Refresh/Delete pada halaman detail) dipindah menjadi header inline di dalam `#body`.
 - Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; halaman `/services/packages/create` 200.
 
 ## Master Grading Laboratorium + Grade D/E - 2026-10-27

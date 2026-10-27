@@ -151,54 +151,53 @@ const showEmptyState = computed(() => !pending.value && !paket.value)
 
 <template>
   <UDashboardPanel :id="`paket-detail-${route.params.id}`">
-    <template #header>
-      <AppNavbar title="Detail Paket MCU">
-        <template #leading>
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            to="/services/packages"
-          />
-        </template>
-
-        <template #right>
-          <div class="flex items-center gap-2">
-            <UButton
-              icon="i-lucide-pencil"
-              color="primary"
-              variant="subtle"
-              :disabled="!paket"
-              :to="editFormRoute"
-            >
-              Edit
-            </UButton>
-
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="outline"
-              :loading="pending"
-              @click="() => refresh()"
-            >
-              Refresh
-            </UButton>
-
-            <UButton
-              icon="i-lucide-trash-2"
-              color="error"
-              variant="outline"
-              :disabled="!paket"
-              @click="isDeleteModalOpen = true"
-            >
-              Delete
-            </UButton>
-          </div>
-        </template>
-      </AppNavbar>
-    </template>
-
     <template #body>
+      <div class="flex flex-wrap items-center gap-2 px-4 pb-3 border-b border-default">
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          aria-label="Kembali"
+          to="/services/packages"
+        />
+
+        <h1 class="text-lg font-semibold tracking-tight truncate">
+          Detail Paket MCU
+        </h1>
+
+        <div class="ml-auto flex items-center gap-2">
+          <UButton
+            icon="i-lucide-pencil"
+            color="primary"
+            variant="subtle"
+            :disabled="!paket"
+            :to="editFormRoute"
+          >
+            Edit
+          </UButton>
+
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="outline"
+            :loading="pending"
+            @click="() => refresh()"
+          >
+            Refresh
+          </UButton>
+
+          <UButton
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="outline"
+            :disabled="!paket"
+            @click="isDeleteModalOpen = true"
+          >
+            Delete
+          </UButton>
+        </div>
+      </div>
+
       <div class="max-w-6xl mx-auto py-6 px-4 space-y-6">
         <div v-if="pending" class="flex items-center justify-center py-20">
           <UIcon name="i-lucide-loader-circle" class="animate-spin text-2xl text-muted" />
