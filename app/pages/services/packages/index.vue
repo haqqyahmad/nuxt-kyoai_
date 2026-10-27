@@ -65,7 +65,7 @@ function mapPaket(paket: PaketApi): PaketRow {
   }
 }
 
-const { data: paketData, refresh } = await useAsyncData('paket-mcu', () =>
+const { data: paketData, refresh, pending } = await useAsyncData('paket-mcu', () =>
   api.get('/mcu/pakets').then(res => (res.data.data ?? []).map(mapPaket))
 )
 
@@ -359,14 +359,6 @@ watch(currentPage, (page) => {
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <UButton
-            icon="i-lucide-package-plus"
-            color="primary"
-            to="/services/packages/create"
-          >
-            New Package
-          </UButton>
-
           <BaseDeleteModal
             :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
             entity="item paket"
@@ -388,6 +380,15 @@ watch(currentPage, (page) => {
               </template>
             </UButton>
           </BaseDeleteModal>
+
+          <UButton
+            icon="i-lucide-refresh-cw"
+            label="Refresh"
+            color="neutral"
+            variant="outline"
+            :loading="pending"
+            @click="() => refresh()"
+          />
 
           <UDropdownMenu
             :items="
@@ -430,6 +431,7 @@ watch(currentPage, (page) => {
         }"
         sticky
         class="w-full"
+        :loading="pending"
         :data="data"
         :columns="columns"
         :ui="{

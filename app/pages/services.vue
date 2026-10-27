@@ -14,6 +14,17 @@ if (route.path === '/services') {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+
+        <template #right>
+          <UButton
+            v-if="route.path === '/services/packages'"
+            icon="i-lucide-package-plus"
+            color="primary"
+            to="/services/packages/create"
+          >
+            New Package
+          </UButton>
+        </template>
       </AppNavbar>
     </template>
 

@@ -2,6 +2,13 @@
 
 Last updated: 2026-10-27
 
+## Toolbar Daftar Paket MCU: Refresh + Relokasi New Package - 2026-10-27
+
+- `app/pages/services.vue`: tombol **New Package** dipindah ke slot `#right` pada `AppNavbar` "Services", tampil hanya saat `route.path === '/services/packages'` sehingga tidak muncul di halaman create/detail.
+- `app/pages/services/packages/index.vue`: tombol **New Package** dihapus dari toolbar body; ditambahkan tombol **Refresh** (`i-lucide-refresh-cw`, `variant="outline"`, `:loading="pending"`, `@click="() => refresh()"`) di antara bulk delete dan **Display**.
+- `useAsyncData('paket-mcu', ...)` kini juga mengembalikan `pending`; `<UTable>` memakai `:loading="pending"` agar ada indikator saat refresh.
+- Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; `/services/packages` 200.
+
 ## Drag & Drop Urutan Item Paket MCU - 2026-10-27
 
 - `app/pages/services/packages/create.vue`: daftar **Detail Item Pemeriksaan** memakai `vuedraggable` (`v-model="additionalItems"`, `item-key="id"`, `handle=".drag-handle"`).
