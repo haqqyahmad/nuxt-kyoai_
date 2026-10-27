@@ -1,5 +1,7 @@
 <!-- app/pages/services/packages/create.vue -->
 <script setup lang="ts">
+import draggable from 'vuedraggable'
+
 const api = useApi()
 const toast = useToast()
 const route = useRoute()
@@ -874,177 +876,194 @@ await fetchSourcePakets()
                   </p>
                 </div>
 
-                <div
+                <draggable
                   v-else
+                  v-model="additionalItems"
+                  item-key="id"
+                  handle=".drag-handle"
+                  tag="div"
                   class="space-y-1.5"
+                  ghost-class="opacity-40"
+                  :animation="150"
                 >
-                  <div
-                    v-for="item in additionalItems"
-                    :key="item.id"
-                    class="rounded-lg border border-default overflow-hidden bg-background"
-                  >
-                    <div class="flex items-center gap-1.5 px-3 py-2.5">
-                      <button
-                        class="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
-                        @click="toggleAdditional(item.id)"
-                      >
-                        <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <UIcon
-                            name="i-lucide-flask-conical"
-                            class="text-primary text-xs"
-                          />
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                          <p class="text-sm font-semibold truncate">
-                            {{ item.name }}
-                          </p>
-
-                          <p class="text-xs text-muted">
-                            {{ item.code }}
-
-                            <template v-if="getDepartmentName(item)">
-                              · {{ getDepartmentName(item) }}
-                            </template>
-
-                            · {{ item.inputans.length }} inputan
-                          </p>
-                        </div>
-
-                        <UIcon
-                          :name="
-                            expandedAdditional.has(item.id)
-                              ? 'i-lucide-chevron-up'
-                              : 'i-lucide-chevron-down'
-                          "
-                          class="text-muted text-xs flex-shrink-0"
-                        />
-                      </button>
-
-                      <UButton
-                        icon="i-lucide-trash-2"
-                        color="error"
-                        variant="ghost"
-                        size="xs"
-                        title="Hapus item"
-                        @click.stop="removeAdditionalItem(item.id)"
-                      />
-                    </div>
-
-                    <Transition
-                      enter-active-class="transition-all duration-200 ease-out"
-                      enter-from-class="opacity-0 max-h-0"
-                      enter-to-class="opacity-100 max-h-[600px]"
-                      leave-active-class="transition-all duration-150 ease-in"
-                      leave-from-class="opacity-100 max-h-[600px]"
-                      leave-to-class="opacity-0 max-h-0"
+                  <template #item="{ element: item }: { element: MstItem }">
+                    <div
+                      :key="item.id"
+                      class="rounded-lg border border-default overflow-hidden bg-background"
                     >
-                      <div
-                        v-if="expandedAdditional.has(item.id)"
-                        class="border-t border-default overflow-hidden"
-                      >
-                        <div
-                          class="grid px-3 py-2 bg-elevated"
-                          style="grid-template-columns: 1fr 90px 100px 1fr"
+                      <div class="flex items-center gap-1.5 px-3 py-2.5">
+                        <span
+                          class="drag-handle flex items-center justify-center px-0.5 text-muted hover:text-highlighted cursor-grab active:cursor-grabbing transition-colors flex-shrink-0"
+                          title="Tarik untuk mengubah urutan"
                         >
-                          <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
-                            Label
-                          </span>
+                          <UIcon
+                            name="i-lucide-grip-vertical"
+                            class="text-sm"
+                          />
+                        </span>
 
-                          <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
-                            Tipe
-                          </span>
-
-                          <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
-                            Satuan
-                          </span>
-
-                          <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
-                            Nilai Normal
-                          </span>
-                        </div>
-
-                        <div
-                          v-for="inp in item.inputans"
-                          :key="inp.id"
-                          class="grid px-3 py-2 border-t border-default/50 hover:bg-elevated/60 transition-colors"
-                          style="grid-template-columns: 1fr 90px 100px 1fr"
+                        <button
+                          class="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+                          @click="toggleAdditional(item.id)"
                         >
-                          <div class="min-w-0">
-                            <p class="text-xs font-medium truncate">
-                              {{ inp.label }}
-                            </p>
-
-                            <p
-                              v-if="inp.formula"
-                              class="text-[10px] text-muted font-mono truncate mt-0.5"
-                            >
-                              {{ inp.formula.formula }}
-                            </p>
-                          </div>
-
-                          <div>
-                            <UBadge
-                              :label="INPUT_TYPE_LABEL[inp.inputType]"
-                              :color="INPUT_TYPE_COLOR[inp.inputType] as any"
-                              variant="subtle"
-                              size="xs"
+                          <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <UIcon
+                              name="i-lucide-flask-conical"
+                              class="text-primary text-xs"
                             />
                           </div>
 
-                          <p class="text-xs text-muted truncate">
-                            {{ inp.uom ?? '—' }}
-                          </p>
-
-                          <div class="min-w-0">
-                            <p
-                              v-if="inp.inputType === 'string'"
-                              class="text-xs text-muted italic"
-                            >
-                              Teks bebas
+                          <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold truncate">
+                              {{ item.name }}
                             </p>
 
-                            <p
-                              v-else
-                              class="text-xs text-default truncate"
-                            >
-                              {{ formatNilaiNormal(inp) }}
+                            <p class="text-xs text-muted">
+                              {{ item.code }}
+
+                              <template v-if="getDepartmentName(item)">
+                                · {{ getDepartmentName(item) }}
+                              </template>
+
+                              · {{ item.inputans.length }} inputan
+                            </p>
+                          </div>
+
+                          <UIcon
+                            :name="
+                              expandedAdditional.has(item.id)
+                                ? 'i-lucide-chevron-up'
+                                : 'i-lucide-chevron-down'
+                            "
+                            class="text-muted text-xs flex-shrink-0"
+                          />
+                        </button>
+
+                        <UButton
+                          icon="i-lucide-trash-2"
+                          color="error"
+                          variant="ghost"
+                          size="xs"
+                          title="Hapus item"
+                          @click.stop="removeAdditionalItem(item.id)"
+                        />
+                      </div>
+
+                      <Transition
+                        enter-active-class="transition-all duration-200 ease-out"
+                        enter-from-class="opacity-0 max-h-0"
+                        enter-to-class="opacity-100 max-h-[600px]"
+                        leave-active-class="transition-all duration-150 ease-in"
+                        leave-from-class="opacity-100 max-h-[600px]"
+                        leave-to-class="opacity-0 max-h-0"
+                      >
+                        <div
+                          v-if="expandedAdditional.has(item.id)"
+                          class="border-t border-default overflow-hidden"
+                        >
+                          <div
+                            class="grid px-3 py-2 bg-elevated"
+                            style="grid-template-columns: 1fr 90px 100px 1fr"
+                          >
+                            <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
+                              Label
+                            </span>
+
+                            <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
+                              Tipe
+                            </span>
+
+                            <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
+                              Satuan
+                            </span>
+
+                            <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">
+                              Nilai Normal
+                            </span>
+                          </div>
+
+                          <div
+                            v-for="inp in item.inputans"
+                            :key="inp.id"
+                            class="grid px-3 py-2 border-t border-default/50 hover:bg-elevated/60 transition-colors"
+                            style="grid-template-columns: 1fr 90px 100px 1fr"
+                          >
+                            <div class="min-w-0">
+                              <p class="text-xs font-medium truncate">
+                                {{ inp.label }}
+                              </p>
+
+                              <p
+                                v-if="inp.formula"
+                                class="text-[10px] text-muted font-mono truncate mt-0.5"
+                              >
+                                {{ inp.formula.formula }}
+                              </p>
+                            </div>
+
+                            <div>
+                              <UBadge
+                                :label="INPUT_TYPE_LABEL[inp.inputType]"
+                                :color="INPUT_TYPE_COLOR[inp.inputType] as any"
+                                variant="subtle"
+                                size="xs"
+                              />
+                            </div>
+
+                            <p class="text-xs text-muted truncate">
+                              {{ inp.uom ?? '—' }}
                             </p>
 
-                            <div
-                              v-if="inp.inputType === 'selected' && inp.opsis.length"
-                              class="flex flex-wrap gap-1 mt-1"
-                            >
-                              <span
-                                v-for="opsi in inp.opsis.slice(0, 4)"
-                                :key="opsi.id"
-                                class="text-[10px] px-1.5 py-0.5 rounded bg-elevated border border-default text-muted"
+                            <div class="min-w-0">
+                              <p
+                                v-if="inp.inputType === 'string'"
+                                class="text-xs text-muted italic"
                               >
-                                {{ opsi.label }}
-                              </span>
+                                Teks bebas
+                              </p>
 
-                              <span
-                                v-if="inp.opsis.length > 4"
-                                class="text-[10px] text-muted"
+                              <p
+                                v-else
+                                class="text-xs text-default truncate"
                               >
-                                +{{ inp.opsis.length - 4 }}
-                              </span>
+                                {{ formatNilaiNormal(inp) }}
+                              </p>
+
+                              <div
+                                v-if="inp.inputType === 'selected' && inp.opsis.length"
+                                class="flex flex-wrap gap-1 mt-1"
+                              >
+                                <span
+                                  v-for="opsi in inp.opsis.slice(0, 4)"
+                                  :key="opsi.id"
+                                  class="text-[10px] px-1.5 py-0.5 rounded bg-elevated border border-default text-muted"
+                                >
+                                  {{ opsi.label }}
+                                </span>
+
+                                <span
+                                  v-if="inp.opsis.length > 4"
+                                  class="text-[10px] text-muted"
+                                >
+                                  +{{ inp.opsis.length - 4 }}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div
-                          v-if="!item.inputans.length"
-                          class="px-3 py-3 text-center"
-                        >
-                          <p class="text-xs text-muted">
-                            Belum ada inputan
-                          </p>
+                          <div
+                            v-if="!item.inputans.length"
+                            class="px-3 py-3 text-center"
+                          >
+                            <p class="text-xs text-muted">
+                              Belum ada inputan
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </Transition>
-                  </div>
-                </div>
+                      </Transition>
+                    </div>
+                  </template>
+                </draggable>
               </div>
             </div>
           </div>

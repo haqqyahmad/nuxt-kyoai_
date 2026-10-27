@@ -2,6 +2,14 @@
 
 Last updated: 2026-10-27
 
+## Drag & Drop Urutan Item Paket MCU - 2026-10-27
+
+- `app/pages/services/packages/create.vue`: daftar **Detail Item Pemeriksaan** memakai `vuedraggable` (`v-model="additionalItems"`, `item-key="id"`, `handle=".drag-handle"`).
+- Handle `i-lucide-grip-vertical` di tiap item; item hanya bisa dipindah lewat handle sehingga klik judul tetap berfungsi untuk expand/collapse.
+- Urutan baru otomatis dikirim sebagai urutan `itemIds` pada submit create/update; BE `paket.repository.js` memetakan index ke `mst_paket_item.sortOrder` (tanpa perubahan backend).
+- Edit paket memuat ulang item sesuai `sortOrder` (`applyPaketDetail`/`applySourcePaket` sudah sort ascending).
+- Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; halaman `/services/packages/create` 200.
+
 ## Master Grading Laboratorium + Grade D/E - 2026-10-27
 
 - `app/pages/medical/master-grading.vue`: filter & form grade menerima **D** dan **E**; badge D/E diberi warna sendiri.
