@@ -855,15 +855,7 @@ const primaryAction = computed<HeaderAction | null>(() => {
 })
 
 const secondaryActions = computed<HeaderAction[]>(() => {
-  const list: HeaderAction[] = [
-    {
-      key: 'print',
-      label: 'Print Label',
-      color: 'neutral',
-      variant: 'outline',
-      icon: 'i-lucide-printer'
-    }
-  ]
+  const list: HeaderAction[] = []
   if (reg.value?.status === 'PENDING') {
     list.push({
       key: 'reject',
@@ -874,6 +866,13 @@ const secondaryActions = computed<HeaderAction[]>(() => {
       onClick: () => openStatusModal('REJECTED')
     })
   }
+  list.push({
+    key: 'print',
+    label: 'Print Label',
+    color: 'neutral',
+    variant: 'outline',
+    icon: 'i-lucide-printer'
+  })
   return list
 })
 
