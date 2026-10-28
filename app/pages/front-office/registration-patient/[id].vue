@@ -22,6 +22,8 @@ type ExamItem = {
     doneAt?: string | null
     updatedAt?: string | null
     rescheduleVisitDate?: string | null
+    cancelledAt?: string | null
+    cancelReason?: string | null
   }>
   item: {
     id: string
@@ -375,6 +377,17 @@ function additionalStartAt(ei: ExamItem): string | null {
 function additionalDoneAt(ei: ExamItem): string | null {
   const t = (ei.roomExamItems ?? []).map(r => r.doneAt).filter((v): v is string => Boolean(v))
   return t.length ? t.reduce((a, b) => (a > b ? a : b)) : null
+}
+
+function additionalCancelNote(ei: ExamItem): string {
+  const roomItems = ei.roomExamItems ?? []
+  const reason = roomItems.find(roomItem => Boolean(roomItem.cancelReason))?.cancelReason ?? null
+  const times = roomItems.map(roomItem => roomItem.cancelledAt).filter((v): v is string => Boolean(v))
+  const cancelledAt = times.length ? times.reduce((a, b) => (a > b ? a : b)) : null
+  const parts = ['Cancelled — item is not examined']
+  if (reason) parts.push(`Reason: ${reason}`)
+  if (cancelledAt) parts.push(formatDateTime(cancelledAt))
+  return parts.join(' · ')
 }
 
 function canCancelAdditionalItem(ei: ExamItem): boolean {
@@ -3035,7 +3048,7 @@ const dropdownItems = computed(() => {
                         class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5"
                       >
                         <UIcon name="i-lucide-ban" class="size-3 shrink-0" />
-                        Cancelled — item is not examined
+                        {{ additionalCancelNote(ei) }}
                       </span>
                       <span v-else class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5">
                         <UIcon name="i-lucide-play" class="size-3 shrink-0" />

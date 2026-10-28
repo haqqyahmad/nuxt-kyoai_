@@ -50,7 +50,7 @@ function categoryBadgeLabel(cat: McuBreakdownCategory): string {
 
 function categoryBadgeIcon(cat: McuBreakdownCategory): string {
   if (cat.status === 'DONE') return 'i-lucide-check-circle-2'
-  if (cat.status === 'REJECTED' || cat.status === 'REFUSED') return 'i-lucide-ban'
+  if (cat.status === 'REJECTED' || cat.status === 'REFUSED' || cat.status === 'CANCELLED') return 'i-lucide-ban'
   if (cat.status === 'RESCHEDULED' || cat.status === 'RETEXT') return 'i-lucide-rotate-ccw'
   return 'i-lucide-clock'
 }
@@ -357,6 +357,38 @@ function toggleGroup(key: string, attention: boolean) {
               <p v-else class="text-sm text-muted">
                 No completed items yet.
               </p>
+            </div>
+
+            <div v-if="cat.cancelledItems.length" class="mt-4 rounded-lg border border-default bg-elevated/40 p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <p class="text-xs font-semibold uppercase text-muted">
+                  Cancelled
+                </p>
+                <UBadge
+                  :label="`${cat.cancelledItems.length} ${plural(cat.cancelledItems.length, 'item')}`"
+                  color="neutral"
+                  variant="subtle"
+                  size="xs"
+                />
+              </div>
+              <div class="space-y-2">
+                <div
+                  v-for="item in cat.cancelledItems"
+                  :key="item.id"
+                  class="flex flex-col gap-1 rounded-lg border border-default bg-background px-3 py-2"
+                >
+                  <span class="flex items-center gap-1.5 text-sm font-semibold text-muted line-through">
+                    <UIcon name="i-lucide-ban" class="size-4 shrink-0" />
+                    {{ item.name }}
+                  </span>
+                  <span class="text-[11px] font-medium text-muted">
+                    Cancelled {{ formatDateTime(item.cancelledAt || undefined) }}
+                    <template v-if="item.cancelReason">
+                      · Reason: {{ item.cancelReason }}
+                    </template>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

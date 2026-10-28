@@ -15,6 +15,8 @@ export type McuExamItem = {
     doneAt?: string | null
     updatedAt?: string | null
     rescheduleVisitDate?: string | null
+    cancelledAt?: string | null
+    cancelReason?: string | null
   }>
   item: {
     id: string
@@ -45,6 +47,8 @@ export type McuBreakdownItem = {
   updatedAt: string | null
   startAt: string | null
   doneAt: string | null
+  cancelReason: string | null
+  cancelledAt: string | null
 }
 
 export type McuBreakdownCategory = {
@@ -58,6 +62,7 @@ export type McuBreakdownCategory = {
   refusedCount: number
   completedItems: McuBreakdownItem[]
   pendingItems: McuBreakdownItem[]
+  cancelledItems: McuBreakdownItem[]
   completedGroups: McuPendingGroup[]
   sampleGroups: McuSampleGroup[]
   pendingGroups: McuPendingGroup[]
@@ -224,6 +229,18 @@ export function getExamItemDoneAt(ei: McuExamItem): string | null {
   return times.reduce((latest, value) => (value > latest ? value : latest))
 }
 
+export function getExamItemCancelInfo(ei: McuExamItem): { reason: string | null, cancelledAt: string | null } {
+  const roomItems = ei.roomExamItems ?? []
+  const reason = roomItems.find(item => Boolean(item.cancelReason))?.cancelReason ?? null
+  const times = roomItems
+    .map(item => item.cancelledAt)
+    .filter((value): value is string => Boolean(value))
+  const cancelledAt = times.length
+    ? times.reduce((latest, value) => (value > latest ? value : latest))
+    : null
+  return { reason, cancelledAt }
+}
+
 export function getRescheduleVisitDate(examItems: McuExamItem[], examItemId: string): string {
   const ei = examItems.find(e => e.id === examItemId)
   const re = ei?.roomExamItems?.find(r => r.status === 'RESCHEDULED' && r.rescheduleVisitDate)
@@ -323,7 +340,7 @@ export function buildMcuCategories(
   examItems: McuExamItem[],
   sampleCollections: McuSampleCollection[]
 ): McuBreakdownCategory[] {
-  const paketItems = examItems.filter(ei => ei.source === 'paket' && ei.workStatus !== 'CANCELLED')
+  const paketItems = examItems.filter(ei => ei.source === 'paket')
   const grouped = new Map<string, { label: string, icon: string, items: McuBreakdownItem[] }>()
 
   for (const ei of paketItems) {
@@ -336,6 +353,7 @@ export function buildMcuCategories(
       })
     }
     const status = getExamItemStatus(ei, sampleCollections)
+    const cancelInfo = getExamItemCancelInfo(ei)
     grouped.get(deptName)?.items.push({
       id: ei.id,
       name: ei.item.name,
@@ -344,23 +362,27 @@ export function buildMcuCategories(
       sampleCollections: getSampleCollectionsForItem(sampleCollections, ei.item.id),
       updatedAt: getExamItemUpdatedAt(ei),
       startAt: getExamItemStartAt(ei),
-      doneAt: getExamItemDoneAt(ei)
+      doneAt: getExamItemDoneAt(ei),
+      cancelReason: cancelInfo.reason,
+      cancelledAt: cancelInfo.cancelledAt
     })
   }
 
   return [...grouped.values()].map((category) => {
-    const completedItems = category.items.filter(item => item.done)
-    const pendingItems = category.items.filter(item => !item.done)
+    const cancelledItems = category.items.filter(item => item.status === 'CANCELLED')
+    const activeItems = category.items.filter(item => item.status !== 'CANCELLED')
+    const completedItems = activeItems.filter(item => item.done)
+    const pendingItems = activeItems.filter(item => !item.done)
     const completed = completedItems.length
-    const total = category.items.length
+    const total = activeItems.length
     const rejectedSampleIds = new Set<string>()
-    for (const item of category.items) {
+    for (const item of activeItems) {
       for (const sample of item.sampleCollections) {
         if (sample.status === 'REJECTED') rejectedSampleIds.add(sample.id)
       }
     }
     const rejectedSampleCount = rejectedSampleIds.size
-    const refusedCount = category.items.filter(item => item.status === 'REFUSED').length
+    const refusedCount = activeItems.filter(item => item.status === 'REFUSED').length
     const updatedAt = category.items.reduce<string | null>(
       (latest, item) =>
         item.updatedAt && (!latest || item.updatedAt > latest) ? item.updatedAt : latest,
@@ -375,22 +397,25 @@ export function buildMcuCategories(
       refusedCount,
       completedItems,
       pendingItems,
+      cancelledItems,
       completedGroups: buildPendingGroups(category.label, completedItems, 'completed'),
-      sampleGroups: buildSampleGroups(category.label, category.items),
+      sampleGroups: buildSampleGroups(category.label, activeItems),
       pendingGroups: buildPendingGroups(category.label, pendingItems, 'pending'),
       updatedAt,
       status:
-        total > 0 && completed === total
-          ? 'DONE'
-          : category.items.some(item => item.status === 'RETEXT')
-            ? 'RETEXT'
-            : category.items.some(item => item.status === 'RESCHEDULED')
-              ? 'RESCHEDULED'
-              : rejectedSampleCount > 0
-                ? 'REJECTED'
-                : refusedCount > 0
-                  ? 'REFUSED'
-                  : 'PENDING'
+        cancelledItems.length > 0 && activeItems.length === 0
+          ? 'CANCELLED'
+          : total > 0 && completed === total
+            ? 'DONE'
+            : category.items.some(item => item.status === 'RETEXT')
+              ? 'RETEXT'
+              : category.items.some(item => item.status === 'RESCHEDULED')
+                ? 'RESCHEDULED'
+                : rejectedSampleCount > 0
+                  ? 'REJECTED'
+                  : refusedCount > 0
+                    ? 'REFUSED'
+                    : 'PENDING'
     }
   })
 }
