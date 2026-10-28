@@ -1108,18 +1108,22 @@ function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'pri
   if (examStatuses.includes('REFUSED')) return build('Refused', 'error')
   if (examStatuses.includes('REJECTED')) return build('Sample rejected', 'error')
   if (examStatuses.includes('RETEXT')) return build('Retest', 'error')
-  if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
-  if (examStatuses.includes('CANCELLED')) return build('Cancelled', 'neutral')
 
-  // Done: all stages DONE.
+  // Done: room finished, atau ada item yang selesai (campuran DONE + CANCELLED/SKIPPED).
   const stages = item.stageItems ?? []
-  if (stages.length > 0 && stages.every(s => s.status === 'CANCELLED')) {
-    return build('Cancelled', 'neutral')
+  if (item.status === 'DONE' || examStatuses.includes('DONE')) {
+    return build('Completed', 'success')
   }
   if (stages.length > 0 && stages.every(s => ['DONE', 'SKIPPED', 'CANCELLED'].includes(s.status))) {
     return build('Completed', 'success')
   }
-  if (item.status === 'DONE') return build('Completed', 'success')
+
+  if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
+  if (examStatuses.includes('CANCELLED')) return build('Cancelled', 'neutral')
+
+  if (stages.length > 0 && stages.every(s => s.status === 'CANCELLED')) {
+    return build('Cancelled', 'neutral')
+  }
   if (item.status === 'CANCELLED') return build('Cancelled', 'neutral')
 
   // Start Item (exam item in progress).
