@@ -864,7 +864,8 @@ const currentRoomWorkStatus = computed(() => {
     .filter(stage => currentRoomStageIds.value.has(stage.stageId))
 
   if (stages.length === 0) return roomQueueDetail.value?.status ?? 'WAITING'
-  if (stages.every(stage => ['DONE', 'SKIPPED'].includes(stage.status))) return 'DONE'
+  if (stages.every(stage => stage.status === 'CANCELLED')) return 'CANCELLED'
+  if (stages.every(stage => ['DONE', 'SKIPPED', 'CANCELLED'].includes(stage.status))) return 'DONE'
 
   return stages.find(stage => ['IN_PROGRESS', 'CALLED', 'WAITING'].includes(stage.status))?.status
     ?? roomQueueDetail.value?.status

@@ -349,7 +349,7 @@ const changeRoomLoading = ref(false)
 const isChangingRoom = ref(false)
 const waitingRowActionLoading = ref<Record<string, boolean>>({})
 type WaitingStatusFilter = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
-type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
+type HistoryStatusFilter = 'DONE' | 'SKIPPED' | 'RESCHEDULED' | 'CANCELLED' | 'REFUSED' | 'CALLED' | 'IN_PROGRESS' | 'ALL'
 type QueueStoredFilters = {
   waitingRoomTypeId: string
   historyDepartmentId: string
@@ -360,7 +360,7 @@ type QueueStoredFilters = {
 }
 
 const waitingStatusValues: WaitingStatusFilter[] = ['WAITING', 'CALLED', 'IN_PROGRESS', 'ALL']
-const historyStatusValues: HistoryStatusFilter[] = ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'CALLED', 'IN_PROGRESS', 'ALL']
+const historyStatusValues: HistoryStatusFilter[] = ['DONE', 'SKIPPED', 'RESCHEDULED', 'CANCELLED', 'REFUSED', 'CALLED', 'IN_PROGRESS', 'ALL']
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function sanitizeQueueFilters(value: unknown): Partial<QueueStoredFilters> | null {
@@ -414,6 +414,7 @@ const historyStatusOptions = [
   { label: 'Done', value: 'DONE' },
   { label: 'In Progress', value: 'IN_PROGRESS' },
   { label: 'Skipped', value: 'SKIPPED' },
+  { label: 'Cancelled', value: 'CANCELLED' },
   { label: 'Rescheduled', value: 'RESCHEDULED' },
   { label: 'Refused', value: 'REFUSED' },
   { label: 'Called', value: 'CALLED' },
@@ -1056,6 +1057,7 @@ function getItemStatusLabel(status: string) {
   if (status === 'IN_PROGRESS') return 'In Progress'
   if (status === 'DONE') return 'Done'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Rescheduled'
   if (status === 'REFUSED') return 'Refused'
   if (status === 'RETEXT') return 'Retest'
@@ -1088,7 +1090,7 @@ function getQueueBadgeColor(status: string): 'primary' | 'secondary' | 'success'
   if (status === 'WAITING') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'IN_PROGRESS') return 'warning'
-  if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
+  if (status === 'SKIPPED' || status === 'RESCHEDULED' || status === 'CANCELLED') return 'neutral'
   if (status === 'REFUSED') return 'error'
   if (status === 'RETEXT') return 'warning'
   return 'neutral'
@@ -1111,10 +1113,14 @@ function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'pri
 
   // Done: all stages DONE.
   const stages = item.stageItems ?? []
-  if (stages.length > 0 && stages.every(s => ['DONE', 'SKIPPED'].includes(s.status))) {
+  if (stages.length > 0 && stages.every(s => s.status === 'CANCELLED')) {
+    return build('Cancelled', 'neutral')
+  }
+  if (stages.length > 0 && stages.every(s => ['DONE', 'SKIPPED', 'CANCELLED'].includes(s.status))) {
     return build('Completed', 'success')
   }
   if (item.status === 'DONE') return build('Completed', 'success')
+  if (item.status === 'CANCELLED') return build('Cancelled', 'neutral')
 
   // Start Item (exam item in progress).
   if (examStatuses.includes('IN_PROGRESS')) return build('In Progress', 'warning')
