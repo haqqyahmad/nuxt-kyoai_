@@ -2397,6 +2397,7 @@ async function handleStartItem(item: RoomExamItem) {
 
 function canCancelItem(item: RoomExamItem) {
   if (!canManageItemActions.value) return false
+  if (!roomStageInProgress.value) return false
   if (item.status !== 'PENDING' || item.startAt) return false
   const trx = item.trxExamItem
   if (!trx?.item?.id) return false
@@ -2435,9 +2436,6 @@ async function handleCancelItem() {
       description: `${itemName} is cancelled and will not be examined.`,
       color: 'success'
     })
-    if (currentRoomWorkStatus.value === 'CANCELLED') {
-      await router.push('/rooms/queue')
-    }
   } catch (error: unknown) {
     toast.add({
       title: 'Failed to cancel item',
@@ -3008,6 +3006,27 @@ async function handleSubmitItemAction() {
               </div>
             </template>
           </UModal>
+
+          <UAlert
+            v-if="currentRoomWorkStatus === 'CANCELLED'"
+            class="mt-2"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-ban"
+            title="Room cancelled"
+            description="All examination items in this room are cancelled. Select an item on the right, then use Un Cancel Item to activate it again."
+          >
+            <template #actions>
+              <UButton
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-arrow-left"
+                @click="router.push('/rooms/queue')"
+              >
+                Back to Queue
+              </UButton>
+            </template>
+          </UAlert>
 
           <!-- Stage actions (sejajar dengan Meal status, tombol di kanan) -->
           <div class="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
