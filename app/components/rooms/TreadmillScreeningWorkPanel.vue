@@ -30,9 +30,11 @@ const props = withDefaults(defineProps<{
   canManageActions: boolean
   startLoading: boolean
   doneLoading: boolean
+  canCancel?: boolean
+  cancelLoading?: boolean
 }>(), {})
 
-const emit = defineEmits<{ start: [], done: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
+const emit = defineEmits<{ start: [], done: [], cancel: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
 const api = useApi()
 const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT', 'CANCELLED'].includes(props.item.status))
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
@@ -68,6 +70,16 @@ watch(() => examId.value, loadOverview, { immediate: true })
         @click="emit('start')"
       >
         Start Examination
+      </UButton>
+      <UButton
+        v-if="canCancel"
+        color="error"
+        variant="soft"
+        icon="i-lucide-ban"
+        :loading="cancelLoading"
+        @click="emit('cancel')"
+      >
+        Cancel Item
       </UButton>
       <UButton
         v-if="canDoneItem"
