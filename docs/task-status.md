@@ -2,6 +2,20 @@
 
 Last updated: 2026-10-28
 
+## Halaman Registrasi Pasien: Cancel Check-in, Edit Package, Add Additional Exam - 2026-10-28
+
+- **Cancel Check-in tidak muncul setelah check-in** (`app/pages/front-office/registration-patient/[id].vue`): `checkinPreview` hanya di-fetch di `openCheckinModal()`, sehingga setelah check-in nilainya `null` dan `canUndoCheckin` selalu `false`.
+  - `loadCheckinPreview(options)` kini mendukung `silent` (tanpa toast error) dan fungsi baru `loadUndoCheckinEligibility()` memuat preview hanya saat pasien `Checkin`/`PartialExam` (bukan `CheckOut`/`Cancel`), tanpa mengosongkan preview saat modal check-in masih terbuka.
+  - Dipanggil di `onMounted`, `handleRefreshPage`, `autoRefresh`, `watch(statusRegistration, isCheckedIn)`, setelah `undoCheckin()`, dan setelah `confirmCheckin()` (lewat refresh). Label tetap **Cancel Check-in**, tombol hanya tampil saat eligible.
+- **Edit Package** (khusus belum check-in): `app/components/mr/McuBreakdown.vue` menambah slot `#actions`; tombol muncul dari `canEditPackage` (`isMCU && !isCheckedIn && !isCancelled && exam aktif`).
+  - Komponen baru `app/components/front-office/RegistrationPackageEditModal.vue` (searchable `USelectMenu` dari `GET /mcu/pakets`, preview item, konfirmasi bahwa item additional dipertahankan) memanggil `PATCH /registration/:id/package`.
+  - BE: `replaceRegistrationPackageValidation`, route `PATCH /:id/package` (`registration:update`), controller + `registration.service.replacePackage`. Guard: registrasi MCU status `Open`/`Reschedule`, exam belum `completed`, paket aktif & punya item, belum ada `RoomExamItem`/`QueueSampleCollection`. Transaksi menghapus `trxExamItem` source `paket` + `trxExamResult` orphan, update `paketId`, lalu `snapshotPaketItems`; item `source='additional'` dipertahankan; audit `PACKAGE_CHANGE`.
+- **Add New Additional Exam** (sebelum & sesudah check-in): tombol `col-span-12` di bawah card MCU Breakdown.
+  - Komponen baru `app/components/front-office/AdditionalExamModal.vue` (search + filter department/group, exclude item paket/existing/system `DOK-TREADMILL-SCREENING`, multi-select) memanggil `POST /mcu/exams/:id/items`.
+  - BE: `resolveRoomTypeForItem` diekstrak menjadi `createRoomTypeResolver()` di `queue.service.js`; `addItems` memanggil `queueService.appendExamItemsToActiveQueue` setelah insert item.
+  - `appendExamItemsToActiveQueue` + `queue.repository.appendExamItemsToQueueEntry`: menambahkan `RoomExamItem` ke room existing, atau membuat `RoomQueueItem`/`StageQueueItem` baru (tier mengikuti room aktif; jika semua tier selesai, tier terendah item baru langsung `WAITING`), serta memperluas/membuat `QueueSampleCollection` + `QueueSampleItem`. Room final (`DONE`/`SKIPPED`/`RESCHEDULED`) dibuka kembali. Tanpa perubahan schema DB; audit `EXAM_ITEM_APPEND`.
+- Verifikasi: BE `npm test` 78/78 pass; FE `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; `node --check` seluruh file BE yang diubah; route `PATCH /api/registration/:id/package` terdaftar (401 tanpa token).
+
 ## Fix Sticky Toolbar Hasil Pemeriksaan (Exam Result) - 2026-10-28
 
 - `app/components/BaseFullscreenModal.vue` (mode `embedded`, dipakai `DetailDrawer.vue` pada `/result/exam-results/[id]`): wrapper semula `flex min-h-0 flex-1 flex-col` sehingga tingginya terkunci setinggi viewport scroll container. Akibatnya `position: sticky` pada header (tombol `Save Draft` / `Submit Result`) berhenti menempel setelah scroll ±1 layar dan ikut tergulung hilang saat masuk ke inputan bawah.

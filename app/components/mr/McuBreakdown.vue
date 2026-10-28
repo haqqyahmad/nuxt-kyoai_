@@ -79,6 +79,7 @@ function toggleGroup(key: string, attention: boolean) {
         MCU Breakdown
       </h3>
       <div class="flex items-center gap-2">
+        <slot name="actions" />
         <span v-if="props.updatedAt" class="text-xs text-muted">
           Updated {{ formatDateTime(props.updatedAt) }}
         </span>

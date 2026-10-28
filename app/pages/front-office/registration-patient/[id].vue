@@ -671,6 +671,31 @@ const canUndoCheckin = computed(
   () => checkinPreview.value?.undoCheckinEligibility?.canUndoCheckin ?? false
 )
 
+const packageEditOpen = ref(false)
+const additionalExamOpen = ref(false)
+
+const canEditPackage = computed(
+  () =>
+    isMCU.value
+    && !isCheckedIn.value
+    && !isCancelled.value
+    && !!reg.value?.exam?.id
+    && reg.value?.exam?.status !== 'completed'
+)
+
+const canAddAdditionalExam = computed(
+  () =>
+    isMCU.value
+    && !isCancelled.value
+    && reg.value?.statusRegistration !== 'CheckOut'
+    && !!reg.value?.exam?.id
+    && reg.value?.exam?.status !== 'completed'
+)
+
+const examItemIds = computed(() =>
+  (reg.value?.exam?.examItems ?? []).map(examItem => examItem.item.id)
+)
+
 const examType = computed<ExamType>(() => {
   const value = reg.value?.examType
   if (value === 'MCU' || value === 'RAWAT_JALAN') return value
@@ -763,7 +788,7 @@ const isExamDateToday = computed(() => {
 
 const dateBlockedOpen = ref(false)
 
-async function loadCheckinPreview() {
+async function loadCheckinPreview(options: { silent?: boolean } = {}) {
   if (!reg.value) return
 
   checkinPreviewLoading.value = true
@@ -772,6 +797,7 @@ async function loadCheckinPreview() {
     checkinPreview.value = res.data.data as CheckinPreview
   } catch (err: unknown) {
     checkinPreview.value = null
+    if (options.silent) return
     const msg
       = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? 'Failed to load check-in preview'
@@ -779,6 +805,17 @@ async function loadCheckinPreview() {
   } finally {
     checkinPreviewLoading.value = false
   }
+}
+
+async function loadUndoCheckinEligibility() {
+  if (!reg.value) return
+
+  if (!isCheckedIn.value || isCancelled.value || reg.value.statusRegistration === 'CheckOut') {
+    if (!checkinModalOpen.value) checkinPreview.value = null
+    return
+  }
+
+  await loadCheckinPreview({ silent: true })
 }
 
 async function openCheckinModal() {
@@ -992,6 +1029,8 @@ async function undoCheckin() {
     await api.post(`/registration/${reg.value.id}/uncheck`)
     await refresh()
     await loadStatusHistory()
+    await loadUndoCheckinEligibility()
+    await loadCheckoutEligibility()
     toast.add({
       title: 'Success',
       description: 'Patient check-in successfully cancelled',
@@ -1129,6 +1168,7 @@ async function handleRefreshPage() {
   try {
     await refresh()
     await loadCheckoutEligibility()
+    await loadUndoCheckinEligibility()
     await loadStatusHistory()
     await loadQuestionnaires()
     lastUpdatedAt.value = new Date()
@@ -1144,6 +1184,7 @@ async function autoRefresh() {
   if (pageRefreshing.value) return
   await refresh()
   await loadCheckoutEligibility()
+  await loadUndoCheckinEligibility()
   lastUpdatedAt.value = new Date()
 }
 
@@ -1731,6 +1772,7 @@ onMounted(() => {
   loadStatusHistory()
   void loadPatientDetail()
   void loadCheckoutEligibility()
+  void loadUndoCheckinEligibility()
   void fetchMealDuration()
 
   lastUpdatedAt.value = new Date()
@@ -1749,6 +1791,7 @@ watch(
   () => [reg.value?.statusRegistration, isCheckedIn.value],
   () => {
     void loadCheckoutEligibility()
+    void loadUndoCheckinEligibility()
   }
 )
 
@@ -2844,7 +2887,30 @@ const dropdownItems = computed(() => {
             :exam-items="reg?.exam?.examItems ?? []"
             :sample-collections="reg?.sampleCollections ?? reg?.queue?.sampleCollections ?? []"
             :updated-at="lastUpdatedAt"
-          />
+          >
+            <template #actions>
+              <UButton
+                v-if="canEditPackage"
+                icon="i-lucide-package-search"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                label="Edit Package"
+                @click="packageEditOpen = true"
+              />
+            </template>
+          </MrMcuBreakdown>
+
+          <div v-if="canAddAdditionalExam" class="col-span-12">
+            <UButton
+              block
+              icon="i-lucide-plus"
+              color="neutral"
+              variant="outline"
+              label="Add New Additional Exam"
+              @click="additionalExamOpen = true"
+            />
+          </div>
 
           <div
             v-if="isMCU && additionalItems.length"
@@ -3476,6 +3542,21 @@ const dropdownItems = computed(() => {
           </div>
         </template>
       </UModal>
+
+      <FrontOfficeRegistrationPackageEditModal
+        v-model:open="packageEditOpen"
+        :registration-id="reg?.id"
+        :current-paket-id="reg?.exam?.paket?.id"
+        :status-registration="reg?.statusRegistration"
+        @saved="handleRefreshPage"
+      />
+
+      <FrontOfficeAdditionalExamModal
+        v-model:open="additionalExamOpen"
+        :exam-id="reg?.exam?.id"
+        :exclude-item-ids="examItemIds"
+        @saved="handleRefreshPage"
+      />
     </template>
   </UDashboardPanel>
 </template>
