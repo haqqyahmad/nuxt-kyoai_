@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
     </Transition>
   </Teleport>
 
-  <div v-else-if="canRender" class="flex min-h-0 flex-1 flex-col bg-background">
+  <div v-else-if="canRender" class="flex min-h-[fit-content] flex-1 flex-col bg-background">
     <div
       v-if="$slots.header"
       class="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
       <slot name="header" />
     </div>
 
-    <div class="min-h-0 flex-1 overflow-visible">
+    <div class="overflow-visible">
       <slot name="body" />
     </div>
 

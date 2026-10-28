@@ -1,6 +1,13 @@
 # Project Task Status
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
+
+## Fix Sticky Toolbar Hasil Pemeriksaan (Exam Result) - 2026-10-28
+
+- `app/components/BaseFullscreenModal.vue` (mode `embedded`, dipakai `DetailDrawer.vue` pada `/result/exam-results/[id]`): wrapper semula `flex min-h-0 flex-1 flex-col` sehingga tingginya terkunci setinggi viewport scroll container. Akibatnya `position: sticky` pada header (tombol `Save Draft` / `Submit Result`) berhenti menempel setelah scroll ±1 layar dan ikut tergulung hilang saat masuk ke inputan bawah.
+- Perbaikan: wrapper embedded menjadi `flex min-h-[fit-content] flex-1 flex-col` dan container body `overflow-visible` (tanpa `min-h-0 flex-1`), sehingga tinggi wrapper mengikuti seluruh isi (semua inputan + history) sementara konten pendek tetap memenuhi tinggi panel. Header kini sticky dari inputan pertama sampai paling bawah.
+- Pengujian replica DOM di Chrome headless: varian lama `modalHeight=500` & `stickyTop=-1063` (lepas), varian baru `modalHeight=2410` & `stickyTop=27` (menempel) pada `scrollTop=1600`; konten pendek tetap `modalHeight=500`.
+- Verifikasi: `vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0; SFC compile OK; halaman detail 200.
 
 ## Toolbar Daftar Paket MCU: Refresh + Relokasi New Package - 2026-10-27
 
