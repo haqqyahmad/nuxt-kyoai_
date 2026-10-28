@@ -1107,6 +1107,7 @@ function buildRoomStatusBadge(item: RoomQueueItem): { label: string, color: 'pri
   if (examStatuses.includes('REJECTED')) return build('Sample rejected', 'error')
   if (examStatuses.includes('RETEXT')) return build('Retest', 'error')
   if (examStatuses.includes('SKIPPED')) return build('Skipped', 'neutral')
+  if (examStatuses.includes('CANCELLED')) return build('Cancelled', 'neutral')
 
   // Done: all stages DONE.
   const stages = item.stageItems ?? []

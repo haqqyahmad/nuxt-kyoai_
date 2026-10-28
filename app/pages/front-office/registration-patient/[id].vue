@@ -14,6 +14,7 @@ type ExamItem = {
   source: 'paket' | 'additional'
   sortOrder: number
   workStatus?: string | null
+  resultStatus?: string | null
   roomExamItems?: Array<{
     id: string
     status: string
@@ -232,6 +233,7 @@ function parseLocalDate(d: string): Date | null {
   return null
 }
 function getExamItemStatus(ei: ExamItem) {
+  if (ei.workStatus === 'CANCELLED') return 'CANCELLED'
   // Lab sample-based: jika semua sample sudah RECEIVED → status FO = selesai
   const samples = getSampleCollectionsForItem(ei.item.id)
   if (samples.length > 0) {
@@ -266,6 +268,7 @@ function getExamItemStatusLabel(status: string) {
   if (status === 'IN_PROGRESS') return 'In Progress'
   if (status === 'CALLED') return 'Called'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
@@ -280,6 +283,7 @@ function getExamItemStatusLabelEn(status: string) {
   if (status === 'IN_PROGRESS') return 'In Progress'
   if (status === 'CALLED') return 'Called'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'RETEXT') return 'Retest'
   if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT') return 'Awaiting collection'
@@ -300,7 +304,7 @@ function getExamItemStatusColor(status: string): 'error' | 'primary' | 'secondar
   if (status === 'DONE') return 'success'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
-  if (['SKIPPED', 'RESCHEDULED'].includes(status)) return 'neutral'
+  if (['SKIPPED', 'RESCHEDULED', 'CANCELLED'].includes(status)) return 'neutral'
   if (status === 'REFUSED') return 'error'
   if (status === 'RETEXT') return 'warning'
   if (status === 'REJECTED') return 'error'
@@ -314,6 +318,7 @@ function getExamItemStatusIcon(status: string) {
   if (status === 'IN_PROGRESS') return 'i-lucide-loader-circle'
   if (status === 'CALLED') return 'i-lucide-bell'
   if (status === 'REFUSED') return 'i-lucide-ban'
+  if (status === 'CANCELLED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
   if (status === 'REJECTED') return 'i-lucide-ban'
   if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
@@ -370,6 +375,52 @@ function additionalStartAt(ei: ExamItem): string | null {
 function additionalDoneAt(ei: ExamItem): string | null {
   const t = (ei.roomExamItems ?? []).map(r => r.doneAt).filter((v): v is string => Boolean(v))
   return t.length ? t.reduce((a, b) => (a > b ? a : b)) : null
+}
+
+function canCancelAdditionalItem(ei: ExamItem): boolean {
+  if (ei.source !== 'additional') return false
+  if (isCancelled.value || reg.value?.statusRegistration === 'CheckOut') return false
+  if (ei.workStatus !== 'PENDING') return false
+  const roomItems = ei.roomExamItems ?? []
+  return roomItems.every(roomItem => roomItem.status === 'PENDING' && !roomItem.startAt)
+}
+
+const cancelAdditionalOpen = ref(false)
+const cancelAdditionalLoading = ref(false)
+const cancelAdditionalTarget = ref<{ itemId: string, itemName: string } | null>(null)
+
+function openCancelAdditional(ei: ExamItem) {
+  if (!canCancelAdditionalItem(ei)) return
+  cancelAdditionalTarget.value = { itemId: ei.item.id, itemName: ei.item.name }
+  cancelAdditionalOpen.value = true
+}
+
+async function handleCancelAdditional() {
+  const examId = reg.value?.exam?.id
+  const target = cancelAdditionalTarget.value
+  if (!examId || !target || cancelAdditionalLoading.value) return
+  cancelAdditionalLoading.value = true
+  try {
+    await api.post(`/mcu/exams/${examId}/items/${target.itemId}/cancel`, {
+      reason: 'Cancelled from front office'
+    })
+    toast.add({
+      title: 'Item cancelled',
+      description: `${target.itemName} is cancelled and will not be examined.`,
+      color: 'success'
+    })
+    cancelAdditionalOpen.value = false
+    cancelAdditionalTarget.value = null
+    await handleRefreshPage()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Failed to cancel item',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'An error occurred.',
+      color: 'error'
+    })
+  } finally {
+    cancelAdditionalLoading.value = false
+  }
 }
 
 type PatientQuestionnaire = {
@@ -1578,7 +1629,7 @@ const canCompleteReturnVisit = computed(() => {
   if (returnVisitCompleted.value || returnVisitJustCompleted.value) return false
   const items = reg.value?.exam?.examItems ?? []
   if (!items.length) return false
-  return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED'].includes(ei.workStatus ?? ''))
+  return items.every(ei => ['DONE', 'REFUSED', 'SKIPPED', 'CANCELLED'].includes(ei.workStatus ?? ''))
 })
 const completingReturnVisit = ref(false)
 async function handleCompleteReturnVisit() {
@@ -2970,12 +3021,23 @@ const dropdownItems = computed(() => {
                     v-for="ei in dept.items"
                     :key="ei.id"
                     class="flex items-start justify-between gap-3 bg-elevated rounded-xl border border-default px-4 py-3"
+                    :class="getExamItemStatus(ei) === 'CANCELLED' ? 'opacity-60' : ''"
                   >
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold truncate">
+                      <p
+                        class="text-sm font-semibold truncate"
+                        :class="getExamItemStatus(ei) === 'CANCELLED' ? 'line-through text-muted' : ''"
+                      >
                         {{ ei.item.name }}
                       </p>
-                      <span class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5">
+                      <span
+                        v-if="getExamItemStatus(ei) === 'CANCELLED'"
+                        class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5"
+                      >
+                        <UIcon name="i-lucide-ban" class="size-3 shrink-0" />
+                        Cancelled — item is not examined
+                      </span>
+                      <span v-else class="flex items-center gap-1 text-[11px] font-medium text-muted mt-0.5">
                         <UIcon name="i-lucide-play" class="size-3 shrink-0" />
                         Start {{ formatDateTime(additionalStartAt(ei) || undefined) }}
                         <span class="mx-1 text-muted">·</span>
@@ -2983,14 +3045,24 @@ const dropdownItems = computed(() => {
                         Done {{ getExamItemStatus(ei) === 'DONE' ? formatDateTime(additionalDoneAt(ei) || undefined) : 'Not yet' }}
                       </span>
                     </div>
-                    <UBadge
-                      :label="getExamItemStatusLabel(getExamItemStatus(ei))"
-                      :color="getExamItemStatusColor(getExamItemStatus(ei))"
-                      variant="soft"
-                      size="xs"
-                      :icon="getExamItemStatusIcon(getExamItemStatus(ei))"
-                      class="shrink-0"
-                    />
+                    <div class="flex items-center gap-2 shrink-0">
+                      <UBadge
+                        :label="getExamItemStatusLabel(getExamItemStatus(ei))"
+                        :color="getExamItemStatusColor(getExamItemStatus(ei))"
+                        variant="soft"
+                        size="xs"
+                        :icon="getExamItemStatusIcon(getExamItemStatus(ei))"
+                      />
+                      <UButton
+                        v-if="canCancelAdditionalItem(ei)"
+                        icon="i-lucide-ban"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Cancel item"
+                        @click="openCancelAdditional(ei)"
+                      />
+                    </div>
                   </div>
                 </div>
               </section>
@@ -3556,6 +3628,17 @@ const dropdownItems = computed(() => {
         :exam-id="reg?.exam?.id"
         :exclude-item-ids="examItemIds"
         @saved="handleRefreshPage"
+      />
+
+      <BaseDeleteModal
+        v-model:open="cancelAdditionalOpen"
+        title="Cancel Additional Exam Item?"
+        :description="cancelAdditionalTarget ? `${cancelAdditionalTarget.itemName} will stay on this exam as Cancelled and cannot be restored.` : ''"
+        entity="item"
+        confirm-label="Cancel Item"
+        confirm-color="warning"
+        :loading="cancelAdditionalLoading"
+        @confirm="handleCancelAdditional"
       />
     </template>
   </UDashboardPanel>

@@ -43,7 +43,7 @@ const emit = defineEmits<{
 }>()
 
 const isFinal = computed(() =>
-  ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(props.item.status)
+  ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT', 'CANCELLED'].includes(props.item.status)
 )
 
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')

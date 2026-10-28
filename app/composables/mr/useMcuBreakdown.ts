@@ -118,6 +118,7 @@ export function getExamItemStatus(
   ei: McuExamItem,
   sampleCollections: McuSampleCollection[]
 ): string {
+  if (ei.workStatus === 'CANCELLED') return 'CANCELLED'
   const samples = getSampleCollectionsForItem(sampleCollections, ei.item.id)
   if (samples.length > 0) {
     const roomStatuses = ei.roomExamItems?.map(item => item.status) ?? []
@@ -147,6 +148,7 @@ export function getExamItemStatusLabel(status: string): string {
   if (status === 'IN_PROGRESS') return 'In Progress'
   if (status === 'CALLED') return 'Called'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Reschedule'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
@@ -161,6 +163,7 @@ export function getExamItemStatusColor(status: string): BadgeColor {
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
   if (status === 'SKIPPED') return 'neutral'
+  if (status === 'CANCELLED') return 'neutral'
   if (status === 'REFUSED') return 'error'
   if (['RESCHEDULED', 'RETEXT'].includes(status)) return 'warning'
   if (status === 'REJECTED') return 'error'
@@ -176,6 +179,7 @@ export function getExamItemStatusIcon(status: string): string {
   if (status === 'REFUSED') return 'i-lucide-ban'
   if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
   if (status === 'REJECTED') return 'i-lucide-ban'
+  if (status === 'CANCELLED') return 'i-lucide-ban'
   if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
   return 'i-lucide-clock'
 }
@@ -319,7 +323,7 @@ export function buildMcuCategories(
   examItems: McuExamItem[],
   sampleCollections: McuSampleCollection[]
 ): McuBreakdownCategory[] {
-  const paketItems = examItems.filter(ei => ei.source === 'paket')
+  const paketItems = examItems.filter(ei => ei.source === 'paket' && ei.workStatus !== 'CANCELLED')
   const grouped = new Map<string, { label: string, icon: string, items: McuBreakdownItem[] }>()
 
   for (const ei of paketItems) {

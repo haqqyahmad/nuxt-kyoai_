@@ -8,6 +8,7 @@ const props = withDefaults(
     description?: string
     confirmLabel?: string
     cancelLabel?: string
+    confirmColor?: 'error' | 'warning' | 'primary' | 'neutral'
     loading?: boolean
   }>(),
   {
@@ -16,6 +17,7 @@ const props = withDefaults(
     entity: 'item',
     confirmLabel: 'Delete',
     cancelLabel: 'Cancel',
+    confirmColor: 'error',
     loading: false
   }
 )
@@ -73,7 +75,7 @@ function onConfirm() {
 
         <UButton
           :label="confirmLabel"
-          color="error"
+          :color="confirmColor"
           variant="solid"
           :loading="loading"
           :disabled="loading"

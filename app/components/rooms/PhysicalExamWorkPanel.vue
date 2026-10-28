@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<{
 }>(), { legacyResults: () => [] })
 
 const emit = defineEmits<{ start: [], done: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
-const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT'].includes(props.item.status))
+const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT', 'CANCELLED'].includes(props.item.status))
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
 const canDoneItem = computed(() => props.canDone && props.item.status === 'IN_PROGRESS')
 const examId = computed(() => props.item.trxExamItem?.exam?.id ?? props.item.trxExamItem?.examId ?? '')

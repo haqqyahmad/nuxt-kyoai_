@@ -125,6 +125,7 @@ function getSampleCollectionsForItem(itemId: string) {
 }
 
 function getExamItemStatus(ei: ExamItem) {
+  if (ei.workStatus === 'CANCELLED') return 'CANCELLED'
   const samples = getSampleCollectionsForItem(ei.item.id)
   if (samples.length > 0) {
     const roomStatuses = ei.roomExamItems?.map(item => item.status) ?? []
@@ -154,6 +155,7 @@ function statusLabel(status: string) {
   if (status === 'IN_PROGRESS') return 'In Progress'
   if (status === 'CALLED') return 'Called'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Rescheduled'
   if (status === 'REFUSED') return 'Rejected'
   if (status === 'RETEXT') return 'Retest'
@@ -182,6 +184,7 @@ function statusIcon(status: string) {
   if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
   if (status === 'RESCHEDULED') return 'i-lucide-calendar-clock'
   if (status === 'SKIPPED') return 'i-lucide-skip-forward'
+  if (status === 'CANCELLED') return 'i-lucide-ban'
   return 'i-lucide-clock'
 }
 

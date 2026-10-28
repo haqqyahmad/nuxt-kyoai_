@@ -138,6 +138,7 @@ function formatDuration(start?: string | null, end?: string | null) {
 }
 
 function getExamItemStatus(ei: ExamItem) {
+  if (ei.workStatus === 'CANCELLED') return 'CANCELLED'
   const statuses = ei.roomExamItems?.map(item => item.status) ?? []
   if (statuses.includes('DONE')) return 'DONE'
   if (statuses.includes('IN_PROGRESS')) return 'IN_PROGRESS'
@@ -155,6 +156,7 @@ function getStatusLabel(s: string) {
     CALLED: 'Sudah dipanggil',
     PENDING: 'Menunggu',
     SKIPPED: 'Skip',
+    CANCELLED: 'Dibatalkan',
     RESCHEDULED: 'Reschedule',
     REFUSED: 'Ditolak'
   }
@@ -166,6 +168,7 @@ function getStatusColor(s: string): 'success' | 'warning' | 'info' | 'error' | '
   if (s === 'IN_PROGRESS') return 'warning'
   if (s === 'CALLED') return 'info'
   if (['REFUSED', 'SKIPPED'].includes(s)) return 'error'
+  if (s === 'CANCELLED') return 'neutral'
   return 'neutral'
 }
 

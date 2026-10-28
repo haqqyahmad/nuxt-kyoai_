@@ -425,7 +425,7 @@ function getStatusColor(status: string): BadgeColor {
   if (status === 'DONE') return 'success'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'CALLED') return 'info'
-  if (status === 'SKIPPED' || status === 'RESCHEDULED') return 'neutral'
+  if (status === 'SKIPPED' || status === 'RESCHEDULED' || status === 'CANCELLED') return 'neutral'
   if (status === 'REFUSED' || status === 'REJECTED') return 'error'
   if (status === 'RETEXT') return 'warning'
   if (status === 'DEFERRED') return 'warning'
@@ -437,6 +437,7 @@ function getStatusLabel(status: string) {
   if (status === 'IN_PROGRESS') return 'In progress'
   if (status === 'CALLED') return 'Called'
   if (status === 'SKIPPED') return 'Skipped'
+  if (status === 'CANCELLED') return 'Cancelled'
   if (status === 'RESCHEDULED') return 'Rescheduled'
   if (status === 'REFUSED') return 'Patient refused'
   if (status === 'REJECTED') return 'Sample rejected'
@@ -870,7 +871,7 @@ const currentRoomWorkStatus = computed(() => {
     ?? 'WAITING'
 })
 const allItemsFinal = computed(() =>
-  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED', 'DEFERRED'].includes(item.status))
+  roomExamItems.value.every(item => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'REJECTED', 'DEFERRED', 'CANCELLED'].includes(item.status))
 )
 const sampleCollections = computed(() => roomQueueDetail.value?.queueEntry?.sampleCollections ?? [])
 
