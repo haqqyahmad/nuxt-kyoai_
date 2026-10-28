@@ -2891,7 +2891,7 @@ const dropdownItems = computed(() => {
             <template #actions>
               <UButton
                 v-if="canEditPackage"
-                icon="i-lucide-package-search"
+                icon="i-lucide-package"
                 color="neutral"
                 variant="outline"
                 size="sm"
