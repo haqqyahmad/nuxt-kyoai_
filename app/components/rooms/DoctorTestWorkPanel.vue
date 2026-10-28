@@ -2,8 +2,8 @@
 import DoctorTestPanel from './DoctorTestPanel.vue'
 
 type RoomExamItem = { id: string, status: string, trxExamItem?: { id: string, exam?: { id: string } | null } | null }
-const props = withDefaults(defineProps<{ item: RoomExamItem, canStart: boolean, canDone: boolean, startLoading: boolean, doneLoading: boolean, canManageActions: boolean, canCancel?: boolean, cancelLoading?: boolean }>(), {})
-const emit = defineEmits<{ start: [], done: [], cancel: [], refuse: [], reschedule: [], retest: [], refreshed: [] }>()
+const props = withDefaults(defineProps<{ item: RoomExamItem, canStart: boolean, canDone: boolean, startLoading: boolean, doneLoading: boolean, canManageActions: boolean, canCancel?: boolean, cancelLoading?: boolean, canUncancel?: boolean, uncancelLoading?: boolean }>(), {})
+const emit = defineEmits<{ start: [], done: [], cancel: [], uncancel: [], refuse: [], reschedule: [], retest: [], refreshed: [] }>()
 const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT', 'CANCELLED'].includes(props.item.status))
 const examId = computed(() => props.item.trxExamItem?.exam?.id ?? '')
 const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
@@ -36,6 +36,16 @@ const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
         @click="emit('cancel')"
       >
         Cancel Item
+      </UButton>
+      <UButton
+        v-if="canUncancel"
+        color="success"
+        variant="soft"
+        icon="i-lucide-rotate-ccw"
+        :loading="uncancelLoading"
+        @click="emit('uncancel')"
+      >
+        Un Cancel Item
       </UButton>
       <UButton
         v-if="props.canDone && item.status === 'IN_PROGRESS'"

@@ -188,13 +188,12 @@ function priorityBlockClass(priority?: string | null) {
 
 function formatDateTime(d?: string) {
   if (!d) return '-'
-  return new Date(d).toLocaleString('en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date)
 }
 
 function formatDob(d?: string) {
@@ -389,11 +388,19 @@ function additionalCancelNote(ei: ExamItem): string {
   const cancelledByName = cancelledRoomItem?.cancelledByName ?? null
   const times = roomItems.map(roomItem => roomItem.cancelledAt).filter((v): v is string => Boolean(v))
   const cancelledAt = times.length ? times.reduce((a, b) => (a > b ? a : b)) : null
-  const parts = ['Cancelled — item is not examined']
+  const parts = ['Cancelled']
+  if (cancelledAt) parts.push(formatDateTime(cancelledAt))
   if (reason) parts.push(`Reason: ${reason}`)
   if (cancelledByName) parts.push(`By: ${cancelledByName}`)
-  if (cancelledAt) parts.push(formatDateTime(cancelledAt))
   return parts.join(' · ')
+}
+
+function canUncancelAdditionalItem(ei: ExamItem): boolean {
+  if (ei.source !== 'additional') return false
+  if (isCancelled.value || reg.value?.statusRegistration === 'CheckOut' || reg.value?.statusRegistration === 'Cancel') return false
+  if (ei.workStatus !== 'CANCELLED') return false
+  const roomItems = ei.roomExamItems ?? []
+  return roomItems.every(roomItem => roomItem.status === 'CANCELLED' && !roomItem.startAt)
 }
 
 function canCancelAdditionalItem(ei: ExamItem): boolean {
@@ -421,7 +428,7 @@ async function handleCancelAdditional() {
   cancelAdditionalLoading.value = true
   try {
     await api.post(`/mcu/exams/${examId}/items/${target.itemId}/cancel`, {
-      reason: 'Cancelled from front office'
+      reason: 'Front office request'
     })
     toast.add({
       title: 'Item cancelled',
@@ -439,6 +446,47 @@ async function handleCancelAdditional() {
     })
   } finally {
     cancelAdditionalLoading.value = false
+  }
+}
+
+const uncancelAdditionalOpen = ref(false)
+const uncancelAdditionalLoading = ref(false)
+const uncancelAdditionalReason = ref('')
+const uncancelAdditionalTarget = ref<{ itemId: string, itemName: string } | null>(null)
+
+function openUncancelAdditional(ei: ExamItem) {
+  if (!canUncancelAdditionalItem(ei)) return
+  uncancelAdditionalTarget.value = { itemId: ei.item.id, itemName: ei.item.name }
+  uncancelAdditionalReason.value = ''
+  uncancelAdditionalOpen.value = true
+}
+
+async function handleUncancelAdditional() {
+  const examId = reg.value?.exam?.id
+  const target = uncancelAdditionalTarget.value
+  if (!examId || !target || uncancelAdditionalLoading.value) return
+  uncancelAdditionalLoading.value = true
+  try {
+    await api.post(`/mcu/exams/${examId}/items/${target.itemId}/uncancel`, {
+      reason: uncancelAdditionalReason.value.trim() || undefined
+    })
+    toast.add({
+      title: 'Item restored',
+      description: `${target.itemName} is active again and will be examined.`,
+      color: 'success'
+    })
+    uncancelAdditionalOpen.value = false
+    uncancelAdditionalTarget.value = null
+    uncancelAdditionalReason.value = ''
+    await handleRefreshPage()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Failed to restore item',
+      description: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'An error occurred.',
+      color: 'error'
+    })
+  } finally {
+    uncancelAdditionalLoading.value = false
   }
 }
 
@@ -3081,6 +3129,15 @@ const dropdownItems = computed(() => {
                         aria-label="Cancel item"
                         @click="openCancelAdditional(ei)"
                       />
+                      <UButton
+                        v-if="canUncancelAdditionalItem(ei)"
+                        icon="i-lucide-rotate-ccw"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Un cancel item"
+                        @click="openUncancelAdditional(ei)"
+                      />
                     </div>
                   </div>
                 </div>
@@ -3652,13 +3709,56 @@ const dropdownItems = computed(() => {
       <BaseDeleteModal
         v-model:open="cancelAdditionalOpen"
         title="Cancel Additional Exam Item?"
-        :description="cancelAdditionalTarget ? `${cancelAdditionalTarget.itemName} will stay on this exam as Cancelled and cannot be restored.` : ''"
+        :description="cancelAdditionalTarget ? `${cancelAdditionalTarget.itemName} will be marked as Cancelled. It can be restored with Un Cancel while it has not been started.` : ''"
         entity="item"
         confirm-label="Cancel Item"
         confirm-color="warning"
         :loading="cancelAdditionalLoading"
         @confirm="handleCancelAdditional"
       />
+
+      <UModal v-model:open="uncancelAdditionalOpen" title="Un Cancel Item">
+        <template #body>
+          <div class="space-y-4">
+            <UAlert
+              color="success"
+              variant="soft"
+              icon="i-lucide-rotate-ccw"
+              :title="uncancelAdditionalTarget?.itemName || 'Additional item'"
+              description="This item will be active again and can be examined. The cancel information is kept in the audit log."
+            />
+
+            <UFormField label="Reason (optional)">
+              <UTextarea
+                v-model="uncancelAdditionalReason"
+                :rows="3"
+                class="w-full"
+                placeholder="Example: cancelled by mistake, patient changed their mind..."
+              />
+            </UFormField>
+          </div>
+        </template>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="uncancelAdditionalLoading"
+              @click="uncancelAdditionalOpen = false"
+            >
+              Keep Cancelled
+            </UButton>
+            <UButton
+              color="success"
+              :loading="uncancelAdditionalLoading"
+              @click="handleUncancelAdditional"
+            >
+              Un Cancel Item
+            </UButton>
+          </div>
+        </template>
+      </UModal>
     </template>
   </UDashboardPanel>
 </template>

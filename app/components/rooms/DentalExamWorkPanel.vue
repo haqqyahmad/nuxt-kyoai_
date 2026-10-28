@@ -32,12 +32,15 @@ const props = defineProps<{
   doneLoading: boolean
   canCancel?: boolean
   cancelLoading?: boolean
+  canUncancel?: boolean
+  uncancelLoading?: boolean
 }>()
 
 const emit = defineEmits<{
   start: []
   done: []
   cancel: []
+  uncancel: []
   refuse: []
   reschedule: []
   retest: []
@@ -122,6 +125,17 @@ function onDentalSaved() {
             @click="emit('cancel')"
           >
             Cancel Item
+          </UButton>
+
+          <UButton
+            v-if="canUncancel"
+            color="success"
+            variant="soft"
+            icon="i-lucide-rotate-ccw"
+            :loading="uncancelLoading"
+            @click="emit('uncancel')"
+          >
+            Un Cancel Item
           </UButton>
 
           <UButton

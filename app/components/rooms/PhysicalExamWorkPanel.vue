@@ -24,10 +24,12 @@ const props = withDefaults(defineProps<{
   doneLoading: boolean
   canCancel?: boolean
   cancelLoading?: boolean
+  canUncancel?: boolean
+  uncancelLoading?: boolean
   legacyResults?: LegacyRow[]
 }>(), { legacyResults: () => [] })
 
-const emit = defineEmits<{ start: [], done: [], cancel: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
+const emit = defineEmits<{ start: [], done: [], cancel: [], uncancel: [], refuse: [], reschedule: [], retest: [], refreshed: [], back: [] }>()
 const isFinal = computed(() => ['DONE', 'SKIPPED', 'RESCHEDULED', 'REFUSED', 'RETEXT', 'CANCELLED'].includes(props.item.status))
 const canStartItem = computed(() => props.canStart && props.item.status === 'PENDING')
 const canDoneItem = computed(() => props.canDone && props.item.status === 'IN_PROGRESS')
@@ -86,6 +88,16 @@ const disabled = computed(() => props.item.status !== 'IN_PROGRESS')
             @click="emit('cancel')"
           >
             Cancel Item
+          </UButton>
+          <UButton
+            v-if="canUncancel"
+            color="success"
+            variant="soft"
+            icon="i-lucide-rotate-ccw"
+            :loading="uncancelLoading"
+            @click="emit('uncancel')"
+          >
+            Un Cancel Item
           </UButton>
           <UButton
             v-if="canDoneItem"

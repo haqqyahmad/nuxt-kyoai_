@@ -359,6 +359,10 @@ const isCancelItemModalOpen = ref(false)
 const cancelItemTarget = ref<RoomExamItem | null>(null)
 const cancelItemReason = ref('')
 const cancelItemLoading = ref(false)
+const isUncancelItemModalOpen = ref(false)
+const uncancelItemTarget = ref<RoomExamItem | null>(null)
+const uncancelItemReason = ref('')
+const uncancelItemLoading = ref(false)
 const isExitRoomModalOpen = ref(false)
 const isEnterRoomModalOpen = ref(false)
 const roomSessionActionLoading = ref(false)
@@ -2420,7 +2424,7 @@ async function handleCancelItem() {
   cancelItemLoading.value = true
   try {
     await api.post(`/mcu/exams/${examId}/items/${itemId}/cancel`, {
-      reason: cancelItemReason.value.trim() || 'Cancelled from room'
+      reason: cancelItemReason.value.trim() || 'Room request'
     })
     isCancelItemModalOpen.value = false
     cancelItemTarget.value = null
@@ -2442,6 +2446,58 @@ async function handleCancelItem() {
     })
   } finally {
     cancelItemLoading.value = false
+  }
+}
+
+function canUncancelItem(item: RoomExamItem) {
+  if (!canManageItemActions.value) return false
+  if (item.status !== 'CANCELLED') return false
+  if (item.startAt) return false
+  const trx = item.trxExamItem
+  if (!trx?.item?.id) return false
+  if (trx.workStatus && trx.workStatus !== 'CANCELLED') return false
+  if (trx.workStartedAt) return false
+  if (trx.resultStatus && trx.resultStatus !== 'NOT_READY') return false
+  return Boolean(trx.examId ?? trx.exam?.id)
+}
+
+function openUncancelItemModal(item: RoomExamItem) {
+  if (!canUncancelItem(item)) return
+  uncancelItemTarget.value = item
+  uncancelItemReason.value = ''
+  isUncancelItemModalOpen.value = true
+}
+
+async function handleUncancelItem() {
+  const item = uncancelItemTarget.value
+  if (!item || uncancelItemLoading.value) return
+  const examId = item.trxExamItem?.examId ?? item.trxExamItem?.exam?.id
+  const itemId = item.trxExamItem?.item?.id
+  if (!examId || !itemId) return
+
+  const itemName = item.trxExamItem?.item?.name ?? 'Examination item'
+  uncancelItemLoading.value = true
+  try {
+    await api.post(`/mcu/exams/${examId}/items/${itemId}/uncancel`, {
+      reason: uncancelItemReason.value.trim() || undefined
+    })
+    isUncancelItemModalOpen.value = false
+    uncancelItemTarget.value = null
+    uncancelItemReason.value = ''
+    await loadPage(true)
+    toast.add({
+      title: 'Item restored',
+      description: `${itemName} is active again and can be examined.`,
+      color: 'success'
+    })
+  } catch (error: unknown) {
+    toast.add({
+      title: 'Failed to restore item',
+      description: getErrorMessage(error, 'An error occurred while restoring the examination item.'),
+      color: 'error'
+    })
+  } finally {
+    uncancelItemLoading.value = false
   }
 }
 
@@ -3281,9 +3337,12 @@ async function handleSubmitItemAction() {
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :can-cancel="canCancelItem(selectedItem)"
                   :cancel-loading="cancelItemLoading && cancelItemTarget?.id === selectedItem.id"
+                  :can-uncancel="canUncancelItem(selectedItem)"
+                  :uncancel-loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
                   @start="handleStartItem(selectedItem)"
                   @done="handleDoneItem(selectedItem)"
                   @cancel="openCancelItemModal(selectedItem)"
+                  @uncancel="openUncancelItemModal(selectedItem)"
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
@@ -3303,9 +3362,12 @@ async function handleSubmitItemAction() {
                   :legacy-results="getPhysicalLegacyRows(selectedItem)"
                   :can-cancel="canCancelItem(selectedItem)"
                   :cancel-loading="cancelItemLoading && cancelItemTarget?.id === selectedItem.id"
+                  :can-uncancel="canUncancelItem(selectedItem)"
+                  :uncancel-loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
                   @start="handleStartItem(selectedItem)"
                   @done="handleDoneItem(selectedItem)"
                   @cancel="openCancelItemModal(selectedItem)"
+                  @uncancel="openUncancelItemModal(selectedItem)"
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
@@ -3323,9 +3385,12 @@ async function handleSubmitItemAction() {
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :can-cancel="canCancelItem(selectedItem)"
                   :cancel-loading="cancelItemLoading && cancelItemTarget?.id === selectedItem.id"
+                  :can-uncancel="canUncancelItem(selectedItem)"
+                  :uncancel-loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
                   @start="handleStartItem(selectedItem)"
                   @done="handleDoneItem(selectedItem)"
                   @cancel="openCancelItemModal(selectedItem)"
+                  @uncancel="openUncancelItemModal(selectedItem)"
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @reschedule="openItemActionModal(selectedItem, 'reschedule')"
                   @retest="openItemActionModal(selectedItem, 'retest')"
@@ -3342,9 +3407,12 @@ async function handleSubmitItemAction() {
                   :done-loading="Boolean(itemActionLoading[selectedItem.id])"
                   :can-cancel="canCancelItem(selectedItem)"
                   :cancel-loading="cancelItemLoading && cancelItemTarget?.id === selectedItem.id"
+                  :can-uncancel="canUncancelItem(selectedItem)"
+                  :uncancel-loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
                   @start="handleStartItem(selectedItem)"
                   @done="handleDoneItem(selectedItem)"
                   @cancel="openCancelItemModal(selectedItem)"
+                  @uncancel="openUncancelItemModal(selectedItem)"
                   @refuse="openItemActionModal(selectedItem, 'refuse')"
                   @refreshed="loadPage(true)"
                 />
@@ -3402,6 +3470,17 @@ async function handleSubmitItemAction() {
                         @click="openCancelItemModal(selectedItem)"
                       >
                         Cancel Item
+                      </UButton>
+
+                      <UButton
+                        v-if="canUncancelItem(selectedItem)"
+                        color="success"
+                        variant="soft"
+                        icon="i-lucide-rotate-ccw"
+                        :loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
+                        @click="openUncancelItemModal(selectedItem)"
+                      >
+                        Un Cancel Item
                       </UButton>
 
                       <UButton
@@ -4200,7 +4279,7 @@ async function handleSubmitItemAction() {
         <UAlert
           color="warning"
           :title="cancelItemTarget?.trxExamItem?.item?.name || 'Examination item'"
-          description="This item will be saved as Cancelled and will not be examined. The item is not deleted and remains in the patient's examination history."
+          description="This item will be saved as Cancelled and will not be examined. It can be restored with Un Cancel while it has not been started."
         />
 
         <UFormField label="Cancel reason (optional)">
@@ -4230,6 +4309,52 @@ async function handleSubmitItemAction() {
           @click="handleCancelItem"
         >
           Cancel Item
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="isUncancelItemModalOpen"
+    title="Un Cancel Item"
+  >
+    <template #body>
+      <div class="space-y-4">
+        <UAlert
+          color="success"
+          variant="soft"
+          icon="i-lucide-rotate-ccw"
+          :title="uncancelItemTarget?.trxExamItem?.item?.name || 'Examination item'"
+          description="This item will be active again and can be examined. The cancel information is kept in the audit log."
+        />
+
+        <UFormField label="Reason (optional)">
+          <UTextarea
+            v-model="uncancelItemReason"
+            :rows="3"
+            class="w-full"
+            placeholder="Example: cancelled by mistake, patient changed their mind..."
+          />
+        </UFormField>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton
+          color="neutral"
+          variant="soft"
+          :disabled="uncancelItemLoading"
+          @click="isUncancelItemModalOpen = false"
+        >
+          Keep Cancelled
+        </UButton>
+        <UButton
+          color="success"
+          :loading="uncancelItemLoading"
+          @click="handleUncancelItem"
+        >
+          Un Cancel Item
         </UButton>
       </div>
     </template>
