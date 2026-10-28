@@ -206,6 +206,7 @@ type RoomExamItem = {
   notes?: string | null
   cancelledAt?: string | null
   cancelReason?: string | null
+  cancelledByName?: string | null
   retestedAt?: string | null
   retestReason?: string | null
   operationalStatus?: string
@@ -3376,6 +3377,7 @@ async function handleSubmitItemAction() {
                     <span class="font-semibold">Cancelled</span>
                     <span v-if="selectedItem.cancelledAt">· {{ formatDate(selectedItem.cancelledAt) }}</span>
                     <span v-if="selectedItem.cancelReason">· Reason: {{ selectedItem.cancelReason }}</span>
+                    <span v-if="selectedItem.cancelledByName">· By: {{ selectedItem.cancelledByName }}</span>
                   </div>
 
                   <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-default/80 bg-muted/30 px-5 py-3.5">

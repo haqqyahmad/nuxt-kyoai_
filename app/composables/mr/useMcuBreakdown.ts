@@ -17,6 +17,7 @@ export type McuExamItem = {
     rescheduleVisitDate?: string | null
     cancelledAt?: string | null
     cancelReason?: string | null
+    cancelledByName?: string | null
   }>
   item: {
     id: string
@@ -49,6 +50,7 @@ export type McuBreakdownItem = {
   doneAt: string | null
   cancelReason: string | null
   cancelledAt: string | null
+  cancelledByName: string | null
 }
 
 export type McuBreakdownCategory = {
@@ -229,16 +231,18 @@ export function getExamItemDoneAt(ei: McuExamItem): string | null {
   return times.reduce((latest, value) => (value > latest ? value : latest))
 }
 
-export function getExamItemCancelInfo(ei: McuExamItem): { reason: string | null, cancelledAt: string | null } {
+export function getExamItemCancelInfo(ei: McuExamItem): { reason: string | null, cancelledAt: string | null, cancelledByName: string | null } {
   const roomItems = ei.roomExamItems ?? []
-  const reason = roomItems.find(item => Boolean(item.cancelReason))?.cancelReason ?? null
+  const cancelledRoomItem = roomItems.find(item => Boolean(item.cancelReason) || Boolean(item.cancelledAt) || Boolean(item.cancelledByName))
+  const reason = cancelledRoomItem?.cancelReason ?? null
+  const cancelledByName = cancelledRoomItem?.cancelledByName ?? null
   const times = roomItems
     .map(item => item.cancelledAt)
     .filter((value): value is string => Boolean(value))
   const cancelledAt = times.length
     ? times.reduce((latest, value) => (value > latest ? value : latest))
     : null
-  return { reason, cancelledAt }
+  return { reason, cancelledAt, cancelledByName }
 }
 
 export function getRescheduleVisitDate(examItems: McuExamItem[], examItemId: string): string {
@@ -364,7 +368,8 @@ export function buildMcuCategories(
       startAt: getExamItemStartAt(ei),
       doneAt: getExamItemDoneAt(ei),
       cancelReason: cancelInfo.reason,
-      cancelledAt: cancelInfo.cancelledAt
+      cancelledAt: cancelInfo.cancelledAt,
+      cancelledByName: cancelInfo.cancelledByName
     })
   }
 

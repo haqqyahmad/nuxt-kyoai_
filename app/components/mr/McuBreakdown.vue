@@ -386,6 +386,9 @@ function toggleGroup(key: string, attention: boolean) {
                     <template v-if="item.cancelReason">
                       · Reason: {{ item.cancelReason }}
                     </template>
+                    <template v-if="item.cancelledByName">
+                      · By: {{ item.cancelledByName }}
+                    </template>
                   </span>
                 </div>
               </div>

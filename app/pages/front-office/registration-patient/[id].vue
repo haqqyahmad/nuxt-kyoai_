@@ -24,6 +24,7 @@ type ExamItem = {
     rescheduleVisitDate?: string | null
     cancelledAt?: string | null
     cancelReason?: string | null
+    cancelledByName?: string | null
   }>
   item: {
     id: string
@@ -381,11 +382,16 @@ function additionalDoneAt(ei: ExamItem): string | null {
 
 function additionalCancelNote(ei: ExamItem): string {
   const roomItems = ei.roomExamItems ?? []
-  const reason = roomItems.find(roomItem => Boolean(roomItem.cancelReason))?.cancelReason ?? null
+  const cancelledRoomItem = roomItems.find(roomItem =>
+    Boolean(roomItem.cancelReason) || Boolean(roomItem.cancelledAt) || Boolean(roomItem.cancelledByName)
+  )
+  const reason = cancelledRoomItem?.cancelReason ?? null
+  const cancelledByName = cancelledRoomItem?.cancelledByName ?? null
   const times = roomItems.map(roomItem => roomItem.cancelledAt).filter((v): v is string => Boolean(v))
   const cancelledAt = times.length ? times.reduce((a, b) => (a > b ? a : b)) : null
   const parts = ['Cancelled — item is not examined']
   if (reason) parts.push(`Reason: ${reason}`)
+  if (cancelledByName) parts.push(`By: ${cancelledByName}`)
   if (cancelledAt) parts.push(formatDateTime(cancelledAt))
   return parts.join(' · ')
 }
