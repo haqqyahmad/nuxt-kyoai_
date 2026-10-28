@@ -3060,7 +3060,7 @@ async function handleSubmitItemAction() {
                 v-if="activeStage?.status === 'CALLED'"
                 color="neutral"
                 variant="soft"
-                icon="i-lucide-rotate-ccw"
+                icon="i-lucide-refresh-cw"
                 title="Return to Waiting"
                 :loading="stageActionLoading"
                 @click="handleReturnPatient"
@@ -3071,7 +3071,7 @@ async function handleSubmitItemAction() {
                 v-if="activeStage?.status === 'IN_PROGRESS' && !hasStartedExamItems && !hasStartedSampleCollection"
                 color="warning"
                 variant="soft"
-                icon="i-lucide-rotate-ccw"
+                icon="i-lucide-refresh-cw"
                 title="Back to Called"
                 :loading="stageActionLoading"
                 @click="handleCancelStartStage"
@@ -3476,7 +3476,7 @@ async function handleSubmitItemAction() {
                         v-if="canUncancelItem(selectedItem)"
                         color="success"
                         variant="soft"
-                        icon="i-lucide-rotate-ccw"
+                        icon="i-lucide-refresh-cw"
                         :loading="uncancelItemLoading && uncancelItemTarget?.id === selectedItem.id"
                         @click="openUncancelItemModal(selectedItem)"
                       >
@@ -4323,7 +4323,7 @@ async function handleSubmitItemAction() {
         <UAlert
           color="success"
           variant="soft"
-          icon="i-lucide-rotate-ccw"
+          icon="i-lucide-refresh-cw"
           :title="uncancelItemTarget?.trxExamItem?.item?.name || 'Examination item'"
           description="This item will be active again and can be examined. The cancel information is kept in the audit log."
         />

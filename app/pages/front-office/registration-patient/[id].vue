@@ -321,7 +321,7 @@ function getExamItemStatusIcon(status: string) {
   if (status === 'CALLED') return 'i-lucide-bell'
   if (status === 'REFUSED') return 'i-lucide-ban'
   if (status === 'CANCELLED') return 'i-lucide-ban'
-  if (status === 'RETEXT') return 'i-lucide-rotate-ccw'
+  if (status === 'RETEXT') return 'i-lucide-refresh-cw'
   if (status === 'REJECTED') return 'i-lucide-ban'
   if (status === 'WAITING_SAMPLE' || status === 'WAITING_SAMPLE_COLLECT' || status === 'WAITING_SAMPLE_RECEIVE') return 'i-lucide-test-tube'
   return 'i-lucide-clock'
@@ -1452,7 +1452,7 @@ function questionnaireActions(q: PatientQuestionnaire) {
   if (q.scope !== 'INTERNAL' && q.status === 'Completed') {
     items.push({
       label: 'Open Revision',
-      icon: 'i-lucide-rotate-ccw',
+      icon: 'i-lucide-refresh-cw',
       color: 'warning',
       disabled: Boolean(revisionLoading.value[q.questionnaire_id]),
       onSelect: () => askQuestionnaireRevision(q.questionnaire_id)
@@ -1983,7 +1983,7 @@ const secondaryActions = computed<HeaderAction[]>(() => {
     list.push({
       key: 'returnVisit',
       label: 'Patient Return Visit',
-      icon: 'i-lucide-rotate-ccw',
+      icon: 'i-lucide-refresh-cw',
       color: 'warning',
       variant: 'soft',
       loading: resampling.value,
@@ -2074,7 +2074,7 @@ const secondaryActions = computed<HeaderAction[]>(() => {
     list.push({
       key: 'cancelCheckin',
       label: 'Cancel Check-in',
-      icon: 'i-lucide-rotate-ccw',
+      icon: 'i-lucide-refresh-cw',
       color: 'warning',
       variant: 'outline',
       loading: uncheckLoading.value,
@@ -2916,7 +2916,7 @@ const dropdownItems = computed(() => {
                           </template>
                           <template v-if="q.scope !== 'INTERNAL' && q.status === 'Completed'">
                             <UButton
-                              icon="i-lucide-rotate-ccw"
+                              icon="i-lucide-refresh-cw"
                               color="warning"
                               variant="ghost"
                               size="xs"
@@ -3131,7 +3131,7 @@ const dropdownItems = computed(() => {
                       />
                       <UButton
                         v-if="canUncancelAdditionalItem(ei)"
-                        icon="i-lucide-rotate-ccw"
+                        icon="i-lucide-refresh-cw"
                         color="neutral"
                         variant="ghost"
                         size="xs"
@@ -3723,7 +3723,7 @@ const dropdownItems = computed(() => {
             <UAlert
               color="success"
               variant="soft"
-              icon="i-lucide-rotate-ccw"
+              icon="i-lucide-refresh-cw"
               :title="uncancelAdditionalTarget?.itemName || 'Additional item'"
               description="This item will be active again and can be examined. The cancel information is kept in the audit log."
             />

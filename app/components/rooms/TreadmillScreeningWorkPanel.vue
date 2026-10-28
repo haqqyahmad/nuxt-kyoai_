@@ -87,7 +87,7 @@ watch(() => examId.value, loadOverview, { immediate: true })
         v-if="canUncancel"
         color="success"
         variant="soft"
-        icon="i-lucide-rotate-ccw"
+        icon="i-lucide-refresh-cw"
         :loading="uncancelLoading"
         @click="emit('uncancel')"
       >

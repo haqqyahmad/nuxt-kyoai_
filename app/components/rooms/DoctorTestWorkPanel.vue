@@ -41,7 +41,7 @@ const examItemId = computed(() => props.item.trxExamItem?.id ?? '')
         v-if="canUncancel"
         color="success"
         variant="soft"
-        icon="i-lucide-rotate-ccw"
+        icon="i-lucide-refresh-cw"
         :loading="uncancelLoading"
         @click="emit('uncancel')"
       >
