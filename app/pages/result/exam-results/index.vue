@@ -393,13 +393,18 @@ function progressPercent(group: ExamGroup) {
   return Math.round((group.submittedCount / group.items.length) * 100)
 }
 
-function groupPrimaryItem(group: ExamGroup) {
-  const actionable = group.items.find((item) => {
-    const key = statusGroupOf(getRowStatus(item))
-    return key === 'needs_action' || key === 'returned' || key === 'external'
-  })
-  if (actionable) return actionable
-  return group.items.find(item => statusGroupOf(getRowStatus(item)) === 'pending_approval') ?? group.items[0]
+function groupChevronIcon(group: ExamGroup) {
+  if (group.items.length === 1) return 'i-lucide-arrow-right'
+  return isExpanded(group.examId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+}
+
+function onGroupClick(group: ExamGroup) {
+  const target = group.items[0]
+  if (group.items.length === 1 && target) {
+    void viewDetail(target)
+    return
+  }
+  toggleGroup(group.examId)
 }
 
 function itemSections(group: ExamGroup): ItemSection[] {
@@ -597,11 +602,6 @@ async function viewDetail(result: ExamResult) {
           ...(result.item?.roomType?.id ? { roomTypeId: result.item.roomType.id } : {})
         }
   })
-}
-
-function openGroup(group: ExamGroup) {
-  const target = groupPrimaryItem(group)
-  if (target) void viewDetail(target)
 }
 
 function formatInputDate(date: Date) {
@@ -1017,22 +1017,25 @@ onMounted(async () => {
                   <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Exam Date
                   </th>
-                  <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                    Action
-                  </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-default/50">
                 <template v-for="group in pagedGroups" :key="group.examId">
                   <tr
                     class="cursor-pointer transition hover:bg-muted/40"
-                    @click="toggleGroup(group.examId)"
+                    @click="onGroupClick(group)"
                   >
                     <td class="px-3 py-3 text-sm">
                       <div class="flex items-start gap-2">
-                        <UIcon
-                          :name="isExpanded(group.examId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                          class="mt-0.5 size-4 shrink-0 text-muted"
+                        <UButton
+                          size="xs"
+                          color="neutral"
+                          variant="ghost"
+                          class="-ml-2 shrink-0"
+                          :icon="groupChevronIcon(group)"
+                          :aria-label="group.items.length === 1 ? 'Open result' : (isExpanded(group.examId) ? 'Collapse items' : 'Expand items')"
+                          :aria-expanded="group.items.length === 1 ? undefined : isExpanded(group.examId)"
+                          @click.stop="onGroupClick(group)"
                         />
                         <div class="min-w-0">
                           <p
@@ -1085,19 +1088,9 @@ onMounted(async () => {
                     <td class="whitespace-nowrap px-3 py-3 text-sm text-muted">
                       {{ formatDate(group.examDate || group.checkinAt) }}
                     </td>
-                    <td class="px-3 py-3 text-right" @click.stop>
-                      <UButton
-                        size="xs"
-                        color="primary"
-                        variant="soft"
-                        @click="openGroup(group)"
-                      >
-                        View
-                      </UButton>
-                    </td>
                   </tr>
                   <tr v-if="isExpanded(group.examId)">
-                    <td colspan="6" class="bg-muted/20 px-4 py-3">
+                    <td colspan="5" class="bg-muted/20 px-4 py-3">
                       <div class="flex flex-col gap-3">
                         <template v-for="section in itemSections(group)" :key="section.key">
                           <div class="flex flex-col gap-1.5">
@@ -1124,12 +1117,18 @@ onMounted(async () => {
                                   · {{ getTypeLabel(item.resultTiming) }}
                                 </span>
                               </span>
-                              <UBadge
-                                :label="getStatusLabel(getRowStatus(item))"
-                                :color="getStatusColor(getRowStatus(item))"
-                                variant="subtle"
-                                class="shrink-0"
-                              />
+                              <span class="flex shrink-0 items-center gap-2">
+                                <UBadge
+                                  :label="getStatusLabel(getRowStatus(item))"
+                                  :color="getStatusColor(getRowStatus(item))"
+                                  variant="subtle"
+                                  class="shrink-0"
+                                />
+                                <span class="flex items-center gap-0.5 text-xs font-medium text-primary">
+                                  View
+                                  <UIcon name="i-lucide-chevron-right" class="size-3.5" />
+                                </span>
+                              </span>
                             </button>
                           </div>
                         </template>
@@ -1200,23 +1199,27 @@ onMounted(async () => {
 
                 <div class="flex gap-2 pt-1">
                   <UButton
+                    v-if="group.items.length === 1"
                     block
                     size="sm"
                     color="primary"
                     variant="soft"
-                    @click="openGroup(group)"
+                    trailing-icon="i-lucide-arrow-right"
+                    @click="onGroupClick(group)"
                   >
-                    View result
+                    View item
                   </UButton>
                   <UButton
+                    v-else
+                    block
                     size="sm"
-                    color="neutral"
+                    color="primary"
                     variant="soft"
                     :icon="isExpanded(group.examId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                    :aria-label="isExpanded(group.examId) ? 'Collapse items' : 'Expand items'"
+                    :aria-expanded="isExpanded(group.examId)"
                     @click="toggleGroup(group.examId)"
                   >
-                    Items
+                    Items ({{ group.items.length }})
                   </UButton>
                 </div>
               </div>
@@ -1234,23 +1237,29 @@ onMounted(async () => {
                       v-for="item in section.items"
                       :key="item.id"
                       type="button"
-                      class="flex w-full items-start justify-between gap-3 rounded-lg border border-default/60 bg-elevated/30 px-3 py-2 text-left transition hover:bg-muted/40"
+                      class="flex w-full flex-col gap-2 rounded-lg border border-default/60 bg-elevated/30 px-3 py-2 text-left transition hover:bg-muted/40"
                       @click="viewDetail(item)"
                     >
-                      <span class="min-w-0 flex-1">
-                        <span class="block truncate text-sm font-medium text-highlighted">
-                          {{ item.item?.name || '-' }}
+                      <span class="flex items-start justify-between gap-2">
+                        <span class="min-w-0 flex-1">
+                          <span class="block truncate text-sm font-medium text-highlighted">
+                            {{ item.item?.name || '-' }}
+                          </span>
+                          <span class="block truncate text-xs text-muted">
+                            {{ item.item?.code || '-' }} · {{ getTypeLabel(item.resultTiming) }}
+                          </span>
                         </span>
-                        <span class="block truncate text-xs text-muted">
-                          {{ item.item?.code || '-' }} · {{ getTypeLabel(item.resultTiming) }}
-                        </span>
+                        <UIcon name="i-lucide-chevron-right" class="mt-0.5 size-4 shrink-0 text-primary" />
                       </span>
-                      <UBadge
-                        :label="getStatusLabel(getRowStatus(item))"
-                        :color="getStatusColor(getRowStatus(item))"
-                        variant="subtle"
-                        class="shrink-0"
-                      />
+                      <span class="flex items-center justify-between gap-2">
+                        <UBadge
+                          :label="getStatusLabel(getRowStatus(item))"
+                          :color="getStatusColor(getRowStatus(item))"
+                          variant="subtle"
+                          class="shrink-0"
+                        />
+                        <span class="text-xs font-medium text-primary">View</span>
+                      </span>
                     </button>
                   </div>
                 </template>
