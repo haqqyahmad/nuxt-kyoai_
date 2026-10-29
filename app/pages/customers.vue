@@ -34,12 +34,20 @@ function getRowItems(row: Row<User>) {
     {
       label: 'Copy customer ID',
       icon: 'i-lucide-copy',
-      onSelect() {
-        navigator.clipboard.writeText(row.original.id.toString())
-        toast.add({
-          title: 'Copied to clipboard',
-          description: 'Customer ID copied to clipboard'
-        })
+      async onSelect() {
+        const copied = await copyText(row.original.id.toString())
+        toast.add(
+          copied
+            ? {
+                title: 'Copied to clipboard',
+                description: 'Customer ID copied to clipboard'
+              }
+            : {
+                title: 'Failed',
+                description: 'Could not copy customer ID',
+                color: 'error'
+              }
+        )
       }
     },
     {

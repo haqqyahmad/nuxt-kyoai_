@@ -206,13 +206,9 @@ async function openVariableViewer() {
 
 async function copyPath(path: string, value: unknown) {
   const raw = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
-  try {
-    await navigator.clipboard.writeText(raw)
-    dataCopied.value = path
-    setTimeout(() => { dataCopied.value = null }, 1500) // eslint-disable-line @stylistic/max-statements-per-line
-  } catch {
-    dataCopied.value = null
-  }
+  const copied = await copyText(raw)
+  dataCopied.value = copied ? path : null
+  if (copied) setTimeout(() => { dataCopied.value = null }, 1500) // eslint-disable-line @stylistic/max-statements-per-line
 }
 
 async function saveTemplate() {

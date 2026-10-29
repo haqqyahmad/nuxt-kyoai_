@@ -2,6 +2,14 @@
 
 Last updated: 2026-10-29
 
+## Fix Copy Link / Share All: Clipboard Tidak Tersedia di Non-Secure Context - 2026-10-29
+
+- **Masalah:** klik **Copy Link** atau **Share All** di `/front-office/registration-patient/[id]` muncul `TypeError: Cannot read properties of undefined (reading 'writeText')`. `navigator.clipboard` **undefined** ketika halaman dibuka lewat HTTP non-loopback (mis. `http://10.17.44.47:3000`), dan `copyQuestionnaireLink` memakai rantai `navigator.clipboard.writeText(...).then().catch()` sehingga `TypeError` terjadi **sebelum** promise dibuat dan tidak pernah ditangkap `.catch()`.
+- **Util baru `app/utils/clipboard.ts`:** `copyText(text): Promise<boolean>` — memakai `navigator.clipboard.writeText` bila tersedia (dibungkus `try/catch`), lalu fallback `<textarea>` sementara + `document.execCommand('copy')` (posisi fixed, opacity 0, selection sebelumnya dikembalikan). Tidak pernah melempar error; `false` bila semua jalur gagal.
+- **Pemakaian diganti (5 titik):** `registration-patient/[id].vue` untuk revision link (`doQuestionnaireRevision`), `copyQuestionnaireLink` (kini `async`), dan `shareAllQuestionnaires`; `components/mcu/McuPrintTemplateModal.vue` (`copyPath` hanya menandai `dataCopied` bila sukses); `pages/customers.vue` (menu **Copy customer ID** memakai `async onSelect`).
+- **Pesan dibedakan:** kegagalan copy tidak lagi dilaporkan sebagai kegagalan API. Revision/Share All → toast **warning** “link created but could not be copied automatically” bila copy gagal, sedangkan `copyQuestionnaireLink` dan **Copy customer ID** menampilkan toast error bila copy gagal.
+- **Verifikasi (Playwright headless, JWT user dev):** pada `REG-20261029-01-0001` dengan `navigator.clipboard` di-`undefined` (simulasi non-secure) → **Copy Link** dan **Share All** menyalin URL yang benar lewat fallback (teks terrekam dari `execCommand`) tanpa console error/pageerror; jalur secure (Clipboard API di-spy) → 1 panggilan `writeText` untuk Copy Link dan 2 setelah Share All; simulasi total gagal (`clipboard` undefined + `execCommand` → `false`) → toast error untuk Copy Link dan toast warning untuk Share All (bukan “Failed to create share link”); menu **Copy customer ID** di `/customers` menampilkan toast gagal tanpa error console. `npx vue-tsc --noEmit -p .nuxt/tsconfig.json` EXIT=0 dan `npx eslint` file terkait EXIT=0.
+
 ## Exam Results List UX (Grouping, Status Filter, Mobile Cards) - 2026-10-29
 
 - **Masalah:** filter `status` hanya menyaring 10 baris halaman aktif (tidak pernah dikirim ke API), search juga per halaman, header `Results (10)` berbeda dengan `Showing 1 – 10 of 479`, label `Queue Code` sebenarnya `registration.id_reg`, `Check-in` sebenarnya `TrxExamItem.createdAt`, satu pasien muncul berulang per item, dan tabel ±740px overflow di layar 390px.

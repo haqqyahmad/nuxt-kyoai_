@@ -1381,8 +1381,14 @@ async function doQuestionnaireRevision() {
     const params = new URLSearchParams(questionnaireLink(questionnaireId).split('?')[1] ?? '')
     params.set('code', code)
     const link = `${questionnairePortalUrl.value}?${params.toString()}`
-    await navigator.clipboard.writeText(link)
-    toast.add({ title: 'Success', description: 'Revision link copied — share it with the patient', color: 'success' })
+    const copied = await copyText(link)
+    toast.add({
+      title: copied ? 'Success' : 'Link created',
+      description: copied
+        ? 'Revision link copied — share it with the patient'
+        : 'Revision link created but could not be copied automatically',
+      color: copied ? 'success' : 'warning'
+    })
     await loadQuestionnaires()
   } catch {
     toast.add({ title: 'Failed', description: 'Failed to create revision link', color: 'error' })
@@ -1404,24 +1410,14 @@ function shareQuestionnaireViaWa(questionnaireId?: string) {
   window.open(link, '_blank', 'noopener,noreferrer')
 }
 
-function copyQuestionnaireLink(questionnaireId?: string) {
+async function copyQuestionnaireLink(questionnaireId?: string) {
   const link = questionnaireLink(questionnaireId)
-  navigator.clipboard
-    .writeText(link)
-    .then(() => {
-      toast.add({
-        title: 'Success',
-        description: 'Questionnaire link copied',
-        color: 'success'
-      })
-    })
-    .catch(() => {
-      toast.add({
-        title: 'Failed',
-        description: 'Failed to copy link',
-        color: 'error'
-      })
-    })
+  const copied = await copyText(link)
+  toast.add({
+    title: copied ? 'Success' : 'Failed',
+    description: copied ? 'Questionnaire link copied' : 'Failed to copy link',
+    color: copied ? 'success' : 'error'
+  })
 }
 
 function questionnaireActions(q: PatientQuestionnaire) {
@@ -1499,8 +1495,14 @@ async function shareAllQuestionnaires() {
       return
     }
     const link = `${questionnairePortalUrl.value}?code=${code}&registrationId=${reg.value.id}&gender=${reg.value.patient?.gender ?? ''}`
-    await navigator.clipboard.writeText(link)
-    toast.add({ title: 'Success', description: 'All questionnaires link copied', color: 'success' })
+    const copied = await copyText(link)
+    toast.add({
+      title: copied ? 'Success' : 'Link created',
+      description: copied
+        ? 'All questionnaires link copied'
+        : 'Share link created but could not be copied automatically',
+      color: copied ? 'success' : 'warning'
+    })
   } catch {
     toast.add({ title: 'Failed', description: 'Failed to create share link', color: 'error' })
   } finally {
