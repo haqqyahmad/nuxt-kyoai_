@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { toDepartmentMenuKey } from '~/constants/menu'
 
 type Department = {
@@ -19,6 +19,7 @@ type Patient = {
 type ExamResult = {
   id: string
   queueCode: string
+  registrationNo?: string | null
   queueEntryId: string
   patient?: Patient | null
   item?: {
@@ -29,39 +30,6 @@ type ExamResult = {
     roomType?: Department | null
     sampleCode?: string | null
     sampleName?: string | null
-    inputans?: Array<{
-      id: string
-      label: string
-      inputType: 'number' | 'string' | 'selected' | 'calculated'
-      uom?: string | null
-      allowBlank?: boolean
-      opsis?: Array<{
-        id: string
-        label: string
-        value: string
-      }>
-      nilaiNormalNum?: Array<{
-        id: string
-        gender?: string | null
-        ageMin?: number | null
-        ageMax?: number | null
-        normalLow?: number | null
-        normalHigh?: number | null
-        criticalLow?: number | null
-        criticalHigh?: number | null
-      }>
-      nilaiNormalSel?: Array<{
-        id: string
-        gender?: string | null
-        ageMin?: number | null
-        ageMax?: number | null
-        opsi?: {
-          id: string
-          label: string
-          value: string
-        } | null
-      }>
-    }>
   } | null
   resultTiming?: 'inline' | 'deferred'
   status?: 'pending' | 'completed'
@@ -74,41 +42,40 @@ type ExamResult = {
   externalStatus?: string | null
   openRevision?: boolean | null
   checkinAt?: string | null
+  examDate?: string | null
   completedAt?: string | null
   createdAt?: string
   exam?: {
     id: string
-    results?: Array<{
-      inputanId: string
-      valueString?: string | null
-      valueNumber?: number | null
-      valueSelected?: string | null
-      valueCalculated?: number | null
-      grading?: 'NORMAL' | 'ABNORMAL_INC' | 'ABNORMAL_DEC' | null
-    }>
   } | null
-  workHistory?: Array<{
-    timestamp: string
-    action: string
-    actor?: string | null
-    details?: string | null
-  }>
 }
 
-type ExamResultRow = {
-  firstExamItemId?: string | null
+type StatusGroupKey = 'all' | 'needs_action' | 'pending_approval' | 'returned' | 'external' | 'approved'
+type StatusGroup = Exclude<StatusGroupKey, 'all'>
+
+type ExamGroup = {
   examId: string
-  queueCode?: string | null
-  patient?: Patient | null
-  itemNames?: string[]
-  itemCount?: number
-  departments?: Department[]
-  roomTypes?: Department[]
-  resultTiming?: 'inline' | 'deferred' | null
-  status?: string | null
-  departmentResultStatus?: string | null
+  registrationNo: string
+  patient: Patient | null
+  items: ExamResult[]
+  submittedCount: number
+  approvedCount: number
+  departments: Department[]
+  status: string
+  statusGroup: StatusGroup
+  examDate?: string | null
   checkinAt?: string | null
 }
+
+type ItemSection = {
+  key: string
+  sampleCode: string | null
+  sampleName: string | null
+  items: ExamResult[]
+}
+
+const PAGE_SIZE = 100
+const MAX_ROWS = 2000
 
 const api = useApi()
 const router = useRouter()
@@ -117,40 +84,27 @@ const toast = useToast()
 const { isExternalDoctor, allowedResultDepartments, isSuperAdmin } = await useCurrentUser()
 const { roomTypes, pending: roomTypesPending } = await useRoomTypes()
 
-// State
 const loading = ref(false)
 const results = ref<ExamResult[]>([])
+const serverTotal = ref(0)
+const truncated = ref(false)
 
-// Filters
 const departmentFilter = ref<string>('all')
 const roomTypeFilter = ref<string>('all')
-const statusFilter = ref<'pending' | 'completed' | 'all'>('all')
+const statusGroup = ref<StatusGroupKey>('all')
 const resultTypeFilter = ref<'inline' | 'deferred' | 'all'>('all')
 const dateFromFilter = ref<string>('')
 const dateToFilter = ref<string>('')
 const searchQuery = ref<string>('')
 
-// Pagination
 const page = ref(1)
 const limit = ref(10)
-const total = ref(0)
+const filtersOpen = ref(false)
+const expandedGroups = ref<string[]>([])
 
-// Departments list
 const departments = ref<Department[]>([])
 const departmentsLoading = ref(false)
 
-const departmentItems = computed(() => [
-  { label: 'All Departments', value: 'all' },
-  ...departments.value.map(d => ({ label: d.name, value: d.id }))
-])
-
-const roomTypeItems = computed(() => [
-  { label: 'All Room Types', value: 'all' },
-  ...roomTypes.value.map(roomType => ({
-    label: `${roomType.code} - ${roomType.name}`,
-    value: roomType.id
-  }))
-])
 const initialExamId = ref('')
 const initialRegistrationId = ref('')
 const isBootstrapping = ref(true)
@@ -165,6 +119,44 @@ const menuDepartmentCodes: Record<string, string> = {
   dental: 'DENTAL'
 }
 
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+let loadToken = 0
+
+const departmentItems = computed(() => [
+  { label: 'All Departments', value: 'all' },
+  ...departments.value.map(department => ({ label: department.name, value: department.id }))
+])
+
+const roomTypeItems = computed(() => [
+  { label: 'All Room Types', value: 'all' },
+  ...roomTypes.value.map(roomType => ({
+    label: `${roomType.code} - ${roomType.name}`,
+    value: roomType.id
+  }))
+])
+
+const statusGroupOrder: StatusGroup[] = ['needs_action', 'pending_approval', 'returned', 'external', 'approved']
+
+const dateRangeInvalid = computed(() => Boolean(
+  dateFromFilter.value
+  && dateToFilter.value
+  && dateFromFilter.value > dateToFilter.value
+))
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (departmentFilter.value !== 'all') count++
+  if (roomTypeFilter.value !== 'all') count++
+  if (resultTypeFilter.value !== 'all') count++
+  if (statusGroup.value !== 'all') count++
+  if (dateFromFilter.value) count++
+  if (dateToFilter.value) count++
+  if (searchQuery.value.trim()) count++
+  return count
+})
+
+const showDepartmentColumn = computed(() => departmentFilter.value === 'all' && !menuDepartmentCode.value)
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
@@ -177,15 +169,14 @@ function formatPatientName(patient?: Patient | null) {
   if (!patient) return '-'
   return [patient.firstName, patient.middleName, patient.lastName]
     .filter(Boolean)
-    .join(' ')
+    .join(' ') || '-'
 }
 
-function formatDateTime(dateString?: string | null) {
+function formatDate(dateString?: string | null) {
   if (!dateString) return '-'
-  return new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  }).format(new Date(dateString))
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(date)
 }
 
 function getStatusColor(status?: string) {
@@ -220,34 +211,23 @@ function getStatusLabel(status?: string) {
   return status || '-'
 }
 
-// Status per item: pakai status item bila belum disubmit; bila sudah disubmit,
-// LAB mengikuti status approval department-nya; non-LAB per-item (approve 1
-// item = final, tanpa menunggu item lain).
 function getRowStatus(result: ExamResult) {
   const itemStatus = result.resultStatus
   if (!itemStatus) return result.departmentResultStatus || result.status || ''
-  // Item external: status assignment menang walau resultStatus sudah SUBMITTED
-  // (mis. item pernah disubmit internal lalu ditugaskan ke dokter luar).
   if (result.isExternalResult) {
     if (result.externalStatus === 'PROCESSING') return 'EXTERNAL_PROCESSING'
     if (result.externalStatus === 'ASSIGNED') {
       return result.openRevision ? 'EXTERNAL_RETURNED' : 'EXTERNAL_ASSIGNED'
     }
   }
-  // Belum submit → status item apa adanya (Ready/Draft/Returned/Not Ready).
   if (itemStatus !== 'SUBMITTED') return itemStatus
 
   const departmentStatus = result.departmentResultStatus
-  // Approval per item: badge "Approved"/"Sent to Doctor" hanya untuk item yang
-  // benar di-approve, walau department sudah DEPARTMENT_APPROVED/SUBMITTED_TO_DOCTOR.
   if (result.itemApproved) {
     return departmentStatus === 'SUBMITTED_TO_DOCTOR' ? 'SUBMITTED_TO_DOCTOR' : 'DEPARTMENT_APPROVED'
   }
   const isLabRow = String(result.item?.department?.code ?? '').toUpperCase() === 'LAB'
-  // Non-LAB per-item: item SUBMITTED yang belum approved = Pending Approval.
   if (!isLabRow) return 'SUBMITTED'
-  // Item SUBMITTED di department LAB yang di-return: tandai sebagai "Dept Returned"
-  // (menunggu dept resubmit) — bedakan dari item yang benar di-return.
   if (departmentStatus === 'RETURNED_TO_DEPARTMENT') return 'DEPARTMENT_RETURNED'
   return departmentStatus || 'SUBMITTED'
 }
@@ -258,20 +238,9 @@ function getTypeLabel(type?: string) {
   return '-'
 }
 
-function getDepartmentLabel(dept?: Department | null) {
-  if (!dept) return '-'
-  return `${dept.code} - ${dept.name}`
-}
-
-function getResultDate(result: ExamResult) {
-  const source = result.checkinAt || result.createdAt || ''
-  const date = new Date(source)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  return date.toISOString().slice(0, 10)
+function getDepartmentLabel(department?: Department | null) {
+  if (!department) return '-'
+  return `${department.code} - ${department.name}`
 }
 
 function getQueryValue(value: unknown) {
@@ -280,41 +249,221 @@ function getQueryValue(value: unknown) {
   return ''
 }
 
-function isStatusMatchFilter(filter: string, status?: string | null) {
-  const norm = (status || '').trim()
-  const completed = ['completed', 'DEPARTMENT_APPROVED', 'SUBMITTED_TO_DOCTOR'].includes(norm)
-  if (filter === 'completed') return completed
-  if (filter === 'pending') return !completed
-  return true
+function statusGroupOf(status?: string | null): StatusGroup {
+  const normalized = String(status ?? '').toUpperCase()
+  if (normalized === 'EXTERNAL_ASSIGNED' || normalized === 'EXTERNAL_PROCESSING') return 'external'
+  if (
+    normalized === 'RETURNED'
+    || normalized === 'DEPARTMENT_RETURNED'
+    || normalized === 'RETURNED_TO_DEPARTMENT'
+    || normalized === 'EXTERNAL_RETURNED'
+  ) {
+    return 'returned'
+  }
+  if (
+    normalized === 'SUBMITTED'
+    || normalized === 'DEPARTMENT_REVIEW'
+    || normalized === 'PARTIAL'
+    || normalized === 'PENDING'
+  ) {
+    return 'pending_approval'
+  }
+  if (
+    normalized === 'DEPARTMENT_APPROVED'
+    || normalized === 'SUBMITTED_TO_DOCTOR'
+    || normalized === 'COMPLETED'
+  ) {
+    return 'approved'
+  }
+  return 'needs_action'
+}
+
+const groupStatusPriority = [
+  'EXTERNAL_RETURNED',
+  'RETURNED',
+  'RETURNED_TO_DEPARTMENT',
+  'DEPARTMENT_RETURNED',
+  'SUBMITTED',
+  'DEPARTMENT_REVIEW',
+  'PARTIAL',
+  'EXTERNAL_ASSIGNED',
+  'EXTERNAL_PROCESSING',
+  'NOT_READY',
+  'DRAFT',
+  'READY',
+  'DEPARTMENT_APPROVED',
+  'SUBMITTED_TO_DOCTOR',
+  'completed',
+  'pending'
+]
+
+function combineGroupStatus(items: ExamResult[]) {
+  const statuses = items.map(item => getRowStatus(item))
+  for (const candidate of groupStatusPriority) {
+    if (statuses.includes(candidate)) return candidate
+  }
+  return statuses[0] ?? 'NOT_READY'
+}
+
+const groups = computed<ExamGroup[]>(() => {
+  const grouped = new Map<string, ExamResult[]>()
+  for (const result of results.value) {
+    const key = result.exam?.id || result.queueEntryId || result.registrationNo || result.id
+    const bucket = grouped.get(key)
+    if (bucket) bucket.push(result)
+    else grouped.set(key, [result])
+  }
+
+  return [...grouped.entries()].map(([examId, items]) => {
+    const first = items[0] as ExamResult
+    const status = combineGroupStatus(items)
+    const departmentMap = new Map<string, Department>()
+    for (const item of items) {
+      if (item.item?.department?.id) {
+        departmentMap.set(item.item.department.id, item.item.department)
+      }
+    }
+    return {
+      examId,
+      registrationNo: first.registrationNo || first.queueCode || '-',
+      patient: first.patient ?? null,
+      items,
+      submittedCount: items.filter(item => item.resultStatus === 'SUBMITTED').length,
+      approvedCount: items.filter((item) => {
+        const rowStatus = getRowStatus(item)
+        return rowStatus === 'DEPARTMENT_APPROVED' || rowStatus === 'SUBMITTED_TO_DOCTOR'
+      }).length,
+      departments: [...departmentMap.values()],
+      status,
+      statusGroup: statusGroupOf(status),
+      examDate: first.examDate ?? null,
+      checkinAt: first.checkinAt ?? first.createdAt ?? null
+    }
+  })
+})
+
+const statusCounts = computed<Record<StatusGroupKey, number>>(() => {
+  const counts: Record<StatusGroupKey, number> = {
+    all: 0,
+    needs_action: 0,
+    pending_approval: 0,
+    returned: 0,
+    external: 0,
+    approved: 0
+  }
+  for (const group of groups.value) {
+    counts.all++
+    counts[group.statusGroup]++
+  }
+  return counts
+})
+
+const statusTabs = computed(() => {
+  const labels: Record<StatusGroupKey, string> = {
+    all: 'All',
+    needs_action: 'Needs action',
+    pending_approval: 'Pending approval',
+    returned: 'Returned',
+    external: 'External',
+    approved: 'Approved'
+  }
+  return (['all', ...statusGroupOrder] as StatusGroupKey[]).map(key => ({
+    key,
+    label: labels[key],
+    count: statusCounts.value[key]
+  }))
+})
+
+const filteredGroups = computed(() => statusGroup.value === 'all'
+  ? groups.value
+  : groups.value.filter(group => group.statusGroup === statusGroup.value))
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredGroups.value.length / limit.value)))
+
+const pageStart = computed(() => filteredGroups.value.length ? (page.value - 1) * limit.value + 1 : 0)
+const pageEnd = computed(() => Math.min(page.value * limit.value, filteredGroups.value.length))
+
+const pagedGroups = computed(() => {
+  const start = (page.value - 1) * limit.value
+  return filteredGroups.value.slice(start, start + limit.value)
+})
+
+function progressPercent(group: ExamGroup) {
+  if (!group.items.length) return 0
+  return Math.round((group.submittedCount / group.items.length) * 100)
+}
+
+function groupPrimaryItem(group: ExamGroup) {
+  const actionable = group.items.find((item) => {
+    const key = statusGroupOf(getRowStatus(item))
+    return key === 'needs_action' || key === 'returned' || key === 'external'
+  })
+  if (actionable) return actionable
+  return group.items.find(item => statusGroupOf(getRowStatus(item)) === 'pending_approval') ?? group.items[0]
+}
+
+function itemSections(group: ExamGroup): ItemSection[] {
+  const sections: ItemSection[] = []
+  const sectionMap = new Map<string, ItemSection>()
+  for (const item of group.items) {
+    const sampleCode = item.item?.sampleCode ?? null
+    const sampleName = item.item?.sampleName ?? null
+    const key = `${sampleCode ?? ''}|${sampleName ?? ''}`
+    let section = sectionMap.get(key)
+    if (!section) {
+      section = { key: `section-${sections.length}`, sampleCode, sampleName, items: [] }
+      sectionMap.set(key, section)
+      sections.push(section)
+    }
+    section.items.push(item)
+  }
+  return sections
+}
+
+function toggleGroup(examId: string) {
+  const index = expandedGroups.value.indexOf(examId)
+  if (index >= 0) expandedGroups.value.splice(index, 1)
+  else expandedGroups.value.push(examId)
+}
+
+function isExpanded(examId: string) {
+  return expandedGroups.value.includes(examId)
 }
 
 function applyRouteFilters() {
-  const departmentId = getQueryValue(route.query.departmentId)
   const department = getQueryValue(route.query.department).toLowerCase()
-  const status = getQueryValue(route.query.status)
+  const departmentId = getQueryValue(route.query.departmentId)
   const resultTiming = getQueryValue(route.query.resultTiming)
-  const roomTypeId = getQueryValue(route.query.roomTypeId)
-  const examId = getQueryValue(route.query.examId)
-  const registrationId = getQueryValue(route.query.registrationId)
+  const requestedStatusGroup = getQueryValue(route.query.statusGroup)
+  const requestedPage = Number(getQueryValue(route.query.page))
 
+  menuDepartmentCode.value = menuDepartmentCodes[department] ?? null
   departmentFilter.value = departmentId || 'all'
-  menuDepartmentCode.value = menuDepartmentCodes[department] || null
-  statusFilter.value = status === 'pending' || status === 'completed' ? status : 'all'
-  resultTypeFilter.value = resultTiming === 'inline' || resultTiming === 'deferred'
-    ? resultTiming
+  roomTypeFilter.value = getQueryValue(route.query.roomTypeId) || 'all'
+  resultTypeFilter.value = resultTiming === 'inline' || resultTiming === 'deferred' ? resultTiming : 'all'
+  statusGroup.value = ['needs_action', 'pending_approval', 'returned', 'external', 'approved'].includes(requestedStatusGroup)
+    ? requestedStatusGroup as StatusGroupKey
     : 'all'
-  roomTypeFilter.value = roomTypeId || 'all'
-  initialExamId.value = examId
-  initialRegistrationId.value = registrationId
+  dateFromFilter.value = getQueryValue(route.query.dateFrom)
+  dateToFilter.value = getQueryValue(route.query.dateTo)
+  searchQuery.value = getQueryValue(route.query.search)
+  page.value = Number.isFinite(requestedPage) && requestedPage > 0 ? Math.floor(requestedPage) : 1
+  initialExamId.value = getQueryValue(route.query.examId)
+  initialRegistrationId.value = getQueryValue(route.query.registrationId)
 }
 
 function applyMenuDepartmentSelection() {
   if (!menuDepartmentCode.value) return
-
   const matched = departments.value.find(
     department => department.code.toUpperCase() === menuDepartmentCode.value
   )
   departmentFilter.value = matched?.id || 'all'
+}
+
+function updateMenuDepartmentFromSelection() {
+  const selected = departments.value.find(department => department.id === departmentFilter.value)
+  const selectedCode = selected?.code?.toUpperCase() || ''
+  menuDepartmentCode.value = Object.values(menuDepartmentCodes).includes(selectedCode) ? selectedCode : null
 }
 
 function syncRouteFilters() {
@@ -324,77 +473,20 @@ function syncRouteFilters() {
   )?.[0]
 
   if (menuDepartment) query.department = menuDepartment
-  else if (departmentFilter.value && departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
+  else if (departmentFilter.value !== 'all') query.departmentId = departmentFilter.value
   if (roomTypeFilter.value !== 'all') query.roomTypeId = roomTypeFilter.value
-  if (statusFilter.value !== 'all') query.status = statusFilter.value
+  if (statusGroup.value !== 'all') query.statusGroup = statusGroup.value
   if (resultTypeFilter.value !== 'all') query.resultTiming = resultTypeFilter.value
   if (dateFromFilter.value) query.dateFrom = dateFromFilter.value
   if (dateToFilter.value) query.dateTo = dateToFilter.value
+  if (searchQuery.value.trim()) query.search = searchQuery.value.trim()
+  if (page.value > 1) query.page = String(page.value)
   if (initialExamId.value) query.examId = initialExamId.value
   if (initialRegistrationId.value) query.registrationId = initialRegistrationId.value
 
   void router.replace({ query })
 }
 
-// Computed filters
-const filteredResults = computed(() => {
-  return (results.value || []).filter((result) => {
-    // Department filter
-    if (departmentFilter.value && departmentFilter.value !== 'all') {
-      if (result.item?.department?.id !== departmentFilter.value) return false
-    } else if (
-      menuDepartmentCode.value
-      && result.item?.department?.code?.toUpperCase() !== menuDepartmentCode.value
-    ) {
-      return false
-    }
-
-    if (roomTypeFilter.value !== 'all' && result.item?.roomType?.id !== roomTypeFilter.value) {
-      return false
-    }
-
-    // Status filter
-    if (statusFilter.value !== 'all' && !isStatusMatchFilter(statusFilter.value, getRowStatus(result))) {
-      return false
-    }
-
-    // Result type filter
-    if (resultTypeFilter.value !== 'all' && result.resultTiming !== resultTypeFilter.value) {
-      return false
-    }
-
-    // Date filters
-    if (dateFromFilter.value) {
-      const resultDate = getResultDate(result)
-      if (resultDate < dateFromFilter.value) return false
-    }
-
-    if (dateToFilter.value) {
-      const resultDate = getResultDate(result)
-      if (resultDate > dateToFilter.value) return false
-    }
-
-    // Search filter
-    if (searchQuery.value) {
-      const query = searchQuery.value.toLowerCase()
-      const patientName = formatPatientName(result.patient).toLowerCase()
-      const patientId = result.patient?.PatientId?.toLowerCase() || ''
-      const queueCode = result.queueCode?.toLowerCase() || ''
-      const itemName = result.item?.name?.toLowerCase() || ''
-
-      if (!patientName.includes(query)
-        && !patientId.includes(query)
-        && !queueCode.includes(query)
-        && !itemName.includes(query)) {
-        return false
-      }
-    }
-
-    return true
-  })
-})
-
-// Load departments
 async function loadDepartments() {
   departmentsLoading.value = true
   try {
@@ -419,152 +511,79 @@ async function loadDepartments() {
   }
 }
 
-// Load exam results
-function onPageSizeChange(value: string | null) {
-  const size = Number(value)
-  if (!size) return
-  limit.value = size
-  page.value = 1
-  loadResults()
-}
+function buildListParams() {
+  const params: Record<string, unknown> = { view: 'list' }
 
-// Satu baris per exam_id (department dokter).
-function mapExamRow(row: ExamResultRow): ExamResult {
-  const names: string[] = Array.isArray(row.itemNames) ? row.itemNames : []
-  const itemLabel = names.length
-    ? `${names.slice(0, 3).join(', ')}${(row.itemCount ?? 0) > 3 ? ` +${(row.itemCount ?? 0) - 3}` : ''}`
-    : '-'
-  return {
-    id: row.firstExamItemId ?? row.examId,
-    queueCode: row.queueCode ?? '-',
-    queueEntryId: row.examId,
-    patient: row.patient ?? null,
-    item: {
-      id: row.examId,
-      name: itemLabel,
-      code: row.itemCount ? `${row.itemCount} items` : null,
-      department: row.departments?.[0] ?? null,
-      roomType: row.roomTypes?.[0] ?? null
-    },
-    resultTiming: row.resultTiming ?? undefined,
-    status: row.status === 'pending' ? 'pending' : 'completed',
-    departmentResultStatus: row.departmentResultStatus ?? null,
-    checkinAt: row.checkinAt ?? null,
-    createdAt: row.checkinAt ?? undefined,
-    exam: { id: row.examId }
+  if (departmentFilter.value !== 'all') {
+    params.departmentId = departmentFilter.value
+  } else if (menuDepartmentCode.value) {
+    params.departmentCode = menuDepartmentCode.value
   }
+
+  if (roomTypeFilter.value !== 'all') params.roomTypeId = roomTypeFilter.value
+  if (resultTypeFilter.value !== 'all') params.resultTiming = resultTypeFilter.value
+  if (dateFromFilter.value) params.dateFrom = dateFromFilter.value
+  if (dateToFilter.value) params.dateTo = dateToFilter.value
+  if (searchQuery.value.trim()) params.search = searchQuery.value.trim()
+  if (initialExamId.value) params.examId = initialExamId.value
+  if (initialRegistrationId.value) params.registrationId = initialRegistrationId.value
+
+  return params
 }
 
 async function loadResults() {
+  const token = ++loadToken
   loading.value = true
   try {
-    // [Group by exam] Department dokter tampil satu baris per exam_id.
-    const groupByExam = menuDepartmentCode.value === 'DOK'
-    const isLabGroupFetch = menuDepartmentCode.value === 'LAB'
+    const params = buildListParams()
+    const collected: ExamResult[] = []
+    let total = 0
+    let fetchPage = 1
 
-    const params: Record<string, unknown> = {
-      page: isLabGroupFetch ? 1 : page.value,
-      limit: isLabGroupFetch ? 100 : limit.value
+    while (collected.length < MAX_ROWS) {
+      const res = await api.get('/mcu/exams/results', {
+        params: { ...params, page: fetchPage, limit: PAGE_SIZE }
+      })
+      const payload = res.data?.data ?? res.data
+      const rows: ExamResult[] = Array.isArray(payload) ? payload : (payload?.data ?? [])
+      const meta = res.data?.meta ?? payload?.meta ?? {}
+
+      total = Number(meta.total ?? rows.length)
+      collected.push(...rows)
+
+      if (rows.length < PAGE_SIZE || collected.length >= total) break
+      fetchPage++
     }
 
-    if (groupByExam) {
-      params.groupBy = 'exam'
-      params.scope = 'false'
-    } else {
-      // view=list → BE pakai query ringan (hanya field tabel, tanpa inputans/results).
-      params.view = 'list'
-    }
+    if (token !== loadToken) return
 
-    if (departmentFilter.value && departmentFilter.value !== 'all') {
-      params.departmentId = departmentFilter.value
-    } else if (menuDepartmentCode.value) {
-      params.departmentCode = menuDepartmentCode.value
-    }
-
-    if (roomTypeFilter.value !== 'all') {
-      params.roomTypeId = roomTypeFilter.value
-    }
-
-    if (resultTypeFilter.value !== 'all') {
-      params.resultTiming = resultTypeFilter.value
-    }
-
-    if (dateFromFilter.value) {
-      params.dateFrom = dateFromFilter.value
-    }
-
-    if (dateToFilter.value) {
-      params.dateTo = dateToFilter.value
-    }
+    serverTotal.value = total
+    truncated.value = collected.length >= MAX_ROWS && total > collected.length
+    results.value = collected.slice(0, MAX_ROWS)
 
     if (initialExamId.value) {
-      params.examId = initialExamId.value
-    }
-
-    if (initialRegistrationId.value) {
-      params.registrationId = initialRegistrationId.value
-    }
-
-    if (isLabGroupFetch) {
-      const all: ExamResult[] = []
-      for (let fetchPage = 1; fetchPage <= 50; fetchPage++) {
-        const res = await api.get('/mcu/exams/results', { params: { ...params, page: fetchPage, limit: 100 } })
-        const payload = res.data?.data ?? res.data
-        const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
-        const meta = res.data?.meta ?? {}
-        all.push(...rows)
-        const serverTotal = Number(meta.total ?? all.length)
-        if (rows.length < 100 || all.length >= serverTotal) break
+      const matched = results.value.find(result => result.exam?.id === initialExamId.value)
+      if (matched) {
+        initialExamId.value = ''
+        void viewDetail(matched)
       }
-      results.value = all
-      total.value = all.length
-      return
-    }
-
-    const res = await api.get('/mcu/exams/results', { params })
-    const payload = res.data?.data ?? res.data
-    const meta = res.data?.meta ?? {}
-
-    if (groupByExam) {
-      const rows = Array.isArray(payload) ? payload : (payload?.data ?? [])
-      results.value = rows.map(mapExamRow)
-      total.value = Number(meta.total ?? rows.length)
-    } else if (Array.isArray(payload)) {
-      results.value = payload
-      total.value = meta.total ?? payload.length
-    } else if (payload?.data) {
-      results.value = payload.data
-      total.value = payload.total || 0
-    } else {
-      results.value = []
-      total.value = 0
     }
   } catch (error) {
+    if (token !== loadToken) return
+    results.value = []
+    serverTotal.value = 0
+    truncated.value = false
     toast.add({
       title: 'Failed to load results',
       description: getErrorMessage(error, 'Could not load exam results'),
       color: 'error'
     })
   } finally {
-    loading.value = false
+    if (token === loadToken) loading.value = false
   }
 }
 
-watch(results, () => {
-  if (!initialExamId.value) return
-
-  const matched = results.value.find(result => result.exam?.id === initialExamId.value)
-  if (matched) {
-    initialExamId.value = ''
-    void viewDetail(matched)
-  }
-}, { immediate: true })
-
-// View detail
 async function viewDetail(result: ExamResult) {
-  // Gunakan department milik baris (bukan filter halaman) agar query detail
-  // selalu konsisten dengan examId & roomTypeId-nya. Key menu (bukan kode) agar
-  // tombol Back di halaman detail kembali dengan filter yang benar.
   const departmentCode = toDepartmentMenuKey(result.item?.department?.code)
     || getQueryValue(route.query.department)
 
@@ -580,99 +599,48 @@ async function viewDetail(result: ExamResult) {
   })
 }
 
-const isLabGroupMode = computed(() => menuDepartmentCode.value === 'LAB')
-const expandedLabGroup = ref<string | null>(null)
-
-type LabGroup = {
-  examId: string
-  queueCode: string
-  patient: Patient | null
-  items: ExamResult[]
-  submittedCount: number
-  groupStatus: string
-  checkinAt?: string | null
+function openGroup(group: ExamGroup) {
+  const target = groupPrimaryItem(group)
+  if (target) void viewDetail(target)
 }
 
-function labGroupStatus(items: ExamResult[]): string {
-  const statuses = items.map(item => item.resultStatus ?? 'NOT_READY')
-  const anySubmitted = statuses.some(s => s === 'SUBMITTED')
-  const allSubmitted = statuses.length > 0 && statuses.every(s => s === 'SUBMITTED')
-  if (allSubmitted) {
-    return items[0]?.departmentResultStatus || 'SUBMITTED'
+function formatInputDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function applyDatePreset(preset: 'today' | '7d' | '30d' | 'month') {
+  const today = new Date()
+  const end = formatInputDate(today)
+
+  if (preset === 'today') {
+    dateFromFilter.value = end
+    dateToFilter.value = end
+    return
   }
-  if (anySubmitted) return 'PARTIAL'
-  if (statuses.includes('RETURNED')) return 'RETURNED'
-  if (statuses.includes('READY')) return 'READY'
-  if (statuses.includes('DRAFT')) return 'DRAFT'
-  return 'NOT_READY'
-}
 
-const labGroups = computed<LabGroup[]>(() => {
-  if (!isLabGroupMode.value) return []
-  const map = new Map<string, ExamResult[]>()
-  for (const result of filteredResults.value) {
-    const key = result.exam?.id || result.queueEntryId || result.id
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(result)
+  if (preset === 'month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1)
+    dateFromFilter.value = formatInputDate(start)
+    dateToFilter.value = end
+    return
   }
-  return [...map.entries()].map(([examId, items]) => ({
-    examId,
-    queueCode: items[0]?.queueCode ?? '-',
-    patient: items[0]?.patient ?? null,
-    items,
-    submittedCount: items.filter(item => item.resultStatus === 'SUBMITTED').length,
-    groupStatus: labGroupStatus(items),
-    checkinAt: items[0]?.checkinAt ?? items[0]?.createdAt ?? null
-  }))
-})
 
-const labGroupsTotal = computed(() => labGroups.value.length)
-const pagedLabGroups = computed(() => {
-  const start = (page.value - 1) * limit.value
-  return labGroups.value.slice(start, start + limit.value)
-})
-const displayTotal = computed(() => isLabGroupMode.value ? labGroupsTotal.value : total.value)
-
-function toggleLabGroup(examId: string) {
-  expandedLabGroup.value = expandedLabGroup.value === examId ? null : examId
+  const start = new Date(today)
+  start.setDate(start.getDate() - (preset === '7d' ? 6 : 29))
+  dateFromFilter.value = formatInputDate(start)
+  dateToFilter.value = end
 }
 
-type LabItemSampleSection = { key: string, sampleCode: string | null, sampleName: string | null, items: ExamResult[] }
-function labItemSampleSections(group: LabGroup): LabItemSampleSection[] {
-  const sections: LabItemSampleSection[] = []
-  const byKey = new Map<string, LabItemSampleSection>()
-  for (const item of group.items) {
-    const sCode = item.item?.sampleCode ?? null
-    const sName = item.item?.sampleName ?? null
-    const key = `${sCode ?? ''}|${sName ?? ''}`
-    let section = byKey.get(key)
-    if (!section) {
-      section = { key: `sample-${sections.length}`, sampleCode: sCode, sampleName: sName, items: [] }
-      byKey.set(key, section)
-      sections.push(section)
-    }
-    section.items.push(item)
-  }
-  return sections
-}
-
-function viewLabGroup(group: LabGroup) {
-  const target = group.items.find(item => item.resultStatus !== 'SUBMITTED') ?? group.items[0]
-  if (!target) return
-  void viewDetail(target)
-}
-
-function changePage(delta: number) {
-  page.value += delta
-  if (!isLabGroupMode.value) loadResults()
-}
-
-// Reset filters
-function resetFilters() {
+async function resetFilters() {
+  if (searchTimer) clearTimeout(searchTimer)
+  isBootstrapping.value = true
   menuDepartmentCode.value = null
   departmentFilter.value = 'all'
   roomTypeFilter.value = 'all'
-  statusFilter.value = 'all'
+  statusGroup.value = 'all'
   resultTypeFilter.value = 'all'
   dateFromFilter.value = ''
   dateToFilter.value = ''
@@ -680,23 +648,50 @@ function resetFilters() {
   initialExamId.value = ''
   initialRegistrationId.value = ''
   page.value = 1
-  syncRouteFilters()
+  expandedGroups.value = []
+  await nextTick()
+  isBootstrapping.value = false
+  await router.replace({ query: {} })
+  await loadResults()
 }
 
-// Watch filters and reload
-watch([departmentFilter, roomTypeFilter, statusFilter, resultTypeFilter, dateFromFilter, dateToFilter], () => {
-  if (isBootstrapping.value || isApplyingMenuDepartment.value) return
+watch(searchQuery, () => {
+  if (isBootstrapping.value) return
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    syncRouteFilters()
+    void loadResults()
+  }, 350)
+})
 
-  const selectedDepartment = departments.value.find(
-    department => department.id === departmentFilter.value
-  )
-  const selectedCode = selectedDepartment?.code.toUpperCase() || null
-  menuDepartmentCode.value = Object.values(menuDepartmentCodes).includes(selectedCode || '')
-    ? selectedCode
-    : null
+watch([departmentFilter, roomTypeFilter, resultTypeFilter, dateFromFilter, dateToFilter], async () => {
+  if (isBootstrapping.value || isApplyingMenuDepartment.value) return
+  if (dateRangeInvalid.value) return
+  updateMenuDepartmentFromSelection()
   page.value = 1
   syncRouteFilters()
-  loadResults()
+  await loadResults()
+})
+
+watch(statusGroup, () => {
+  if (isBootstrapping.value) return
+  page.value = 1
+  syncRouteFilters()
+})
+
+watch(page, () => {
+  if (isBootstrapping.value) return
+  syncRouteFilters()
+})
+
+watch(limit, () => {
+  if (isBootstrapping.value) return
+  page.value = 1
+})
+
+watch(totalPages, (value) => {
+  if (page.value > value) page.value = value
 })
 
 watch(
@@ -709,6 +704,7 @@ watch(
 
     isApplyingMenuDepartment.value = true
     menuDepartmentCode.value = nextDepartmentCode
+    departmentFilter.value = 'all'
     applyMenuDepartmentSelection()
     page.value = 1
     await nextTick()
@@ -717,7 +713,6 @@ watch(
   }
 )
 
-// Load on mount
 onMounted(async () => {
   applyRouteFilters()
   await loadDepartments()
@@ -763,321 +758,391 @@ onMounted(async () => {
           description="Only examinations assigned to your account are shown. Fill in results, save draft, then submit."
         />
 
-        <!-- Filters Section -->
         <UCard class="overflow-hidden border border-default/80 shadow-sm">
           <template #header>
             <div class="flex items-center justify-between gap-3">
-              <h3 class="text-base font-semibold">
-                Filters
-              </h3>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-semibold">
+                  Filters
+                </h3>
+                <UBadge
+                  v-if="activeFilterCount"
+                  :label="String(activeFilterCount)"
+                  color="primary"
+                  variant="subtle"
+                  size="sm"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <UButton
+                  v-if="activeFilterCount"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  @click="resetFilters"
+                >
+                  Reset All
+                </UButton>
+                <UButton
+                  class="md:hidden"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-filter"
+                  :aria-expanded="filtersOpen"
+                  @click="filtersOpen = !filtersOpen"
+                >
+                  {{ filtersOpen ? 'Hide' : 'Show' }}
+                </UButton>
+              </div>
+            </div>
+          </template>
+
+          <div :class="filtersOpen ? 'block' : 'hidden md:block'">
+            <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <UFormField label="Search" class="sm:col-span-2 lg:col-span-1">
+                <div class="flex w-full gap-2">
+                  <UInput
+                    v-model="searchQuery"
+                    placeholder="Patient, reg. no., item..."
+                    icon="i-lucide-search"
+                    class="flex-1"
+                  />
+                  <UButton
+                    v-if="searchQuery"
+                    icon="i-lucide-x"
+                    color="neutral"
+                    variant="soft"
+                    aria-label="Clear search"
+                    @click="searchQuery = ''"
+                  />
+                </div>
+              </UFormField>
+
+              <UFormField v-if="!isExternalDoctor" label="Department">
+                <USelect
+                  v-model="departmentFilter"
+                  :items="departmentItems"
+                  :loading="departmentsLoading"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField v-if="!isExternalDoctor" label="Room Type">
+                <USelect
+                  v-model="roomTypeFilter"
+                  :items="roomTypeItems"
+                  :loading="roomTypesPending"
+                  placeholder="Select room type"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField v-if="!isExternalDoctor" label="Result Type">
+                <USelect
+                  v-model="resultTypeFilter"
+                  :items="[
+                    { label: 'All Types', value: 'all' },
+                    { label: 'Inline', value: 'inline' },
+                    { label: 'Deferred', value: 'deferred' }
+                  ]"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                v-if="!isExternalDoctor"
+                label="Exam Date"
+                class="sm:col-span-2"
+                :error="dateRangeInvalid ? 'From date must be on or before To date.' : undefined"
+              >
+                <div class="flex w-full flex-col gap-2">
+                  <div class="flex w-full gap-2">
+                    <UInput
+                      v-model="dateFromFilter"
+                      type="date"
+                      size="sm"
+                      class="flex-1"
+                      :max="dateToFilter || undefined"
+                      aria-label="From date"
+                    />
+                    <UInput
+                      v-model="dateToFilter"
+                      type="date"
+                      size="sm"
+                      class="flex-1"
+                      :min="dateFromFilter || undefined"
+                      aria-label="To date"
+                    />
+                  </div>
+                  <div class="flex flex-wrap gap-1">
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      @click="applyDatePreset('today')"
+                    >
+                      Today
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      @click="applyDatePreset('7d')"
+                    >
+                      Last 7 days
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      @click="applyDatePreset('30d')"
+                    >
+                      Last 30 days
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      @click="applyDatePreset('month')"
+                    >
+                      This month
+                    </UButton>
+                  </div>
+                </div>
+              </UFormField>
+            </div>
+          </div>
+        </UCard>
+
+        <UCard class="overflow-hidden border border-default/80 shadow-sm">
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold">
+                  Results
+                  <span class="text-sm font-normal text-muted">({{ filteredGroups.length }})</span>
+                </h3>
+                <p class="text-xs text-muted">
+                  {{ results.length }} of {{ serverTotal || results.length }} items loaded
+                </p>
+              </div>
               <UButton
-                v-if="departmentFilter !== 'all' || roomTypeFilter !== 'all' || statusFilter !== 'all' || resultTypeFilter !== 'all' || dateFromFilter || dateToFilter || searchQuery"
+                v-if="activeFilterCount && !loading && results.length"
                 size="xs"
                 color="neutral"
                 variant="ghost"
+                icon="i-lucide-x"
                 @click="resetFilters"
               >
-                Reset All
+                Reset filters
               </UButton>
             </div>
           </template>
 
-          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <!-- Search -->
-            <UFormField label="Search">
-              <UInput
-                v-model="searchQuery"
-                placeholder="Patient, Queue, Item..."
-                icon="i-lucide-search"
-              />
-            </UFormField>
+          <UAlert
+            v-if="truncated"
+            icon="i-lucide-info"
+            color="warning"
+            variant="soft"
+            title="Partial data shown"
+            description="Only the first 2,000 items are loaded. Narrow your filters or search to see the rest."
+            class="mb-4"
+          />
 
-            <!-- Department Filter -->
-            <UFormField v-if="!isExternalDoctor" label="Department">
-              <USelect
-                v-model="departmentFilter"
-                :items="departmentItems"
-                :loading="departmentsLoading"
-              />
-            </UFormField>
-
-            <!-- Room Type Filter -->
-            <UFormField v-if="!isExternalDoctor" label="Room Type">
-              <USelect
-                v-model="roomTypeFilter"
-                :items="roomTypeItems"
-                :loading="roomTypesPending"
-                placeholder="Select room type"
-                class="w-full"
-              />
-            </UFormField>
-            <!-- Status Filter -->
-            <UFormField label="Status">
-              <USelect
-                v-model="statusFilter"
-                :items="[
-                  { label: 'All Statuses', value: 'all' },
-                  { label: 'Pending', value: 'pending' },
-                  { label: 'Completed', value: 'completed' }
-                ]"
-              />
-            </UFormField>
-
-            <!-- Result Type Filter -->
-            <UFormField v-if="!isExternalDoctor" label="Result Type">
-              <USelect
-                v-model="resultTypeFilter"
-                :items="[
-                  { label: 'All Types', value: 'all' },
-                  { label: 'Inline', value: 'inline' },
-                  { label: 'Deferred', value: 'deferred' }
-                ]"
-              />
-            </UFormField>
-
-            <!-- Date Range -->
-            <UFormField v-if="!isExternalDoctor" label="Date Range" class="sm:col-span-2 lg:col-span-2">
-              <div class="flex gap-2 w-full">
-                <UInput
-                  v-model="dateFromFilter"
-                  type="date"
-                  size="sm"
-                  class="flex-1"
-                  placeholder="From"
-                />
-                <UInput
-                  v-model="dateToFilter"
-                  type="date"
-                  size="sm"
-                  class="flex-1"
-                  placeholder="To"
-                />
-              </div>
-            </UFormField>
+          <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+            <button
+              v-for="tab in statusTabs"
+              :key="tab.key"
+              type="button"
+              class="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+              :class="statusGroup === tab.key
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-default/70 text-muted hover:bg-muted/40 hover:text-highlighted'"
+              @click="statusGroup = tab.key"
+            >
+              {{ tab.label }}
+              <span
+                class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                :class="statusGroup === tab.key ? 'bg-primary/15 text-primary' : 'bg-muted text-muted'"
+              >{{ tab.count }}</span>
+            </button>
           </div>
-        </UCard>
-
-        <!-- Results Table -->
-        <UCard class="overflow-hidden border border-default/80 shadow-sm">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="text-base font-semibold">
-                Results
-                <span class="text-sm text-muted">({{ isLabGroupMode ? labGroupsTotal : filteredResults.length }})</span>
-              </h3>
-            </div>
-          </template>
 
           <div v-if="loading" class="space-y-2">
-            <USkeleton v-for="i in 5" :key="i" class="h-12 rounded-lg" />
+            <USkeleton v-for="i in 6" :key="i" class="h-14 rounded-lg" />
           </div>
 
-          <div v-else-if="!filteredResults.length" class="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 p-8 text-center">
+          <div
+            v-else-if="!filteredGroups.length"
+            class="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-default bg-muted/20 p-8 text-center"
+          >
             <UIcon name="i-lucide-inbox" class="mb-3 size-10 text-muted" />
             <h3 class="text-base font-semibold text-highlighted">
               No results found
             </h3>
             <p class="mt-1 max-w-lg text-sm text-muted">
-              {{ isExternalDoctor ? 'No examinations assigned to you yet.' : 'No exam results match your filter criteria. Try adjusting your filters.' }}
+              {{ isExternalDoctor
+                ? 'No examinations assigned to you match these filters.'
+                : 'No exam results match your filter criteria. Try adjusting your filters.' }}
             </p>
+            <UButton
+              class="mt-4"
+              size="sm"
+              color="neutral"
+              variant="soft"
+              @click="resetFilters"
+            >
+              Reset filters
+            </UButton>
           </div>
 
-          <div v-else class="overflow-x-auto">
-            <table class="w-full min-w-[640px]">
+          <div v-else class="hidden overflow-x-auto md:block">
+            <table class="w-full">
               <thead>
                 <tr class="border-b border-default/70 bg-elevated/40">
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Queue Code
+                  <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Patient / Registration No.
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Patient
+                  <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Exam
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Item
+                  <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Progress
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
-                    Department
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden md:table-cell">
-                    {{ isLabGroupMode ? 'Progress' : 'Type' }}
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                     Status
                   </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted hidden lg:table-cell">
-                    Check-in
+                  <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                    Exam Date
                   </th>
-                  <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                     Action
                   </th>
                 </tr>
               </thead>
-              <tbody v-if="!isLabGroupMode" class="divide-y divide-default/50">
-                <tr
-                  v-for="result in filteredResults"
-                  :key="result.id"
-                  class="hover:bg-muted/40 transition"
-                >
-                  <td class="px-4 py-3 text-sm font-medium text-highlighted">
-                    {{ result.queueCode }}
-                  </td>
-                  <td class="px-4 py-3 text-sm">
-                    <div class="flex flex-col gap-1">
-                      <p class="font-medium text-highlighted">
-                        {{ formatPatientName(result.patient) }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        {{ result.patient?.PatientId || '-' }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3 text-sm">
-                    <div class="flex flex-col gap-1">
-                      <p class="font-medium text-highlighted">
-                        {{ result.item?.name || '-' }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        {{ result.item?.code || '-' }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3 text-sm">
-                    <UBadge
-                      :label="getDepartmentLabel(result.item?.department)"
-                      color="neutral"
-                      variant="soft"
-                    />
-                  </td>
-                  <td class="px-4 py-3 text-sm hidden md:table-cell">
-                    <UBadge
-                      :label="getTypeLabel(result.resultTiming)"
-                      :color="result.resultTiming === 'deferred' ? 'primary' : 'success'"
-                      variant="soft"
-                    />
-                  </td>
-                  <td class="px-4 py-3 text-sm">
-                    <UBadge
-                      :label="getStatusLabel(getRowStatus(result))"
-                      :color="getStatusColor(getRowStatus(result))"
-                      variant="subtle"
-                    />
-                  </td>
-                  <td class="px-4 py-3 text-sm text-muted hidden lg:table-cell">
-                    {{ formatDateTime(result.checkinAt || result.createdAt) }}
-                  </td>
-                  <td class="px-4 py-3 text-center">
-                    <UButton
-                      size="xs"
-                      color="primary"
-                      variant="soft"
-                      @click="viewDetail(result)"
-                    >
-                      View
-                    </UButton>
-                  </td>
-                </tr>
-              </tbody>
-              <tbody v-else class="divide-y divide-default/50">
-                <template v-for="group in pagedLabGroups" :key="group.examId">
-                  <tr class="hover:bg-muted/40 transition">
-                    <td class="px-4 py-3 text-sm font-medium text-highlighted">
-                      {{ group.queueCode }}
-                    </td>
-                    <td class="px-4 py-3 text-sm">
-                      <div class="flex flex-col gap-1">
-                        <p class="font-medium text-highlighted">
-                          {{ formatPatientName(group.patient) }}
-                        </p>
-                        <p class="text-xs text-muted">
-                          {{ group.patient?.PatientId || '-' }}
-                        </p>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 text-sm">
-                      <div class="flex flex-col gap-1">
-                        <p class="font-medium text-highlighted">
-                          {{ group.items.length }} pemeriksaan Lab
-                        </p>
-                        <p class="text-xs text-muted">
-                          {{ group.submittedCount }}/{{ group.items.length }} submitted
-                        </p>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 text-sm">
-                      <UBadge
-                        :label="getDepartmentLabel(group.items[0]?.item?.department)"
-                        color="neutral"
-                        variant="soft"
-                      />
-                    </td>
-                    <td class="px-4 py-3 text-sm hidden md:table-cell">
-                      <div class="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                        <div
-                          class="h-full rounded-full bg-primary"
-                          :style="{ width: `${group.items.length ? Math.round((group.submittedCount / group.items.length) * 100) : 0}%` }"
+              <tbody class="divide-y divide-default/50">
+                <template v-for="group in pagedGroups" :key="group.examId">
+                  <tr
+                    class="cursor-pointer transition hover:bg-muted/40"
+                    @click="toggleGroup(group.examId)"
+                  >
+                    <td class="px-3 py-3 text-sm">
+                      <div class="flex items-start gap-2">
+                        <UIcon
+                          :name="isExpanded(group.examId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                          class="mt-0.5 size-4 shrink-0 text-muted"
                         />
+                        <div class="min-w-0">
+                          <p
+                            class="max-w-[200px] truncate font-medium text-highlighted"
+                            :title="formatPatientName(group.patient)"
+                          >
+                            {{ formatPatientName(group.patient) }}
+                          </p>
+                          <p class="whitespace-nowrap text-xs text-muted">
+                            {{ group.patient?.PatientId || '-' }}
+                          </p>
+                          <p class="whitespace-nowrap text-xs text-muted">
+                            {{ group.registrationNo }}
+                          </p>
+                        </div>
                       </div>
                     </td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-3 py-3 text-sm">
+                      <p class="font-medium text-highlighted">
+                        {{ group.items.length }} item{{ group.items.length === 1 ? '' : 's' }}
+                      </p>
+                      <p class="max-w-[220px] truncate text-xs text-muted">
+                        {{ group.items.slice(0, 2).map(item => item.item?.name || '-').join(', ') }}{{ group.items.length > 2 ? ` +${group.items.length - 2}` : '' }}
+                      </p>
+                      <p v-if="showDepartmentColumn" class="max-w-[220px] truncate text-xs text-muted">
+                        {{ group.departments.length ? group.departments.map(department => department.code).join(' · ') : '-' }}
+                      </p>
+                    </td>
+                    <td class="px-3 py-3 text-sm">
+                      <div class="flex items-center gap-2">
+                        <div class="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                          <div
+                            class="h-full rounded-full bg-primary"
+                            :style="{ width: `${progressPercent(group)}%` }"
+                          />
+                        </div>
+                        <span class="text-xs text-muted">{{ progressPercent(group) }}%</span>
+                      </div>
+                      <p class="mt-1 text-xs text-muted">
+                        {{ group.submittedCount }}/{{ group.items.length }} submitted
+                      </p>
+                    </td>
+                    <td class="px-3 py-3 text-sm">
                       <UBadge
-                        :label="getStatusLabel(group.groupStatus)"
-                        :color="getStatusColor(group.groupStatus)"
+                        :label="getStatusLabel(group.status)"
+                        :color="getStatusColor(group.status)"
                         variant="subtle"
                       />
                     </td>
-                    <td class="px-4 py-3 text-sm text-muted hidden lg:table-cell">
-                      {{ formatDateTime(group.checkinAt) }}
+                    <td class="whitespace-nowrap px-3 py-3 text-sm text-muted">
+                      {{ formatDate(group.examDate || group.checkinAt) }}
                     </td>
-                    <td class="px-4 py-3 text-center">
-                      <div class="flex items-center justify-center gap-1">
-                        <UButton
-                          size="xs"
-                          color="primary"
-                          variant="soft"
-                          @click="viewLabGroup(group)"
-                        >
-                          View
-                        </UButton>
+                    <td class="px-3 py-3 text-right" @click.stop>
+                      <UButton
+                        size="xs"
+                        color="primary"
+                        variant="soft"
+                        @click="openGroup(group)"
+                      >
+                        View
+                      </UButton>
+                    </td>
+                  </tr>
+                  <tr v-if="isExpanded(group.examId)">
+                    <td colspan="6" class="bg-muted/20 px-4 py-3">
+                      <div class="flex flex-col gap-3">
+                        <template v-for="section in itemSections(group)" :key="section.key">
+                          <div class="flex flex-col gap-1.5">
+                            <p
+                              v-if="section.sampleCode || section.sampleName"
+                              class="text-[11px] font-bold uppercase tracking-wide text-primary"
+                            >
+                              {{ section.sampleCode }}{{ section.sampleCode && section.sampleName ? ' — ' : '' }}{{ section.sampleName }}
+                            </p>
+                            <button
+                              v-for="item in section.items"
+                              :key="item.id"
+                              type="button"
+                              class="flex items-center justify-between gap-3 rounded-lg border border-default/60 bg-default px-3 py-2 text-left transition hover:bg-muted/40"
+                              @click="viewDetail(item)"
+                            >
+                              <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium text-highlighted">
+                                  {{ item.item?.name || '-' }}
+                                </span>
+                                <span class="block truncate text-xs text-muted">
+                                  {{ item.item?.code || '-' }}
+                                  · {{ getDepartmentLabel(item.item?.department) }}
+                                  · {{ getTypeLabel(item.resultTiming) }}
+                                </span>
+                              </span>
+                              <UBadge
+                                :label="getStatusLabel(getRowStatus(item))"
+                                :color="getStatusColor(getRowStatus(item))"
+                                variant="subtle"
+                                class="shrink-0"
+                              />
+                            </button>
+                          </div>
+                        </template>
                         <UButton
                           size="xs"
                           color="neutral"
                           variant="ghost"
-                          :icon="expandedLabGroup === group.examId ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                          :aria-label="expandedLabGroup === group.examId ? 'Collapse items' : 'Expand items'"
-                          @click="toggleLabGroup(group.examId)"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                  <tr v-if="expandedLabGroup === group.examId">
-                    <td colspan="8" class="bg-muted/20 px-4 py-3">
-                      <div class="flex flex-col gap-2.5">
-                        <template v-for="section in labItemSampleSections(group)" :key="section.key">
-                          <p v-if="section.sampleCode || section.sampleName" class="text-[11px] font-bold uppercase tracking-wide text-primary">
-                            {{ section.sampleCode }}{{ section.sampleCode && section.sampleName ? ' — ' : '' }}{{ section.sampleName }}
-                          </p>
-                          <button
-                            v-for="item in section.items"
-                            :key="item.id"
-                            type="button"
-                            class="flex items-center justify-between gap-3 rounded-lg border border-default/60 bg-default px-3 py-2 text-left hover:bg-muted/40 transition"
-                            @click="viewDetail(item)"
-                          >
-                            <span class="min-w-0">
-                              <span class="block truncate text-sm font-medium text-highlighted">
-                                {{ item.item?.name || '-' }}
-                              </span>
-                              <span class="block text-xs text-muted">
-                                {{ item.item?.code || '-' }}
-                              </span>
-                            </span>
-                            <UBadge
-                              :label="getStatusLabel(getRowStatus(item))"
-                              :color="getStatusColor(getRowStatus(item))"
-                              variant="subtle"
-                            />
-                          </button>
-                        </template>
+                          class="self-start"
+                          icon="i-lucide-chevron-up"
+                          @click="toggleGroup(group.examId)"
+                        >
+                          Collapse
+                        </UButton>
                       </div>
                     </td>
                   </tr>
@@ -1085,42 +1150,139 @@ onMounted(async () => {
               </tbody>
             </table>
           </div>
+
+          <div v-if="!loading && filteredGroups.length" class="space-y-3 md:hidden">
+            <div
+              v-for="group in pagedGroups"
+              :key="group.examId"
+              class="overflow-hidden rounded-xl border border-default/70 bg-default"
+            >
+              <div class="space-y-2 p-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="truncate font-semibold text-highlighted">
+                      {{ formatPatientName(group.patient) }}
+                    </p>
+                    <p class="truncate text-xs text-muted">
+                      {{ group.registrationNo }} · {{ group.patient?.PatientId || '-' }}
+                    </p>
+                  </div>
+                  <UBadge
+                    :label="getStatusLabel(group.status)"
+                    :color="getStatusColor(group.status)"
+                    variant="subtle"
+                    class="shrink-0"
+                  />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                  <span>{{ group.items.length }} item{{ group.items.length === 1 ? '' : 's' }}</span>
+                  <span>·</span>
+                  <span>{{ formatDate(group.examDate || group.checkinAt) }}</span>
+                  <template v-if="group.departments.length">
+                    <span>·</span>
+                    <span>{{ group.departments.map(department => department.code).join(' · ') }}</span>
+                  </template>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      class="h-full rounded-full bg-primary"
+                      :style="{ width: `${progressPercent(group)}%` }"
+                    />
+                  </div>
+                  <span class="text-xs text-muted">{{ progressPercent(group) }}%</span>
+                </div>
+                <p class="text-xs text-muted">
+                  {{ group.submittedCount }}/{{ group.items.length }} submitted · {{ group.approvedCount }} approved
+                </p>
+
+                <div class="flex gap-2 pt-1">
+                  <UButton
+                    block
+                    size="sm"
+                    color="primary"
+                    variant="soft"
+                    @click="openGroup(group)"
+                  >
+                    View result
+                  </UButton>
+                  <UButton
+                    size="sm"
+                    color="neutral"
+                    variant="soft"
+                    :icon="isExpanded(group.examId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    :aria-label="isExpanded(group.examId) ? 'Collapse items' : 'Expand items'"
+                    @click="toggleGroup(group.examId)"
+                  >
+                    Items
+                  </UButton>
+                </div>
+              </div>
+
+              <div v-if="isExpanded(group.examId)" class="space-y-3 border-t border-default/60 p-4">
+                <template v-for="section in itemSections(group)" :key="section.key">
+                  <div class="space-y-1.5">
+                    <p
+                      v-if="section.sampleCode || section.sampleName"
+                      class="text-[11px] font-bold uppercase tracking-wide text-primary"
+                    >
+                      {{ section.sampleCode }}{{ section.sampleCode && section.sampleName ? ' — ' : '' }}{{ section.sampleName }}
+                    </p>
+                    <button
+                      v-for="item in section.items"
+                      :key="item.id"
+                      type="button"
+                      class="flex w-full items-start justify-between gap-3 rounded-lg border border-default/60 bg-elevated/30 px-3 py-2 text-left transition hover:bg-muted/40"
+                      @click="viewDetail(item)"
+                    >
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium text-highlighted">
+                          {{ item.item?.name || '-' }}
+                        </span>
+                        <span class="block truncate text-xs text-muted">
+                          {{ item.item?.code || '-' }} · {{ getTypeLabel(item.resultTiming) }}
+                        </span>
+                      </span>
+                      <UBadge
+                        :label="getStatusLabel(getRowStatus(item))"
+                        :color="getStatusColor(getRowStatus(item))"
+                        variant="subtle"
+                        class="shrink-0"
+                      />
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
         </UCard>
 
-        <!-- Pagination -->
-        <div v-if="filteredResults.length > 0" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default/80 bg-default/50 p-4">
+        <div
+          v-if="filteredGroups.length > 0"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default/80 bg-default/50 p-4"
+        >
           <div class="flex flex-wrap items-center gap-3">
             <USelect
-              :model-value="String(limit)"
-              :items="[{ label: '10 / page', value: '10' }, { label: '20 / page', value: '20' }, { label: '50 / page', value: '50' }]"
+              v-model="limit"
+              :items="[
+                { label: '10 / page', value: 10 },
+                { label: '20 / page', value: 20 },
+                { label: '50 / page', value: 50 }
+              ]"
               class="w-36"
               size="sm"
-              @update:model-value="onPageSizeChange"
             />
             <p class="text-sm text-muted">
-              Showing {{ (page - 1) * limit + 1 }} – {{ Math.min(page * limit, displayTotal) }} of {{ displayTotal }}
+              Showing {{ pageStart }} – {{ pageEnd }} of {{ filteredGroups.length }} exam{{ filteredGroups.length === 1 ? '' : 's' }}
             </p>
           </div>
-          <div class="flex gap-2">
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="soft"
-              :disabled="page === 1"
-              @click="changePage(-1)"
-            >
-              Previous
-            </UButton>
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="soft"
-              :disabled="page * limit >= displayTotal"
-              @click="changePage(1)"
-            >
-              Next
-            </UButton>
-          </div>
+          <UPagination
+            v-model:page="page"
+            :items-per-page="limit"
+            :total="filteredGroups.length"
+          />
         </div>
       </div>
     </template>
