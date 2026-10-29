@@ -6,10 +6,13 @@ type DocumentType = {
   isActive?: boolean
 }
 
+let docTypesReady = false
+let docTypesPromise: Promise<void> | null = null
+
 export function useRoutePermission() {
   const api = useApi()
 
-  const { data: docTypes, pending } = useAsyncData<DocumentType[]>(
+  const { data: docTypes, pending, refresh } = useAsyncData<DocumentType[]>(
     'sidebar-document-types',
     async () => {
       try {
@@ -60,8 +63,34 @@ export function useRoutePermission() {
     return userPermissions.some(p => p.startsWith(`${docType}:`))
   }
 
+  async function ensureDocTypesLoaded() {
+    if (docTypesReady) return
+    if (!docTypesPromise) {
+      docTypesPromise = (async () => {
+        if (!pending.value && !(docTypes.value?.length)) {
+          await refresh()
+        }
+        if (pending.value) {
+          await new Promise<void>((resolve) => {
+            const stop = watch(pending, (value) => {
+              if (!value) {
+                stop()
+                resolve()
+              }
+            })
+          })
+        }
+        docTypesReady = true
+      })().finally(() => {
+        docTypesPromise = null
+      })
+    }
+    await docTypesPromise
+  }
+
   return {
     hasRouteAccess,
+    ensureDocTypesLoaded,
     docTypeKeys,
     pending
   }

@@ -4,10 +4,12 @@ export type MenuItem = NavigationMenuItem
 
 export const restrictedAllowedRoutes: string[] = [
   '/',
+  '/inbox',
   '/rooms/assignments',
   '/rooms/queue',
   '/rooms/sample-reception',
   '/rooms/internal-questionnaires',
+  '/rooms/dental',
   '/result/exam-results',
   '/result/doctor-result',
   '/result/exam-status',
@@ -15,6 +17,7 @@ export const restrictedAllowedRoutes: string[] = [
   '/rooms/queue-work',
   '/outpatient/waiting',
   '/outpatient/queue-list',
+  '/outpatient/encounter',
   '/settings',
   '/settings/roles',
   '/settings/permissions',
@@ -25,10 +28,12 @@ export const restrictedAllowedRoutes: string[] = [
 
 export const frontOfficeAllowedRoutes: string[] = [
   '/',
+  '/inbox',
   '/front-office/registration-temp',
   '/front-office/registration-patient',
   '/front-office/questionnaire-results',
   '/outpatient/waiting',
+  '/outpatient/encounter',
   '/settings',
   '/settings/security',
   '/settings/notifications'
@@ -40,6 +45,7 @@ export const queueSearchAllowedRoutes: string[] = [
 
 export const medicalRecordAllowedRoutes: string[] = [
   '/',
+  '/inbox',
   '/result/mr-review',
   '/settings',
   '/settings/security',
@@ -53,8 +59,31 @@ export function getAllowedRoutes(roleName: string): string[] {
   return restrictedAllowedRoutes
 }
 
+export function isPathAllowed(path: string, allowedRoutes: string[]): boolean {
+  const target = path.split(/[?#]/, 1)[0] || '/'
+  return allowedRoutes.some((route) => {
+    if (route === target) return true
+    if (route === '/') return false
+    return target.startsWith(`${route}/`)
+  })
+}
+
+export function getRoleLandingPath(options: { isExternal?: boolean, roles?: string[] }): string {
+  if (options.isExternal) return '/result/exam-results'
+
+  const roles = options.roles ?? []
+
+  if (roles.includes('queue-search')) return '/queue-search'
+  if (roles.includes('front-office')) return '/front-office/registration-temp'
+  if (roles.includes('medical-record')) return '/result/mr-review'
+  if (roles.some(role => restrictedRoles.includes(role))) return '/rooms/assignments'
+
+  return '/'
+}
+
 export const externalDoctorAllowedRoutes: string[] = [
   '/result/exam-results',
+  '/inbox',
   '/settings',
   '/settings/security'
 ]

@@ -1,7 +1,7 @@
 <!-- app/layouts/default.vue -->
 <script setup lang="ts">
 import type { NavigationMenuItem, CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
-import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
+import { restrictedRoles as restrictedRolesList, getAllowedRoutes, externalDoctorAllowedRoutes, isPathAllowed, roleDefaultDepartment, buildMenuTree } from '~/constants/menu'
 
 const route = useRoute()
 const toast = useToast()
@@ -129,7 +129,7 @@ function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
   return items.reduce<NavigationMenuItem[]>((acc, item) => {
     if (isExternalDoctor.value) {
       const routes = collectItemRoutes(item)
-      const allowed = routes.some(r => externalDoctorAllowedRoutes.includes(r))
+      const allowed = routes.some(r => isPathAllowed(r, externalDoctorAllowedRoutes))
       if (!allowed) return acc
 
       if (item.children) {
@@ -147,7 +147,7 @@ function filterSidebarItems(items: NavigationMenuItem[]): NavigationMenuItem[] {
     if (isRestrictedUser.value) {
       const allowedRoutes = getAllowedRoutes(userRole)
       const routes = collectItemRoutes(item)
-      const allowed = routes.some(r => allowedRoutes.includes(r))
+      const allowed = routes.some(r => isPathAllowed(r, allowedRoutes))
       if (!allowed) return acc
     }
 

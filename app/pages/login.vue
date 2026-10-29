@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
+import { getRoleLandingPath } from '~/constants/menu'
 
 const api = useApi()
 const route = useRoute()
@@ -78,22 +79,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     const roles: string[] = res.data.data.roles ?? []
     const externalRole = 'dokter-external'
     const isExternalDoctor = Boolean(res.data.data.isExternal) || roles.includes(externalRole)
-    const frontOfficeRole = 'front-office'
-    const queueSearchRole = 'queue-search'
-    const medicalRecordRole = 'medical-record'
-    const staffRoles = ['petugas-lab', 'petugas-radiologi', 'dokter', 'nurse', 'dokter-gigi']
 
-    const roleTarget = isExternalDoctor
-      ? '/result/exam-results'
-      : roles.includes(queueSearchRole)
-        ? '/queue-search'
-        : roles.includes(frontOfficeRole)
-          ? '/front-office/registration-temp'
-          : roles.includes(medicalRecordRole)
-            ? '/result/mr-review'
-            : roles.some(r => staffRoles.includes(r))
-              ? '/rooms/assignments'
-              : '/'
+    const roleTarget = getRoleLandingPath({ isExternal: isExternalDoctor, roles })
 
     const redirectQuery = route.query.redirect
       ?? (import.meta.client ? new URLSearchParams(window.location.search).get('redirect') : null)
