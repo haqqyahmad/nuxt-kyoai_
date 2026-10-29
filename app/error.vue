@@ -13,9 +13,9 @@ const backPath = computed(() => {
 })
 
 useSeoMeta({
-  title: () => isForbidden.value ? 'Akses ditolak' : 'Page not found',
+  title: () => isForbidden.value ? 'Access denied' : 'Page not found',
   description: () => isForbidden.value
-    ? 'Anda tidak punya akses ke halaman ini.'
+    ? 'You do not have permission to view this page.'
     : 'We are sorry but this page could not be found.'
 })
 
@@ -40,17 +40,17 @@ function goBack() {
           403
         </p>
         <h1 class="mt-1 text-xl font-semibold text-highlighted">
-          Akses ditolak
+          Access denied
         </h1>
         <p class="mt-2 text-sm text-muted">
-          Anda tidak punya akses ke halaman ini.
+          You do not have permission to view this page.
         </p>
         <UButton
           class="mt-6"
           icon="i-lucide-arrow-left"
           @click="goBack"
         >
-          Kembali
+          Back
         </UButton>
       </UCard>
     </div>
