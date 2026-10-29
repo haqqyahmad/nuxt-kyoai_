@@ -838,7 +838,7 @@ async function saveMedicalNotes() {
 }
 
 const canManageItemActions = computed(() => permissions.value.includes('queue:update'))
-// [Back to Called] Disembunyikan setelah ada item yang mulai dikerjakan.
+// [Cancel Examination] Disembunyikan setelah ada item yang mulai dikerjakan.
 const hasStartedExamItems = computed(() =>
   roomExamItems.value.some(item => item.status && item.status !== 'PENDING')
 )
@@ -2205,7 +2205,7 @@ async function handleCancelStartStage() {
     await loadPage(true)
     toast.add({
       title: 'Success',
-      description: 'Examination cancelled — patient status back to Called.',
+      description: 'Examination cancelled. Patient is back to Called.',
       color: 'success'
     })
   } catch (error: unknown) {
@@ -3091,11 +3091,11 @@ async function handleSubmitItemAction() {
                 color="warning"
                 variant="soft"
                 icon="i-lucide-refresh-cw"
-                title="Back to Called"
+                title="Cancel Examination"
                 :loading="stageActionLoading"
                 @click="handleCancelStartStage"
               >
-                <span class="hidden sm:inline">Back to Called</span>
+                <span class="hidden sm:inline">Cancel Examination</span>
               </UButton>
               <UButton
                 v-if="activeStage && ['CALLED', 'IN_PROGRESS'].includes(activeStage.status) && canFinishWork"
